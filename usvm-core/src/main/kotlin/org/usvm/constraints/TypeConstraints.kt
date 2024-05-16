@@ -105,6 +105,13 @@ class UTypeConstraints<Type>(
     }
 
     /**
+     * Returns type of allocated concrete heap address [ref].
+     */
+    fun typeOf(ref: UConcreteHeapAddress): Type {
+        return concreteRefToType[ref]!!
+    }
+
+    /**
      * Checks that the static ref [staticRef] can be equal by reference to the symbolic ref [symbolicRef]
      * according to their types, i.e., does a [UTypeStream] for the [symbolicRef] `contain` a concrete type of the [staticRef].
      */
