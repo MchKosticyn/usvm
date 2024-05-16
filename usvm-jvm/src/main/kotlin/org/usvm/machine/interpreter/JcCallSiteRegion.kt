@@ -20,14 +20,14 @@ class JcLambdaCallSiteRegionId(private val ctx: JcContext) : UMemoryRegionId<Not
         JcLambdaCallSiteMemoryRegion(ctx)
 }
 
-internal class JcLambdaCallSiteMemoryRegion(
+internal open class JcLambdaCallSiteMemoryRegion(
     private val ctx: JcContext,
     private val callSites: PersistentMap<UConcreteHeapAddress, JcLambdaCallSite> = persistentHashMapOf()
 ) : UMemoryRegion<Nothing, UAddressSort> {
-    fun writeCallSite(callSite: JcLambdaCallSite) =
+    open fun writeCallSite(callSite: JcLambdaCallSite) =
         JcLambdaCallSiteMemoryRegion(ctx, callSites.put(callSite.ref.address, callSite))
 
-    fun findCallSite(ref: UConcreteHeapRef): JcLambdaCallSite? = callSites[ref.address]
+    open fun findCallSite(ref: UConcreteHeapRef): JcLambdaCallSite? = callSites[ref.address]
 
     override fun read(key: Nothing): UExpr<UAddressSort> {
         error("Unsupported operation for call site region")

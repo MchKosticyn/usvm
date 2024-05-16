@@ -44,7 +44,7 @@ data class JcStaticFieldRegionId<Sort : USort>(
     override fun emptyRegion(): UMemoryRegion<JcStaticFieldLValue<Sort>, Sort> = JcStaticFieldsMemoryRegion(sort)
 }
 
-internal class JcStaticFieldsMemoryRegion<Sort : USort>(
+internal open class JcStaticFieldsMemoryRegion<Sort : USort>(
     private val sort: Sort,
     private var fieldValuesByClass: PersistentMap<JcClassOrInterface, PersistentMap<JcField, UExpr<Sort>>> = persistentHashMapOf(),
     private var initialStatics: PersistentList<JcField> = persistentListOf()

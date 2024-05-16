@@ -172,7 +172,7 @@ object Reflection {
     private fun JcMethod.toJavaConstructor(classLoader: ClassLoader): Constructor<*> {
         require(isConstructor) { "Can't convert not constructor to constructor" }
         val klass = Class.forName(enclosingClass.name, true, classLoader)
-        return klass.constructors
+        return (klass.constructors + klass.declaredConstructors)
             .find { it.jcdbSignature == this.jcdbSignature }
             ?: error("Can't find constructor")
     }

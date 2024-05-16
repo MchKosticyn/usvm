@@ -267,11 +267,23 @@ class JcInterpreter(
                 }
             }
 
+            is JcConcreteInvocationResult -> {
+                scope.calcOnState { skipMethodInvocationWithValue(stmt, stmt.returnExpr) }
+            }
+
             is JcConcreteMethodCallInst -> {
                 observer?.onMethodCallWithResolvedArguments(simpleValueResolver, stmt, scope)
-                if (approximateMethod(scope, stmt)) {
+
+                if (scope.calcOnState { memory.tryConcreteInvoke(stmt, this, exprResolver) }) {
                     return
                 }
+
+                if (approximateMethod(scope, stmt)) {
+                    println("\u001B[31m" + "Approximated ${stmt.method.humanReadableSignature}" + "\u001B[0m")
+                    return
+                }
+
+                println("\u001B[31m" + "Calling ${stmt.method.humanReadableSignature}" + "\u001B[0m")
 
                 val entryPoint = applicationGraph.entryPoints(method).singleOrNull()
 
@@ -302,17 +314,26 @@ class JcInterpreter(
             is JcVirtualMethodCallInst -> {
                 observer?.onMethodCallWithResolvedArguments(simpleValueResolver, stmt, scope)
 
-                if (approximateMethod(scope, stmt)) {
+                if (scope.calcOnState { memory.tryConcreteInvoke(stmt, this, exprResolver) }) {
                     return
                 }
+
+                if (approximateMethod(scope, stmt)) {
+                    println("\u001B[31m" + "Approximated ${stmt.method.humanReadableSignature}" + "\u001B[0m")
+                    return
+                }
+
+                println("\u001B[31m" + "Calling virtual ${stmt.method.humanReadableSignature}" + "\u001B[0m")
 
                 resolveVirtualInvoke(stmt, scope)
             }
 
             is JcDynamicMethodCallInst -> {
+                println("\u001B[31m" + "Calling dynamic ${stmt.method.humanReadableSignature}" + "\u001B[0m")
                 observer?.onMethodCallWithResolvedArguments(simpleValueResolver, stmt, scope)
 
                 if (approximateMethod(scope, stmt)) {
+                    println("\u001B[31m" + "Approximated ${stmt.method.humanReadableSignature}" + "\u001B[0m")
                     return
                 }
 
@@ -382,7 +403,6 @@ class JcInterpreter(
 
     private fun visitAssignInst(scope: JcStepScope, stmt: JcAssignInst) {
         val exprResolver = exprResolverWithScope(scope)
-
 
         stmt.callExpr?.let {
             val methodResult = scope.calcOnState { methodResult }
