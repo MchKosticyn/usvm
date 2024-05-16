@@ -9,7 +9,7 @@ import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
-import org.usvm.api.allocateArray
+import org.usvm.api.initializeArrayLength
 import org.usvm.language.And
 import org.usvm.language.ArrayCreation
 import org.usvm.language.ArrayEq
@@ -113,7 +113,11 @@ class SampleExprResolver(
                 val size = resolveInt(expr.size) ?: return null
                 checkArrayLength(size, expr.values.size) ?: return null
 
-                val ref = scope.calcOnState { memory.allocateArray(expr.type, sizeSort, size) }
+                val ref = scope.calcOnState {
+                    val arrayRef = memory.allocConcrete(expr.type)
+                    memory.initializeArrayLength(arrayRef, expr.type, sizeSort, size)
+                    arrayRef
+                }
 
                 val cellSort = typeToSort(expr.type.elementType)
 

@@ -9,6 +9,7 @@ import org.usvm.UState
 import org.usvm.api.targets.JcTarget
 import org.usvm.constraints.UPathConstraints
 import org.usvm.machine.JcContext
+import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 import org.usvm.memory.UMemory
 import org.usvm.merging.MutableMergeGuard
 import org.usvm.model.UModelBase
@@ -19,7 +20,7 @@ class JcState(
     override val entrypoint: JcMethod,
     callStack: UCallStack<JcMethod, JcInst> = UCallStack(),
     pathConstraints: UPathConstraints<JcType> = UPathConstraints(ctx),
-    memory: UMemory<JcType, JcMethod> = UMemory(ctx, pathConstraints.typeConstraints),
+    memory: UMemory<JcType, JcMethod> = JcConcreteMemory(ctx, pathConstraints.typeConstraints),
     models: List<UModelBase<JcType>> = listOf(),
     pathNode: PathNode<JcInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),

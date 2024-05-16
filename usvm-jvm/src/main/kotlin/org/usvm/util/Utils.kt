@@ -26,6 +26,15 @@ fun JcContext.extractJcRefType(clazz: KClass<*>): JcRefType = extractJcType(claz
 val JcClassOrInterface.enumValuesField: JcTypedField
     get() = toType().findFieldOrNull("\$VALUES") ?: error("No \$VALUES field found for the enum type $this")
 
+val JcField.typedField: JcTypedField
+    get() =
+        enclosingClass.toType().findFieldOrNull(name)
+            ?: error("Could not find field $this in type $enclosingClass")
+
+fun JcContext.jcTypeOf(obj: Any): JcType {
+    return cp.findType(obj.javaClass.typeName)
+}
+
 @Suppress("UNCHECKED_CAST")
 fun UWritableMemory<*>.write(ref: ULValue<*, *>, value: UExpr<*>) {
     write(ref as ULValue<*, USort>, value as UExpr<USort>, value.uctx.trueExpr)

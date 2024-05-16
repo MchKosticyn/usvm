@@ -70,6 +70,17 @@ data class JcConcreteMethodCallInst(
     override val originalInst: JcInst = returnSite
 }
 
+data class JcConcreteInvocationResult(
+    val returnExpr: UExpr<USort>,
+    private val methodCall: JcMethodCall
+) : JcMethodCallBaseInst, JcMethodCall {
+    override val location = methodCall.location
+    override val method = methodCall.method
+    override val arguments = methodCall.arguments
+    override val returnSite = methodCall.returnSite
+    override val originalInst: JcInst = returnSite
+}
+
 /**
  * Virtual method call instruction.
  * The [method] is virtual and depends on the actual instance type.
