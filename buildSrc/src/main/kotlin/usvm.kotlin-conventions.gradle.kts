@@ -23,19 +23,18 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${Versions.coroutines}")
 
     testImplementation(kotlin("test"))
-
 }
 
 tasks {
     withType<JavaCompile> {
-        sourceCompatibility = JavaVersion.VERSION_1_8.toString()
-        targetCompatibility = JavaVersion.VERSION_1_8.toString()
+        sourceCompatibility = JavaVersion.VERSION_17.toString()
+        targetCompatibility = JavaVersion.VERSION_17.toString()
         options.encoding = "UTF-8"
-        options.compilerArgs = options.compilerArgs + "-Xlint:all" + "-Werror" + "-Xlint:-options"
+        options.compilerArgs = options.compilerArgs + "-Xlint:all" + "-Werror"
     }
     withType<KotlinCompile> {
         kotlinOptions {
-            jvmTarget = JavaVersion.VERSION_1_8.toString()
+            jvmTarget = JavaVersion.VERSION_17.toString()
             freeCompilerArgs = freeCompilerArgs + "-Xallow-result-return-type" + "-Xsam-conversions=class"
             allWarningsAsErrors = true
         }
