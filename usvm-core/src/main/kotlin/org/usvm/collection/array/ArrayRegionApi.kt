@@ -32,7 +32,8 @@ internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<ArrayT
     sizeSort: USizeSort,
     contents: Sequence<UExpr<Sort>>
 ) = elementSort.uctx.withSizeSort {
-    val arrayValues = contents.toList()
+    val arrayValues = hashMapOf<UExpr<USizeSort>, UExpr<Sort>>()
+    contents.forEachIndexed { idx, value -> arrayValues[mkSizeExpr(idx)] = value }
     val arrayLength = mkSizeExpr(arrayValues.size)
     initializeArrayLength(arrayHeapRef, type, sizeSort, arrayLength)
 

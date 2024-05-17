@@ -5,8 +5,9 @@ import io.ksmt.expr.*
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.runBlocking
-import org.jacodb.api.*
-import org.jacodb.api.ext.*
+import org.jacodb.api.jvm.*
+import org.jacodb.api.jvm.ext.isEnum
+import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
@@ -19,7 +20,6 @@ import org.usvm.api.SymbolicList
 import org.usvm.api.SymbolicMap
 import org.usvm.api.encoder.EncoderFor
 import org.usvm.api.encoder.ObjectEncoder
-import org.usvm.api.util.JcClassLoader
 import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.api.util.Reflection.getFieldValue
 import org.usvm.api.util.Reflection.invoke
@@ -64,6 +64,8 @@ import java.util.*
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
+import org.jacodb.api.jvm.ext.*
+import org.usvm.api.util.JcConcreteMemoryClassLoader
 
 //region Physical Address
 
@@ -142,7 +144,7 @@ private fun JcField.getFieldValue(obj: Any): Any? {
         return javaField.getFieldValue(obj)
     }
 
-    return this.getFieldValue(JcClassLoader, obj)
+    return this.getFieldValue(JcConcreteMemoryClassLoader, obj)
 }
 
 private fun Field.setFieldValue(obj: Any, value: Any?) {
@@ -151,7 +153,7 @@ private fun Field.setFieldValue(obj: Any, value: Any?) {
 }
 
 private val JcField.toJavaField: Field?
-    get() = enclosingClass.toType().toJavaClass(JcClassLoader).allFields.find { it.name == name }
+    get() = enclosingClass.toType().toJavaClass(JcConcreteMemoryClassLoader).allFields.find { it.name == name }
 
 private fun JcEnrichedVirtualMethod.getMethod(ctx: JcContext): JcMethod? {
     val originalClassName = OriginalClassName(enclosingClass.name)
@@ -195,7 +197,7 @@ private class JcConcreteMemoryBindings(
     )
 
     init {
-        JcClassLoader.cp = ctx.cp
+        JcConcreteMemoryClassLoader.cp = ctx.cp
     }
 
     //region Helpers
@@ -546,7 +548,7 @@ private class JcConcreteMemoryBindings(
                 val allArgs =
                     if (args == null) closureArgs
                     else closureArgs + args
-                return actualMethod!!.invoke(JcClassLoader, null, allArgs)
+                return actualMethod!!.invoke(JcConcreteMemoryClassLoader, null, allArgs)
             }
 
             val newArgs = args ?: arrayOf()
@@ -557,8 +559,8 @@ private class JcConcreteMemoryBindings(
     private fun createProxy(type: JcClassType): Any {
         assert(type.jcClass.isInterface)
         return Proxy.newProxyInstance(
-            JcClassLoader,
-            arrayOf(type.toJavaClass(JcClassLoader)),
+            JcConcreteMemoryClassLoader,
+            arrayOf(type.toJavaClass(JcConcreteMemoryClassLoader)),
             LambdaInvocationHandler()
         )
     }
@@ -566,10 +568,10 @@ private class JcConcreteMemoryBindings(
     private fun createDefault(type: JcType): Any? {
         try {
             return when (type) {
-                is JcArrayType -> type.allocateInstance(JcClassLoader, 1)
+                is JcArrayType -> type.allocateInstance(JcConcreteMemoryClassLoader, 1)
                 is JcClassType -> {
                     if (type.jcClass.isInterface) createProxy(type)
-                    else type.allocateInstance(JcClassLoader)
+                    else type.allocateInstance(JcConcreteMemoryClassLoader)
                 }
 
                 is JcPrimitiveType -> null
@@ -792,7 +794,7 @@ private class JcConcreteMemoryBindings(
         val arrayType = typeConstraints.typeOf(address)
         arrayType as JcArrayType
         val oldObj = virtToPhys[address]
-        val newObj = arrayType.allocateInstance(JcClassLoader, length)
+        val newObj = arrayType.allocateInstance(JcConcreteMemoryClassLoader, length)
         virtToPhys.remove(address)
         physToVirt.remove(oldObj)
         allocate(address, newObj, arrayType)
@@ -941,7 +943,7 @@ private class JcConcreteFieldRegion<Sort : USort>(
 //    private val isPrimitiveApproximation by lazy { isApproximation && jcField.name == "value" }
     private val sort by lazy { regionId.sort }
     private val typedField: JcTypedField by lazy { jcField.typedField }
-    private val fieldType: JcType by lazy { typedField.fieldType }
+    private val fieldType: JcType by lazy { typedField.type }
     private val isSyntheticClassField: Boolean by lazy { jcField == ctx.classTypeSyntheticField }
 
     private fun writeToBase(
@@ -1094,7 +1096,7 @@ private class JcConcreteArrayRegion<Sort : USort>(
         address: UConcreteHeapAddress,
         arrayType: JcType,
         sort: Sort,
-        content: List<UExpr<Sort>>,
+        content: Map<UExpr<USizeSort>, UExpr<Sort>>,
         operationGuard: UBoolExpr
     ): UArrayRegion<JcType, Sort, USizeSort> {
         if (bindings.contains(address)) {
@@ -1103,9 +1105,10 @@ private class JcConcreteArrayRegion<Sort : USort>(
                     if (arrayType is JcArrayType) arrayType
                     else bindings.typeOf(address) as JcArrayType
                 val elemType = jcArrayType.elementType
-                val elems = content.mapIndexedNotNull { index, value ->
+                val elems = content.mapNotNull { (index, value) ->
+                    val idx = marshall.tryExprToObj(index, ctx.cp.int)
                     val elem = marshall.tryExprToObj(value, elemType)
-                    if (elem.hasValue) index to elem.value
+                    if (idx.hasValue && elem.hasValue) (idx.value as Int) to elem.value
                     else null
                 }
                 if (elems.size == content.size && bindings.initializeArray(address, elems)) {
@@ -1164,7 +1167,7 @@ private class JcConcreteArrayRegion<Sort : USort>(
         address: UConcreteHeapAddress,
         descriptor: JcType,
         forced: Boolean = false,
-        getElems: () -> List<UExpr<Sort>>
+        getElems: () -> Map<UExpr<USizeSort>, UExpr<Sort>>
     ) {
         if (mutatedArrays.contains(address) || forced) {
             val elements = getElems()
@@ -1175,7 +1178,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
     @Suppress("UNCHECKED_CAST")
     fun unmarshallArray(address: UConcreteHeapAddress, obj: Array<*>, desc: JcType, forced: Boolean = false) {
         unmarshallContentsCommon(address, desc, forced) {
-            obj.map { marshall.objToExpr<USort>(it, ctx.cp.objectType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, ctx.cp.objectType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1184,7 +1189,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
         val elemType = ctx.cp.byte
         val desc = ctx.arrayDescriptorOf(ctx.cp.arrayTypeOf(elemType))
         unmarshallContentsCommon(address, desc) {
-            obj.map { marshall.objToExpr<USort>(it, elemType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, elemType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1193,7 +1200,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
         val elemType = ctx.cp.short
         val desc = ctx.arrayDescriptorOf(ctx.cp.arrayTypeOf(elemType))
         unmarshallContentsCommon(address, desc) {
-            obj.map { marshall.objToExpr<USort>(it, elemType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, elemType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1202,7 +1211,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
         val elemType = ctx.cp.char
         val desc = ctx.arrayDescriptorOf(ctx.cp.arrayTypeOf(elemType))
         unmarshallContentsCommon(address, desc) {
-            obj.map { marshall.objToExpr<USort>(it, elemType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, elemType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1211,7 +1222,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
         val elemType = ctx.cp.int
         val desc = ctx.arrayDescriptorOf(ctx.cp.arrayTypeOf(elemType))
         unmarshallContentsCommon(address, desc) {
-            obj.map { marshall.objToExpr<USort>(it, elemType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, elemType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1220,7 +1233,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
         val elemType = ctx.cp.long
         val desc = ctx.arrayDescriptorOf(ctx.cp.arrayTypeOf(elemType))
         unmarshallContentsCommon(address, desc) {
-            obj.map { marshall.objToExpr<USort>(it, elemType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, elemType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1229,7 +1244,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
         val elemType = ctx.cp.float
         val desc = ctx.arrayDescriptorOf(ctx.cp.arrayTypeOf(elemType))
         unmarshallContentsCommon(address, desc) {
-            obj.map { marshall.objToExpr<USort>(it, elemType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, elemType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1238,7 +1255,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
         val elemType = ctx.cp.double
         val desc = ctx.arrayDescriptorOf(ctx.cp.arrayTypeOf(elemType))
         unmarshallContentsCommon(address, desc) {
-            obj.map { marshall.objToExpr<USort>(it, elemType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, elemType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1247,7 +1266,9 @@ private class JcConcreteArrayRegion<Sort : USort>(
         val elemType = ctx.cp.boolean
         val desc = ctx.arrayDescriptorOf(ctx.cp.arrayTypeOf(elemType))
         unmarshallContentsCommon(address, desc) {
-            obj.map { marshall.objToExpr<USort>(it, elemType) as UExpr<Sort> }
+            obj.mapIndexed { idx, value ->
+                ctx.mkSizeExpr(idx) to marshall.objToExpr<USort>(value, elemType) as UExpr<Sort>
+            }.toMap()
         }
     }
 
@@ -1613,9 +1634,9 @@ private class JcConcreteStaticFieldsRegion<Sort : USort>(
     override fun read(key: JcStaticFieldLValue<Sort>): UExpr<Sort> {
         val field = key.field
         // Loading enclosing type and executing its class initializer
-        JcClassLoader.loadClass(field.enclosingClass)
-        val fieldType = field.typedField.fieldType
-        return marshall.objToExpr(field.getFieldValue(JcClassLoader, null), fieldType)
+        JcConcreteMemoryClassLoader.loadClass(field.enclosingClass)
+        val fieldType = field.typedField.type
+        return marshall.objToExpr(field.getFieldValue(JcConcreteMemoryClassLoader, null), fieldType)
     }
 
     fun copy(marshall: Marshall): JcConcreteStaticFieldsRegion<Sort> {
@@ -1697,9 +1718,12 @@ private class Marshall(
     private val void by lazy { ctx.cp.void }
     private val trueExpr by lazy { ctx.trueExpr }
     private val falseExpr by lazy { ctx.falseExpr }
+    private val typeSystem by lazy { ctx.typeSystem<JcType>() }
 
     private val Any?.maybe: Maybe<Any?>
         get() = Maybe(this)
+
+    private fun JcType.isSupertype(other: JcType) = typeSystem.isSupertype(this, other)
 
     private val usvmApiSymbolicList by lazy { ctx.cp.findClassOrNull<SymbolicList<*>>()!!.toType() }
     private val javaList by lazy { ctx.cp.findClassOrNull<List<*>>()!!.toType() }
@@ -1727,7 +1751,7 @@ private class Marshall(
         val target = encoder.annotation(EncoderFor::class.java.name)!!
         val targetCls = target.values["value"] as JcClassOrInterface
 
-        val encoderCls = JcClassLoader.loadClass(encoder)
+        val encoderCls = JcConcreteMemoryClassLoader.loadClass(encoder)
         val encoderInstance = encoderCls.getConstructor().newInstance()
 
         return targetCls to encoderInstance
@@ -1858,14 +1882,14 @@ private class Marshall(
             val objType = typeOfObject(obj)
             val mostConcreteType = when {
                 objType is JcUnknownType -> type
-                objType != null && ctx.typeSystem.isSupertype(type, objType) -> objType
+                objType != null && type.isSupertype(objType) -> objType
                 else -> type
             }
             address = bindings.allocate(obj, mostConcreteType)!!
             when {
-                ctx.typeSystem.isSupertype(usvmApiSymbolicList, type) -> unmarshallSymbolicList(address, obj)
-                ctx.typeSystem.isSupertype(usvmApiSymbolicMap, type) -> unmarshallSymbolicMap(address, obj)
-                ctx.typeSystem.isSupertype(usvmApiSymbolicIdentityMap, type) -> unmarshallSymbolicIdentityMap(address, obj)
+                usvmApiSymbolicList.isSupertype(type) -> unmarshallSymbolicList(address, obj)
+                usvmApiSymbolicMap.isSupertype(type) -> unmarshallSymbolicMap(address, obj)
+                usvmApiSymbolicIdentityMap.isSupertype(type) -> unmarshallSymbolicIdentityMap(address, obj)
             }
         }
 
@@ -2079,7 +2103,7 @@ private class JcConcreteRegionStorage(
     fun getFieldRegion(typedField: JcTypedField): JcConcreteFieldRegion<*> {
         val field = typedField.field
         return fieldRegions.getOrPut(field) {
-            val sort = ctx.typeToSort(typedField.fieldType)
+            val sort = ctx.typeToSort(typedField.type)
             val regionId = UFieldsRegionId(field, sort)
             regionGetter.getConcreteRegion(regionId) as JcConcreteFieldRegion<*>
         }
@@ -2218,7 +2242,7 @@ private class JcConcreteRegionStorage(
 class JcThreadFactory : ThreadFactory {
     override fun newThread(runnable: Runnable): Thread {
         val thread = Thread(runnable)
-        thread.contextClassLoader = JcClassLoader
+        thread.contextClassLoader = JcConcreteMemoryClassLoader
         thread.isDaemon = true
         return thread
     }
@@ -2515,7 +2539,7 @@ class JcConcreteMemory private constructor(
                 return false
             }
             println(ansiGreen + "Invoking ${method.humanReadableSignature}" + ansiReset)
-            val future = executor.submit(Callable { method.invoke(JcClassLoader, thisObj, objParameters) })
+            val future = executor.submit(Callable { method.invoke(JcConcreteMemoryClassLoader, thisObj, objParameters) })
             val resultObj: Any?
             try {
                 try {

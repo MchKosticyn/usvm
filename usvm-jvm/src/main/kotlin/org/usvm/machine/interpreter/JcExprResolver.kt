@@ -5,7 +5,6 @@ import io.ksmt.utils.asExpr
 import io.ksmt.utils.cast
 import io.ksmt.utils.uncheckedCast
 import org.jacodb.api.common.cfg.CommonExpr
-import org.jacodb.api.common.cfg.CommonValue
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
@@ -93,7 +92,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.UNullRef
 import org.usvm.USort
-import org.usvm.api.allocateArrayInitialized
+import org.usvm.api.initializeArray
 import org.usvm.collection.array.UArrayIndexLValue
 import org.usvm.collection.array.length.UArrayLengthLValue
 import org.usvm.collection.field.UFieldLValue
@@ -1082,17 +1081,17 @@ class JcSimpleValueResolver(
                 else -> error("Unexpected string values type: ${stringValueField.type}")
             }
 
-            val valuesArrayDescriptor = arrayDescriptorOf(stringValueField.type as JcArrayType)
+            val arrayType = stringValueField.type as JcArrayType
+            val valuesArrayDescriptor = arrayDescriptorOf(arrayType)
             val elementType = requireNotNull(stringValueField.type.ifArrayGetElementType)
-            val charArrayRef = memory.allocateArrayInitialized(
+            val charArrayRef = memory.allocConcrete(arrayType)
+            memory.initializeArray(
+                charArrayRef,
                 valuesArrayDescriptor,
                 typeToSort(elementType),
                 sizeSort,
                 charValues.uncheckedCast()
             )
-
-            // overwrite array type because descriptor is element type
-            memory.types.allocate(charArrayRef.address, stringValueField.type)
 
             // String constants are immutable. Therefore, it is correct to overwrite value, coder and type.
             memory.write(stringValueLValue, charArrayRef)

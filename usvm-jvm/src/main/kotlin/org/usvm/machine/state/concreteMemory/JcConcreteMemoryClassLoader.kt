@@ -1,9 +1,8 @@
 package org.usvm.api.util
 
-import org.jacodb.api.JcClassOrInterface
-import org.jacodb.api.JcClassType
-import org.jacodb.api.JcClasspath
-import org.jacodb.api.ext.allSuperHierarchySequence
+import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.ext.allSuperHierarchySequence
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import java.io.File
 import java.net.URI
@@ -18,7 +17,7 @@ import java.util.jar.JarFile
 /**
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
  */
-class JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
+object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
     // TODO: make this 'class', change name and rollback changes to oroginal JcClassLoader
 
     var webApplicationClass: JcClassOrInterface? = null

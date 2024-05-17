@@ -1,10 +1,11 @@
 package bench
 
 import kotlinx.coroutines.runBlocking
-import org.jacodb.api.*
-import org.jacodb.api.cfg.*
-import org.jacodb.api.ext.findClass
-import org.jacodb.api.ext.toType
+import org.jacodb.api.jvm.*
+import org.jacodb.api.jvm.cfg.JcRawAssignInst
+import org.jacodb.api.jvm.cfg.JcRawClassConstant
+import org.jacodb.api.jvm.ext.findClass
+import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.InMemoryHierarchy
@@ -20,14 +21,11 @@ import org.objectweb.asm.tree.FieldNode
 import org.usvm.CoverageZone
 import org.usvm.PathSelectionStrategy
 import org.usvm.UMachineOptions
-import org.usvm.api.util.JcClassLoader
+import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.JcTestInterpreter
 import org.usvm.logger
 import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions
-import org.usvm.machine.TypeScorer
-import org.usvm.types.ClassScorer
-import org.usvm.types.scoreClassNode
 import org.usvm.util.classpathWithApproximations
 import java.io.File
 import java.nio.file.Path
@@ -104,7 +102,6 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
 
         installFeatures(InMemoryHierarchy)
         installFeatures(Usages)
-        installFeatures(ClassScorer(TypeScorer, ::scoreClassNode))
         installFeatures(Approximations)
 
         loadByteCode(cpFiles)
@@ -204,7 +201,7 @@ private fun analyzeBench(benchmark: BenchCp) {
                     annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
                 }
             }
-    JcClassLoader.webApplicationClass = webApplicationClass
+    JcConcreteMemoryClassLoader.webApplicationClass = webApplicationClass
     val startClass = publicClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
     JcMachine(cp, options, jcMachineOptions).use { machine ->

@@ -1,12 +1,9 @@
 package org.usvm.util
 
-import org.jacodb.api.jvm.JcClassOrInterface
-import org.jacodb.api.jvm.JcClassType
-import org.jacodb.api.jvm.JcRefType
-import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.JcTypedField
+import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.findFieldOrNull
+import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.types.JcClassTypeImpl
 import org.usvm.UConcreteHeapRef
