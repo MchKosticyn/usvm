@@ -93,6 +93,8 @@ import org.usvm.UHeapRef
 import org.usvm.UNullRef
 import org.usvm.USort
 import org.usvm.api.initializeArray
+import org.usvm.api.util.JcConcreteMemoryClassLoader
+import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.collection.array.UArrayIndexLValue
 import org.usvm.collection.array.length.UArrayLengthLValue
 import org.usvm.collection.field.UFieldLValue
@@ -1144,16 +1146,19 @@ class JcSimpleValueResolver(
     }
 
     fun resolveClassRef(type: JcType): UConcreteHeapRef = scope.calcOnState {
-        val ref = mkTypeRef(type)
-        val classRefTypeLValue = UFieldLValue(ctx.addressSort, ref, ctx.classTypeSyntheticField)
+        val javaClass = type.toJavaClass(JcConcreteMemoryClassLoader)
+        var ref = memory.tryAllocateConcrete(javaClass, ctx.classType)
+        if (ref == null) {
+            ref = mkTypeRef(type)
+            val classRefTypeLValue = UFieldLValue(ctx.addressSort, ref, ctx.classTypeSyntheticField)
 
-        // Ref type is java.lang.Class
-        memory.types.allocate(ref.address, ctx.classType)
+            // Ref type is java.lang.Class
+            memory.types.allocate(ref.address, ctx.classType)
 
-        // Save ref original class type with the negative address
-        val classRefType = memory.allocStatic(type)
-        memory.write(classRefTypeLValue, classRefType)
-
+            // Save ref original class type with the negative address
+            val classRefType = memory.allocStatic(type)
+            memory.write(classRefTypeLValue, classRefType)
+        }
         ref
     }
 

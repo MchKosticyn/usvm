@@ -1633,6 +1633,7 @@ private class JcConcreteStaticFieldsRegion<Sort : USort>(
 
     override fun read(key: JcStaticFieldLValue<Sort>): UExpr<Sort> {
         val field = key.field
+        // TODO: add approximations support 'if (field is JcEnrichedVirtualField)'
         // Loading enclosing type and executing its class initializer
         JcConcreteMemoryClassLoader.loadClass(field.enclosingClass)
         val fieldType = field.typedField.type
