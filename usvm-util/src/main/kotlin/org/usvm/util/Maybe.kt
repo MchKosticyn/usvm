@@ -3,8 +3,9 @@ package org.usvm.util
 /**
  * Analogue of java's [java.util.Optional]
  */
-class Maybe<out T> private constructor(val hasValue: Boolean, val value:T? ) {
+class Maybe<out T> private constructor(val hasValue: Boolean, val value: T?) {
     constructor(v: T) : this(true, v)
+
     companion object {
         fun empty() = Maybe(false, null)
     }
@@ -13,7 +14,7 @@ class Maybe<out T> private constructor(val hasValue: Boolean, val value:T? ) {
      * Returns [value] if [hasValue]. Otherwise, throws exception
      */
     @Suppress("UNCHECKED_CAST")
-    fun getOrThrow() : T = if (!hasValue) {
+    fun getOrThrow(): T = if (!hasValue) {
         error("Maybe hasn't value")
     } else {
         value as T
