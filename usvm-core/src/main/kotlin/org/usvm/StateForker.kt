@@ -44,8 +44,6 @@ object WithSolverStateForker : StateForker {
         state: T,
         condition: UBoolExpr,
     ): ForkResult<T> {
-        if (condition.toString() == "(not (= null tracked#0))" || condition.toString() == "(not (= tracked#0 null))")
-            println()
         val (trueModels, falseModels, _) = splitModelsByCondition(state.models, condition)
 
         val notCondition = state.ctx.mkNot(condition)
@@ -221,8 +219,6 @@ object NoSolverStateForker : StateForker {
         state: T,
         condition: UBoolExpr,
     ): ForkResult<T> {
-        if (condition.toString() == "(not (= null tracked#0))" || condition.toString() == "(not (= tracked#0 null))")
-            println()
         val (trueModels, falseModels, _) = splitModelsByCondition(state.models, condition)
         val notCondition = state.ctx.mkNot(condition)
 

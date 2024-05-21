@@ -2146,8 +2146,6 @@ private class Marshall(
         println("encoding for $address")
         val obj = bindings.virtToPhys(address)
         val type = bindings.typeOf(address) as JcClassType
-        if (type.name.contains("BindingAwareModelMap"))
-            println()
         var encoder: Any? = null
         var jcClass: JcClassOrInterface? = type.jcClass
         var searchingEncoder = true
