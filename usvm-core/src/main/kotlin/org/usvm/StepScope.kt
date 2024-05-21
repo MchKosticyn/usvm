@@ -76,12 +76,20 @@ class StepScope<T : UState<Type, *, Statement, Context, *, T>, Type, Statement, 
         blockOnTrueState: T.() -> Unit = {},
         blockOnFalseState: T.() -> Unit = {},
     ): Unit? {
+        val a = condition.toString() == "(not (= null tracked#0))" || condition.toString() == "(not (= tracked#0 null))"
+        val b = originalState.callStack.last().method.toString() == "(id:71)org.springframework.samples.petclinic.owner.OwnerController#findOwner(java.lang.Integer)"
+        if (a && b) {
+            println()
+        }
         check(canProcessFurtherOnCurrentStep)
 
         val possibleForkPoint = originalState.pathNode
 
         val (posState, negState) = ctx.statesForkProvider.fork(originalState, condition)
 
+        if ((posState == null || negState == null) && a && b) {
+            ctx.statesForkProvider.fork(originalState, condition)
+        }
         posState?.blockOnTrueState()
 
         if (posState == null) {

@@ -180,11 +180,11 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 
 private fun analyzeBench(benchmark: BenchCp) {
     val options = UMachineOptions(
-        pathSelectionStrategies = listOf(PathSelectionStrategy.FORK_DEPTH),
+        pathSelectionStrategies = listOf(PathSelectionStrategy.DFS),
         coverageZone = CoverageZone.TRANSITIVE,
         exceptionsPropagation = true,
         timeout = Duration.INFINITE,
-        loopIterationLimit = 2,
+        loopIterationLimit = 100,
         stepsFromLastCovered = 3500L,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests

@@ -43,4 +43,9 @@ public class SymbolicIdentityMapImpl<K, V> implements SymbolicIdentityMap<K, V> 
         SymbolicIdentityMapImpl<K, V> srcImpl = (SymbolicIdentityMapImpl<K, V>) src;
         data.putAll(srcImpl.data);
     }
+
+    @Override
+    public Object[] entries() {
+        return data.entrySet().toArray();
+    }
 }

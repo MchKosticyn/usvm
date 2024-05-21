@@ -42,6 +42,7 @@ import org.jacodb.api.jvm.ext.*
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.usvm.*
 import org.usvm.api.*
+import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.machine.state.newStmt
 import java.util.*
@@ -689,7 +690,8 @@ class JcMethodApproximationResolver(
             val elementArray = scope.calcOnState {
                 val arrayType = ctx.cp.arrayTypeOf(ctx.cp.objectType)
                 val descriptor = ctx.arrayDescriptorOf(arrayType)
-                val arrayHeapRef = memory.allocConcrete(arrayType)
+                val array = arrayType.allocateInstance(JcConcreteMemoryClassLoader, 1)
+                val arrayHeapRef = memory.tryAllocateConcrete(array, arrayType) ?: memory.allocConcrete(arrayType)
                 memory.initializeArray(
                     arrayHeapRef,
                     descriptor,

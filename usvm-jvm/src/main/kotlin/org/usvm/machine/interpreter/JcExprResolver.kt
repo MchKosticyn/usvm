@@ -137,7 +137,7 @@ class JcExprResolver(
     private val options: JcMachineOptions,
     localToIdx: (JcMethod, JcLocal) -> Int,
     mkTypeRef: (JcType) -> UConcreteHeapRef,
-    mkStringConstRef: (String) -> UConcreteHeapRef,
+    mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
     private val classInitializerAnalysisAlwaysRequiredForType: (JcRefType) -> Boolean,
 ) : JcExprVisitor<UExpr<out USort>?>, JcExprVisitor.Default<UExpr<out USort>?> {
     val simpleValueResolver: JcSimpleValueResolver = JcSimpleValueResolver(
@@ -1027,7 +1027,7 @@ class JcSimpleValueResolver(
     private val scope: JcStepScope,
     private val localToIdx: (JcMethod, JcLocal) -> Int,
     private val mkTypeRef: (JcType) -> UConcreteHeapRef,
-    private val mkStringConstRef: (String) -> UConcreteHeapRef,
+    private val mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
 ) : JcValueVisitor<UExpr<out USort>>, JcExprVisitor.Default<UExpr<out USort>> {
     override fun visitJcArgument(value: JcArgument): UExpr<out USort> = with(ctx) {
         val ref = resolveLocal(value)
@@ -1074,6 +1074,9 @@ class JcSimpleValueResolver(
         scope.calcOnState {
             // Equal string constants always have equal references
             val ref = resolveStringConstant(value.value)
+            if (memory.tryHeapRefToObject(ref) != null)
+                return@calcOnState ref
+
             val stringValueLValue = UFieldLValue(addressSort, ref, stringValueField.field)
 
             // String.value type depends on the JVM version
@@ -1165,6 +1168,6 @@ class JcSimpleValueResolver(
 
     fun resolveStringConstant(value: String): UConcreteHeapRef =
         scope.calcOnState {
-            mkStringConstRef(value)
+            mkStringConstRef(this, value)
         }
 }

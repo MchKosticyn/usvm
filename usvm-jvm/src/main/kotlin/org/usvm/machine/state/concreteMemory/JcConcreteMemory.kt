@@ -66,6 +66,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import org.jacodb.api.jvm.ext.*
 import org.usvm.api.util.JcConcreteMemoryClassLoader
+import org.usvm.machine.interpreter.statics.staticFieldsInitializedFlagField
 
 //region Physical Address
 
@@ -210,9 +211,6 @@ private class JcConcreteMemoryBindings(
 
     private val JcType.internalName: String
         get() = if (this is JcClassType) this.name else this.typeName
-
-    private val Field.isStringValueField: Boolean
-        get() = this.declaringClass.name == "java.lang.String" && this.name == "value"
 
     //endregion
 
@@ -595,9 +593,6 @@ private class JcConcreteMemoryBindings(
     //region Reading
 
     fun readClassField(address: UConcreteHeapAddress, field: Field): Any? {
-        if (field.isStringValueField)
-            return address
-
         val obj = virtToPhys(address)
         val value = field.getFieldValue(obj)
 
@@ -662,6 +657,12 @@ private class JcConcreteMemoryBindings(
         val obj = virtToPhys(address)
         obj as Map<*, *>
         return obj.size
+    }
+
+    fun checkSetContains(address: UConcreteHeapAddress, element: Any?): Boolean {
+        val obj = virtToPhys(address)
+        obj as Set<*>
+        return obj.contains(element)
     }
 
     fun readInvocationHandler(address: UConcreteHeapAddress): LambdaInvocationHandler {
@@ -1169,7 +1170,7 @@ private class JcConcreteArrayRegion<Sort : USort>(
         forced: Boolean = false,
         getElems: () -> Map<UExpr<USizeSort>, UExpr<Sort>>
     ) {
-        if (mutatedArrays.contains(address) || forced) {
+        if (forced || mutatedArrays.contains(address)) {
             val elements = getElems()
             baseRegion.initializeAllocatedArray(address, descriptor, sort, elements, ctx.trueExpr)
         }
@@ -1465,8 +1466,8 @@ private class JcConcreteRefMapRegion<ValueSort : USort>(
         writeToBase(lvalue, rvalue, ctx.trueExpr)
     }
 
-    fun unmarshallContents(ref: UConcreteHeapRef, obj: Map<*, *>) {
-        if (mutatedRefMaps.contains(ref.address)) {
+    fun unmarshallContents(ref: UConcreteHeapRef, obj: Map<*, *>, forced: Boolean = false) {
+        if (forced || mutatedRefMaps.contains(ref.address)) {
             for ((key, value) in obj) {
                 unmarshallEntry(ref, key, value)
             }
@@ -1563,16 +1564,23 @@ private class JcConcreteMapLengthRegion(
 
 //region Concrete Ref Set Region
 
-@Suppress("UNUSED_PARAMETER", "UNUSED")
+@Suppress("UNUSED")
 private class JcConcreteRefSetRegion(
     private val regionId: URefSetRegionId<JcType>,
     private val ctx: JcContext,
     private val bindings: JcConcreteMemoryBindings,
-    private val baseRegion: URefSetRegion<JcType>,
+    private var baseRegion: URefSetRegion<JcType>,
     private val marshall: Marshall
 ) : URefSetRegion<JcType>, JcConcreteRegion {
 
+    private val setType by lazy { regionId.setType }
+    private val sort by lazy { regionId.sort }
+
     private val mutatedRefSets = mutableSetOf<UConcreteHeapAddress>()
+
+    private fun writeToBase(key: URefSetEntryLValue<JcType>, value: UExpr<UBoolSort>, guard: UBoolExpr) {
+        baseRegion = baseRegion.write(key, value, guard) as URefSetRegion<JcType>
+    }
 
     override fun allocatedSetWithInputElements(setRef: UConcreteHeapAddress): UAllocatedRefSetWithInputElements<JcType> {
         // TODO: elems with input addresses (statics and symbolics)
@@ -1602,12 +1610,28 @@ private class JcConcreteRefSetRegion(
     }
 
     override fun read(key: URefSetEntryLValue<JcType>): UExpr<UBoolSort> {
-        TODO("Not yet implemented")
+        val ref = key.setRef
+        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+            val lengthObj = bindings.checkSetContains(ref.address)
+            return marshall.objToExpr(lengthObj, lengthType)
+        } else {
+            return baseRegion.read(key)
+        }
     }
 
-    fun unmarshallContents(ref: UConcreteHeapRef, obj: Set<*>) {
-        if (mutatedRefSets.contains(ref.address)) {
-            error("JcConcreteRefSetRegion.unmarshall!")
+    @Suppress("UNCHECKED_CAST")
+    private fun unmarshallElement(ref: UConcreteHeapRef, element: Any?) {
+        val elemType = if (element == null) ctx.cp.objectType else ctx.jcTypeOf(element)
+        val elemExpr = marshall.objToExpr<USort>(element, elemType) as UHeapRef
+        val lvalue = URefSetEntryLValue(ref, elemExpr, setType)
+        writeToBase(lvalue, ctx.trueExpr, ctx.trueExpr)
+    }
+
+    fun unmarshallContents(ref: UConcreteHeapRef, obj: Set<*>, forced: Boolean = false) {
+        if (forced || mutatedRefSets.contains(ref.address)) {
+            for (elem in obj) {
+                unmarshallElement(ref, elem)
+            }
         }
     }
 
@@ -1628,21 +1652,38 @@ private class JcConcreteRefSetRegion(
 
 private class JcConcreteStaticFieldsRegion<Sort : USort>(
     private val regionId: JcStaticFieldRegionId<Sort>,
+    private var baseRegion: JcStaticFieldsMemoryRegion<Sort>,
     private val marshall: Marshall
 ) : JcStaticFieldsMemoryRegion<Sort>(regionId.sort), JcConcreteRegion {
 
     override fun read(key: JcStaticFieldLValue<Sort>): UExpr<Sort> {
         val field = key.field
-        // TODO: add approximations support 'if (field is JcEnrichedVirtualField)'
+        if (field is JcEnrichedVirtualField || field.name == staticFieldsInitializedFlagField.name)
+            return baseRegion.read(key)
+
         // Loading enclosing type and executing its class initializer
         JcConcreteMemoryClassLoader.loadClass(field.enclosingClass)
         val fieldType = field.typedField.type
         return marshall.objToExpr(field.getFieldValue(JcConcreteMemoryClassLoader, null), fieldType)
     }
 
+    override fun write(
+        key: JcStaticFieldLValue<Sort>,
+        value: UExpr<Sort>,
+        guard: UBoolExpr
+    ): JcConcreteStaticFieldsRegion<Sort> {
+        baseRegion = baseRegion.write(key, value, guard)
+        return this
+    }
+
+    override fun mutatePrimitiveStaticFieldValuesToSymbolic(enclosingClass: JcClassOrInterface) {
+        baseRegion.mutatePrimitiveStaticFieldValuesToSymbolic(enclosingClass)
+    }
+
     fun copy(marshall: Marshall): JcConcreteStaticFieldsRegion<Sort> {
         return JcConcreteStaticFieldsRegion(
             regionId,
+            baseRegion,
             marshall
         )
     }
@@ -1928,25 +1969,30 @@ private class Marshall(
 
     //region Unmarshall
 
-    private fun unmarshallClass(address: UConcreteHeapAddress, obj: Any, type: JcClassType, isApproximation: Boolean = false) {
+    private fun unmarshallFields(address: UConcreteHeapAddress, obj: Any, fields: List<JcTypedField>) {
         val ref = ctx.mkConcreteHeapRef(address)
-        val allFields = type.allInstanceFields
-        val fields = if (isApproximation) allFields.filter { it.field is JcEnrichedVirtualField } else allFields
         fields.forEach {
             try {
                 regionStorage.getFieldRegion(it).unmarshallField(ref, obj)
             } catch (e: Exception) {
-                error("unmarshallClass failed for class ${type.name} on field ${it.name}")
+                error("unmarshallFields failed on field ${it.name}, exception: $e")
             }
         }
-        bindings.remove(address)
     }
 
     fun unmarshallClass(address: UConcreteHeapAddress) {
         val obj = bindings.tryVirtToPhys(address) ?: return
         val type = bindings.typeOf(address)
         type as JcClassType
-        unmarshallClass(address, obj, type)
+        val allFields = type.allInstanceFields
+        val containsApproximationFields = allFields.any { it.field.toJavaField == null }
+        if (containsApproximationFields) {
+            encode(address)
+            return
+        }
+
+        unmarshallFields(address, obj, allFields)
+        bindings.remove(address)
     }
 
     private fun unmarshallArray(
@@ -2017,47 +2063,56 @@ private class Marshall(
         unmarshallArray(address, obj, desc, elemSort)
     }
 
-    fun unmarshallMap(address: UConcreteHeapAddress, mapType: JcType) {
-        val obj = bindings.tryVirtToPhys(address) ?: return
-        obj as Map<*, *>
+    private fun unmarshallMap(address: UConcreteHeapAddress, obj: Map<*, *>, mapType: JcType, forced: Boolean = false) {
         val ref = ctx.mkConcreteHeapRef(address)
         val valueSort = ctx.addressSort
         val mapRegion = regionStorage.getMapRegion(mapType, valueSort)
         val mapLengthRegion = regionStorage.getMapLengthRegion(mapType)
-        mapRegion.unmarshallContents(ref, obj)
+        val keySetRegion = regionStorage.getSetRegion(mapType)
+        mapRegion.unmarshallContents(ref, obj, forced)
         mapLengthRegion.unmarshallLength(ref, obj)
+        keySetRegion.unmarshallContents(ref, obj.keys, forced)
         bindings.remove(address)
     }
 
-    fun unmarshallSet(address: UConcreteHeapAddress) {
-//        val obj = bindings.tryVirtToPhys(address) ?: return
-//        val type = bindings.typeOf(address)
-//        obj as Set<*>
-//        val ref = ctx.mkConcreteHeapRef(address)
-//        val elemSort = ctx.typeToSort(type.elementType)
-//        regionStorage.getRefMapRegion(type, elemSort)
-//            .unmarshallContents(address, obj, type, elemSort)
-//        regionStorage.getMapLengthRegion(type).unmarshallLength(ref, obj, type)
-        bindings.remove(address)
-        TODO("not implemented")
+    fun unmarshallMap(address: UConcreteHeapAddress, mapType: JcType) {
+        val obj = bindings.tryVirtToPhys(address) ?: return
+        obj as Map<*, *>
+        unmarshallMap(address, obj, mapType)
     }
 
     fun unmarshallSymbolicList(address: UConcreteHeapAddress, obj: Any) {
         val methods = obj.javaClass.declaredMethods
         val getMethod = methods.find { it.name == "get" }!!
         val size = methods.find { it.name == "size" }!!.invoke(obj) as Int
-        val array = Array<Any>(size) { getMethod.invoke(obj, it) }
+        val array = Array<Any?>(size) { getMethod.invoke(obj, it) }
         unmarshallArray(address, array, usvmApiSymbolicList, ctx.addressSort, true)
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    fun unmarshallSymbolicMap(address: UConcreteHeapAddress, obj: Any) {
-        TODO("unmarshall")
+    private fun createMapFromSymbolicMap(obj: Any): Map<*, *> {
+        val mapMethods = obj.javaClass.declaredMethods
+        val entriesMethod = mapMethods.find { it.name == "entries" }!!
+        val entries = entriesMethod.invoke(obj) as Array<*>
+        val map = TreeMap<Any?, Any?>()
+        entries.forEach { entry ->
+            val entryMethods = entry!!.javaClass.declaredMethods
+            val getKeyMethod = entryMethods.find { it.name == "getKey" }!!
+            val getValueMethod = entryMethods.find { it.name == "getValue" }!!
+            val key = getKeyMethod.invoke(entry)
+            val value = getValueMethod.invoke(entry)
+            map[key] = value
+        }
+        return map
     }
 
-    @Suppress("UNUSED_PARAMETER")
+    fun unmarshallSymbolicMap(address: UConcreteHeapAddress, obj: Any) {
+        val map = createMapFromSymbolicMap(obj)
+        unmarshallMap(address, map, usvmApiSymbolicMap, true)
+    }
+
     fun unmarshallSymbolicIdentityMap(address: UConcreteHeapAddress, obj: Any) {
-        TODO("unmarshall")
+        val map = createMapFromSymbolicMap(obj)
+        unmarshallMap(address, map, usvmApiSymbolicIdentityMap, true)
     }
 
     //endregion
@@ -2065,12 +2120,36 @@ private class Marshall(
     //region Encoding
 
     fun encode(address: UConcreteHeapAddress) {
+        println("encoding for $address")
         val obj = bindings.virtToPhys(address)
         val type = bindings.typeOf(address) as JcClassType
-        val encoder = encoders[type.jcClass] ?: error("failed to find encoder for type ${type.name}")
+        if (type.name.contains("BindingAwareModelMap"))
+            println()
+        var encoder: Any? = null
+        var jcClass: JcClassOrInterface? = type.jcClass
+        var searchingEncoder = true
+        while (jcClass != null && searchingEncoder) {
+            encoder = encoders[jcClass]
+            searchingEncoder = encoder == null
+            jcClass = if (searchingEncoder) jcClass.superClass else jcClass
+        }
+        encoder ?: error("Failed to find encoder for type ${type.name}")
         val encodeMethod = encoder.javaClass.declaredMethods.find { it.name == "encode" }!!
         val approximatedObj = encodeMethod.invoke(encoder, obj)
-        unmarshallClass(address, approximatedObj, type, true)
+        val allFields = type.allInstanceFields
+        val approximationFields = allFields.filter { it.field is JcEnrichedVirtualField }
+        unmarshallFields(address, approximatedObj, approximationFields)
+
+        val otherFields = ArrayList<JcTypedField>()
+        var currentClass = type
+        while (currentClass.jcClass != jcClass) {
+            otherFields.addAll(currentClass.declaredFields)
+            currentClass = currentClass.superType ?: error("Encoding: supertype is null")
+        }
+        if (otherFields.isNotEmpty())
+            unmarshallFields(address, obj, otherFields)
+
+        bindings.remove(address)
     }
 
     //endregion
@@ -2336,7 +2415,9 @@ class JcConcreteMemory private constructor(
             }
 
             is JcStaticFieldRegionId<*> -> {
-                JcConcreteStaticFieldsRegion(regionId, marshall)
+                baseRegion as JcStaticFieldsMemoryRegion<Sort>
+                val id = regionId as JcStaticFieldRegionId<Sort>
+                JcConcreteStaticFieldsRegion(id, baseRegion, marshall)
             }
 
             is JcLambdaCallSiteRegionId -> {
@@ -2382,6 +2463,7 @@ class JcConcreteMemory private constructor(
             is UMapLengthRegionId<*, *> -> assert(newRegion is JcConcreteMapLengthRegion)
             is USetRegionId<*, *, *> -> error("ConcreteMemory.setRegion: unexpected 'USetRegionId'")
             is URefSetRegionId<*> -> assert(newRegion is JcConcreteRefSetRegion)
+            is JcStaticFieldRegionId<*> -> assert(newRegion is JcConcreteStaticFieldsRegion)
             is JcLambdaCallSiteRegionId -> assert(newRegion is JcConcreteCallSiteLambdaRegion)
             else -> {
                 super.setRegion(regionId, newRegion)
@@ -2441,6 +2523,7 @@ class JcConcreteMemory private constructor(
 
     override fun clone(typeConstraints: UTypeConstraints<JcType>): UMemory<JcType, JcMethod> {
         bindings.makeNonWritable()
+        println(ansiBlue + "Concrete memory is non writable!" + ansiReset)
         val stack = stack.clone()
         val mocks = mocks.clone()
         val regions = regions.build()
@@ -2475,11 +2558,13 @@ class JcConcreteMemory private constructor(
                 )
     }
 
-    private fun shouldInvoke(method: JcMethod): Boolean {
-        return concreteInvocations.contains(method.humanReadableSignature)
+    private fun shouldInvoke(signature: String): Boolean {
+        return concreteNonMutatingInvocations.contains(signature) ||
+                concreteMutatingInvocations.contains(signature) && bindings.isWritable
     }
 
     private fun applyChanges(oldObj: Any, newObj: Any) {
+        assert(bindings.isWritable)
         val type = oldObj.javaClass
         assert(newObj.javaClass == type)
         assert(!type.isArray)
@@ -2491,6 +2576,8 @@ class JcConcreteMemory private constructor(
     }
 
     override fun <Inst, State, Resolver> tryConcreteInvoke(stmt: Inst, state: State, exprResolver: Resolver): Boolean {
+        // TODO: move to static ctor #CM
+        assert(concreteMutatingInvocations.intersect(concreteNonMutatingInvocations).isEmpty())
         stmt as JcMethodCall
         state as JcState
         exprResolver as JcExprResolver
@@ -2499,11 +2586,12 @@ class JcConcreteMemory private constructor(
         if (!methodIsInvokable(method))
             return false
 
-        if (!bindings.isWritable) {
-            println(ansiBlue + "Concrete memory is non writable!" + ansiReset)
+        val signature = method.humanReadableSignature
+        if (!bindings.isWritable && concreteMutatingInvocations.contains(signature)) {
+            // TODO: delete (!shouldInvoke(signature) will do the thing) #CM
             return false
         }
-//        if (!shouldInvoke(method)) { // TODO: uncomment #CM
+//        if (!shouldInvoke(signature)) { // TODO: uncomment #CM
 //            return false
 //        }
 
@@ -2535,11 +2623,11 @@ class JcConcreteMemory private constructor(
 
         assert(objParameters.size == parameters.size)
         try {
-            if (!shouldInvoke(method)) {
-                println(ansiYellow + "Can be added ${method.humanReadableSignature}" + ansiReset)
+            if (!shouldInvoke(signature)) { // TODO: delete #CM
+                println(ansiYellow + "Can be added $signature" + ansiReset)
                 return false
             }
-            println(ansiGreen + "Invoking ${method.humanReadableSignature}" + ansiReset)
+            println(ansiGreen + "Invoking $signature" + ansiReset)
             val future = executor.submit(Callable { method.invoke(JcConcreteMemoryClassLoader, thisObj, objParameters) })
             val resultObj: Any?
             try {
@@ -2582,15 +2670,11 @@ class JcConcreteMemory private constructor(
 
     //region Concrete Invocations
 
-    private val concreteInvocations = setOf(
+    private val concreteMutatingInvocations = setOf(
         "java.util.LinkedHashSet#<init>():void",
-//        "java.util.HashSet#<init>(int,float,boolean):void",
-//        "java.util.AbstractSet#<init>():void",
-//        "java.util.AbstractCollection#<init>():void",
         "java.util.LinkedHashMap#<init>(int,float):void",
         "java.lang.Float#isNaN(float):boolean",
         "java.util.HashMap#tableSizeFor(int):int",
-        "java.lang.Integer#numberOfLeadingZeros(int):int",
         "org.springframework.boot.Banner\$Mode#\$values():org.springframework.boot.Banner\$Mode[]",
         "java.util.Collections#emptySet():java.util.Set",
         "org.springframework.boot.DefaultApplicationContextFactory#<init>():void",
@@ -2721,7 +2805,6 @@ class JcConcreteMemory private constructor(
         "org.springframework.boot.test.context.SpringBootTestContextBootstrapper#containsNonTestComponent(java.lang.Class[]):boolean",
         "org.springframework.test.context.MergedContextConfiguration#hasLocations():boolean",
         "org.springframework.test.context.MergedContextConfiguration#getTestClass():java.lang.Class",
-        "java.lang.Class#getName():java.lang.String",
         "java.lang.String#formatted(java.lang.Object[]):java.lang.String",
         "org.springframework.test.context.aot.DefaultAotTestAttributes#getString(java.lang.String):java.lang.String",
         "java.util.concurrent.ConcurrentHashMap#get(java.lang.Object):java.lang.Object",
@@ -2729,7 +2812,6 @@ class JcConcreteMemory private constructor(
         "org.springframework.boot.test.context.AnnotatedClassFinder#findFromPackage(java.lang.String):java.lang.Class",
         "org.springframework.util.Assert#state(boolean,java.lang.String):void",
         "org.springframework.test.context.aot.DefaultAotTestAttributes#setAttribute(java.lang.String,java.lang.String):void",
-        "org.usvm.api.internal.StringConcatUtil#concat(java.lang.Object[]):java.lang.String",
         "org.apache.commons.logging.LogAdapter\$Slf4jLocationAwareLog#info(java.lang.Object):void",
         "org.springframework.boot.test.context.SpringBootTestContextBootstrapper#merge(java.lang.Class,java.lang.Class[]):java.lang.Class[]",
         "org.springframework.boot.test.context.SpringBootTestContextBootstrapper#getAndProcessPropertySourceProperties(org.springframework.test.context.MergedContextConfiguration):java.util.List",
@@ -2766,7 +2848,6 @@ class JcConcreteMemory private constructor(
         "org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder#postProcessRequest(org.springframework.mock.web.MockHttpServletRequest):org.springframework.mock.web.MockHttpServletRequest",
         "org.springframework.mock.web.MockHttpServletRequest#getAsyncContext():jakarta.servlet.AsyncContext",
         "org.springframework.test.web.servlet.DefaultMvcResult#<init>(org.springframework.mock.web.MockHttpServletRequest,org.springframework.mock.web.MockHttpServletResponse):void",
-        "java.lang.String#concat(java.lang.String):java.lang.String",
         "org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void",
         "org.springframework.web.context.request.RequestContextHolder#getRequestAttributes():org.springframework.web.context.request.RequestAttributes",
         "org.springframework.web.context.request.ServletRequestAttributes#<init>(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
@@ -2858,11 +2939,9 @@ class JcConcreteMemory private constructor(
         "org.springframework.core.KotlinDetector#isKotlinReflectPresent():boolean",
         "org.springframework.web.method.HandlerMethod#getBean():java.lang.Object",
         "org.springframework.validation.support.BindingAwareModelMap#put(java.lang.Object,java.lang.Object):java.lang.Object",
-        "org.springframework.web.method.HandlerMethod#shouldValidateReturnValue():boolean",
         "org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod#setResponseStatus(org.springframework.web.context.request.ServletWebRequest):void",
         "org.springframework.web.method.HandlerMethod#getResponseStatus():org.springframework.http.HttpStatusCode",
         "org.springframework.web.method.HandlerMethod#getResponseStatusReason():java.lang.String",
-        "org.springframework.util.StringUtils#hasText(java.lang.String):boolean",
         "org.springframework.web.method.support.ModelAndViewContainer#setRequestHandled(boolean):void",
         "org.springframework.core.annotation.AnnotatedMethod#getReturnValueType(java.lang.Object):org.springframework.core.MethodParameter",
         "org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite#handleReturnValue(java.lang.Object,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void",
@@ -2904,17 +2983,59 @@ class JcConcreteMemory private constructor(
         "org.springframework.web.method.annotation.SessionAttributesHandler#retrieveAttributes(org.springframework.web.context.request.WebRequest):java.util.Map",
         "java.util.HashMap#<init>():void",
         "org.springframework.web.method.support.ModelAndViewContainer#mergeAttributes(java.util.Map):org.springframework.web.method.support.ModelAndViewContainer",
-        "java.util.ArrayList#isEmpty():boolean",
         "org.springframework.web.method.annotation.ModelFactory#getNextModelMethod(org.springframework.web.method.support.ModelAndViewContainer):org.springframework.web.method.annotation.ModelFactory\$ModelMethod",
         "org.springframework.web.method.annotation.ModelFactory\$ModelMethod#getHandlerMethod():org.springframework.web.method.support.InvocableHandlerMethod",
         "org.springframework.core.annotation.AnnotatedMethod#getMethodAnnotation(java.lang.Class):java.lang.annotation.Annotation",
         "org.springframework.web.method.support.ModelAndViewContainer#getModel():org.springframework.ui.ModelMap",
+        "java.util.ArrayList#add(java.lang.Object):boolean",
+        "java.util.LinkedHashMap#get(java.lang.Object):java.lang.Object",
+        "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver",
+        "java.util.HashMap#resize():java.util.HashMap\$Node[]"
+    )
+
+    private val concreteNonMutatingInvocations = setOf(
+        "org.springframework.web.method.HandlerMethod#shouldValidateReturnValue():boolean",
+        "java.lang.String#startsWith(java.lang.String):boolean",
+        "org.springframework.core.annotation.AnnotatedMethod#isVoid():boolean",
+        "java.lang.Integer#numberOfLeadingZeros(int):int",
+        "org.springframework.web.bind.annotation.ModelAttribute#value():java.lang.String",
+        "org.springframework.core.MethodParameter#getMethodAnnotation(java.lang.Class):java.lang.annotation.Annotation",
+        "org.springframework.core.annotation.AnnotatedMethod#getReturnType():org.springframework.core.MethodParameter",
         "org.springframework.web.bind.annotation.ModelAttribute#name():java.lang.String",
         "org.springframework.web.method.support.ModelAndViewContainer#containsAttribute(java.lang.String):boolean",
-        "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver",
-        "org.springframework.core.annotation.AnnotatedMethod#isVoid():boolean",
-        "org.springframework.core.annotation.AnnotatedMethod#getReturnType():org.springframework.core.MethodParameter",
-        "java.util.ArrayList#add(java.lang.Object):boolean",
+        "java.util.ArrayList#isEmpty():boolean",
+        "java.lang.String#isBlank():boolean",
+        "org.springframework.web.method.annotation.ModelFactory#getNameForReturnValue(java.lang.Object,org.springframework.core.MethodParameter):java.lang.String",
+        "org.springframework.web.bind.annotation.ModelAttribute#binding():boolean",
+        "org.springframework.util.StringUtils#hasText(java.lang.String):boolean",
+        "org.springframework.web.method.support.ModelAndViewContainer#useDefaultModel():boolean",
+        "java.lang.Class#getName():java.lang.String",
+        "java.lang.String#isEmpty():boolean",
+        "runtime.LibSLRuntime#toString(java.lang.Object):java.lang.String",
+        "java.lang.StringConcatHelper#stringOf(java.lang.Object):java.lang.String",
+        "java.lang.Object#toString():java.lang.String",
+        "org.usvm.api.internal.StringConcatUtil#concat(java.lang.Object[]):java.lang.String",
+        "java.lang.String#toString():java.lang.String",
+        "java.lang.String#concat(java.lang.String):java.lang.String",
+        "java.lang.StringConcatHelper#simpleConcat(java.lang.Object,java.lang.Object):java.lang.String",
+        "java.util.HashMap#hash(java.lang.Object):int",
+        "java.lang.Object#hashCode():int",
+        "java.lang.String#isLatin1():boolean",
+        "java.lang.StringLatin1#hashCode(byte[]):int",
+        "org.springframework.web.method.annotation.ModelFactory#findSessionAttributeArguments(org.springframework.web.method.HandlerMethod):java.util.List",
+        "org.springframework.core.MethodParameter#hasParameterAnnotation(java.lang.Class):boolean",
+        "org.springframework.core.MethodParameter#getParameterAnnotation(java.lang.Class):java.lang.annotation.Annotation",
+        "org.springframework.core.MethodParameter#getParameterAnnotations():java.lang.annotation.Annotation[]",
+        "java.lang.Class#isInstance(java.lang.Object):boolean",
+        "org.springframework.web.method.annotation.ModelFactory#getNameForParameter(org.springframework.core.MethodParameter):java.lang.String",
+        "java.lang.String#length():int",
+        "java.lang.StringConcatHelper#initialCoder():long",
+        "java.lang.StringConcatHelper#checkOverflow(long):long",
+        "java.lang.String#coder():byte",
+        "java.util.ArrayList#iterator():java.util.Iterator",
+        "java.lang.Class#desiredAssertionStatus():boolean",
+        "java.lang.String#toCharArray():char[]",
+        "runtime.LibSLRuntime#toString(char[]):java.lang.String",
     )
 
     //endregion

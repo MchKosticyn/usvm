@@ -658,10 +658,12 @@ class JcInterpreter(
     private val stringConstantAllocatedRefs = mutableMapOf<String, UConcreteHeapRef>()
 
     // Equal string constants must have equal references
-    private fun stringConstantAllocator(value: String): UConcreteHeapRef =
+    private fun stringConstantAllocator(state: JcState, value: String): UConcreteHeapRef =
         stringConstantAllocatedRefs.getOrPut(value) {
-            // Allocate globally unique ref with a negative address
-            ctx.allocateStaticRef()
+            // Tries to allocate string in concrete memory
+            state.memory.tryAllocateConcrete(value, ctx.stringType)
+                // Allocate globally unique ref with a negative address
+                ?: ctx.allocateStaticRef()
         }
 
     private val typeInstanceAllocatedRefs = mutableMapOf<JcTypeInfo, UConcreteHeapRef>()
