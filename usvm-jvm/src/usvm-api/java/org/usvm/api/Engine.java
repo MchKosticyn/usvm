@@ -17,6 +17,11 @@ public class Engine {
         return null;
     }
 
+    @SuppressWarnings("unused")
+    public static <T> T makeNullableSymbolic(Class<T> clazz) {
+        return null;
+    }
+
     public static boolean makeSymbolicBoolean() {
         return false;
     }

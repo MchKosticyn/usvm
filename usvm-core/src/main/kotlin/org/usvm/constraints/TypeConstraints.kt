@@ -379,6 +379,12 @@ class UTypeConstraints<Type>(
         if (newRegion.isEmpty) {
             equalityConstraints.makeEqual(ref, ref.uctx.nullRef)
         }
+
+        // fixme: hack
+        if (newRegion.typeStream is USingleTypeStream<*>) {
+            equalityConstraints.makeNonEqual(ref, ref.uctx.nullRef)
+        }
+
         for ((key, value) in symbolicRefToTypeRegion.entries) {
             // TODO: cache intersections?
             if (key != ref && value.intersect(newRegion).isEmpty) {

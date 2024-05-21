@@ -1127,16 +1127,20 @@ private class JcConcreteArrayRegion<Sort : USort>(
 
     override fun read(key: UArrayIndexLValue<JcType, Sort, USizeSort>): UExpr<Sort> {
         val ref = key.ref
-        val indexObj = marshall.tryExprToObj(key.index, indexType)
         // TODO: implement GetAllArrayData #CM
-        if (ref is UConcreteHeapRef && bindings.contains(ref.address) && indexObj.hasValue) {
+        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
             val address = ref.address
-            val valueObj = bindings.readArrayIndex(address, indexObj.value as Int)
-            val elemType = (bindings.typeOf(address) as JcArrayType).elementType
-            return marshall.objToExpr(valueObj, elemType)
-        } else {
-            return baseRegion.read(key)
+            val indexObj = marshall.tryExprToObj(key.index, indexType)
+            if (indexObj.hasValue) {
+                val valueObj = bindings.readArrayIndex(address, indexObj.value as Int)
+                val elemType = (bindings.typeOf(address) as JcArrayType).elementType
+                return marshall.objToExpr(valueObj, elemType)
+            }
+
+            marshall.unmarshallArray(address)
         }
+
+        return baseRegion.read(key)
     }
 
     override fun write(
@@ -1421,14 +1425,19 @@ private class JcConcreteRefMapRegion<ValueSort : USort>(
     override fun read(key: URefMapEntryLValue<JcType, ValueSort>): UExpr<ValueSort> {
         key.mapType
         val ref = key.mapRef
-        val objType = ctx.cp.objectType
-        val keyObj = marshall.tryExprToObj(key.mapKey, objType)
-        if (ref is UConcreteHeapRef && bindings.contains(ref.address) && keyObj.hasValue) {
-            val valueObj = bindings.readMapValue(ref.address, keyObj.value)
-            return marshall.objToExpr(valueObj, objType)
-        } else {
-            return baseRegion.read(key)
+        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+            val address = ref.address
+            val objType = ctx.cp.objectType
+            val keyObj = marshall.tryExprToObj(key.mapKey, objType)
+            if (keyObj.hasValue) {
+                val valueObj = bindings.readMapValue(address, keyObj.value)
+                return marshall.objToExpr(valueObj, objType)
+            }
+
+            marshall.unmarshallMap(address, mapType)
         }
+
+        return baseRegion.read(key)
     }
 
     override fun write(
@@ -1612,11 +1621,17 @@ private class JcConcreteRefSetRegion(
     override fun read(key: URefSetEntryLValue<JcType>): UExpr<UBoolSort> {
         val ref = key.setRef
         if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
-            val lengthObj = bindings.checkSetContains(ref.address)
-            return marshall.objToExpr(lengthObj, lengthType)
-        } else {
-            return baseRegion.read(key)
+            val address = ref.address
+            val objType = ctx.cp.objectType
+            val elem = marshall.tryExprToObj(key.setElement, objType)
+            if (elem.hasValue) {
+                val contains = bindings.checkSetContains(address, elem.value)
+                return marshall.objToExpr(contains, ctx.cp.boolean)
+            }
+            marshall.unmarshallSet(address)
         }
+
+        return baseRegion.read(key)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -2079,6 +2094,14 @@ private class Marshall(
         val obj = bindings.tryVirtToPhys(address) ?: return
         obj as Map<*, *>
         unmarshallMap(address, obj, mapType)
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    fun unmarshallSet(address: UConcreteHeapAddress) {
+//        val obj = bindings.tryVirtToPhys(address) ?: return
+        TODO("unmarshall set")
+//        obj as Set<*, *>
+//        unmarshallMap(address, obj, mapType)
     }
 
     fun unmarshallSymbolicList(address: UConcreteHeapAddress, obj: Any) {

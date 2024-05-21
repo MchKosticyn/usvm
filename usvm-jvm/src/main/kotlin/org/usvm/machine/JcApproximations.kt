@@ -1076,6 +1076,13 @@ class JcMethodApproximationResolver(
                 }
                 scope.makeSymbolicRefWithSameType(classRefTypeRepresentative)
             }
+            dispatchMkRef(Engine::makeNullableSymbolic) {
+                val classRef = it.arguments.single().asExpr(ctx.addressSort)
+                val classRefTypeRepresentative = scope.calcOnState {
+                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
+                }
+                scope.makeNullableSymbolicRefWithSameType(classRefTypeRepresentative)
+            }
             dispatchMkRef2(Engine::makeSymbolicArray) {
                 val (elementClassRefExpr, sizeExpr) = it.arguments
                 val elementClassRef = elementClassRefExpr.asExpr(ctx.addressSort)
