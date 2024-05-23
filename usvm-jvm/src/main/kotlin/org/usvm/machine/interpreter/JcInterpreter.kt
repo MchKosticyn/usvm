@@ -42,6 +42,8 @@ import org.usvm.api.allocateStaticRef
 import org.usvm.api.evalTypeEquals
 import org.usvm.api.mapTypeStream
 import org.usvm.api.targets.JcTarget
+import org.usvm.api.util.JcConcreteMemoryClassLoader
+import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.collection.array.UArrayIndexLValue
 import org.usvm.collection.field.UFieldLValue
 import org.usvm.forkblacklists.UForkBlackList
@@ -668,11 +670,13 @@ class JcInterpreter(
 
     private val typeInstanceAllocatedRefs = mutableMapOf<JcTypeInfo, UConcreteHeapRef>()
 
-    private fun typeInstanceAllocator(type: JcType): UConcreteHeapRef {
+    private fun typeInstanceAllocator(state: JcState, type: JcType): UConcreteHeapRef {
         val typeInfo = resolveTypeInfo(type)
         return typeInstanceAllocatedRefs.getOrPut(typeInfo) {
-            // Allocate globally unique ref with a negative address
-            ctx.allocateStaticRef()
+            // Tries to allocate class in concrete memory
+            state.memory.tryAllocateConcrete(type.toJavaClass(JcConcreteMemoryClassLoader), ctx.classType)
+                // Allocate globally unique ref with a negative address
+                ?: ctx.allocateStaticRef()
         }
     }
 

@@ -136,7 +136,7 @@ class JcExprResolver(
     private val scope: JcStepScope,
     private val options: JcMachineOptions,
     localToIdx: (JcMethod, JcLocal) -> Int,
-    mkTypeRef: (JcType) -> UConcreteHeapRef,
+    mkTypeRef: (JcState, JcType) -> UConcreteHeapRef,
     mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
     private val classInitializerAnalysisAlwaysRequiredForType: (JcRefType) -> Boolean,
 ) : JcExprVisitor<UExpr<out USort>?>, JcExprVisitor.Default<UExpr<out USort>?> {
@@ -1026,7 +1026,7 @@ class JcSimpleValueResolver(
     private val ctx: JcContext,
     private val scope: JcStepScope,
     private val localToIdx: (JcMethod, JcLocal) -> Int,
-    private val mkTypeRef: (JcType) -> UConcreteHeapRef,
+    private val mkTypeRef: (JcState, JcType) -> UConcreteHeapRef,
     private val mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
 ) : JcValueVisitor<UExpr<out USort>>, JcExprVisitor.Default<UExpr<out USort>> {
     override fun visitJcArgument(value: JcArgument): UExpr<out USort> = with(ctx) {
@@ -1149,19 +1149,19 @@ class JcSimpleValueResolver(
     }
 
     fun resolveClassRef(type: JcType): UConcreteHeapRef = scope.calcOnState {
-        val javaClass = type.toJavaClass(JcConcreteMemoryClassLoader)
-        var ref = memory.tryAllocateConcrete(javaClass, ctx.classType)
-        if (ref == null) {
-            ref = mkTypeRef(type)
-            val classRefTypeLValue = UFieldLValue(ctx.addressSort, ref, ctx.classTypeSyntheticField)
+        val ref = mkTypeRef(this, type)
+        if (memory.tryHeapRefToObject(ref) != null)
+            return@calcOnState ref
 
-            // Ref type is java.lang.Class
-            memory.types.allocate(ref.address, ctx.classType)
+        val classRefTypeLValue = UFieldLValue(ctx.addressSort, ref, ctx.classTypeSyntheticField)
 
-            // Save ref original class type with the negative address
-            val classRefType = memory.allocStatic(type)
-            memory.write(classRefTypeLValue, classRefType)
-        }
+        // Ref type is java.lang.Class
+        memory.types.allocate(ref.address, ctx.classType)
+
+        // Save ref original class type with the negative address
+        val classRefType = memory.allocStatic(type)
+        memory.write(classRefTypeLValue, classRefType)
+
         ref
     }
 

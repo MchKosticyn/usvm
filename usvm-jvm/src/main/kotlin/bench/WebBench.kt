@@ -184,8 +184,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         coverageZone = CoverageZone.TRANSITIVE,
         exceptionsPropagation = true,
         timeout = Duration.INFINITE,
-        loopIterationLimit = 100,
-        stepsFromLastCovered = 3500L,
+        loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
     )

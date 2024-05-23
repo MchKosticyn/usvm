@@ -115,7 +115,7 @@ private data class Cell(
 
     companion object {
         operator fun invoke(): Cell {
-            return Cell(PhysicalAddress(null))
+            return Cell(null)
         }
     }
 }
@@ -182,6 +182,7 @@ private class JcConcreteMemoryBindings(
     private val children: MutableMap<PhysicalAddress, childMapType>,
     private val parents: MutableMap<PhysicalAddress, parentMapType>,
     private val fullyConcretes: MutableSet<PhysicalAddress>,
+    private val newAddresses: MutableSet<UConcreteHeapAddress>,
 ) {
     constructor(
         ctx: JcContext,
@@ -194,6 +195,7 @@ private class JcConcreteMemoryBindings(
         true,
         mutableMapOf(),
         mutableMapOf(),
+        mutableSetOf(),
         mutableSetOf(),
     )
 
@@ -491,6 +493,11 @@ private class JcConcreteMemoryBindings(
         return !forbiddenTypes.contains(type.internalName)
     }
 
+    private val interningTypes = setOf<JcType>(
+        ctx.stringType,
+        ctx.classType
+    )
+
     fun allocate(address: UConcreteHeapAddress, obj: Any, type: JcType) {
         assert(address != NULL_ADDRESS)
         assert(!virtToPhys.containsKey(address))
@@ -498,9 +505,17 @@ private class JcConcreteMemoryBindings(
         virtToPhys[address] = physicalAddress
         physToVirt[physicalAddress] = address
         typeConstraints.allocate(address, type)
+        newAddresses.add(address)
     }
 
     private fun allocate(obj: Any, type: JcType, static: Boolean): UConcreteHeapAddress {
+        if (interningTypes.contains(type)) {
+            val address = tryPhysToVirt(obj)
+            if (address != null) {
+                return address
+            }
+        }
+
         val address =
             if (type.isEnum || type.isEnumArray || static)
                 ctx.addressCounter.freshStaticAddress()
@@ -714,7 +729,8 @@ private class JcConcreteMemoryBindings(
 
     @Suppress("UNCHECKED_CAST")
     fun <Value> initializeArray(address: UConcreteHeapAddress, contents: List<Pair<Int, Value>>): Boolean {
-        if (isWritable) {
+        val success = isWritable || newAddresses.contains(address)
+        if (success) {
             val obj = virtToPhys(address)
             val arrayType = obj.javaClass
             assert(arrayType.isArray)
@@ -788,7 +804,7 @@ private class JcConcreteMemoryBindings(
                 else -> error("JcConcreteMemoryBindings.initializeArray: unexpected array $obj")
             }
         }
-        return isWritable
+        return success
     }
 
     fun writeArrayLength(address: UConcreteHeapAddress, length: Int): Boolean {
@@ -819,6 +835,19 @@ private class JcConcreteMemoryBindings(
         obj as Map<Any?, Any?>
         assert(obj.size == length)
         return true
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun changeSetContainsElement(address: UConcreteHeapAddress, element: Any?, contains: Boolean): Boolean {
+        if (isWritable) {
+            val obj = virtToPhys(address)
+            obj as MutableSet<Any?>
+            if (contains)
+                obj.add(element)
+            else
+                obj.remove(element)
+        }
+        return isWritable
     }
 
     //endregion
@@ -916,6 +945,7 @@ private class JcConcreteMemoryBindings(
             children.toMutableMap(),
             parents.toMutableMap(),
             fullyConcretes.toMutableSet(),
+            mutableSetOf(),
         )
     }
 
@@ -964,7 +994,7 @@ private class JcConcreteFieldRegion<Sort : USort>(
             if (isSyntheticClassField) {
                 val type = bindings.virtToPhys(address) as Class<*>
                 val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
-                assert(jcType is JcRefType)
+                jcType as JcRefType
                 val allocated = bindings.allocateDefaultConcrete(jcType)!!
                 return ctx.mkConcreteHeapRef(allocated) as UExpr<Sort>
             }
@@ -1615,7 +1645,24 @@ private class JcConcreteRefSetRegion(
         value: UExpr<UBoolSort>,
         guard: UBoolExpr
     ): UMemoryRegion<URefSetEntryLValue<JcType>, UBoolSort> {
-        TODO("Not yet implemented")
+        val ref = key.setRef
+        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+            val address = ref.address
+            val objType = ctx.cp.objectType
+            val keyObj = marshall.tryExprToObj(key.setElement, objType)
+            val valueObj = marshall.tryExprToObj(value, ctx.cp.boolean)
+            val isConcreteWrite = valueObj.hasValue && keyObj.hasValue && guard.isTrue
+            if (isConcreteWrite && bindings.changeSetContainsElement(address, keyObj.value, valueObj.value as Boolean)) {
+                mutatedRefSets.add(ref.address)
+                return this
+            }
+
+            marshall.unmarshallSet(address)
+        }
+
+        writeToBase(key, value, guard)
+
+        return this
     }
 
     override fun read(key: URefSetEntryLValue<JcType>): UExpr<UBoolSort> {
@@ -2520,6 +2567,13 @@ class JcConcreteMemory private constructor(
         return null
     }
 
+    override fun forceAllocConcrete(type: JcType): UConcreteHeapRef {
+        val address = bindings.allocateDefaultConcrete(type)
+        if (address != null)
+            return ctx.mkConcreteHeapRef(address)
+        return super.allocConcrete(type)
+    }
+
     override fun tryHeapRefToObject(heapRef: UConcreteHeapRef): Any? {
         val maybe = marshall.tryExprToFullyConcreteObj(heapRef, ctx.cp.objectType)
         assert(!(maybe.hasValue && maybe.value == null))
@@ -2948,12 +3002,8 @@ class JcConcreteMemory private constructor(
         "org.springframework.web.context.request.async.WebAsyncManager#registerCallableInterceptors(org.springframework.web.context.request.async.CallableProcessingInterceptor[]):void",
         "org.springframework.web.context.request.async.WebAsyncManager#registerDeferredResultInterceptors(org.springframework.web.context.request.async.DeferredResultProcessingInterceptor[]):void",
         "org.springframework.web.context.request.async.WebAsyncManager#hasConcurrentResult():boolean",
-        "org.springframework.core.annotation.AnnotatedMethod#getMethodParameters():org.springframework.core.MethodParameter[]",
-        "org.springframework.util.ObjectUtils#isEmpty(java.lang.Object[]):boolean",
-        "org.springframework.core.MethodParameter#initParameterNameDiscovery(org.springframework.core.ParameterNameDiscoverer):void",
         "org.springframework.core.MethodParameter#getParameterType():java.lang.Class",
         "java.lang.String#contains(java.lang.CharSequence):boolean",
-        "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#supportsParameter(org.springframework.core.MethodParameter):boolean",
         "org.springframework.web.method.support.InvocableHandlerMethod#getValidationGroups():java.lang.Class[]",
         "org.springframework.web.method.HandlerMethod#shouldValidateArguments():boolean",
         "org.springframework.core.annotation.AnnotatedMethod#getBridgedMethod():java.lang.reflect.Method",
@@ -3000,7 +3050,6 @@ class JcConcreteMemory private constructor(
         "org.springframework.test.web.servlet.request.MockMvcRequestBuilders#post(java.lang.String,java.lang.Object[]):org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder",
         "org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder#<init>(org.springframework.http.HttpMethod,java.lang.String,java.lang.Object[]):void",
         "java.util.ArrayList#toArray(java.lang.Object[]):java.lang.Object[]",
-        "org.springframework.core.annotation.AnnotatedMethod#findProvidedArgument(org.springframework.core.MethodParameter,java.lang.Object[]):java.lang.Object",
         "org.springframework.web.method.annotation.SessionAttributesHandler#retrieveAttributes(org.springframework.web.context.request.WebRequest):java.util.Map",
         "java.util.HashMap#<init>():void",
         "org.springframework.web.method.support.ModelAndViewContainer#mergeAttributes(java.util.Map):org.springframework.web.method.support.ModelAndViewContainer",
@@ -3010,8 +3059,7 @@ class JcConcreteMemory private constructor(
         "org.springframework.web.method.support.ModelAndViewContainer#getModel():org.springframework.ui.ModelMap",
         "java.util.ArrayList#add(java.lang.Object):boolean",
         "java.util.LinkedHashMap#get(java.lang.Object):java.lang.Object",
-        "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver",
-        "java.util.HashMap#resize():java.util.HashMap\$Node[]"
+        "java.util.HashMap#resize():java.util.HashMap\$Node[]",
     )
 
     private val concreteNonMutatingInvocations = setOf(
@@ -3057,6 +3105,24 @@ class JcConcreteMemory private constructor(
         "java.lang.Class#desiredAssertionStatus():boolean",
         "java.lang.String#toCharArray():char[]",
         "runtime.LibSLRuntime#toString(char[]):java.lang.String",
+        "java.util.concurrent.ConcurrentHashMap#tableSizeFor(int):int",
+        "java.lang.Class#getSimpleName():java.lang.String",
+        "org.springframework.core.annotation.AnnotatedMethod#getMethodParameters():org.springframework.core.MethodParameter[]",
+        "org.springframework.util.ObjectUtils#isEmpty(java.lang.Object[]):boolean",
+        "org.springframework.core.annotation.AnnotatedMethod#findProvidedArgument(org.springframework.core.MethodParameter,java.lang.Object[]):java.lang.Object",
+        "org.springframework.web.context.request.async.StandardServletAsyncWebRequest#isAsyncStarted():boolean",
+        "jakarta.servlet.ServletRequest#getAttribute(java.lang.String):java.lang.Object",
+        "org.springframework.web.method.annotation.ModelAttributeMethodProcessor#wrapAsOptionalIfNecessary(org.springframework.core.MethodParameter,java.lang.Object):java.lang.Object",
+        "org.springframework.validation.DefaultMessageCodesResolver\$Format#\$values():org.springframework.validation.DefaultMessageCodesResolver\$Format[]"
+        // TODO: be careful: all methods below are mutating, but maybe it's insufficient #CM
+        "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#supportsParameter(org.springframework.core.MethodParameter):boolean",
+        "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver",
+        "org.springframework.core.MethodParameter#initParameterNameDiscovery(org.springframework.core.ParameterNameDiscoverer):void",
+        "org.springframework.web.servlet.mvc.method.annotation.ServletModelAttributeMethodProcessor#createAttribute(java.lang.String,org.springframework.core.MethodParameter,org.springframework.web.bind.support.WebDataBinderFactory,org.springframework.web.context.request.NativeWebRequest):java.lang.Object",
+        "org.springframework.core.ResolvableType#forMethodParameter(org.springframework.core.MethodParameter):org.springframework.core.ResolvableType",
+        "org.springframework.web.bind.support.DefaultDataBinderFactory#createBinder(org.springframework.web.context.request.NativeWebRequest,java.lang.Object,java.lang.String,org.springframework.core.ResolvableType):org.springframework.web.bind.WebDataBinder",
+        "org.springframework.web.method.annotation.ModelAttributeMethodProcessor#constructAttribute(org.springframework.web.bind.WebDataBinder,org.springframework.web.context.request.NativeWebRequest):void",
+        "org.springframework.web.servlet.mvc.method.annotation.ServletModelAttributeMethodProcessor#constructAttribute(org.springframework.web.bind.WebDataBinder,org.springframework.web.context.request.NativeWebRequest):void",
     )
 
     //endregion

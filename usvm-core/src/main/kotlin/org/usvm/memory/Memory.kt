@@ -155,6 +155,10 @@ open class UMemory<Type, Method>(
         return null
     }
 
+    open fun forceAllocConcrete(type: Type): UConcreteHeapRef {
+        return allocConcrete(type)
+    }
+
     open fun tryHeapRefToObject(heapRef: UConcreteHeapRef): Any? {
         return null
     }

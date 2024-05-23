@@ -148,6 +148,10 @@ class JcMethodApproximationResolver(
             if (approximateClassStaticMethod(methodCall)) return true
         }
 
+        if (className == "generated.java.lang.PrimitiveTypeUtils") {
+            if (approximatePrimitiveTypeUtilsStaticMethod(methodCall)) return true
+        }
+
         if (className == "java.lang.System") {
             if (approximateSystemStaticMethod(methodCall)) return true
         }
@@ -213,25 +217,41 @@ class JcMethodApproximationResolver(
         return false
     }
 
+    private fun approximateGetPrimitiveClass(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        val classNameRef = arguments.single()
+
+        val predefinedTypeNames = ctx.primitiveTypes.associateBy {
+            exprResolver.simpleValueResolver.resolveStringConstant(it.typeName)
+        }
+
+        val primitive = predefinedTypeNames[classNameRef] ?: return false
+
+        val classRef = exprResolver.simpleValueResolver.resolveClassRef(primitive)
+
+        scope.doWithState {
+            skipMethodInvocationWithValue(methodCall, classRef)
+        }
+
+        return true
+    }
+
     private fun approximateClassStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         /**
          * Approximate retrieval of class instance for primitives.
          * */
         if (method.name == "getPrimitiveClass") {
-            val classNameRef = arguments.single()
+            return approximateGetPrimitiveClass(methodCall)
+        }
 
-            val predefinedTypeNames = ctx.primitiveTypes.associateBy {
-                exprResolver.simpleValueResolver.resolveStringConstant(it.typeName)
-            }
+        return false
+    }
 
-            val primitive = predefinedTypeNames[classNameRef] ?: return false
-
-            val classRef = exprResolver.simpleValueResolver.resolveClassRef(primitive)
-
-            scope.doWithState {
-                skipMethodInvocationWithValue(methodCall, classRef)
-            }
-            return true
+    private fun approximatePrimitiveTypeUtilsStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        /**
+         * Approximate retrieval of class instance for primitives.
+         * */
+        if (method.name == "getPrimitiveClass") {
+            return approximateGetPrimitiveClass(methodCall)
         }
 
         return false
@@ -690,8 +710,7 @@ class JcMethodApproximationResolver(
             val elementArray = scope.calcOnState {
                 val arrayType = ctx.cp.arrayTypeOf(ctx.cp.objectType)
                 val descriptor = ctx.arrayDescriptorOf(arrayType)
-                val array = arrayType.allocateInstance(JcConcreteMemoryClassLoader, 1)
-                val arrayHeapRef = memory.tryAllocateConcrete(array, arrayType) ?: memory.allocConcrete(arrayType)
+                val arrayHeapRef = memory.forceAllocConcrete(arrayType)
                 memory.initializeArray(
                     arrayHeapRef,
                     descriptor,
