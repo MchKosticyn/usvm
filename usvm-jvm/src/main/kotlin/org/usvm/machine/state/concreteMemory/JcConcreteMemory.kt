@@ -2546,8 +2546,19 @@ class JcConcreteMemory private constructor(
         return ctx.mkConcreteHeapRef(address)
     }
 
+    private val forcedAllocationTypes = setOf(
+        "org.springframework.web.bind.ServletRequestParameterPropertyValues"
+    )
+
+    private fun shouldForceAllocation(type: JcType): Boolean {
+        return forcedAllocationTypes.contains(type.typeName)
+    }
+
     override fun allocConcrete(type: JcType): UConcreteHeapRef {
-        val address = if (bindings.isWritable) bindings.allocateDefaultConcrete(type) else null
+        val address =
+            if (bindings.isWritable || shouldForceAllocation(type))
+                bindings.allocateDefaultConcrete(type)
+            else null
         if (address != null)
             return ctx.mkConcreteHeapRef(address)
         return super.allocConcrete(type)
@@ -3002,7 +3013,6 @@ class JcConcreteMemory private constructor(
         "org.springframework.web.context.request.async.WebAsyncManager#registerCallableInterceptors(org.springframework.web.context.request.async.CallableProcessingInterceptor[]):void",
         "org.springframework.web.context.request.async.WebAsyncManager#registerDeferredResultInterceptors(org.springframework.web.context.request.async.DeferredResultProcessingInterceptor[]):void",
         "org.springframework.web.context.request.async.WebAsyncManager#hasConcurrentResult():boolean",
-        "org.springframework.core.MethodParameter#getParameterType():java.lang.Class",
         "java.lang.String#contains(java.lang.CharSequence):boolean",
         "org.springframework.web.method.support.InvocableHandlerMethod#getValidationGroups():java.lang.Class[]",
         "org.springframework.web.method.HandlerMethod#shouldValidateArguments():boolean",
@@ -3113,7 +3123,33 @@ class JcConcreteMemory private constructor(
         "org.springframework.web.context.request.async.StandardServletAsyncWebRequest#isAsyncStarted():boolean",
         "jakarta.servlet.ServletRequest#getAttribute(java.lang.String):java.lang.Object",
         "org.springframework.web.method.annotation.ModelAttributeMethodProcessor#wrapAsOptionalIfNecessary(org.springframework.core.MethodParameter,java.lang.Object):java.lang.Object",
-        "org.springframework.validation.DefaultMessageCodesResolver\$Format#\$values():org.springframework.validation.DefaultMessageCodesResolver\$Format[]"
+        "org.springframework.validation.DefaultMessageCodesResolver\$Format#\$values():org.springframework.validation.DefaultMessageCodesResolver\$Format[]",
+        "org.springframework.validation.DefaultMessageCodesResolver\$Format#<init>(java.lang.String,int):void",
+        "org.springframework.validation.AbstractBindingResult#hasErrors():boolean",
+        "java.util.HashSet#contains(java.lang.Object):boolean",
+        "org.springframework.web.context.request.ServletWebRequest#getNativeRequest(java.lang.Class):java.lang.Object",
+        "org.springframework.validation.DataBinder#shouldNotBindPropertyValues():boolean",
+        "org.springframework.web.util.WebUtils#getParametersStartingWith(jakarta.servlet.ServletRequest,java.lang.String):java.util.Map",
+        "java.util.TreeMap#size():int",
+        "ch.qos.logback.core.spi.FilterReply#\$values():ch.qos.logback.core.spi.FilterReply[]",
+        "org.springframework.web.util.WebUtils#getNativeRequest(jakarta.servlet.ServletRequest,java.lang.Class):java.lang.Object",
+        "org.springframework.web.bind.ServletRequestDataBinder#isFormDataPost(jakarta.servlet.ServletRequest):boolean",
+        "org.springframework.web.servlet.mvc.method.annotation.ExtendedServletRequestDataBinder#getUriVars(jakarta.servlet.ServletRequest):java.util.Map",
+        "org.springframework.web.bind.WebDataBinder#getFieldDefaultPrefix():java.lang.String",
+        "org.springframework.beans.MutablePropertyValues#getPropertyValues():org.springframework.beans.PropertyValue[]",
+        "org.springframework.web.bind.WebDataBinder#getFieldMarkerPrefix():java.lang.String",
+        "org.springframework.validation.DataBinder#getRequiredFields():java.lang.String[]",
+        "org.springframework.validation.DataBinder#getPropertyAccessor():org.springframework.beans.ConfigurablePropertyAccessor",
+        "org.springframework.validation.DataBinder#isIgnoreUnknownFields():boolean",
+        "org.springframework.validation.DataBinder#isIgnoreInvalidFields():boolean",
+        "org.springframework.beans.MutablePropertyValues#getPropertyValueList():java.util.List",
+        "java.util.ArrayList\$Itr#hasNext():boolean",
+        "org.springframework.core.MethodParameter#getParameterType():java.lang.Class",
+        "org.springframework.validation.AbstractBindingResult#getModel():java.util.Map",
+        "java.util.LinkedHashMap#keySet():java.util.Set",
+        "java.util.LinkedHashMap\$LinkedKeySet#iterator():java.util.Iterator",
+        "java.util.LinkedHashMap\$LinkedHashIterator#hasNext():boolean",
+        "java.util.LinkedHashMap\$LinkedKeyIterator#next():java.lang.Object",
         // TODO: be careful: all methods below are mutating, but maybe it's insufficient #CM
         "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#supportsParameter(org.springframework.core.MethodParameter):boolean",
         "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver",
@@ -3123,6 +3159,9 @@ class JcConcreteMemory private constructor(
         "org.springframework.web.bind.support.DefaultDataBinderFactory#createBinder(org.springframework.web.context.request.NativeWebRequest,java.lang.Object,java.lang.String,org.springframework.core.ResolvableType):org.springframework.web.bind.WebDataBinder",
         "org.springframework.web.method.annotation.ModelAttributeMethodProcessor#constructAttribute(org.springframework.web.bind.WebDataBinder,org.springframework.web.context.request.NativeWebRequest):void",
         "org.springframework.web.servlet.mvc.method.annotation.ServletModelAttributeMethodProcessor#constructAttribute(org.springframework.web.bind.WebDataBinder,org.springframework.web.context.request.NativeWebRequest):void",
+        "org.springframework.validation.DataBinder#getBindingResult():org.springframework.validation.BindingResult",
+        "org.springframework.web.bind.ServletRequestParameterPropertyValues#<init>(jakarta.servlet.ServletRequest):void",
+        "org.springframework.validation.DataBinder#getInternalBindingResult():org.springframework.validation.AbstractPropertyBindingResult",
     )
 
     //endregion
