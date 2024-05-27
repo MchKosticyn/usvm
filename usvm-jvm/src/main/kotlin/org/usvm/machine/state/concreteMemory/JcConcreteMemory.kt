@@ -2650,7 +2650,6 @@ class JcConcreteMemory private constructor(
     }
 
     private fun applyChanges(oldObj: Any, newObj: Any) {
-        assert(bindings.isWritable)
         val type = oldObj.javaClass
         assert(newObj.javaClass == type)
         assert(!type.isArray)
@@ -3070,6 +3069,7 @@ class JcConcreteMemory private constructor(
         "java.util.ArrayList#add(java.lang.Object):boolean",
         "java.util.LinkedHashMap#get(java.lang.Object):java.lang.Object",
         "java.util.HashMap#resize():java.util.HashMap\$Node[]",
+        "java.util.LinkedHashMap\$LinkedKeyIterator#next():java.lang.Object",
     )
 
     private val concreteNonMutatingInvocations = setOf(
@@ -3149,7 +3149,11 @@ class JcConcreteMemory private constructor(
         "java.util.LinkedHashMap#keySet():java.util.Set",
         "java.util.LinkedHashMap\$LinkedKeySet#iterator():java.util.Iterator",
         "java.util.LinkedHashMap\$LinkedHashIterator#hasNext():boolean",
-        "java.util.LinkedHashMap\$LinkedKeyIterator#next():java.lang.Object",
+        "java.util.HashMap#getNode(java.lang.Object):java.util.HashMap\$Node",
+        "java.util.LinkedHashMap#entrySet():java.util.Set",
+        "java.util.LinkedHashMap\$LinkedEntrySet#iterator():java.util.Iterator",
+        "java.util.HashMap\$Node#getKey():java.lang.Object",
+        "java.util.HashMap\$Node#getValue():java.lang.Object",
         // TODO: be careful: all methods below are mutating, but maybe it's insufficient #CM
         "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#supportsParameter(org.springframework.core.MethodParameter):boolean",
         "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver",
