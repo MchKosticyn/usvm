@@ -42,7 +42,6 @@ import org.jacodb.api.jvm.ext.*
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.usvm.*
 import org.usvm.api.*
-import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.machine.state.newStmt
 import java.util.*
@@ -131,6 +130,14 @@ class JcMethodApproximationResolver(
 
         if (className.contains("java.lang.reflect.Method")) {
             if (approximateMethodMethod(methodCall)) return true
+        }
+
+        if (className == "org.apache.commons.logging.Log") {
+            if (approximateLoggerMethod(methodCall)) return true
+        }
+
+        if (className == "org.springframework.web.method.HandlerMethod") {
+            if (approximateHandlerMethod(methodCall)) return true
         }
 
         return approximateEmptyNativeMethod(methodCall)
@@ -578,16 +585,68 @@ class JcMethodApproximationResolver(
                 val args = arguments[2] as UConcreteHeapRef
                 val argsArrayType = ctx.cp.arrayTypeOf(ctx.cp.objectType)
                 val descriptor = ctx.arrayDescriptorOf(argsArrayType)
-                val argsArrayLength = memory.readArrayLength(args, descriptor, ctx.sizeSort)
-                val argsCount = memory.tryExprToInt(argsArrayLength)!!
-                val arguments = List<UExpr<USort>>(argsCount) {
-                    memory.readArrayIndex(args, memory.tryObjectToExpr(it, ctx.cp.int)!!, descriptor, ctx.sizeSort)
-                }
-                val argsWithThis = listOf(thisArg) + arguments
                 val method = memory.tryHeapRefToObject(methodArg) as java.lang.reflect.Method
                 val jcMethod =
-                    ctx.cp.findClass(method.declaringClass.name).declaredMethods.find { it.name == method.name }!!
-                newStmt(JcConcreteMethodCallInst(methodCall.location, jcMethod, argsWithThis, methodCall.returnSite))
+                    ctx.cp.findClass(method.declaringClass.name).toType().declaredMethods.find { it.name == method.name }!!
+                val arguments = jcMethod.parameters.mapIndexed { index, jcParameter ->
+                    val idx = memory.tryObjectToExpr(index, ctx.cp.int)!!
+                    val value = memory.readArrayIndex(args, idx, descriptor, ctx.sizeSort).asExpr(ctx.addressSort)
+                    val type = jcParameter.type
+                    val sort = ctx.typeToSort(type)
+                    if (type is JcPrimitiveType) {
+                        val boxedType = type.autoboxIfNeeded() as JcClassType
+                        val valueField = boxedType.declaredFields.find { it.name == "value" }!!
+                        memory.readField(value, valueField.field, sort)
+                    } else {
+                        value
+                    }
+                }
+                val parameters =
+                    if (jcMethod.isStatic) arguments
+                    else listOf(thisArg) + arguments
+                newStmt(JcConcreteMethodCallInst(methodCall.location, jcMethod.method, parameters, methodCall.returnSite))
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private val loggerLevelCheckMethods = setOf(
+        "isFatalEnabled", "isErrorEnabled", "isWarnEnabled", "isInfoEnabled", "isDebugEnabled", "isTraceEnabled"
+    )
+
+    private val loggerPrintMethods = setOf(
+        "fatal", "error", "warn", "info", "debug", "trace"
+    )
+
+    private fun approximateLoggerMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        val methodName = method.name
+        if (loggerLevelCheckMethods.contains(methodName)) {
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, ctx.falseExpr)
+            }
+
+            return true
+        }
+
+        if (loggerPrintMethods.contains(methodName)) {
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateHandlerMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        val methodName = method.name
+        if (methodName == "formatInvokeError") {
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, arguments[1])
             }
 
             return true

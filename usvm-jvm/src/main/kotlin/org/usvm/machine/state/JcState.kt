@@ -5,6 +5,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.PathNode
 import org.usvm.UCallStack
+import org.usvm.UConcreteHeapRef
 import org.usvm.UState
 import org.usvm.api.targets.JcTarget
 import org.usvm.constraints.UPathConstraints
@@ -36,6 +37,13 @@ class JcState(
     forkPoints,
     targets
 ) {
+
+    init {
+        if (pathConstraints.isFalse && models.isNotEmpty()){
+            let {  }
+        }
+    }
+
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcState {
         val clonedConstraints = newConstraints ?: pathConstraints.clone()
         return JcState(

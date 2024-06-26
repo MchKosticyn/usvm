@@ -69,6 +69,15 @@ object WithSolverStateForker : StateForker {
             )
 
             falseModels.isNotEmpty() -> {
+                val original = state.pathConstraints.clone()
+                val xxx = original.clone()
+
+                xxx += notCondition
+                if (xxx.isFalse) {
+                    let {  }
+                }
+
+
                 val forkedState = forkIfSat(
                     state,
                     newConstraintToOriginalState = condition,
@@ -86,6 +95,18 @@ object WithSolverStateForker : StateForker {
             else -> error("[trueModels] and [falseModels] are both empty, that has to be impossible by construction!")
         }
 
+        if (posState != null){
+            if (posState.pathConstraints.isFalse && posState.models.isNotEmpty()){
+                let {  }
+            }
+        }
+
+        if (negState != null){
+            if (negState.pathConstraints.isFalse && negState.models.isNotEmpty()){
+                let {  }
+            }
+        }
+
         return ForkResult(posState, negState)
     }
 
@@ -94,6 +115,9 @@ object WithSolverStateForker : StateForker {
         conditions: Iterable<UBoolExpr>,
     ): List<T?> {
         val guardedModels = mutableListOf<Pair<List<UModelBase<Type>>, UBoolExpr>?>()
+        val initialModels = state.models
+        initialModels.let {  }
+
         for (condition in conditions) {
             val (trueModels, _, _) = splitModelsByCondition(state.models, condition)
 

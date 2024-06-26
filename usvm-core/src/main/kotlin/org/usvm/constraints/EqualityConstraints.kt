@@ -239,6 +239,12 @@ class UEqualityConstraints private constructor(
             }
         }
 
+        if (repr1.toString().contains("BaseEntity#id"))
+            println()
+
+        if (repr2.toString().contains("BaseEntity#id"))
+            println()
+
         mutableReferenceDisequalities.add(repr1, repr2)
         mutableReferenceDisequalities.add(repr2, repr1)
     }
@@ -374,6 +380,12 @@ class UEqualityConstraints private constructor(
             val otherDistinctRefs = oldDistinctRefs - ref
             mutableDistinctReferences.remove(ref)
 
+            if (ref.toString().contains("BaseEntity#id"))
+                println()
+
+            if (otherDistinctRefs.any { it.toString().contains("BaseEntity#id") })
+                println()
+
             mutableReferenceDisequalities.addAll(ref, otherDistinctRefs)
             otherDistinctRefs.forEach {
                 mutableReferenceDisequalities.add(it, ref)
@@ -488,6 +500,43 @@ class UEqualityConstraints private constructor(
                 )
                 val nullConstraint1 = ctx.mkEqNoSimplify(translatedRef1, translatedNull)
                 val nullConstraint2 = ctx.mkEqNoSimplify(translatedRef2, translatedNull)
+                result += ctx.mkOrNoSimplify(
+                    disequalityConstraint,
+                    ctx.mkAndNoSimplify(nullConstraint1, nullConstraint2)
+                )
+            }
+        }
+
+        return result.asSequence()
+    }
+
+    fun allConstraints(): Sequence<UBoolExpr>{
+        val result = mutableListOf<UBoolExpr>()
+        result += ctx.mkDistinct(mutableDistinctReferences.toList())
+
+        for ((key, value) in equalReferences) {
+            result += ctx.mkEqNoSimplify(key, value)
+        }
+
+        val processedConstraints = mutableSetOf<Pair<UHeapRef, UHeapRef>>()
+
+        for ((ref1, ref2) in mutableReferenceDisequalities) {
+            if (!processedConstraints.contains(ref2 to ref1)) {
+                processedConstraints.add(ref1 to ref2)
+                result += ctx.mkNotNoSimplify(ctx.mkEqNoSimplify(ref1, ref2))
+            }
+        }
+
+        processedConstraints.clear()
+        for ((ref1, ref2) in mutableNullableDisequalities) {
+            if (!processedConstraints.contains(ref2 to ref1)) {
+                processedConstraints.add(ref1 to ref2)
+
+                val disequalityConstraint = ctx.mkNotNoSimplify(
+                    ctx.mkEqNoSimplify(ref1, ref2)
+                )
+                val nullConstraint1 = ctx.mkEqNoSimplify(ref1, ctx.nullRef)
+                val nullConstraint2 = ctx.mkEqNoSimplify(ref2, ctx.nullRef)
                 result += ctx.mkOrNoSimplify(
                     disequalityConstraint,
                     ctx.mkAndNoSimplify(nullConstraint1, nullConstraint2)

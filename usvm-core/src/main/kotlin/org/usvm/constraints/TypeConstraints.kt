@@ -349,10 +349,13 @@ class UTypeConstraints<Type>(
     ) {
         val region = getTypeRegion(ref)
         val newRegion = regionMapper(region)
+
+        equalityConstraints.makeNonEqual(ref, ref.uctx.nullRef)
+
         if (newRegion == region) {
             return
         }
-        equalityConstraints.makeNonEqual(ref, ref.uctx.nullRef)
+
         if (newRegion.isEmpty || equalityConstraints.isContradicting) {
             contradiction()
             return
@@ -378,11 +381,6 @@ class UTypeConstraints<Type>(
         }
         if (newRegion.isEmpty) {
             equalityConstraints.makeEqual(ref, ref.uctx.nullRef)
-        }
-
-        // fixme: hack
-        if (newRegion.typeStream is USingleTypeStream<*>) {
-            equalityConstraints.makeNonEqual(ref, ref.uctx.nullRef)
         }
 
         for ((key, value) in symbolicRefToTypeRegion.entries) {
@@ -481,6 +479,10 @@ class UTypeConstraints<Type>(
 
     @Suppress("UNUSED_PARAMETER")
     fun constraints(translator: UExprTranslator<Type, *>): Sequence<UBoolExpr> {
+        return emptySequence()
+    }
+
+    fun allConstraints(): Sequence<UBoolExpr> {
         return emptySequence()
     }
 }

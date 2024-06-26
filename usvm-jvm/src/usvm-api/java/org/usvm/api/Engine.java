@@ -8,8 +8,8 @@ import java.lang.reflect.Array;
 
 public class Engine {
 
-    @SuppressWarnings("unused")
     public static void assume(boolean expr) {
+        assert expr;
     }
 
     @SuppressWarnings("unused")
