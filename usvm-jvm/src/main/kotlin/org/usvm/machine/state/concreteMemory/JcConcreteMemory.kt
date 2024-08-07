@@ -3298,6 +3298,9 @@ class JcConcreteMemory private constructor(
         "jdk.internal.reflect.Reflection#getCallerClass():java.lang.Class",
         "java.lang.Boolean#getBoolean(java.lang.String):boolean",
         "java.lang.System#getProperty(java.lang.String):java.lang.String",
+        "org.springframework.core.MethodParameter#validateIndex(java.lang.reflect.Executable,int):int",
+        "org.springframework.core.annotation.AnnotatedMethod#getContainingClass():java.lang.Class",
+        "java.lang.reflect.Method#getReturnType():java.lang.Class",
         // TODO: be careful: all methods below are mutating, but maybe it's insufficient #CM
         "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#supportsParameter(org.springframework.core.MethodParameter):boolean",
         "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver",
