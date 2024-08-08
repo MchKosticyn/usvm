@@ -43,4 +43,9 @@ public class SymbolicMapImpl<K, V> implements SymbolicMap<K, V> {
         SymbolicMapImpl<K, V> srcImpl = (SymbolicMapImpl<K, V>) src;
         data.putAll(srcImpl.data);
     }
+
+    @Override
+    public Object[] entries() {
+        return data.entrySet().toArray();
+    }
 }

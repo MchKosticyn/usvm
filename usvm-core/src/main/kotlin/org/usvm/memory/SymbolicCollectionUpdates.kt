@@ -556,3 +556,88 @@ data class UTreeUpdates<Key, Reg : Region<Reg>, Sort : USort>(
 }
 
 //endregion
+
+//region Concatenated Updates
+
+/**
+ * Represents updates to collection obtained by all updates in [after] stored to [before].
+ * Read operation will read both [before] and [after] updates, write operations change only [after] updates.
+ */
+
+class UConcatenatedUpdates<Key, Sort : USort>(
+    private val before: USymbolicCollectionUpdates<Key, Sort>,
+    private val after: USymbolicCollectionUpdates<Key, Sort>
+) : USymbolicCollectionUpdates<Key, Sort> {
+    override fun read(key: Key, composer: UComposer<*, *>?): USymbolicCollectionUpdates<Key, Sort> {
+        val localizedBefore = before.read(key, composer)
+        val localizedAfter = after.read(key, composer)
+        if (localizedBefore === before && localizedAfter === after)
+            return this
+        return UConcatenatedUpdates(localizedBefore, localizedAfter)
+    }
+
+    override fun write(key: Key, value: UExpr<Sort>, guard: UBoolExpr): USymbolicCollectionUpdates<Key, Sort> =
+        UConcatenatedUpdates(before, after.write(key, value, guard))
+
+    override fun split(
+        key: Key,
+        predicate: (UExpr<Sort>) -> Boolean,
+        matchingWrites: MutableList<GuardedExpr<UExpr<Sort>>>,
+        guardBuilder: GuardBuilder,
+        composer: UComposer<*, *>?
+    ): USymbolicCollectionUpdates<Key, Sort> {
+        val splittedAfter = after.split(key, predicate, matchingWrites, guardBuilder, composer)
+        val splittedBefore = before.split(key, predicate, matchingWrites, guardBuilder, composer)
+        if (splittedBefore === before && splittedAfter === after)
+            return this
+        return UConcatenatedUpdates(splittedBefore, splittedAfter)
+    }
+
+    override fun <CollectionId : USymbolicCollectionId<SrcKey, Sort, CollectionId>, SrcKey> copyRange(
+        fromCollection: USymbolicCollection<CollectionId, SrcKey, Sort>,
+        adapter: USymbolicCollectionAdapter<SrcKey, Key>,
+        guard: UBoolExpr
+    ): USymbolicCollectionUpdates<Key, Sort> =
+        UConcatenatedUpdates(before, after.copyRange(fromCollection, adapter, guard))
+
+    override fun splitWrite(
+        key: Key,
+        value: UExpr<Sort>,
+        guard: UBoolExpr,
+        composer: UComposer<*, *>?,
+        predicate: (UExpr<Sort>) -> Boolean
+    ): USymbolicCollectionUpdates<Key, Sort> {
+        TODO("Not yet implemented")
+    }
+
+    override fun lastUpdatedElementOrNull(): UUpdateNode<Key, Sort>? =
+        after.lastUpdatedElementOrNull() ?: before.lastUpdatedElementOrNull()
+
+    override fun isEmpty(): Boolean = before.isEmpty() && after.isEmpty()
+
+    override fun <Result> accept(
+        visitor: UMemoryUpdatesVisitor<Key, Sort, Result>,
+        lookupCache: MutableMap<Any?, Result>
+    ): Result =
+        after.accept(ConcatenatedUpdateVisitor(before, visitor, lookupCache), lookupCache)
+
+    override fun iterator(): Iterator<UUpdateNode<Key, Sort>> =
+        (before.iterator().asSequence() + after.iterator().asSequence()).iterator()
+}
+
+private class ConcatenatedUpdateVisitor<Key, Sort : USort, Result>(
+    private val baseUpdates: USymbolicCollectionUpdates<Key, Sort>,
+    private val visitor: UMemoryUpdatesVisitor<Key, Sort, Result>,
+    private val lookupCache: MutableMap<Any?, Result>
+) : UMemoryUpdatesVisitor<Key, Sort, Result> {
+    override fun visitSelect(result: Result, key: Key): UExpr<Sort> =
+        visitor.visitSelect(result, key)
+
+    override fun visitInitialValue(): Result =
+        baseUpdates.accept(visitor, lookupCache)
+
+    override fun visitUpdate(previous: Result, update: UUpdateNode<Key, Sort>): Result =
+        visitor.visitUpdate(previous, update)
+}
+
+//endregion

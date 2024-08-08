@@ -14,4 +14,6 @@ public interface SymbolicMap<K, V> {
     boolean containsKey(K key);
 
     void merge(SymbolicMap<K, V> src);
+
+    Object[] entries();
 }

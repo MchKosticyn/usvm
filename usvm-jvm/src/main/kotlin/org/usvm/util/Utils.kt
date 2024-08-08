@@ -1,12 +1,9 @@
 package org.usvm.util
 
-import org.jacodb.api.jvm.JcClassOrInterface
-import org.jacodb.api.jvm.JcClassType
-import org.jacodb.api.jvm.JcRefType
-import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.JcTypedField
+import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.findFieldOrNull
+import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.types.JcClassTypeImpl
 import org.usvm.UConcreteHeapRef
@@ -25,6 +22,22 @@ fun JcContext.extractJcRefType(clazz: KClass<*>): JcRefType = extractJcType(claz
 
 val JcClassOrInterface.enumValuesField: JcTypedField
     get() = toType().findFieldOrNull("\$VALUES") ?: error("No \$VALUES field found for the enum type $this")
+
+val JcField.typedField: JcTypedField
+    get() =
+        enclosingClass.toType().findFieldOrNull(name)
+            ?: error("Could not find field $this in type $enclosingClass")
+
+fun JcContext.jcTypeOf(obj: Any): JcType {
+    val type = cp.findType(obj.javaClass.typeName)
+    if (type !is JcClassTypeImpl) return type
+    val jcClass = type.jcClass
+    val approximateAnnotation =
+        jcClass.annotations.find { it.matches("org.jacodb.approximation.annotation.Approximate") }
+            ?: return type
+    val approximatedClass = approximateAnnotation.values["value"] as JcClassOrInterface
+    return approximatedClass.toType()
+}
 
 @Suppress("UNCHECKED_CAST")
 fun UWritableMemory<*>.write(ref: ULValue<*, *>, value: UExpr<*>) {

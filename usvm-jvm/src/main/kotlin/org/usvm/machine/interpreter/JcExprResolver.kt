@@ -91,7 +91,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.UNullRef
 import org.usvm.USort
-import org.usvm.api.allocateArrayInitialized
+import org.usvm.api.initializeArray
 import org.usvm.collection.array.UArrayIndexLValue
 import org.usvm.collection.array.length.UArrayLengthLValue
 import org.usvm.collection.field.UFieldLValue
@@ -133,8 +133,8 @@ class JcExprResolver(
     private val scope: JcStepScope,
     private val options: JcMachineOptions,
     localToIdx: (JcMethod, JcImmediate) -> Int,
-    mkTypeRef: (JcType) -> UConcreteHeapRef,
-    mkStringConstRef: (String) -> UConcreteHeapRef,
+    mkTypeRef: (JcState, JcType) -> UConcreteHeapRef,
+    mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
     private val classInitializerAnalysisAlwaysRequiredForType: (JcRefType) -> Boolean,
 ) : JcExprVisitor<UExpr<out USort>?>, JcExprVisitor.Default<UExpr<out USort>?> {
     val simpleValueResolver: JcSimpleValueResolver = JcSimpleValueResolver(
@@ -1019,8 +1019,8 @@ class JcSimpleValueResolver(
     private val ctx: JcContext,
     private val scope: JcStepScope,
     private val localToIdx: (JcMethod, JcImmediate) -> Int,
-    private val mkTypeRef: (JcType) -> UConcreteHeapRef,
-    private val mkStringConstRef: (String) -> UConcreteHeapRef,
+    private val mkTypeRef: (JcState, JcType) -> UConcreteHeapRef,
+    private val mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
 ) : JcValueVisitor<UExpr<out USort>>, JcExprVisitor.Default<UExpr<out USort>> {
     override fun visitJcArgument(value: JcArgument): UExpr<out USort> = with(ctx) {
         val ref = resolveLocal(value)
@@ -1067,6 +1067,9 @@ class JcSimpleValueResolver(
         scope.calcOnState {
             // Equal string constants always have equal references
             val ref = resolveStringConstant(value.value)
+            if (memory.tryHeapRefToObject(ref) != null)
+                return@calcOnState ref
+
             val stringValueLValue = UFieldLValue(addressSort, ref, stringValueField.field)
 
             // String.value type depends on the JVM version
@@ -1076,17 +1079,17 @@ class JcSimpleValueResolver(
                 else -> error("Unexpected string values type: ${stringValueField.type}")
             }
 
-            val valuesArrayDescriptor = arrayDescriptorOf(stringValueField.type as JcArrayType)
+            val arrayType = stringValueField.type as JcArrayType
+            val valuesArrayDescriptor = arrayDescriptorOf(arrayType)
             val elementType = requireNotNull(stringValueField.type.ifArrayGetElementType)
-            val charArrayRef = memory.allocateArrayInitialized(
+            val charArrayRef = memory.allocConcrete(arrayType)
+            memory.initializeArray(
+                charArrayRef,
                 valuesArrayDescriptor,
                 typeToSort(elementType),
                 sizeSort,
                 charValues.uncheckedCast()
             )
-
-            // overwrite array type because descriptor is element type
-            memory.types.allocate(charArrayRef.address, stringValueField.type)
 
             // String constants are immutable. Therefore, it is correct to overwrite value, coder and type.
             memory.write(stringValueLValue, charArrayRef)
@@ -1136,7 +1139,10 @@ class JcSimpleValueResolver(
     }
 
     fun resolveClassRef(type: JcType): UConcreteHeapRef = scope.calcOnState {
-        val ref = mkTypeRef(type)
+        val ref = mkTypeRef(this, type)
+        if (memory.tryHeapRefToObject(ref) != null)
+            return@calcOnState ref
+
         val classRefTypeLValue = UFieldLValue(ctx.addressSort, ref, ctx.classTypeSyntheticField)
 
         // Ref type is java.lang.Class
@@ -1152,6 +1158,6 @@ class JcSimpleValueResolver(
 
     fun resolveStringConstant(value: String): UConcreteHeapRef =
         scope.calcOnState {
-            mkStringConstRef(value)
+            mkStringConstRef(this, value)
         }
 }

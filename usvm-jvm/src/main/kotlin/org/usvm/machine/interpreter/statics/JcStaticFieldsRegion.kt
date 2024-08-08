@@ -44,7 +44,7 @@ data class JcStaticFieldRegionId<Sort : USort>(
     override fun emptyRegion(): UMemoryRegion<JcStaticFieldLValue<Sort>, Sort> = JcStaticFieldsMemoryRegion(sort)
 }
 
-internal class JcStaticFieldsMemoryRegion<Sort : USort>(
+internal open class JcStaticFieldsMemoryRegion<Sort : USort>(
     private val sort: Sort,
     private var fieldValuesByClass: PersistentMap<JcClassOrInterface, PersistentMap<JcField, UExpr<Sort>>> = persistentHashMapOf(),
     private var initialStatics: PersistentList<JcField> = persistentListOf()
@@ -62,7 +62,7 @@ internal class JcStaticFieldsMemoryRegion<Sort : USort>(
         key: JcStaticFieldLValue<Sort>,
         value: UExpr<Sort>,
         guard: UBoolExpr,
-    ): UMemoryRegion<JcStaticFieldLValue<Sort>, Sort> {
+    ): JcStaticFieldsMemoryRegion<Sort> {
         val field = key.field
 
         val enclosingClass = field.enclosingClass
@@ -78,7 +78,7 @@ internal class JcStaticFieldsMemoryRegion<Sort : USort>(
         return JcStaticFieldsMemoryRegion(sort, newFieldsByClass, initialStatics)
     }
 
-    fun mutatePrimitiveStaticFieldValuesToSymbolic(enclosingClass: JcClassOrInterface) {
+    open fun mutatePrimitiveStaticFieldValuesToSymbolic(enclosingClass: JcClassOrInterface) {
         val staticFields = fieldValuesByClass[enclosingClass] ?: return
 
         val staticsToRemove = staticFields
@@ -135,7 +135,7 @@ private fun staticFieldsInitializedFlag(ctx: JcContext, type: JcRefType): JcStat
 /**
  * Synthetic field to track static field initialization state.
  * */
-private val staticFieldsInitializedFlagField by lazy {
+internal val staticFieldsInitializedFlagField by lazy {
     FieldInfo(
         name = "__initialized__",
         signature = null,

@@ -14,4 +14,6 @@ public interface SymbolicIdentityMap<K, V> {
     boolean containsKey(K key);
 
     void merge(SymbolicIdentityMap<K, V> src);
+
+    Object[] entries();
 }

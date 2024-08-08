@@ -13,7 +13,7 @@ import javax.lang.model.element.TypeElement
 
 @SupportedAnnotationTypes("org.usvm.annotations.SymbolicMethodDescriptor")
 @SupportedOptions("headerPath")
-@SupportedSourceVersion(SourceVersion.RELEASE_8)
+@SupportedSourceVersion(SourceVersion.RELEASE_17)
 class SymbolicMethodDescriptorProcessor : AbstractProcessor() {
     override fun process(annotations: Set<TypeElement>, roundEnv: RoundEnvironment): Boolean {
         if (annotations.size != 1) {

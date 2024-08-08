@@ -18,6 +18,7 @@ import org.usvm.constraints.UTypeConstraints
 import org.usvm.constraints.UTypeEvaluator
 import org.usvm.merging.MergeGuard
 import org.usvm.merging.UMergeable
+import org.usvm.util.Maybe
 
 interface UMemoryRegionId<Key, Sort : USort> {
     val sort: Sort
@@ -90,14 +91,14 @@ interface UWritableMemory<Type> : UReadOnlyMemory<Type> {
 }
 
 @Suppress("MemberVisibilityCanBePrivate")
-class UMemory<Type, Method>(
+open class UMemory<Type, Method>(
     internal val ctx: UContext<*>,
     override val types: UTypeConstraints<Type>,
     override val stack: URegistersStack = URegistersStack(),
-    private val mocks: UIndexedMocker<Method> = UIndexedMocker(),
+    val mocks: UIndexedMocker<Method> = UIndexedMocker(),
     persistentRegions: PersistentMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentHashMapOf(),
 ) : UWritableMemory<Type>, UMergeable<UMemory<Type, Method>, MergeGuard> {
-    private val regions = persistentRegions.builder()
+    val regions = persistentRegions.builder()
 
     override val mocker: UMocker<Method>
         get() = mocks
@@ -150,9 +151,37 @@ class UMemory<Type, Method>(
         return staticHeapRef
     }
 
+    open fun tryAllocateConcrete(obj: Any, type: Type): UConcreteHeapRef? {
+        return null
+    }
+
+    open fun forceAllocConcrete(type: Type): UConcreteHeapRef {
+        return allocConcrete(type)
+    }
+
+    open fun tryHeapRefToObject(heapRef: UConcreteHeapRef): Any? {
+        return null
+    }
+
+    open fun <Sort: USort> tryExprToInt(expr: UExpr<Sort>): Int? {
+        return null
+    }
+
+    open fun tryObjectToExpr(obj: Any?, type: Type): UExpr<USort>? {
+        return null
+    }
+
+    open fun <Inst, State, Resolver> tryConcreteInvoke(
+        stmt: Inst,
+        state: State,
+        exprResolver: Resolver
+    ): Boolean {
+        return false
+    }
+
     override fun nullRef(): UHeapRef = ctx.nullRef
 
-    fun clone(typeConstraints: UTypeConstraints<Type>): UMemory<Type, Method> =
+    open fun clone(typeConstraints: UTypeConstraints<Type>): UMemory<Type, Method> =
         UMemory(ctx, typeConstraints, stack.clone(), mocks.clone(), regions.build())
 
     override fun toWritableMemory() =
