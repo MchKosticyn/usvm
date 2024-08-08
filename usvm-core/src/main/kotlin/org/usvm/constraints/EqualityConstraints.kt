@@ -512,6 +512,47 @@ class UEqualityConstraints private constructor(
         return result.asSequence()
     }
 
+    fun allConstraints(): Sequence<UBoolExpr>{
+        val result = mutableListOf<UBoolExpr>()
+        result += ctx.mkDistinct(distinctReferences.toList())
+
+        for ((key, value) in equalReferences) {
+            result += ctx.mkEqNoSimplify(key, value)
+        }
+
+        val processedConstraints = mutableSetOf<Pair<UHeapRef, UHeapRef>>()
+
+        for ((ref1, map) in referenceDisequalities) {
+            for (ref2 in map) {
+                if (!processedConstraints.contains(ref2 to ref1)) {
+                    processedConstraints.add(ref1 to ref2)
+                    result += ctx.mkNotNoSimplify(ctx.mkEqNoSimplify(ref1, ref2))
+                }
+            }
+        }
+
+        processedConstraints.clear()
+        for ((ref1, map) in nullableDisequalities) {
+            for (ref2 in map) {
+                if (!processedConstraints.contains(ref2 to ref1)) {
+                    processedConstraints.add(ref1 to ref2)
+
+                    val disequalityConstraint = ctx.mkNotNoSimplify(
+                        ctx.mkEqNoSimplify(ref1, ref2)
+                    )
+                    val nullConstraint1 = ctx.mkEqNoSimplify(ref1, ctx.nullRef)
+                    val nullConstraint2 = ctx.mkEqNoSimplify(ref2, ctx.nullRef)
+                    result += ctx.mkOrNoSimplify(
+                        disequalityConstraint,
+                        ctx.mkAndNoSimplify(nullConstraint1, nullConstraint2)
+                    )
+                }
+            }
+        }
+
+        return result.asSequence()
+    }
+
     /**
      * A representative selector that prefers static refs over all others, and the null ref over other symbolic.
      */
