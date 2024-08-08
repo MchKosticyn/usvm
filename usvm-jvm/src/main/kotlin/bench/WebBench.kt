@@ -1,7 +1,12 @@
 package bench
 
 import kotlinx.coroutines.runBlocking
-import org.jacodb.api.jvm.*
+import org.jacodb.api.jvm.JcByteCodeLocation
+import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcDatabase
+import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
 import org.jacodb.api.jvm.ext.findClass
@@ -28,12 +33,20 @@ import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions
 import org.usvm.util.classpathWithApproximations
 import java.io.File
+import java.io.PrintStream
 import java.nio.file.Path
-import java.util.*
-import kotlin.io.path.*
+import java.util.Locale
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.Path
+import kotlin.io.path.PathWalkOption
+import kotlin.io.path.createDirectories
+import kotlin.io.path.div
+import kotlin.io.path.extension
+import kotlin.io.path.walk
 import kotlin.system.measureNanoTime
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
+
 
 private fun loadWebPetClinicBench(): BenchCp {
     val petClinicDir = Path("/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF")
@@ -206,6 +219,9 @@ private fun analyzeBench(benchmark: BenchCp) {
     JcConcreteMemoryClassLoader.webApplicationClass = webApplicationClass
     val startClass = publicClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
+    // using file instead of console
+    val fileStream = PrintStream("/Users/michael/Documents/Work/usvm/springLog.txt")
+    System.setOut(fileStream)
     JcMachine(cp, options, jcMachineOptions).use { machine ->
         val states = machine.analyze(method.method)
         states.map { testResolver.resolve(method, it) }
