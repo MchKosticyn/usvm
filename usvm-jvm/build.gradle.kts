@@ -2,6 +2,7 @@
 
 plugins {
     id("usvm.kotlin-conventions")
+    id("org.springframework.boot") version "3.2.0"
 }
 
 val samples by sourceSets.creating {
@@ -29,8 +30,13 @@ val `usvm-api` by sourceSets.creating {
 }
 
 val approximations by configurations.creating
-val approximationsRepo = "com.github.UnitTestBot.java-stdlib-approximations"
-val approximationsVersion = "5f137507d6"
+val approximationsRepo = "org.usvm.approximations.java.stdlib"
+val approximationsVersion = "0.0.0"
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
 
 dependencies {
     implementation(project(":usvm-core"))
@@ -59,6 +65,15 @@ dependencies {
 
     approximations(approximationsRepo, "approximations", approximationsVersion)
     testImplementation(approximationsRepo, "tests", approximationsVersion)
+}
+
+val springApproximationsDeps by configurations.creating
+
+dependencies {
+    springApproximationsDeps("org.springframework.boot:spring-boot-starter-test:3.2.0")
+    springApproximationsDeps("org.springframework.boot:spring-boot-starter-web:3.2.0")
+    springApproximationsDeps("org.springframework:spring-jcl:6.1.1")
+    springApproximationsDeps("org.springframework.boot:spring-boot-starter-data-jpa:3.2.0")
 }
 
 val `usvm-apiCompileOnly`: Configuration by configurations.getting
@@ -187,4 +202,145 @@ publishing {
             artifact(`usvm-api-jar`)
         }
     }
+}
+
+dependencies {
+    implementation("org.springframework.boot:spring-boot-actuator-autoconfigure:3.2.0")
+    implementation("org.springframework.boot:spring-boot-actuator:3.2.0")
+    implementation("org.springframework.boot:spring-boot-autoconfigure:3.2.0")
+    implementation("org.springframework.boot:spring-boot-devtools:3.2.0")
+    implementation("org.springframework.boot:spring-boot-docker-compose:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-actuator:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-aop:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-cache:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-jdbc:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-json:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-logging:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-test:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-tomcat:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-validation:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-web:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter:3.2.0")
+    implementation("org.springframework.boot:spring-boot-test-autoconfigure:3.2.0")
+    implementation("org.springframework.boot:spring-boot-test:3.2.0")
+    implementation("org.springframework.boot:spring-boot-testcontainers:3.2.0")
+    implementation("org.springframework.boot:spring-boot:3.2.0")
+    implementation("org.springframework.data:spring-data-commons:3.2.0")
+    implementation("org.springframework.data:spring-data-jpa:3.2.0")
+    implementation("org.springframework:spring-aop:6.1.1")
+    implementation("org.springframework:spring-aspects:6.1.1")
+    implementation("org.springframework:spring-beans:6.1.1")
+    implementation("org.springframework:spring-context-support:6.1.1")
+    implementation("org.springframework:spring-context:6.1.1")
+    implementation("org.springframework:spring-core:6.1.1")
+    implementation("org.springframework:spring-expression:6.1.1")
+    implementation("org.springframework:spring-jcl:6.1.1")
+    implementation("org.springframework:spring-jdbc:6.1.1")
+    implementation("org.springframework:spring-orm:6.1.1")
+    implementation("org.springframework:spring-test:6.1.1")
+    implementation("org.springframework:spring-tx:6.1.1")
+    implementation("org.springframework:spring-web:6.1.1")
+    implementation("org.springframework:spring-webmvc:6.1.1")
+}
+
+tasks.register<JavaExec>("runWebBench") {
+    mainClass.set("bench.WebBenchKt")
+    classpath = sourceSets.test.get().runtimeClasspath
+
+    dependsOn(`usvm-api-jar`)
+
+    val usvmApiJarPath = `usvm-api-jar`.get().outputs.files.singleFile
+    val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
+    val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
+    val absolutePaths = org.jetbrains.kotlin.utils.join(springApproximationDepsJarPath.map { it.absolutePath }, ";")
+
+    // TODO: norm? #CM #Valya
+    systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)
+
+    environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
+    environment("usvm.jvm.approximations.jar.path", usvmApproximationJarPath.absolutePath)
+
+    jvmArgs = listOf("-Xmx15g") + mutableListOf<String>().apply {
+        add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
+        add("-Djdk.internal.lambda.dumpProxyClasses=/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF/classes/")
+        openPackage("java.base", "jdk.internal.misc")
+        openPackage("java.base", "java.lang")
+        openPackage("java.base", "java.lang.reflect")
+        openPackage("java.base", "sun.security.provider")
+        openPackage("java.base", "jdk.internal.event")
+        openPackage("java.base", "jdk.internal.jimage")
+        openPackage("java.base", "jdk.internal.jimage.decompressor")
+        openPackage("java.base", "jdk.internal.jmod")
+        openPackage("java.base", "jdk.internal.jtrfs")
+        openPackage("java.base", "jdk.internal.loader")
+        openPackage("java.base", "jdk.internal.logger")
+        openPackage("java.base", "jdk.internal.math")
+        openPackage("java.base", "jdk.internal.misc")
+        openPackage("java.base", "jdk.internal.module")
+        openPackage("java.base", "jdk.internal.org.objectweb.asm.commons")
+        openPackage("java.base", "jdk.internal.org.objectweb.asm.signature")
+        openPackage("java.base", "jdk.internal.org.objectweb.asm.tree")
+        openPackage("java.base", "jdk.internal.org.objectweb.asm.tree.analysis")
+        openPackage("java.base", "jdk.internal.org.objectweb.asm.util")
+        openPackage("java.base", "jdk.internal.org.xml.sax")
+        openPackage("java.base", "jdk.internal.org.xml.sax.helpers")
+        openPackage("java.base", "jdk.internal.perf")
+        openPackage("java.base", "jdk.internal.platform")
+        openPackage("java.base", "jdk.internal.ref")
+        openPackage("java.base", "jdk.internal.reflect")
+        openPackage("java.base", "jdk.internal.util")
+        openPackage("java.base", "jdk.internal.util.jar")
+        openPackage("java.base", "jdk.internal.util.xml")
+        openPackage("java.base", "jdk.internal.util.xml.impl")
+        openPackage("java.base", "jdk.internal.vm")
+        openPackage("java.base", "jdk.internal.vm.annotation")
+        openPackage("java.base", "java.util.concurrent.atomic")
+        openPackage("java.base", "java.io")
+        openPackage("java.base", "java.util.zip")
+        openPackage("java.base", "java.util.concurrent")
+        openPackage("java.base", "sun.security.util")
+        openPackage("java.base", "java.lang.invoke")
+        openPackage("java.base", "java.lang.ref")
+        openPackage("java.base", "java.lang.constant")
+        openPackage("java.base", "java.util")
+        openPackage("java.base", "java.util.concurrent.locks")
+        openPackage("java.management", "javax.management")
+        openPackage("java.base", "java.nio.charset")
+        openPackage("java.base", "java.util.regex")
+        openPackage("java.base", "java.net")
+        openPackage("java.base", "sun.util.locale")
+        openPackage("java.base", "java.util.stream")
+        openPackage("java.base", "java.security")
+        openPackage("java.base", "java.time")
+        openPackage("java.base", "jdk.internal.access")
+        openPackage("java.base", "sun.reflect.annotation")
+        openPackage("java.base", "sun.nio.cs")
+        exportPackage("java.base", "sun.util.locale")
+        exportPackage("java.base", "jdk.internal.misc")
+        exportPackage("java.base", "jdk.internal.reflect")
+        exportPackage("java.base", "sun.nio.cs")
+        add("--illegal-access=warn")
+    }
+}
+
+fun MutableList<String>.openPackage(module: String, pakage: String) {
+    add("--add-opens")
+    add("$module/$pakage=ALL-UNNAMED")
+}
+
+fun MutableList<String>.exportPackage(module: String, pakage: String) {
+    add("--add-exports")
+    add("$module/$pakage=ALL-UNNAMED")
+}
+
+fun JavaExec.addEnvIfExists(envName: String, path: String) {
+    val file = File(path)
+    if (!file.exists()) {
+        println("Not found $envName at $path")
+        return
+    }
+
+    environment(envName, file.absolutePath)
 }
