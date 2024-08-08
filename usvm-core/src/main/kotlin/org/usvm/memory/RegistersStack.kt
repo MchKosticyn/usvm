@@ -68,6 +68,12 @@ class URegistersStack(
 
     fun pop() = frames.removeLast()
 
+    fun dropFromBottom(n: Int) {
+        for (i in 1..n) {
+            frames.removeFirst()
+        }
+    }
+
     fun clone(): URegistersStack {
         val newStack = ArrayDeque(frames.map { it.clone() })
         return URegistersStack(newStack)

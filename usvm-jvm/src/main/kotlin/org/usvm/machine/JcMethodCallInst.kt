@@ -2,6 +2,7 @@ package org.usvm.machine
 
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcRefType
+import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.cfg.JcDynamicCallExpr
 import org.jacodb.api.jvm.cfg.JcExpr
 import org.jacodb.api.jvm.cfg.JcInst
@@ -67,6 +68,28 @@ data class JcConcreteMethodCallInst(
     override val arguments: List<UExpr<out USort>>,
     override val returnSite: JcInst,
 ) : JcMethodCallBaseInst, JcMethodCall {
+    override val originalInst: JcInst = returnSite
+}
+
+data class JcConcreteInvocationResult(
+    val returnExpr: UExpr<USort>,
+    private val methodCall: JcMethodCall
+) : JcMethodCallBaseInst, JcMethodCall {
+    override val location = methodCall.location
+    override val method = methodCall.method
+    override val arguments = methodCall.arguments
+    override val returnSite = methodCall.returnSite
+    override val originalInst: JcInst = returnSite
+}
+
+data class JcReflectionInvokeResult(
+    private val methodCall: JcMethodCall,
+    val invokeMethod: JcTypedMethod
+) : JcMethodCallBaseInst, JcMethodCall {
+    override val location = methodCall.location
+    override val method = methodCall.method
+    override val arguments = methodCall.arguments
+    override val returnSite = methodCall.returnSite
     override val originalInst: JcInst = returnSite
 }
 
