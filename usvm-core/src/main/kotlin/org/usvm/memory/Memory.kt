@@ -20,6 +20,7 @@ import org.usvm.constraints.UTypeConstraints
 import org.usvm.constraints.UTypeEvaluator
 import org.usvm.merging.MergeGuard
 import org.usvm.merging.UOwnedMergeable
+import org.usvm.util.Maybe
 
 interface UMemoryRegionId<Key, Sort : USort> {
     val sort: Sort
@@ -93,13 +94,13 @@ interface UWritableMemory<Type> : UReadOnlyMemory<Type> {
 }
 
 @Suppress("MemberVisibilityCanBePrivate")
-class UMemory<Type, Method>(
+open class UMemory<Type, Method>(
     internal val ctx: UContext<*>,
     override var ownership: MutabilityOwnership,
     override val types: UTypeConstraints<Type>,
     override val stack: URegistersStack = URegistersStack(),
-    private val mocks: UIndexedMocker<Method> = UIndexedMocker(),
-    private var regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentHashMapOf(),
+    val mocks: UIndexedMocker<Method> = UIndexedMocker(),
+    var regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentHashMapOf(),
 ) : UWritableMemory<Type>, UOwnedMergeable<UMemory<Type, Method>, MergeGuard> {
 
     override val mocker: UMocker<Method>
@@ -153,9 +154,37 @@ class UMemory<Type, Method>(
         return staticHeapRef
     }
 
+    open fun tryAllocateConcrete(obj: Any, type: Type): UConcreteHeapRef? {
+        return null
+    }
+
+    open fun forceAllocConcrete(type: Type): UConcreteHeapRef {
+        return allocConcrete(type)
+    }
+
+    open fun tryHeapRefToObject(heapRef: UConcreteHeapRef): Any? {
+        return null
+    }
+
+    open fun <Sort: USort> tryExprToInt(expr: UExpr<Sort>): Int? {
+        return null
+    }
+
+    open fun tryObjectToExpr(obj: Any?, type: Type): UExpr<USort>? {
+        return null
+    }
+
+    open fun <Inst, State, Resolver> tryConcreteInvoke(
+        stmt: Inst,
+        state: State,
+        exprResolver: Resolver
+    ): Boolean {
+        return false
+    }
+
     override fun nullRef(): UHeapRef = ctx.nullRef
 
-    fun clone(
+    open fun clone(
         typeConstraints: UTypeConstraints<Type>,
         thisOwnership: MutabilityOwnership,
         cloneOwnership: MutabilityOwnership,

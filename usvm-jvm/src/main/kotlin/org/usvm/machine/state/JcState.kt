@@ -5,11 +5,13 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.PathNode
 import org.usvm.UCallStack
+import org.usvm.UConcreteHeapRef
 import org.usvm.UState
 import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.machine.JcContext
+import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 import org.usvm.memory.UMemory
 import org.usvm.merging.MutableMergeGuard
 import org.usvm.model.UModelBase
@@ -21,7 +23,7 @@ class JcState(
     override val entrypoint: JcMethod,
     callStack: UCallStack<JcMethod, JcInst> = UCallStack(),
     pathConstraints: UPathConstraints<JcType> = UPathConstraints(ctx, ownership),
-    memory: UMemory<JcType, JcMethod> = UMemory(ctx, ownership, pathConstraints.typeConstraints),
+    memory: UMemory<JcType, JcMethod> = JcConcreteMemory(ctx, ownership, pathConstraints.typeConstraints),
     models: List<UModelBase<JcType>> = listOf(),
     pathNode: PathNode<JcInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
@@ -38,6 +40,7 @@ class JcState(
     forkPoints,
     targets
 ) {
+
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcState {
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()

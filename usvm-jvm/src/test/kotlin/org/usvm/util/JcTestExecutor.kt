@@ -15,6 +15,7 @@ import org.usvm.api.JcTest
 import org.usvm.api.StaticFieldValue
 import org.usvm.api.util.JcTestResolver
 import org.usvm.api.util.JcTestStateResolver
+import org.usvm.api.util.JcTestStateResolver.ResolveMode
 import org.usvm.instrumentation.executor.UTestConcreteExecutor
 import org.usvm.instrumentation.testcase.UTest
 import org.usvm.instrumentation.testcase.api.UTestAllocateMemoryCall
@@ -72,7 +73,7 @@ class JcTestExecutor(
 
         val before: JcParametersState
         val after: JcParametersState
-        val uTest = memoryScope.createUTest()
+        val uTest = memoryScope.withMode(ResolveMode.MODEL) {memoryScope.createUTest()}
 
         val execResult = runBlocking {
             runner.executeAsync(uTest)

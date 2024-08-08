@@ -5,7 +5,7 @@ import org.jacodb.approximation.annotation.Approximate;
 import java.util.Map;
 
 @SuppressWarnings("ALL")
-@Approximate(jdk.internal.misc.VM.class)
+//@Approximate(jdk.internal.misc.VM.class)
 public class TestVMApproximation {
 
     // the init level when the VM is fully initialized
