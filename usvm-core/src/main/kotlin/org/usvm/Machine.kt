@@ -44,9 +44,17 @@ abstract class UMachine<State : UState<*, *, *, *, *, State>> : AutoCloseable {
                     val (forkedStates, stateAlive) = interpreter.step(state)
                     observer.onState(state, forkedStates)
 
+                    if (state.pathConstraints.isFalse && state.models.isNotEmpty()){
+                        let {  }
+                    }
+
                     val originalStateAlive = stateAlive && !isStateTerminated(state)
                     val aliveForkedStates = mutableListOf<State>()
                     for (forkedState in forkedStates) {
+                        if (forkedState.pathConstraints.isFalse && forkedState.models.isNotEmpty()){
+                            let {  }
+                        }
+
                         if (!isStateTerminated(forkedState)) {
                             aliveForkedStates.add(forkedState)
                         } else {
@@ -76,7 +84,9 @@ abstract class UMachine<State : UState<*, *, *, *, *, State>> : AutoCloseable {
             }
 
             if (!pathSelector.isEmpty()) {
-                logger.debug { stopStrategy.stopReason() }
+                val stopReason = stopStrategy.stopReason()
+                logger.debug { stopReason }
+                println("[USVM] Stopped: $stopReason")
             }
         }
     }

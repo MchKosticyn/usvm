@@ -2,23 +2,42 @@ package org.usvm.machine
 
 import io.ksmt.utils.asExpr
 import io.ksmt.utils.uncheckedCast
+import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcArrayType
+import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.cfg.BsmArg
+import org.jacodb.api.jvm.cfg.BsmDoubleArg
+import org.jacodb.api.jvm.cfg.BsmFloatArg
+import org.jacodb.api.jvm.cfg.BsmHandle
+import org.jacodb.api.jvm.cfg.BsmIntArg
+import org.jacodb.api.jvm.cfg.BsmLongArg
+import org.jacodb.api.jvm.cfg.BsmMethodTypeArg
+import org.jacodb.api.jvm.cfg.BsmStringArg
+import org.jacodb.api.jvm.cfg.BsmTypeArg
+import org.jacodb.api.jvm.cfg.JcFieldRef
+import org.jacodb.api.jvm.cfg.JcStringConstant
+import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.byte
 import org.jacodb.api.jvm.ext.char
 import org.jacodb.api.jvm.ext.double
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.ifArrayGetElementType
 import org.jacodb.api.jvm.ext.int
+import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.long
 import org.jacodb.api.jvm.ext.objectClass
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
+import org.jacodb.impl.cfg.util.isPrimitive
+import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
 import org.usvm.UBvSort
@@ -47,6 +66,8 @@ import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapMergeInto
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapPut
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapRemove
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapSize
+import org.usvm.api.initializeArray
+import org.usvm.api.initializeArrayLength
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefWithSameType
@@ -71,6 +92,18 @@ import kotlin.reflect.KFunction1
 import kotlin.reflect.KFunction2
 import kotlin.reflect.jvm.javaMethod
 import org.usvm.api.makeNullableSymbolicRefWithSameType
+import org.usvm.api.readArrayIndex
+import org.usvm.api.readArrayLength
+import org.usvm.api.readField
+import org.usvm.api.util.JcConcreteMemoryClassLoader
+import org.usvm.api.util.Reflection.toJavaClass
+import org.usvm.api.writeField
+import org.usvm.getIntValue
+import org.usvm.machine.state.newStmt
+import org.usvm.mkSizeAddExpr
+import org.usvm.mkSizeExpr
+import java.util.TreeMap
+import kotlin.collections.ArrayList
 
 class JcMethodApproximationResolver(
     private val ctx: JcContext,
@@ -101,6 +134,10 @@ class JcMethodApproximationResolver(
     private fun approximate(callJcInst: JcMethodCall): Boolean {
         if (skipMethodIfThrowable(callJcInst)) {
             return true
+        }
+
+        if (callJcInst is JcDynamicMethodCallInst) {
+            return approximateInvokeDynamic(callJcInst)
         }
 
         if (callJcInst.method.isStatic) {
@@ -145,6 +182,18 @@ class JcMethodApproximationResolver(
             if (approximateArrayClone(methodCall)) return true
         }
 
+        if (className.contains("org.springframework.boot")) {
+            if (approximateSpringBootMethod(methodCall)) return true
+        }
+
+        if (className.contains("java.lang.reflect.Method")) {
+            if (approximateMethodMethod(methodCall)) return true
+        }
+
+        if (className == "org.springframework.web.method.HandlerMethod") {
+            if (approximateHandlerMethod(methodCall)) return true
+        }
+
         return approximateEmptyNativeMethod(methodCall)
     }
 
@@ -176,6 +225,30 @@ class JcMethodApproximationResolver(
             if (approximateDoubleStaticMethod(methodCall)) return true
         }
 
+        if (className == "java.util.Calendar") {
+            if (approximateCalendarStaticMethod(methodCall)) return true
+        }
+
+        if (className == "java.nio.charset.Charset") {
+            if (approximateCharsetStaticMethod(methodCall)) return true
+        }
+
+        if (className.contains("org.springframework.boot")) {
+            if (approximateSpringBootStaticMethod(methodCall)) return true
+        }
+
+        if (className == "org.springframework.util.ClassUtils") {
+            if (approximateClassUtilsStaticMethod(methodCall)) return true
+        }
+
+        if (className == "jdk.internal.reflect.Reflection") {
+            if (approximateJavaReflectionMethod(methodCall)) return true
+        }
+
+        if (className == "java.lang.reflect.Array") {
+            if (approximateArrayReflectionMethod(methodCall)) return true
+        }
+
         return approximateEmptyNativeMethod(methodCall)
     }
 
@@ -196,6 +269,14 @@ class JcMethodApproximationResolver(
         return false
     }
 
+    private fun approximateInvokeDynamic(methodCallInst: JcDynamicMethodCallInst): Boolean = with(methodCallInst) {
+        if (dynamicCall.method.method.enclosingClass.name == "java.lang.invoke.StringConcatFactory") {
+            if (approximateStringConcat(methodCallInst)) return true
+        }
+
+        return false
+    }
+
     private fun approximateClassStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         /**
          * Approximate retrieval of class instance for primitives.
@@ -203,7 +284,8 @@ class JcMethodApproximationResolver(
         if (method.name == "getPrimitiveClass") {
             val classNameRef = arguments.single()
 
-            val predefinedTypeNames = ctx.primitiveTypes.associateBy {
+            val primitiveTypes = ctx.primitiveTypes + ctx.cp.void
+            val predefinedTypeNames = primitiveTypes.associateBy {
                 exprResolver.simpleValueResolver.resolveStringConstant(it.typeName)
             }
 
@@ -233,6 +315,21 @@ class JcMethodApproximationResolver(
             return true
         }
 
+        if (method.name == "isInstance") {
+            val classRef = arguments[0].asExpr(ctx.addressSort)
+            val objectRef = arguments[1].asExpr(ctx.addressSort)
+            scope.doWithState {
+                val classRefTypeRepresentative =
+                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
+                classRefTypeRepresentative as UConcreteHeapRef
+                val classType = memory.types.typeOf(classRefTypeRepresentative.address)
+                val isExpr = memory.types.evalIsSubtype(objectRef, classType)
+                skipMethodInvocationWithValue(methodCall, isExpr)
+            }
+
+            return true
+        }
+
         return false
     }
 
@@ -250,6 +347,110 @@ class JcMethodApproximationResolver(
             scope.doWithState {
                 skipMethodInvocationWithValue(methodCall, result)
             }
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateCalendarStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "getInstance") {
+            val normalCalendar = ctx.cp.findTypeOrNull("java.util.GregorianCalendar")
+                ?: return false
+
+            scope.doWithState {
+                val ref = memory.allocConcrete(normalCalendar)
+                skipMethodInvocationWithValue(methodCall, ref)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateCharsetStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "forName" || method.name == "defaultCharset") {
+            val utf8 = ctx.cp.findTypeOrNull("sun.nio.cs.UTF_8") as? JcClassType
+                ?: return false
+
+            val utf8Instance = utf8.declaredFields.single { it.isStatic && it.name == "INSTANCE" }
+            val fieldRef = JcFieldRef(instance = null, field = utf8Instance)
+            val instanceValue = fieldRef.accept(exprResolver) ?: return true
+
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, instanceValue)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateSpringBootStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "deduceFromClasspath") {
+            val returnType = ctx.cp.findTypeOrNull(method.returnType.typeName) as? JcClassType
+                ?: return false
+            assert(returnType.jcClass.isEnum)
+            val enumField = returnType.declaredFields.single { it.isStatic && it.name == "SERVLET" }
+            val fieldRef = JcFieldRef(instance = null, field = enumField)
+            val value = fieldRef.accept(exprResolver) ?: return true
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, value)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateClassUtilsStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "getMainPackageName") {
+            val springAppClass = JcConcreteMemoryClassLoader.webApplicationClass ?: return false
+            val javaClass = JcConcreteMemoryClassLoader.loadClass(springAppClass)
+            scope.doWithState {
+                val packageName = memory.tryAllocateConcrete(javaClass.packageName, ctx.stringType)!!
+                skipMethodInvocationWithValue(methodCall, packageName)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateJavaReflectionMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "getCallerClass") {
+            scope.doWithState {
+                val callerClass = callStack.penultimateMethod().enclosingClass.toType()
+                val classRef = exprResolver.simpleValueResolver.resolveClassRef(callerClass)
+                skipMethodInvocationWithValue(methodCall, classRef)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateArrayReflectionMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "newInstance" && method.parameters[1].type.isPrimitive) {
+            scope.doWithState {
+                val componentTypeRef = arguments[0].asExpr(ctx.addressSort)
+                val componentTypeRepresentative =
+                    memory.read(UFieldLValue(ctx.addressSort, componentTypeRef, ctx.classTypeSyntheticField))
+                componentTypeRepresentative as UConcreteHeapRef
+                val componentType = memory.types.typeOf(componentTypeRepresentative.address)
+                val arrayType = ctx.cp.arrayTypeOf(componentType)
+                val arrayRef = memory.allocConcrete(arrayType)
+                val descriptor = ctx.arrayDescriptorOf(arrayType)
+                val sizeExpr = arguments[1].asExpr(ctx.sizeSort)
+                memory.initializeArrayLength(arrayRef, descriptor, ctx.sizeSort, sizeExpr)
+                skipMethodInvocationWithValue(methodCall, arrayRef)
+            }
+
             return true
         }
 
@@ -317,6 +518,395 @@ class JcMethodApproximationResolver(
         }
 
         return false
+    }
+
+    private fun pathFromAnnotation(annotation: JcAnnotation): String {
+        val values = annotation.values
+        assert(values.size == 1)
+        val value = values["value"] as ArrayList<*>
+        return value[0] as String
+    }
+
+    private fun allControllerPaths(): Map<String, Map<String, List<Any>>> {
+        val controllerTypes =
+            ctx.cp.locations
+                .asSequence()
+                .flatMap { it.classNames ?: emptySet() }
+                .mapNotNull { ctx.cp.findClassOrNull(it) }
+                .filterNot { it is JcUnknownClass }
+                // TODO: filter deps classes #Spring use JcMachineOptions.projectLocations
+                .filter { it.declaration.location.path.equals("/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF/classes") }
+                .filter {
+                    !it.isAbstract && !it.isInterface && !it.isAnonymous && it.annotations.any {
+                        it.name.equals(
+                            "org.springframework.stereotype.Controller"
+                        )
+                    }
+                }.toList()
+        val result = TreeMap<String, Map<String, List<Any>>>()
+        for (controllerType in controllerTypes) {
+            val paths = TreeMap<String, List<Any>>()
+            val methods = controllerType.declaredMethods
+            for (method in methods) {
+                for (annotation in method.annotations) {
+                    val kind =
+                        when (annotation.name) {
+                            "org.springframework.web.bind.annotation.GetMapping" -> "get"
+                            "org.springframework.web.bind.annotation.PostMapping" -> "post"
+                            "org.springframework.web.bind.annotation.PutMapping" -> "put"
+                            "org.springframework.web.bind.annotation.DeleteMapping" -> "delete"
+                            "org.springframework.web.bind.annotation.PatchMapping" -> "patch"
+                            else -> null
+                        }
+
+                    if (kind != null) {
+                        val path = pathFromAnnotation(annotation)
+                        val pathArgsCount = path.filter { it == '{' }.length
+                        val properties = listOf(kind, Integer.valueOf(pathArgsCount))
+                        paths[path] = properties
+                    }
+                }
+            }
+            if (paths.isNotEmpty())
+                result[controllerType.name] = paths
+        }
+
+        return result
+    }
+
+    private fun approximateSpringBootMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        val methodName = method.name
+        if (methodName == "deduceMainApplicationClass") {
+            scope.doWithState {
+                val firstMethod = callStack.firstMethod()
+                val mainApplicationClass = firstMethod.enclosingClass.toType().toJavaClass(JcConcreteMemoryClassLoader)
+                val typeRef = memory.tryAllocateConcrete(mainApplicationClass, ctx.classType)!!
+                skipMethodInvocationWithValue(methodCall, typeRef)
+            }
+
+            return true
+        }
+
+        if (methodName == "printBanner") {
+            val bannerType = ctx.cp.findTypeOrNull(method.returnType.typeName) as JcClassType
+            val bannerModeType = bannerType.innerTypes.single()
+            assert(bannerModeType.jcClass.isEnum)
+            val enumField = bannerModeType.declaredFields.single { it.isStatic && it.name == "OFF" }
+            val fieldRef = JcFieldRef(instance = null, field = enumField)
+            val bannerModeOffValue = fieldRef.accept(exprResolver)?.asExpr(ctx.addressSort) ?: return true
+            val bannerModeField =
+                method.enclosingClass
+                    .toType()
+                    .declaredFields
+                    .single { it.name == "bannerMode" }
+                    .field
+            val springApplication = arguments.first().asExpr(ctx.addressSort)
+            scope.doWithState {
+                memory.writeField(springApplication, bannerModeField, ctx.addressSort, bannerModeOffValue, ctx.trueExpr)
+                skipMethodInvocationWithValue(methodCall, ctx.nullRef)
+            }
+
+            return true
+        }
+
+        val className = method.enclosingClass.name
+        if (className.contains("SpringApplicationShutdownHook") && methodName == "registerApplicationContext") {
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        if (methodName.equals("startAnalysis")) {
+            scope.doWithState {
+                println("starting, state.id = $id")
+                val framesToDrop = callStack.size - 1
+                callStack.dropFromBottom(framesToDrop)
+                memory.stack.dropFromBottom(framesToDrop)
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        if (methodName.equals("allControllerPaths")) {
+            val allControllerPaths = allControllerPaths()
+            scope.doWithState {
+                val type = allControllerPaths.javaClass
+                val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
+                val heapRef = memory.tryAllocateConcrete(allControllerPaths, jcType)!!
+                skipMethodInvocationWithValue(methodCall, heapRef)
+            }
+
+            return true
+        }
+
+        if (methodName.equals("internalLog")) {
+            scope.doWithState {
+                val messageExpr = methodCall.arguments[1].asExpr(ctx.addressSort) as UConcreteHeapRef
+                val message = memory.tryHeapRefToObject(messageExpr) as String
+                println("\u001B[36m" + message + "\u001B[0m")
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateMethodMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        val methodName = method.name
+        if (methodName == "invoke") {
+            scope.doWithState {
+                val methodArg = arguments[0] as UConcreteHeapRef
+                val thisArg = arguments[1]
+                val args = arguments[2] as UConcreteHeapRef
+                val argsArrayType = ctx.cp.arrayTypeOf(ctx.cp.objectType)
+                val descriptor = ctx.arrayDescriptorOf(argsArrayType)
+                val method = memory.tryHeapRefToObject(methodArg) as java.lang.reflect.Method
+                val jcMethod =
+                    ctx.cp.findClass(method.declaringClass.name).toType().declaredMethods.find { it.name == method.name }!!
+                val arguments = jcMethod.parameters.mapIndexed { index, jcParameter ->
+                    val idx = memory.tryObjectToExpr(index, ctx.cp.int)!!
+                    val value = memory.readArrayIndex(args, idx, descriptor, ctx.sizeSort).asExpr(ctx.addressSort)
+                    val type = jcParameter.type
+                    val sort = ctx.typeToSort(type)
+                    if (type is JcPrimitiveType) {
+                        val boxedType = type.autoboxIfNeeded() as JcClassType
+                        val valueField = boxedType.declaredFields.find { it.name == "value" }!!
+                        memory.readField(value, valueField.field, sort)
+                    } else {
+                        value
+                    }
+                }
+                val parameters =
+                    if (jcMethod.isStatic) arguments
+                    else listOf(thisArg) + arguments
+                val postProcessInst = JcReflectionInvokeResult(methodCall, jcMethod)
+                newStmt(JcConcreteMethodCallInst(methodCall.location, jcMethod.method, parameters, postProcessInst))
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateHandlerMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        val methodName = method.name
+        if (methodName == "formatInvokeError") {
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, arguments[1])
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun JcState.stringEquals(firstStr: UHeapRef, secondStr: UHeapRef): UBoolExpr = with(ctx) {
+        val valuesArrayDescriptor = arrayDescriptorOf(stringValueField.type as JcArrayType)
+        val elementType = requireNotNull(stringValueField.type.ifArrayGetElementType)
+        val elementSort = typeToSort(elementType)
+
+        val secondStrTypeCheck = scope.calcOnState {
+            memory.types.evalIsSubtype(secondStr, stringType)
+        }
+
+        mkIte(mkEq(firstStr, secondStr), { trueExpr }) {
+            mkIte(mkOr(secondStrTypeCheck.not(), mkEq(secondStr, nullRef)), { falseExpr }) {
+                val firstStringValue = memory.readField(firstStr, stringValueField.field, addressSort)
+                val secondStringValue = memory.readField(secondStr, stringValueField.field, addressSort)
+
+                val firstLength = memory.readArrayLength(firstStringValue, valuesArrayDescriptor, sizeSort)
+                val secondLength = memory.readArrayLength(secondStringValue, valuesArrayDescriptor, sizeSort)
+
+                mkIte(mkEq(firstLength, secondLength).not(), { falseExpr }) {
+                    val concreteLength = getIntValue(firstLength) ?: getIntValue(secondLength)
+                    if (concreteLength == null) {
+                        // todo: string equals
+                        makeSymbolicPrimitive(booleanSort)
+                    } else {
+                        val arrayEquals = List(concreteLength) {
+                            val idx = mkSizeExpr(it)
+                            val first = memory.readArrayIndex(firstStringValue, idx, valuesArrayDescriptor, elementSort)
+                            val second =
+                                memory.readArrayIndex(secondStringValue, idx, valuesArrayDescriptor, elementSort)
+                            mkEq(first, second)
+                        }
+                        mkAnd(arrayEquals)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun JcState.stringConcat(firstStr: UHeapRef, secondStr: UHeapRef): UHeapRef = with(ctx) {
+        val arrayType = stringValueField.type as JcArrayType
+        val valuesArrayDescriptor = arrayDescriptorOf(arrayType)
+        val elementSort = typeToSort(arrayType.elementType)
+
+        val result = memory.allocConcrete(stringType)
+
+        val firstStringValue = memory.readField(firstStr, stringValueField.field, addressSort)
+        val secondStringValue = memory.readField(secondStr, stringValueField.field, addressSort)
+
+        val firstLength = memory.readArrayLength(firstStringValue, valuesArrayDescriptor, sizeSort)
+        val secondLength = memory.readArrayLength(secondStringValue, valuesArrayDescriptor, sizeSort)
+
+        val resultLength = ctx.mkSizeAddExpr(firstLength, secondLength)
+
+        val arrayHeapRef = memory.allocConcrete(arrayType)
+        memory.initializeArrayLength(arrayHeapRef, valuesArrayDescriptor, sizeSort, resultLength)
+
+        memory.memcpy(
+            srcRef = firstStringValue,
+            dstRef = arrayHeapRef,
+            type = valuesArrayDescriptor,
+            elementSort = elementSort,
+            fromSrc = mkSizeExpr(0),
+            fromDst = mkSizeExpr(0),
+            length = firstLength
+        )
+        memory.memcpy(
+            srcRef = secondStringValue,
+            dstRef = arrayHeapRef,
+            type = valuesArrayDescriptor,
+            elementSort = elementSort,
+            fromSrc = mkSizeExpr(0),
+            fromDst = firstLength,
+            length = secondLength
+        )
+        memory.writeField(result, stringValueField.field, addressSort, arrayHeapRef, trueExpr)
+
+        stringCoderField?.let { coder ->
+            memory.writeField(
+                result, coder.field, byteSort,
+                value = mkBv(0, byteSort),
+                guard = trueExpr
+            )
+        }
+
+        result
+    }
+
+    private sealed interface StringConcatElement
+    private data class StringConcatStrElement(val str: String) : StringConcatElement
+    private data class StringConcatRefElement(val ref: UHeapRef) : StringConcatElement
+
+    private fun approximateStringConcat(methodCallInst: JcDynamicMethodCallInst): Boolean = with(methodCallInst) {
+        if (dynamicCall.method.name == "makeConcatWithConstants") {
+            val concatUtil = ctx.cp.findClassOrNull("org.usvm.api.internal.StringConcatUtil")
+                ?.declaredMethods
+                ?.single { it.name == "concat" }
+                ?: return false
+
+            val recipe = (dynamicCall.bsmArgs.firstOrNull() as? BsmStringArg)?.value
+                ?: error("Unexpected dynamic call: $methodCallInst")
+
+            val elements = parseStringConcatRecipe(recipe, dynamicCall.bsmArgs.drop(1), arguments)
+
+            val elementRefs = elements.map {
+                when (it) {
+                    is StringConcatRefElement -> it.ref
+                    is StringConcatStrElement -> JcStringConstant(it.str, ctx.stringType)
+                        .accept(exprResolver.simpleValueResolver)
+                        .asExpr(ctx.addressSort)
+                }
+            }
+
+            val elementArray = scope.calcOnState {
+                val arrayType = ctx.cp.arrayTypeOf(ctx.cp.objectType)
+                val descriptor = ctx.arrayDescriptorOf(arrayType)
+                val arrayHeapRef = memory.forceAllocConcrete(arrayType)
+                memory.initializeArray(
+                    arrayHeapRef,
+                    descriptor,
+                    ctx.addressSort,
+                    ctx.sizeSort,
+                    elementRefs.asSequence()
+                )
+                arrayHeapRef
+            }
+
+            scope.doWithState {
+                newStmt(JcConcreteMethodCallInst(location, concatUtil, listOf(elementArray), returnSite))
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun parseStringConcatRecipe(
+        recipe: String,
+        bsmArgs: List<BsmArg>,
+        callArgs: List<UExpr<*>>
+    ): List<StringConcatElement> {
+        val elements = mutableListOf<StringConcatElement>()
+
+        val acc = StringBuilder()
+
+        var constCount = 0
+        var argsCount = 0
+
+        for (recipeCh in recipe) {
+            when (recipeCh) {
+                '\u0002' -> {
+                    // Accumulate constant args along with any constants encoded
+                    // into the recipe
+                    val constant = bsmArgs.getOrNull(constCount++)
+                        ?: error("Incorrect dynamic call")
+
+                    val constantValue = when (constant) {
+                        is BsmDoubleArg -> constant.value.toString()
+                        is BsmFloatArg -> constant.value.toString()
+                        is BsmIntArg -> constant.value.toString()
+                        is BsmLongArg -> constant.value.toString()
+                        is BsmStringArg -> constant.value
+                        is BsmHandle,
+                        is BsmMethodTypeArg,
+                        is BsmTypeArg -> error("Incorrect dynamic call constant")
+                    }
+
+                    acc.append(constantValue)
+                }
+
+                '\u0001' -> {
+                    // Flush any accumulated characters into a constant
+                    if (acc.isNotEmpty()) {
+                        elements.add(StringConcatStrElement(acc.toString()))
+                        acc.setLength(0)
+                    }
+
+                    val argRef = callArgs.getOrNull(argsCount++) ?: error("Incorrect dynamic call arg")
+
+                    if (argRef.sort != ctx.addressSort) {
+                        // todo: primitive args
+                        continue
+                    }
+
+                    elements.add(StringConcatRefElement(argRef.asExpr(ctx.addressSort)))
+                }
+
+                else -> {
+                    // Not a special character, this is a constant embedded into
+                    // the recipe itself.
+                    acc.append(recipeCh)
+                }
+            }
+        }
+
+        // Flush the remaining characters as constant:
+        if (acc.isNotEmpty()) {
+            elements.add(StringConcatStrElement(acc.toString()))
+        }
+
+        return elements
     }
 
     private fun JcExprResolver.resolveArrayCopy(
@@ -516,11 +1106,11 @@ class JcMethodApproximationResolver(
     }
 
     private fun skipMethodIfThrowable(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        if (method.enclosingClass.name == "java.lang.Throwable") {
-            // We assume that methods of java.lang.Throwable are not really required to be analysed and can be simply mocked
-            mockMethod(scope, methodCall, applicationGraph)
-            return true
-        }
+//        if (method.enclosingClass.name == "java.lang.Throwable") {
+//            // We assume that methods of java.lang.Throwable are not really required to be analysed and can be simply mocked
+//            mockMethod(scope, methodCall, applicationGraph)
+//            return true
+//        }
 
         return false
     }

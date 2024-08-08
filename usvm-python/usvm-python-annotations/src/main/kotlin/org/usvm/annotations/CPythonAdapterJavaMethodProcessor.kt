@@ -12,7 +12,7 @@ import javax.lang.model.element.TypeElement
 
 @SupportedAnnotationTypes("org.usvm.annotations.CPythonAdapterJavaMethod")
 @SupportedOptions("headerPath")
-@SupportedSourceVersion(SourceVersion.RELEASE_8)
+@SupportedSourceVersion(SourceVersion.RELEASE_17)
 class CPythonAdapterJavaMethodProcessor : AbstractProcessor() {
     private val converter = ConverterToJNITypeDescriptor()
 

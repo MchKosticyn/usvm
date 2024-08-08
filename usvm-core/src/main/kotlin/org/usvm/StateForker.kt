@@ -70,6 +70,15 @@ object WithSolverStateForker : StateForker {
             )
 
             falseModels.isNotEmpty() -> {
+                val original = state.pathConstraints.clone()
+                val xxx = original.clone()
+
+                xxx += notCondition
+                if (xxx.isFalse) {
+                    let {  }
+                }
+
+
                 val forkedState = forkIfSat(
                     state,
                     newConstraintToOriginalState = condition,
@@ -87,6 +96,18 @@ object WithSolverStateForker : StateForker {
             else -> error("[trueModels] and [falseModels] are both empty, that has to be impossible by construction!")
         }
 
+        if (posState != null){
+            if (posState.pathConstraints.isFalse && posState.models.isNotEmpty()){
+                let {  }
+            }
+        }
+
+        if (negState != null){
+            if (negState.pathConstraints.isFalse && negState.models.isNotEmpty()){
+                let {  }
+            }
+        }
+
         return ForkResult(posState, negState)
     }
 
@@ -94,34 +115,38 @@ object WithSolverStateForker : StateForker {
         state: T,
         conditions: Iterable<UBoolExpr>,
     ): List<T?> {
-        var curState = state
-        val result = mutableListOf<T?>()
+        val guardedModels = mutableListOf<Pair<List<UModelBase<Type>>, UBoolExpr>?>()
+        val initialModels = state.models
+        initialModels.let {  }
+
         for (condition in conditions) {
-            val (trueModels, _, _) = splitModelsByCondition(curState.models, condition)
+            val (trueModels, _, _) = splitModelsByCondition(state.models, condition)
 
-            val nextRoot = if (trueModels.isNotEmpty()) {
-                val root = curState.clone()
-                curState.models = trueModels
-                curState.pathConstraints += condition
-
-                root
+            if (trueModels.isNotEmpty()) {
+                guardedModels += trueModels to condition
             } else {
-                val root = forkIfSat(
-                    curState,
+                forkOriginalStateIfSat(
+                    state,
                     newConstraintToOriginalState = condition,
-                    newConstraintToForkedState = condition.ctx.trueExpr,
-                    stateToCheck = OriginalState
+                    guardedModels
                 )
-
-                root
             }
-
-            if (nextRoot != null) {
-                result += curState
-                curState = nextRoot
-            } else {
+        }
+        val result = mutableListOf<T?>()
+        var curState = state
+        val lastNotNullIndex = guardedModels.indexOfLast { x -> x != null }
+        for (i in guardedModels.indices) {
+            val current = guardedModels[i]
+            if (current == null) {
                 result += null
+                continue
             }
+            val nextState = if (i == lastNotNullIndex) curState else curState.clone()
+            val (models, cond) = current
+            curState.models = models
+            curState.pathConstraints += cond
+            result += curState
+            curState = nextState
         }
 
         return result
@@ -187,6 +212,34 @@ object WithSolverStateForker : StateForker {
                 state.pathConstraints += if (stateToCheck) newConstraintToOriginalState else newConstraintToForkedState
 
                 null
+            }
+        }
+    }
+
+    @Suppress("MoveVariableDeclarationIntoWhen")
+    private fun <T : UState<Type, *, *, Context, *, T>, Type, Context : UContext<*>> forkOriginalStateIfSat(
+        state: T,
+        newConstraintToOriginalState: UBoolExpr,
+        guardedModels: MutableList<Pair<List<UModelBase<Type>>, UBoolExpr>?>
+    ) {
+        val constraintsToCheck = state.pathConstraints.clone()
+
+        constraintsToCheck += newConstraintToOriginalState
+        val solver = state.ctx.solver<Type>()
+        val satResult = solver.check(constraintsToCheck)
+
+        when (satResult) {
+            is UUnsatResult -> guardedModels += null
+
+            is USatResult -> {
+                // Note that we cannot extract common code here due to
+                // heavy plusAssign operator in path constraints.
+                // Therefore, it is better to reuse already constructed [constraintToCheck].
+                guardedModels += listOf(satResult.model) to newConstraintToOriginalState
+            }
+
+            is UUnknownResult -> {
+                guardedModels += null
             }
         }
     }

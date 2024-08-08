@@ -1,15 +1,8 @@
 package org.usvm.collection.array
 
-import org.usvm.UBoolExpr
-import org.usvm.UConcreteHeapRef
-import org.usvm.UExpr
-import org.usvm.UHeapRef
-import org.usvm.USort
+import org.usvm.*
 import org.usvm.collection.array.length.UArrayLengthLValue
 import org.usvm.memory.UWritableMemory
-import org.usvm.mkSizeExpr
-import org.usvm.uctx
-import org.usvm.withSizeSort
 
 internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<*>.memcpy(
     srcRef: UHeapRef,
@@ -32,17 +25,17 @@ internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<*>.mem
     setRegion(regionId, newRegion)
 }
 
-internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<ArrayType>.allocateArrayInitialized(
+internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<ArrayType>.initializeArray(
+    arrayHeapRef: UConcreteHeapRef,
     type: ArrayType,
     elementSort: Sort,
     sizeSort: USizeSort,
     contents: Sequence<UExpr<Sort>>
-): UConcreteHeapRef = elementSort.uctx.withSizeSort {
+) = elementSort.uctx.withSizeSort {
     val arrayValues = hashMapOf<UExpr<USizeSort>, UExpr<Sort>>()
     contents.forEachIndexed { idx, value -> arrayValues[mkSizeExpr(idx)] = value }
-
     val arrayLength = mkSizeExpr(arrayValues.size)
-    val address = allocateArray(type, sizeSort, arrayLength)
+    initializeArrayLength(arrayHeapRef, type, sizeSort, arrayLength)
 
     val regionId = UArrayRegionId<_, _, USizeSort>(type, elementSort)
     val region = getRegion(regionId)
@@ -52,7 +45,7 @@ internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<ArrayT
     }
 
     val newRegion = region.initializeAllocatedArray(
-        address.address,
+        arrayHeapRef.address,
         type,
         elementSort,
         arrayValues,
@@ -61,21 +54,16 @@ internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<ArrayT
     )
 
     setRegion(regionId, newRegion)
-
-    return address
 }
 
-internal fun <ArrayType, USizeSort : USort> UWritableMemory<ArrayType>.allocateArray(
+internal fun <ArrayType, USizeSort : USort> UWritableMemory<ArrayType>.initializeArrayLength(
+    arrayHeapRef: UConcreteHeapRef,
     type: ArrayType,
     sizeSort: USizeSort,
     length: UExpr<USizeSort>,
-): UConcreteHeapRef {
-    val address = allocConcrete(type)
-
-    val lengthRegionRef = UArrayLengthLValue(address, type, sizeSort)
+) {
+    val lengthRegionRef = UArrayLengthLValue(arrayHeapRef, type, sizeSort)
     write(lengthRegionRef, length, guard = length.uctx.trueExpr)
-
-    return address
 }
 
 internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<ArrayType>.memset(
@@ -85,7 +73,8 @@ internal fun <ArrayType, Sort : USort, USizeSort : USort> UWritableMemory<ArrayT
     sizeSort: USizeSort,
     contents: Sequence<UExpr<Sort>>,
 ) = sizeSort.uctx.withSizeSort {
-    val tmpArrayRef = allocateArrayInitialized(type, sort, sizeSort, contents)
+    val tmpArrayRef = allocConcrete(type)
+    initializeArray(tmpArrayRef, type, sort, sizeSort, contents)
     val contentLength = read(UArrayLengthLValue(tmpArrayRef, type, sizeSort))
 
     memcpy(
