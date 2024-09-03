@@ -2490,9 +2490,18 @@ private class Marshall(
             searchingEncoder = encoder == null
             jcClass = if (searchingEncoder) jcClass.superClass else jcClass
         }
-        encoder ?: error("Failed to find encoder for type ${type.name}")
+        encoder ?:
+            error("Failed to find encoder for type ${type.name}")
         val encodeMethod = encoder.javaClass.declaredMethods.find { it.name == "encode" }!!
-        val approximatedObj = encodeMethod.invoke(encoder, obj)
+        val approximatedObj = try {
+            encodeMethod.invoke(encoder, obj)
+        } catch (e: Throwable) {
+            var exception = e
+            if (e is InvocationTargetException)
+                exception = e.targetException
+            println("Encoder $encodeMethod threw exception $exception")
+            throw exception
+        }
         val allFields = type.allInstanceFields
         val approximationFields = allFields.filter { it.field is JcEnrichedVirtualField }
         unmarshallFields(address, approximatedObj, approximationFields)
@@ -2830,11 +2839,22 @@ class JcConcreteMemory private constructor(
         "java.lang.Class",
         "org.springframework.core.annotation.AnnotatedMethod",
         "org.springframework.core.annotation.SynthesizingMethodParameter",
+        "org.thymeleaf.context.WebExpressionContext",
+        "org.thymeleaf.EngineConfiguration",
+        "org.thymeleaf.spring6.view.ThymeleafViewResolver",
+        "org.springframework.web.servlet.view.AbstractCachingViewResolver",
+        "java.util.Locale",
     )
 
     private fun shouldForceAllocation(type: JcType): Boolean {
-        return forcedAllocationTypes.contains(type.typeName) ||
-                type.isAssignable(throwableType)
+//        return type.typeName.startsWith("org.thymeleaf") || type.typeName.startsWith("org.springframework.web.servlet.view") || // TODO: delete
+//                forcedAllocationTypes.contains(type.typeName) ||
+//                type.isAssignable(throwableType)
+                // TODO: optimize forcedAllocationTypes via allowing all
+            return !type.typeName.startsWith("org.usvm.api.") &&
+                    !type.typeName.startsWith("generated.") &&
+                    !type.typeName.startsWith("stub.") &&
+                    !type.typeName.startsWith("runtime.")
     }
 
     override fun allocConcrete(type: JcType): UConcreteHeapRef {
@@ -2842,6 +2862,8 @@ class JcConcreteMemory private constructor(
             if (bindings.isWritable || shouldForceAllocation(type))
                 bindings.allocateDefaultConcrete(type)
             else null
+        if (!bindings.isWritable && address != null)
+            println(ansiCyan + "[Alloc] Can be added to forcedAllocationTypes: ${type.typeName}" + ansiReset)
         if (address != null)
             return ctx.mkConcreteHeapRef(address)
         return super.allocConcrete(type)
@@ -2937,8 +2959,8 @@ class JcConcreteMemory private constructor(
                         method.isConstructor && method.enclosingClass.isAbstract ||
                         method.enclosingClass.isEnum && method.isConstructor ||
                         method.humanReadableSignature.let {
-                            it.startsWith("org.usvm.api.Engine.") ||
-                            it.startsWith("runtime.LibSLRuntime.") ||
+                            it.startsWith("org.usvm.api.Engine") ||
+                            it.startsWith("runtime.LibSLRuntime") ||
                             it.startsWith("generated.")
                             it.startsWith("stub.")
                         }
@@ -3210,88 +3232,44 @@ class JcConcreteMemory private constructor(
             "org.thymeleaf.EngineConfiguration#getTemplateManager():org.thymeleaf.engine.TemplateManager",
             "org.thymeleaf.EngineConfiguration#getTemplateResolvers():java.util.Set",
             "java.util.Locale#getDefault(java.util.Locale\$Category):java.util.Locale",
+            "runtime.LibSLRuntime\$ArrayActions#copy(java.lang.Object,int,java.lang.Object,int,int):void",
+            "runtime.LibSLRuntime\$Map#remove(java.lang.Object):void",
+            "runtime.LibSLRuntime\$HashMapContainer#remove(java.lang.Object):void",
+            "org.springframework.context.event.SimpleApplicationEventMulticaster#getTaskExecutor():java.util.concurrent.Executor",
+            "org.springframework.web.bind.support.SimpleSessionStatus#isComplete():boolean",
         )
 
         private val concreteMutatingInvocations = setOf(
-            "java.util.LinkedHashSet#<init>():void",
-            "java.util.LinkedHashMap#<init>(int,float):void",
-            "java.lang.Float#isNaN(float):boolean",
-            "java.util.HashMap#tableSizeFor(int):int",
-            "org.springframework.boot.Banner\$Mode#\$values():org.springframework.boot.Banner\$Mode[]",
-            "java.util.Collections#emptySet():java.util.Set",
-            "org.springframework.boot.DefaultApplicationContextFactory#<init>():void",
 //        "org.springframework.core.metrics.DefaultApplicationStartup#<init>():void",
-            "org.springframework.boot.WebApplicationType#\$values():org.springframework.boot.WebApplicationType[]",
-            "org.springframework.util.ClassUtils#getDefaultClassLoader():java.lang.ClassLoader",
             "org.springframework.core.io.support.SpringFactoriesLoader#forDefaultResourceLocation(java.lang.ClassLoader):org.springframework.core.io.support.SpringFactoriesLoader",
             "org.springframework.core.io.support.SpringFactoriesLoader\$FailureHandler#throwing():org.springframework.core.io.support.SpringFactoriesLoader\$FailureHandler",
-            "java.lang.System#getSecurityManager():java.lang.SecurityManager",
-            "java.lang.System#allowSecurityManager():boolean",
-            "java.lang.System#registerNatives():void",
-            "java.security.AllPermission#<init>():void",
-            "org.slf4j.LoggerFactory#getILoggerFactory():org.slf4j.ILoggerFactory",
-            "org.slf4j.LoggerFactory#getProvider():org.slf4j.spi.SLF4JServiceProvider",
-            "java.util.concurrent.ConcurrentHashMap#<init>():void",
-            "java.util.concurrent.LinkedBlockingQueue#<init>():void",
-            "java.util.concurrent.LinkedBlockingQueue#<init>(int):void",
-            "org.apache.commons.logging.LogAdapter\$Slf4jLocationAwareLog#<init>(org.slf4j.spi.LocationAwareLogger):void",
-            "org.apache.commons.logging.LogAdapter\$Slf4jLog#<init>(org.slf4j.Logger):void",
-            "ch.qos.logback.classic.Logger#getName():java.lang.String",
-            "org.springframework.util.ConcurrentReferenceHashMap#<init>():void",
-            "java.lang.Runtime#getRuntime():java.lang.Runtime",
-            "java.lang.Runtime#availableProcessors():int",
-            "java.lang.StringLatin1#canEncode(int):boolean",
-            "java.util.concurrent.CopyOnWriteArrayList#size():int",
-            "java.util.concurrent.CopyOnWriteArrayList#getArray():java.lang.Object[]",
-            "java.util.concurrent.CopyOnWriteArrayList#get(int):java.lang.Object",
-            "java.util.concurrent.CopyOnWriteArrayList#elementAt(java.lang.Object[],int):java.lang.Object",
 //        "org.springframework.boot.SpringApplication#<init>(java.lang.Class[]):void",
-            "org.springframework.boot.SpringApplication\$Startup#create():org.springframework.boot.SpringApplication\$Startup",
             "org.springframework.boot.SpringApplication#createBootstrapContext():org.springframework.boot.DefaultBootstrapContext",
 //        "org.apache.commons.logging.LogFactory#getLog(java.lang.Class):org.apache.commons.logging.Log",
-            "java.util.IdentityHashMap#<init>():void",
             "java.util.IdentityHashMap#init(int):void",
-            "java.util.Collections#newSetFromMap(java.util.Map):java.util.Set",
 //        "org.springframework.boot.SpringApplicationShutdownHook\$ApplicationContextClosedListener#<init>(org.springframework.boot.SpringApplicationShutdownHook):void",
             "java.util.concurrent.atomic.AtomicInteger#getAndAdd(int):int",
             "org.springframework.boot.SpringApplication#configureHeadlessProperty():void",
             "org.springframework.boot.SpringApplication#getRunListeners(java.lang.String[]):org.springframework.boot.SpringApplicationRunListeners",
-            "org.springframework.core.io.support.SpringFactoriesLoader\$ArgumentResolver#of(java.lang.Class,java.lang.Object):org.springframework.core.io.support.SpringFactoriesLoader\$ArgumentResolver",
             "org.springframework.boot.SpringApplicationRunListeners#starting(org.springframework.boot.ConfigurableBootstrapContext,java.lang.Class):void",
             "org.springframework.core.metrics.DefaultApplicationStartup\$DefaultStartupStep#<init>():void",
-            "org.springframework.boot.DefaultApplicationArguments#<init>(java.lang.String[]):void",
-            "org.springframework.boot.DefaultApplicationArguments\$Source#<init>(java.lang.String[]):void",
             "org.springframework.boot.SpringApplication#prepareEnvironment(org.springframework.boot.SpringApplicationRunListeners,org.springframework.boot.DefaultBootstrapContext,org.springframework.boot.ApplicationArguments):org.springframework.core.env.ConfigurableEnvironment",
             "org.springframework.boot.SpringApplication#getOrCreateEnvironment():org.springframework.core.env.ConfigurableEnvironment",
             "org.springframework.boot.SpringApplicationShutdownHook#enableShutdownHookAddition():void",
             // TODO: skip this method #CM
 //        "org.springframework.boot.SpringApplication#printBanner(org.springframework.core.env.ConfigurableEnvironment):org.springframework.boot.Banner",
             "org.springframework.boot.SpringApplication#createApplicationContext():org.springframework.context.ConfigurableApplicationContext",
-            "java.util.Arrays#asList(java.lang.Object[]):java.util.List",
-            "java.util.LinkedHashSet#<init>(java.util.Collection):void",
-            "java.util.HashSet#<init>(int,float,boolean):void",
-            "org.springframework.boot.WebApplicationType#<init>(java.lang.String,int):void",
             "org.springframework.boot.SpringApplication#getSpringFactoriesInstances(java.lang.Class):java.util.List",
-            "java.lang.Class#getComponentType():java.lang.Class",
-            "java.util.ArrayList#<init>(java.util.Collection):void",
-            "java.util.ArrayList#toArray():java.lang.Object[]",
-            "java.util.Arrays#copyOf(java.lang.Object[],int):java.lang.Object[]",
-            "java.lang.Object#getClass():java.lang.Class",
-            "java.util.Arrays#copyOf(java.lang.Object[],int,java.lang.Class):java.lang.Object[]",
             "org.springframework.boot.SpringApplication#setInitializers(java.util.Collection):void",
             "org.springframework.context.support.GenericApplicationContext#setApplicationStartup(org.springframework.core.metrics.ApplicationStartup):void",
             "org.springframework.boot.SpringApplication#prepareContext(org.springframework.boot.DefaultBootstrapContext,org.springframework.context.ConfigurableApplicationContext,org.springframework.core.env.ConfigurableEnvironment,org.springframework.boot.SpringApplicationRunListeners,org.springframework.boot.ApplicationArguments,org.springframework.boot.Banner):void",
             "org.springframework.boot.SpringApplication#refreshContext(org.springframework.context.ConfigurableApplicationContext):void",
             "org.springframework.context.support.AbstractApplicationContext#getBeansOfType(java.lang.Class):java.util.Map",
-            "java.util.LinkedHashMap\$LinkedValues#toArray():java.lang.Object[]",
-            "org.springframework.boot.WebApplicationType#deduceFromClasspath():org.springframework.boot.WebApplicationType",
             "org.springframework.test.web.servlet.setup.MockMvcBuilders#webAppContextSetup(org.springframework.web.context.WebApplicationContext):org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder",
-            "org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder#<init>(org.springframework.web.context.WebApplicationContext):void",
             "org.springframework.test.web.servlet.setup.AbstractMockMvcBuilder#addFilter(jakarta.servlet.Filter,java.lang.String[]):org.springframework.test.web.servlet.setup.AbstractMockMvcBuilder",
             "org.springframework.test.web.servlet.setup.AbstractMockMvcBuilder#build():org.springframework.test.web.servlet.MockMvc",
             // TODO: delete #CM
             "org.springframework.test.web.servlet.request.MockMvcRequestBuilders#get(java.lang.String,java.lang.Object[]):org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder",
-            "org.springframework.boot.SpringApplicationShutdownHook#<init>():void",
 //        "org.springframework.boot.SpringApplication#setListeners(java.util.Collection):void",
             "org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder#buildRequest(jakarta.servlet.ServletContext):org.springframework.mock.web.MockHttpServletRequest",
 //        "org.springframework.boot.SpringApplicationShutdownHook#registerApplicationContext(org.springframework.context.ConfigurableApplicationContext):void",
@@ -3486,30 +3464,18 @@ class JcConcreteMemory private constructor(
             "java.lang.Enum#equals(java.lang.Object):boolean",
             "org.springframework.test.web.servlet.MockMvc#applyDefaultResultActions(org.springframework.test.web.servlet.MvcResult):void",
             "org.springframework.test.web.servlet.MockMvc\$1#<init>(org.springframework.test.web.servlet.MockMvc,org.springframework.test.web.servlet.MvcResult):void",
-            "java.util.HashMap#keySet():java.util.Set",
-            "java.util.TreeMap#keySet():java.util.Set",
-            "java.util.HashMap\$KeySet#iterator():java.util.Iterator",
-            "java.util.TreeMap\$KeySet#iterator():java.util.Iterator",
-            "java.util.HashMap\$HashIterator#hasNext():boolean",
-            "java.util.TreeMap\$PrivateEntryIterator#hasNext():boolean",
             "java.util.HashMap\$KeyIterator#next():java.lang.Object",
             "java.util.TreeMap\$KeyIterator#next():java.lang.Object",
-            "java.util.HashMap#get(java.lang.Object):java.lang.Object",
-            "java.util.TreeMap#get(java.lang.Object):java.lang.Object",
-            "java.util.Arrays\$ArrayList#get(int):java.lang.Object",
-            "java.lang.Integer#intValue():int",
             "org.springframework.test.web.servlet.request.MockMvcRequestBuilders#post(java.lang.String,java.lang.Object[]):org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder",
             "org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder#<init>(org.springframework.http.HttpMethod,java.lang.String,java.lang.Object[]):void",
             "java.util.ArrayList#toArray(java.lang.Object[]):java.lang.Object[]",
             "org.springframework.web.method.annotation.SessionAttributesHandler#retrieveAttributes(org.springframework.web.context.request.WebRequest):java.util.Map",
-            "java.util.HashMap#<init>():void",
             "org.springframework.web.method.support.ModelAndViewContainer#mergeAttributes(java.util.Map):org.springframework.web.method.support.ModelAndViewContainer",
             "org.springframework.web.method.annotation.ModelFactory#getNextModelMethod(org.springframework.web.method.support.ModelAndViewContainer):org.springframework.web.method.annotation.ModelFactory\$ModelMethod",
             "org.springframework.web.method.annotation.ModelFactory\$ModelMethod#getHandlerMethod():org.springframework.web.method.support.InvocableHandlerMethod",
             "org.springframework.core.annotation.AnnotatedMethod#getMethodAnnotation(java.lang.Class):java.lang.annotation.Annotation",
             "org.springframework.web.method.support.ModelAndViewContainer#getModel():org.springframework.ui.ModelMap",
             "java.util.ArrayList#add(java.lang.Object):boolean",
-            "java.util.LinkedHashMap#get(java.lang.Object):java.lang.Object",
             "java.util.HashMap#resize():java.util.HashMap\$Node[]",
             "java.util.LinkedHashMap\$LinkedKeyIterator#next():java.lang.Object",
             "java.util.LinkedHashMap\$LinkedEntryIterator#next():java.lang.Object",
@@ -3792,6 +3758,67 @@ class JcConcreteMemory private constructor(
             "java.lang.String#charAt(int):char",
             "org.thymeleaf.TemplateEngine#threadIndex():java.lang.String",
             "java.lang.Thread#getName():java.lang.String",
+            "java.util.LinkedHashSet#<init>():void",
+            "java.util.LinkedHashMap#<init>(int,float):void",
+            "java.lang.Float#isNaN(float):boolean",
+            "java.util.HashMap#tableSizeFor(int):int",
+            "org.springframework.boot.Banner\$Mode#\$values():org.springframework.boot.Banner\$Mode[]",
+            "java.util.Collections#emptySet():java.util.Set",
+            "org.springframework.boot.DefaultApplicationContextFactory#<init>():void",
+            "org.springframework.boot.WebApplicationType#\$values():org.springframework.boot.WebApplicationType[]",
+            "org.springframework.util.ClassUtils#getDefaultClassLoader():java.lang.ClassLoader",
+            "java.lang.System#getSecurityManager():java.lang.SecurityManager",
+            "java.lang.System#allowSecurityManager():boolean",
+            "java.security.AllPermission#<init>():void",
+            "org.slf4j.LoggerFactory#getILoggerFactory():org.slf4j.ILoggerFactory",
+            "org.slf4j.LoggerFactory#getProvider():org.slf4j.spi.SLF4JServiceProvider",
+            "java.util.concurrent.ConcurrentHashMap#<init>():void",
+            "java.util.concurrent.LinkedBlockingQueue#<init>():void",
+            "java.util.concurrent.LinkedBlockingQueue#<init>(int):void",
+            "org.apache.commons.logging.LogAdapter\$Slf4jLocationAwareLog#<init>(org.slf4j.spi.LocationAwareLogger):void",
+            "org.apache.commons.logging.LogAdapter\$Slf4jLog#<init>(org.slf4j.Logger):void",
+            "ch.qos.logback.classic.Logger#getName():java.lang.String",
+            "org.springframework.util.ConcurrentReferenceHashMap#<init>():void",
+            "java.lang.Runtime#getRuntime():java.lang.Runtime",
+            "java.lang.Runtime#availableProcessors():int",
+            "java.lang.StringLatin1#canEncode(int):boolean",
+            "java.util.concurrent.CopyOnWriteArrayList#size():int",
+            "java.util.concurrent.CopyOnWriteArrayList#getArray():java.lang.Object[]",
+            "java.util.concurrent.CopyOnWriteArrayList#get(int):java.lang.Object",
+            "java.util.concurrent.CopyOnWriteArrayList#elementAt(java.lang.Object[],int):java.lang.Object",
+            "java.util.IdentityHashMap#<init>():void",
+            "java.util.Collections#newSetFromMap(java.util.Map):java.util.Set",
+            "org.springframework.boot.SpringApplication\$Startup#create():org.springframework.boot.SpringApplication\$Startup",
+            "org.springframework.boot.DefaultApplicationArguments#<init>(java.lang.String[]):void",
+            "org.springframework.boot.DefaultApplicationArguments\$Source#<init>(java.lang.String[]):void",
+            "java.util.Arrays#asList(java.lang.Object[]):java.util.List",
+            "java.util.LinkedHashSet#<init>(java.util.Collection):void",
+            "java.util.HashSet#<init>(int,float,boolean):void",
+            "org.springframework.boot.WebApplicationType#<init>(java.lang.String,int):void",
+            "org.springframework.core.io.support.SpringFactoriesLoader\$ArgumentResolver#of(java.lang.Class,java.lang.Object):org.springframework.core.io.support.SpringFactoriesLoader\$ArgumentResolver",
+            "java.lang.Class#getComponentType():java.lang.Class",
+            "java.util.ArrayList#<init>(java.util.Collection):void",
+            "java.util.ArrayList#toArray():java.lang.Object[]",
+            "java.util.Arrays#copyOf(java.lang.Object[],int):java.lang.Object[]",
+            "java.lang.Object#getClass():java.lang.Class",
+            "java.util.Arrays#copyOf(java.lang.Object[],int,java.lang.Class):java.lang.Object[]",
+            "java.util.LinkedHashMap\$LinkedValues#toArray():java.lang.Object[]",
+            "org.springframework.boot.WebApplicationType#deduceFromClasspath():org.springframework.boot.WebApplicationType",
+            "org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder#<init>(org.springframework.web.context.WebApplicationContext):void",
+            "org.springframework.boot.SpringApplicationShutdownHook#<init>():void",
+            "java.util.HashMap#keySet():java.util.Set",
+            "java.util.TreeMap#keySet():java.util.Set",
+            "java.util.LinkedHashMap#get(java.lang.Object):java.lang.Object",
+            "java.util.HashMap#get(java.lang.Object):java.lang.Object",
+            "java.util.TreeMap#get(java.lang.Object):java.lang.Object",
+            "java.util.Arrays\$ArrayList#get(int):java.lang.Object",
+            "java.lang.Integer#intValue():int",
+            "java.util.HashMap#<init>():void",
+            "java.util.HashMap\$KeySet#iterator():java.util.Iterator",
+            "java.util.TreeMap\$KeySet#iterator():java.util.Iterator",
+            "java.util.HashMap\$HashIterator#hasNext():boolean",
+            "java.util.TreeMap\$PrivateEntryIterator#hasNext():boolean",
+            "java.lang.StringBuilder#append(java.lang.Object):java.lang.StringBuilder",
             // TODO: be careful: all methods below are mutating, but maybe it's insufficient #CM
             "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#supportsParameter(org.springframework.core.MethodParameter):boolean",
             "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver",
@@ -3821,6 +3848,8 @@ class JcConcreteMemory private constructor(
             "org.springframework.aop.framework.AbstractAdvisingBeanPostProcessor#isEligible(java.lang.Class):boolean",
             "org.thymeleaf.TemplateEngine#getConfiguration():org.thymeleaf.IEngineConfiguration",
             "java.util.Locale#createConstant(byte):java.util.Locale",
+            "java.util.Locale#initDefault():java.util.Locale",
+            "java.lang.System#registerNatives():void",
             // TODO: not sure, that this can be invoked! #CM
             "org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#autowireBeanProperties(java.lang.Object,int,boolean):void",
         )
