@@ -38,7 +38,7 @@ fun JcState.returnValue(valueToReturn: UExpr<out USort>) {
  * Create an unprocessed exception with the [address] and the [type] and assign it to the [JcState.methodResult].
  */
 fun JcState.throwExceptionWithoutStackFrameDrop(address: UHeapRef, type: JcType) {
-    if (type.typeName == "java.lang.InternalError" || type.typeName == "java.lang.IllegalStateException")
+    if (type.typeName == "java.lang.InternalError" || type.typeName == "java.lang.IllegalArgumentException")
         println()
     println("exception thrown ${type.typeName}")
     methodResult = JcMethodResult.JcException(address, type, callStack.stackTrace(lastStmt))

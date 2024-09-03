@@ -78,7 +78,6 @@ import org.usvm.collection.array.length.UArrayLengthLValue
 import org.usvm.collection.field.UFieldLValue
 import org.usvm.machine.interpreter.JcExprResolver
 import org.usvm.machine.interpreter.JcStepScope
-import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.JcState
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.sizeSort
@@ -179,7 +178,7 @@ class JcMethodApproximationResolver(
         }
 
         if (method.name == "clone" && enclosingClass == ctx.cp.objectClass) {
-            if (approximateArrayClone(methodCall)) return true
+            if (approximateObjectClone(methodCall)) return true
         }
 
         if (className.contains("org.springframework.boot")) {
@@ -947,18 +946,16 @@ class JcMethodApproximationResolver(
         scope.forkMulti(arrayTypeConstraintsWithBlockOnStates)
     }
 
-    private fun approximateArrayClone(methodCall: JcMethodCall): Boolean {
+    private fun approximateObjectClone(methodCall: JcMethodCall): Boolean {
         val instance = methodCall.arguments.first().asExpr(ctx.addressSort)
-
-        val arrayType = scope.calcOnState {
-            memory.types.getTypeStream(instance).commonSuperType
-        }
-        if (arrayType !is JcArrayType) {
-            return false
+        val type = scope.calcOnState { memory.types.getTypeStream(instance).commonSuperType }
+        if (type is JcArrayType) {
+            exprResolver.resolveArrayClone(methodCall, instance, type)
+            return true
         }
 
-        exprResolver.resolveArrayClone(methodCall, instance, arrayType)
-        return true
+        // TODO: approximate base clone method #Approx
+        return false
     }
 
     private fun JcExprResolver.resolveArrayClone(
