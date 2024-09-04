@@ -248,6 +248,13 @@ fun <Method, Statement, Target, State> createPathSelector(
             }
         }
         CoverageZone.TRANSITIVE -> {}
+        CoverageZone.APPLICATION -> {
+            coverageStatistics?.addOnCoveredObserver { _, method, _ ->
+                if (coverageStatistics.getMethodCoverage(method) == totalCoveragePercents) {
+                    pathSelector.removeKey(method)
+                }
+            }
+        }
     }
 
     return pathSelector

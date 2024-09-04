@@ -1,6 +1,10 @@
 package org.usvm.samples.strings11;
 
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import static org.usvm.api.mock.UMockKt.assume;
 
 public class StringConcat {
@@ -76,5 +80,82 @@ public class StringConcat {
     public String concatStrangeSymbols() {
         return "\u0000" + '#' + '\u0001' + "!\u0002" + "@\u0012\t";
     }
-}
 
+    public static boolean checkStringBuilder(String s, char c, int i) {
+        if (s == null)
+            return true;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(s);
+        String a = "str" + c + i;
+        sb.append(a);
+        String res = sb.toString();
+        if (res.charAt(s.length() + "str".length()) != c)
+            return false;
+
+        if (i > 0 && i < 128 && res.charAt(s.length() + "str".length() + 1) != i)
+            return false;
+
+        return true;
+    }
+
+    public static void wip1(HashMap<String, String> map) {
+        map.clear();
+        map.put("str", "def");
+    }
+
+    public static void wip2(HashMap<String, String> map) {
+        map.clear();
+        map.put("str", "qwe");
+    }
+
+    public static void concretize() { }
+
+    public static void end() { }
+
+    public static boolean wip(int i) {
+        LinkedHashMap<String, String> map = new LinkedHashMap<>();
+        map.put("str", "abc");
+        if (i > 0) {
+            concretize();
+            if (!map.get("str").equals("abc"))
+                return false;
+            wip1(map);
+            if (!map.get("str").equals("def"))
+                return false;
+            end();
+        } else {
+            concretize();
+            if (!map.get("str").equals("abc"))
+                return false;
+            wip2(map);
+            if (!map.get("str").equals("qwe"))
+                return false;
+            end();
+        }
+        return true;
+    }
+
+    static class Kekw {
+        public int x = 0;
+
+        public void F() {
+            Map<String, String> map = new LinkedHashMap<>();
+            map.put("str", "abc");
+            map.put("kek", "def");
+            map.put("123", "qwe");
+            map.forEach(this::G);
+        }
+
+        public void G(Object key, Object value) {
+            x++;
+        }
+    }
+    public static boolean kek(int i) {
+        Kekw kekw = new Kekw();
+        kekw.F();
+        if (kekw.x == 3)
+            return true;
+        return false;
+    }
+}

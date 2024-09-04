@@ -134,7 +134,7 @@ import org.usvm.utils.logAssertFailure
 class JcExprResolver(
     private val ctx: JcContext,
     private val scope: JcStepScope,
-    private val options: JcMachineOptions,
+    val options: JcMachineOptions,
     localToIdx: (JcMethod, JcImmediate) -> Int,
     mkTypeRef: (JcState, JcType) -> UConcreteHeapRef,
     mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
@@ -379,48 +379,57 @@ class JcExprResolver(
     // region invokes
 
     override fun visitJcSpecialCallExpr(expr: JcSpecialCallExpr): UExpr<out USort>? =
-        resolveInvoke(
-            expr.method,
-            instanceExpr = expr.instance,
-            argumentExprs = expr::args,
-            argumentTypes = { expr.method.parameters.map { it.type } }
-        ) { arguments ->
-            scope.doWithState { addConcreteMethodCallStmt(expr.method.method, arguments) }
+        ensureStaticFieldsInitialized(expr.method.enclosingType, classInitializerAnalysisRequired = true) {
+            resolveInvoke(
+                expr.method,
+                instanceExpr = expr.instance,
+                argumentExprs = expr::args,
+                argumentTypes = { expr.method.parameters.map { it.type } }
+            ) { arguments ->
+                scope.doWithState { addConcreteMethodCallStmt(expr.method.method, arguments) }
+            }
         }
 
     override fun visitJcVirtualCallExpr(expr: JcVirtualCallExpr): UExpr<out USort>? =
-        resolveInvoke(
-            expr.method,
-            instanceExpr = expr.instance,
-            argumentExprs = expr::args,
-            argumentTypes = { expr.method.parameters.map { it.type } }
-        ) { arguments ->
-            scope.doWithState { addVirtualMethodCallStmt(expr.method.method, arguments) }
+        ensureStaticFieldsInitialized(expr.method.enclosingType, classInitializerAnalysisRequired = true) {
+            resolveInvoke(
+                expr.method,
+                instanceExpr = expr.instance,
+                argumentExprs = expr::args,
+                argumentTypes = { expr.method.parameters.map { it.type } }
+            ) { arguments ->
+                scope.doWithState { addVirtualMethodCallStmt(expr.method.method, arguments) }
+            }
         }
 
     override fun visitJcStaticCallExpr(expr: JcStaticCallExpr): UExpr<out USort>? =
-        resolveInvoke(
-            expr.method,
-            instanceExpr = null,
-            argumentExprs = expr::args,
-            argumentTypes = { expr.method.parameters.map { it.type } }
-        ) { arguments ->
-            scope.doWithState { addConcreteMethodCallStmt(expr.method.method, arguments) }
+        ensureStaticFieldsInitialized(expr.method.enclosingType, classInitializerAnalysisRequired = true) {
+            resolveInvoke(
+                expr.method,
+                instanceExpr = null,
+                argumentExprs = expr::args,
+                argumentTypes = { expr.method.parameters.map { it.type } }
+            ) { arguments ->
+                scope.doWithState { addConcreteMethodCallStmt(expr.method.method, arguments) }
+            }
         }
 
-    override fun visitJcDynamicCallExpr(expr: JcDynamicCallExpr): UExpr<out USort>? =
-        apply {
-            if (JcStringConcatTransformer.methodIsStringConcat(expr.method.method)) {
-                logger.warn { "JcStringConcatTransformer should be used to process string concatenation" }
-            }
-        }.resolveInvoke(
-            expr.method,
-            instanceExpr = null,
-            argumentExprs = { expr.callSiteArgs },
-            argumentTypes = { expr.callSiteArgTypes }
-        ) { callSiteArguments ->
-            scope.doWithState { addDynamicCall(expr, callSiteArguments) }
+    override fun visitJcDynamicCallExpr(expr: JcDynamicCallExpr): UExpr<out USort>? {
+        if (JcStringConcatTransformer.methodIsStringConcat(expr.method.method)) {
+            logger.warn { "JcStringConcatTransformer should be used to process string concatenation" }
         }
+
+        return ensureStaticFieldsInitialized(expr.method.enclosingType, classInitializerAnalysisRequired = true) {
+            resolveInvoke(
+                expr.method,
+                instanceExpr = null,
+                argumentExprs = { expr.callSiteArgs },
+                argumentTypes = { expr.callSiteArgTypes }
+            ) { callSiteArguments ->
+                scope.doWithState { addDynamicCall(expr, callSiteArguments) }
+            }
+        }
+    }
 
     override fun visitJcLambdaExpr(expr: JcLambdaExpr): UExpr<out USort>? {
         val callSiteArgs = expr.callSiteArgs.zip(expr.callSiteArgTypes) { arg, type ->
@@ -552,7 +561,9 @@ class JcExprResolver(
                 if (!assertIsSubtype(instanceRef, field.enclosingType)) return null
 
                 val sort = ctx.typeToSort(field.type)
-                return UFieldLValue(sort, instanceRef, field.field)
+                return ensureStaticFieldsInitialized(field.enclosingType, classInitializerAnalysisRequired = true) {
+                    UFieldLValue(sort, instanceRef, field.field)
+                }
             }
 
             return ensureStaticFieldsInitialized(field.enclosingType, classInitializerAnalysisRequired = true) {

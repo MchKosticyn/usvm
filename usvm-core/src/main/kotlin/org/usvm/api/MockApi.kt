@@ -23,6 +23,11 @@ fun <Type, Method, State> StepScope<State, Type, *, *>.makeSymbolicRef(
 ): UHeapRef? where State : UState<Type, Method, *, *, *, State> =
     mockSymbolicRef { memory.types.evalTypeEquals(it, type) }
 
+fun <Type, Method, State> StepScope<State, Type, *, *>.makeSymbolicRefSubtype(
+    type: Type
+): UHeapRef? where State : UState<Type, Method, *, *, *, State> =
+    mockSymbolicRef { ctx.mkAnd(memory.types.evalIsSubtype(it, type), ctx.mkNot(ctx.mkEq(it, ctx.nullRef))) }
+
 fun <Type, Method, State> StepScope<State, Type, *, *>.makeSymbolicRefWithSameType(
     representative: UHeapRef
 ): UHeapRef? where State : UState<Type, Method, *, *, *, State> =
