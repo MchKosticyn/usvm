@@ -2,12 +2,21 @@ package org.usvm.samples.collections
 
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.usvm.PathSelectionStrategy
 import org.usvm.samples.JavaMethodTestRunner
+import org.usvm.samples.approximations.ApproximationsTestRunner
 import org.usvm.test.util.checkers.ge
+import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
 import org.usvm.util.isException
+import kotlin.time.Duration
 
-@Disabled("Unsupported")
-internal class MapsPart2Test : JavaMethodTestRunner() {
+//@Disabled("Unsupported")
+internal class MapsPart2Test : ApproximationsTestRunner() {
+
+    init {
+        options = options.copy(stepsFromLastCovered = null, timeout = Duration.INFINITE, pathSelectionStrategies = listOf(PathSelectionStrategy.DFS))
+    }
+
     @Test
     fun testReplaceEntryWithValue() {
         checkDiscoveredProperties(
@@ -65,6 +74,15 @@ internal class MapsPart2Test : JavaMethodTestRunner() {
                 val mapDoesNotContainAllKeysOfOther = !map.keys.containsAll(other.keys)
                 notNull && mapContainsAtLeastOneKeyOfOther && mapDoesNotContainAllKeysOfOther && result == 2
             },
+        )
+    }
+
+    @Test
+    fun testConcreteMapSymbolicElements() {
+        checkDiscoveredPropertiesWithExceptions(
+            Maps::concreteMapSymbolicElements,
+            ignoreNumberOfAnalysisResults,
+            invariants = arrayOf({ _, _, r -> r.getOrNull() == true })
         )
     }
 }

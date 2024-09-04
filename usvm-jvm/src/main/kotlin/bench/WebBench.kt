@@ -6,12 +6,12 @@ import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
+import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages
@@ -25,6 +25,7 @@ import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.FieldNode
 import org.usvm.CoverageZone
 import org.usvm.PathSelectionStrategy
+import org.usvm.SolverType
 import org.usvm.UMachineOptions
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.JcTestInterpreter
@@ -71,11 +72,11 @@ fun main() {
 private class BenchCp(
     val cp: JcClasspath,
     val db: JcDatabase,
-    val benchLocations: List<JcByteCodeLocation>,
+    val classLocations: List<JcByteCodeLocation>,
+    val depsLocations: List<JcByteCodeLocation>,
     val cpFiles: List<File>,
     val classes: List<File>,
     val dependencies: List<File>,
-    val registeredBenchLocations: List<RegisteredLocation>,
     var entrypointFilter: (JcMethod) -> Boolean = { true },
 ) : AutoCloseable {
     override fun close() {
@@ -84,21 +85,13 @@ private class BenchCp(
     }
 }
 
-val bannedLocations = hashSetOf<RegisteredLocation>()
-val appLocations = hashSetOf<RegisteredLocation>()
-
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
     val features = listOf(UnknownClasses)
     val cp = db.classpathWithApproximations(cpFiles, features)
-//    val cp = db.classpath(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
     val depsLocations = cp.locations.filter { it.jarOrFolder in dependencies }
-    val registeredBenchLocations = cp.registeredLocations.filter { it.jcLocation in classLocations }
-    bannedLocations += cp.registeredLocations.filter { !it.isRuntime && it.jcLocation in depsLocations }
-    appLocations += cp.registeredLocations.filter { !it.isRuntime && it.jcLocation in classLocations }
-
-    BenchCp(cp, db, classLocations, cpFiles, classes, dependencies, registeredBenchLocations)
+    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies)
 }
 
 private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
@@ -111,6 +104,8 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
 
     val db = jacodb {
         useProcessJavaRuntime()
+
+        persistenceImpl(JcRamErsSettings)
 
         installFeatures(InMemoryHierarchy)
         installFeatures(Usages)
@@ -150,7 +145,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
     val repositories = runBlocking { cp.hierarchyExt() }
         .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
-        .filter { benchmark.benchLocations.contains(it.declaration.location.jcLocation) }
+        .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
         .toList()
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
     val testClassName = "StartSpringTestClass"
@@ -195,21 +190,28 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 
 private fun analyzeBench(benchmark: BenchCp) {
     val options = UMachineOptions(
-        pathSelectionStrategies = listOf(PathSelectionStrategy.DFS),
-        coverageZone = CoverageZone.TRANSITIVE,
+        pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
+        coverageZone = CoverageZone.APPLICATION,
         exceptionsPropagation = true,
         timeout = Duration.INFINITE,
+        solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
     )
-    val jcMachineOptions = JcMachineOptions(projectLocations = benchmark.registeredBenchLocations.toSet(), forkOnImplicitExceptions = false)
+    val jcMachineOptions =
+        JcMachineOptions(
+            projectLocations = benchmark.classLocations,
+            dependenciesLocations = benchmark.depsLocations,
+            forkOnImplicitExceptions = false,
+            arrayMaxSize = 10_000
+        )
     val testResolver = JcTestInterpreter()
     val newBench = generateTestClass(benchmark)
     val cp = newBench.cp
     val publicClasses = cp.publicClasses(cp.locations)
     val webApplicationClass =
-        cp.publicClasses(newBench.benchLocations)
+        cp.publicClasses(newBench.classLocations)
             .find {
                 it.annotations.any { annotation ->
                     annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
