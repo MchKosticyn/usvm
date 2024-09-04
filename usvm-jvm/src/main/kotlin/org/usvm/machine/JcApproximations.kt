@@ -98,6 +98,7 @@ import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.writeField
 import org.usvm.getIntValue
+import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.newStmt
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
@@ -954,8 +955,33 @@ class JcMethodApproximationResolver(
             return true
         }
 
-        // TODO: approximate base clone method #Approx
+        if (methodCall is JcConcreteMethodCallInst) {
+            type as JcClassType
+            exprResolver.resolveObjectClone(methodCall, instance, type)
+            return true
+        }
+
         return false
+    }
+
+    private fun JcExprResolver.resolveObjectClone(
+        methodCall: JcMethodCall,
+        instance: UHeapRef,
+        type: JcClassType,
+    ) = with(ctx) {
+        scope.doWithState {
+            checkNullPointer(instance) ?: return@doWithState
+
+            val clonedRef = memory.allocHeapRef(type, useStaticAddress = useStaticAddressForAllocation())
+            for (field in type.allInstanceFields) {
+                val fieldSort = ctx.typeToSort(field.type)
+                val jcField = field.field
+                val fieldValue = memory.readField(instance, jcField, fieldSort)
+                memory.writeField(clonedRef, jcField, fieldSort, fieldValue, ctx.trueExpr)
+            }
+
+            skipMethodInvocationWithValue(methodCall, clonedRef)
+        }
     }
 
     private fun JcExprResolver.resolveArrayClone(
