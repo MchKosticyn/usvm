@@ -6,6 +6,7 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.jacodb.api.jvm.ext.methods
+import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.usvm.CoverageZone
 import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
@@ -16,6 +17,7 @@ import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
+import org.usvm.machine.state.concreteMemory.ps.JcConcreteMemoryPathSelector
 import org.usvm.machine.state.lastStmt
 import org.usvm.ps.createPathSelector
 import org.usvm.statistics.CompositeUMachineObserver
@@ -73,6 +75,16 @@ class JcMachine(
                         it.enclosingClass == method.enclosingClass && !it.isConstructor
                     }
                 }.toSet() + methods
+                CoverageZone.APPLICATION -> {
+                    jcMachineOptions
+                        .projectLocations!!
+                        .asSequence()
+                        .flatMap { it.classNames ?: emptySet() }
+                        .mapNotNull { ctx.cp.findClassOrNull(it) }
+                        .filterNot { it is JcUnknownClass }
+                        .flatMap { it.declaredMethods }
+                        .toSet()
+                }
             }
 
         val coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState> = CoverageStatistics(
@@ -96,7 +108,7 @@ class JcMachine(
         val timeStatistics = TimeStatistics<JcMethod, JcState>()
         val loopTracker = JcLoopTracker()
 
-        val pathSelector = createPathSelector(
+        var pathSelector = createPathSelector(
             initialStates,
             options,
             applicationGraph,
@@ -106,6 +118,7 @@ class JcMachine(
             { callGraphStatistics },
             { loopTracker }
         )
+        pathSelector = JcConcreteMemoryPathSelector(pathSelector)
 
         val statesCollector =
             when (options.stateCollectionStrategy) {
@@ -143,6 +156,7 @@ class JcMachine(
                     CoverageZone.CLASS -> { m: JcMethod -> !methodsToTrackCoverage.contains(m) }
                     CoverageZone.TRANSITIVE -> { _ -> false }
                     CoverageZone.METHOD -> throw IllegalStateException()
+                    CoverageZone.APPLICATION -> { m -> !methodsToTrackCoverage.contains(m) }
                 }
             observers.add(
                 TransitiveCoverageZoneObserver(

@@ -17,8 +17,8 @@ import java.util.jar.JarFile
 /**
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
  */
-object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
-    // TODO: make this 'class', change name and rollback changes to original JcClassLoader
+// TODO: make this 'class'
+internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
 
     var webApplicationClass: JcClassOrInterface? = null
     lateinit var cp: JcClasspath
@@ -133,11 +133,19 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
             throw ClassNotFoundException()
         }
 
-        if (jcClass.declaration.location.isRuntime) return super.loadClass(name)
+        if (jcClass.declaration.location.isRuntime) {
+            val type = super.loadClass(name)
+            loadedClasses[name] = type
+            return type
+        }
 
         return loadedClasses.getOrPut(name) {
             loadClass(jcClass)
         }
+    }
+
+    fun isLoaded(jcClass: JcClassOrInterface): Boolean {
+        return loadedClasses.containsKey(jcClass.name)
     }
 
     fun loadClass(jcClass: JcClassOrInterface): Class<*> = defineClassRecursively(jcClass)
@@ -179,18 +187,15 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         }
 
         if (jcClass.declaration.location.isRuntime || typeIsRuntimeGenerated(jcClass)) {
-            return super.loadClass(jcClass.name)
+            val name = jcClass.name
+            val type = super.loadClass(name)
+            loadedClasses[name] = type
+            return type
         }
 
         if (jcClass is JcUnknownClass) {
             throw ClassNotFoundException()
         }
-
-        // TODO: instrument all calls, fields and others of original to approximation #CM
-        //  check "JcRuntimeTraceInstrumenter.instrumentMethod"
-//        val x: JcEnrichedVirtualMethod
-//        val approximationClsName = Approximations.findApproximationByOriginOrNull(OriginalClassName(x.enclosingClass.name))
-
 
         with(jcClass) {
             // For unknown class we need to load all its supers, all classes mentioned in its ALL (not only declared)
@@ -198,12 +203,6 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
 
             val notVisitedSupers = allSuperHierarchySequence.filterNot { it in visited }
             notVisitedSupers.forEach { defineClassRecursively(it, visited) }
-
-//                for (field in fields) {
-//                    val fieldType = classpath.findTypeOrNull(field.type) ?: continue
-//                    if (fieldType !is JcRefType) continue
-//                    defineClassRecursively(fieldType.jcClass, visited)
-//                }
 
             return loadedClasses.getOrPut(name) {
                 defineClass(name, bytecode())
