@@ -17,9 +17,12 @@ import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.jcdbSignature
 import org.jacodb.api.jvm.ext.long
 import org.jacodb.api.jvm.ext.short
+import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
+import org.usvm.instrumentation.util.isSameSignatures
 import sun.misc.Unsafe
 import java.lang.reflect.Constructor
+import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
@@ -177,6 +180,12 @@ object Reflection {
         return (klass.constructors + klass.declaredConstructors)
             .find { it.jcdbSignature == this.jcdbSignature }
             ?: error("Can't find constructor")
+    }
+
+    fun JcMethod.toJavaExecutable(classLoader: ClassLoader): Executable? {
+        val type = enclosingClass.toType().toJavaClass(classLoader)
+        return (type.methods + type.declaredMethods).find { it.jcdbSignature == this.jcdbSignature }
+            ?: (type.constructors + type.declaredConstructors).find { it.jcdbSignature == this.jcdbSignature }
     }
 
     private val Method.jcdbSignature: String

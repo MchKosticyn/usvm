@@ -96,18 +96,6 @@ object WithSolverStateForker : StateForker {
             else -> error("[trueModels] and [falseModels] are both empty, that has to be impossible by construction!")
         }
 
-        if (posState != null){
-            if (posState.pathConstraints.isFalse && posState.models.isNotEmpty()){
-                let {  }
-            }
-        }
-
-        if (negState != null){
-            if (negState.pathConstraints.isFalse && negState.models.isNotEmpty()){
-                let {  }
-            }
-        }
-
         return ForkResult(posState, negState)
     }
 

@@ -1,6 +1,6 @@
 package org.usvm.machine
 
-import org.jacodb.api.jvm.RegisteredLocation
+import org.jacodb.api.jvm.JcByteCodeLocation
 
 /**
  * JcMachine specific options.
@@ -28,6 +28,6 @@ data class JcMachineOptions(
     val forceRelevantClassInitializers: Boolean = false,
     val skipIrrelevantClassInitializers: Boolean = false,
     val mockComplexMethods: Boolean = false,
-    val projectLocations: Set<RegisteredLocation>? = null,
-    val dependenciesLocations: Set<RegisteredLocation>? = null,
+    val projectLocations: List<JcByteCodeLocation>? = null,
+    val dependenciesLocations: List<JcByteCodeLocation>? = null,
 )
