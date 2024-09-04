@@ -93,6 +93,7 @@ dependencies {
     // Use usvm-api in samples for makeSymbolic, assume, etc.
     samplesImplementation(`usvm-api`.output)
 
+    implementation(project(":usvm-jvm-instrumentation"))
     testImplementation(project(":usvm-jvm-instrumentation"))
 }
 
@@ -316,12 +317,34 @@ tasks.register<JavaExec>("runWebBench") {
         openPackage("java.base", "java.time")
         openPackage("java.base", "jdk.internal.access")
         openPackage("java.base", "sun.reflect.annotation")
+        openPackage("java.base", "sun.reflect.generics.reflectiveObjects")
+        openPackage("java.base", "sun.reflect.generics.factory")
+        openPackage("java.base", "sun.reflect.generics.tree")
+        openPackage("java.base", "sun.reflect.generics.scope")
+        openPackage("java.base", "sun.invoke.util")
         openPackage("java.base", "sun.nio.cs")
+        openPackage("java.base", "sun.nio.fs")
+        openPackage("java.base", "java.nio")
+        openPackage("java.logging", "java.util.logging")
+        openPackage("java.base", "java.time.format")
+        openPackage("java.base", "java.time.zone")
+        openPackage("java.base", "java.time.temporal")
+        openPackage("java.base", "java.text")
+        openPackage("java.base", "sun.util.calendar")
+        openPackage("java.base", "sun.net.www.protocol.jar")
+        openPackage("java.base", "java.util.jar")
+        openPackage("java.base", "java.nio.file.attribute")
+        openPackage("java.base", "java.util.function")
+        openPackage("java.desktop", "java.beans")
+        openPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs")
+        openPackage("java.base", "java.math")
         exportPackage("java.base", "sun.util.locale")
         exportPackage("java.base", "jdk.internal.misc")
         exportPackage("java.base", "jdk.internal.reflect")
         exportPackage("java.base", "sun.nio.cs")
+        exportPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs.util")
         add("--illegal-access=warn")
+        add("-XX:+UseParallelGC")
     }
 }
 

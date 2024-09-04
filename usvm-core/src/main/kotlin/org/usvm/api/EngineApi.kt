@@ -42,6 +42,18 @@ fun <Type> UState<Type, *, *, *, *, *>.objectTypeEquals(
     )
 }
 
+fun <Type, R : USort> UState<Type, *, *, *, *, *>.mapTypeStreamNotNull(
+    ref: UHeapRef,
+    operation: (UHeapRef, UTypeStream<Type>) -> UExpr<R>?
+): UExpr<R>? = mapTypeStream(
+    ref = ref,
+    onNull = { error("unexpected null") },
+    operation = { expr, types ->
+        operation(expr, types) ?: return null
+    },
+    ignoreNullRefs = true
+)
+
 fun <Type, R : USort> UState<Type, *, *, *, *, *>.mapTypeStream(
     ref: UHeapRef,
     operation: (UHeapRef, UTypeStream<Type>) -> UExpr<R>?
@@ -81,9 +93,10 @@ private fun <Type> UState<Type, *, *, *, *, *>.mkTypeEqualsConstraint(
 private inline fun <Type, R : USort> UState<Type, *, *, *, *, *>.mapTypeStream(
     ref: UHeapRef,
     onNull: () -> UExpr<R>,
-    operation: (UHeapRef, UTypeStream<Type>) -> UExpr<R>
+    operation: (UHeapRef, UTypeStream<Type>) -> UExpr<R>,
+    ignoreNullRefs: Boolean = false,
 ): UExpr<R> = ref.mapWithStaticAsConcrete(
-    ignoreNullRefs = false,
+    ignoreNullRefs = ignoreNullRefs,
     concreteMapper = { concreteRef ->
         val types = memory.types.getTypeStream(concreteRef)
         operation(concreteRef, types)

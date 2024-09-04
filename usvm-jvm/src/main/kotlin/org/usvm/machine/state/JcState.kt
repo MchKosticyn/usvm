@@ -49,6 +49,7 @@ class JcState(
             it.changeOwnership(cloneOwnership)
         } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
         this.ownership = newThisOwnership
+        println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
         return JcState(
             ctx,
             cloneOwnership,
