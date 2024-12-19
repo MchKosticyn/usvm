@@ -31,7 +31,7 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         get() = this.toURI().toURL()
 
     private fun File.matchResource(locURI: URI, name: String): Boolean {
-        assert(name.isNotEmpty())
+        check(name.isNotEmpty())
         val relativePath by lazy { locURI.relativize(this.toURI()).toString() }
         return this.name == name
                 || relativePath == name
@@ -39,7 +39,7 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
     }
 
     private fun JarEntry.matchResource(name: String, single: Boolean): Boolean {
-        assert(name.isNotEmpty())
+        check(name.isNotEmpty())
         val entryName = this.name
         return entryName == name
                 || entryName.endsWith(name)
@@ -51,7 +51,7 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         name: String,
         single: Boolean
     ): List<URL>? {
-        assert(locFile.isDirectory)
+        check(locFile.isDirectory)
         val result = mutableListOf<URL>()
 
         val locURI = locFile.toURI()
@@ -98,7 +98,7 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
     }
 
     private fun tryGetResource(locFile: File, name: String): List<URL>? {
-        assert(locFile.isFile)
+        check(locFile.isFile)
         return if (locFile.name == name) listOf(locFile.URL) else null
     }
 

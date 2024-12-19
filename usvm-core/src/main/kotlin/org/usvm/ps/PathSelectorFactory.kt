@@ -255,6 +255,13 @@ fun <Method, Statement, Target, State> createPathSelector(
                 }
             }
         }
+        CoverageZone.SPRING_APPLICATION -> {
+            coverageStatistics?.addOnCoveredObserver { _, method, _ ->
+                if (coverageStatistics.getMethodCoverage(method) == totalCoveragePercents) {
+                    pathSelector.removeKey(method)
+                }
+            }
+        }
     }
 
     return pathSelector

@@ -13,7 +13,6 @@ import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.api.util.Reflection.invoke
 import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.constraints.UTypeConstraints
-import org.usvm.isStatic
 import org.usvm.machine.JcContext
 import java.lang.reflect.Field
 import java.lang.reflect.InvocationHandler

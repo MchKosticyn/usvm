@@ -48,6 +48,7 @@ class TSMachine(
                 CoverageZone.METHOD, CoverageZone.TRANSITIVE -> methods.toHashSet()
                 CoverageZone.CLASS -> TODO("Unsupported yet")
                 CoverageZone.APPLICATION -> TODO("Unsupported yet")
+                CoverageZone.SPRING_APPLICATION -> TODO("Unsupported yet")
             }
 
         val coverageStatistics = CoverageStatistics<EtsMethod, EtsStmt, TSState>(

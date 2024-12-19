@@ -108,6 +108,7 @@ import org.usvm.api.writeField
 import org.usvm.getIntValue
 import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 import org.usvm.machine.state.concreteMemory.allInstanceFields
+import org.usvm.machine.state.concreteMemory.classesOfLocations
 import org.usvm.machine.state.newStmt
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
@@ -580,13 +581,8 @@ class JcMethodApproximationResolver(
     }
 
     private fun allControllerPaths(): Map<String, Map<String, List<Any>>> {
-        val locations = options.projectLocations!!
         val controllerTypes =
-            locations
-                .asSequence()
-                .flatMap { it.classNames ?: emptySet() }
-                .mapNotNull { ctx.cp.findClassOrNull(it) }
-                .filterNot { it is JcUnknownClass }
+            ctx.classesOfLocations(options.projectLocations!!)
                 .filter {
                     !it.isAbstract && !it.isInterface && !it.isAnonymous && it.annotations.any {
                         it.name == "org.springframework.stereotype.Controller"

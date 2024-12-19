@@ -19,7 +19,6 @@ import org.jacodb.api.jvm.ext.long
 import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
-import org.usvm.instrumentation.util.isSameSignatures
 import sun.misc.Unsafe
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
