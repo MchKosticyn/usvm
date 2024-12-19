@@ -3,6 +3,7 @@ package org.usvm.machine.state.concreteMemory
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.instrumentation.util.getFieldValue
@@ -42,6 +43,7 @@ private class JcConcreteSnapshot(
             val type = obj.javaClass
             val jcType = type.toJcType(ctx) ?: return null
             return when {
+                jcType is JcUnknownType -> null
                 type.isImmutable -> null
                 type.isProxy || type.isLambda -> null
                 type.isByteBuffer -> null

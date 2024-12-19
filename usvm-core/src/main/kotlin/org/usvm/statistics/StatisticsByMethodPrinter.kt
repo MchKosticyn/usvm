@@ -22,11 +22,14 @@ class StatisticsByMethodPrinter<Method, Statement, State : UState<*, Method, Sta
         }
         val statsStrings = mutableListOf(StatisticsRow("Method", "Coverage, %", "Time spent, ms", "Steps"))
         methods.forEach {
-            val name = getMethodSignature(it)
-            val coverage = coverageStatistics.getMethodCoverage(it).roundToInt().toString()
-            val time = timeStatistics.getTimeSpentOnMethod(it).inWholeMilliseconds.toString()
-            val stepsCount = stepsStatistics.getMethodSteps(it).toString()
-            statsStrings.add(StatisticsRow(name, coverage, time, stepsCount))
+            val floatCoverage = coverageStatistics.tryGetMethodCoverage(it)
+            if (floatCoverage != null) {
+                val name = getMethodSignature(it)
+                val coverage = floatCoverage.roundToInt().toString()
+                val time = timeStatistics.getTimeSpentOnMethod(it).inWholeMilliseconds.toString()
+                val stepsCount = stepsStatistics.getMethodSteps(it).toString()
+                statsStrings.add(StatisticsRow(name, coverage, time, stepsCount))
+            }
         }
         val totalCoverage = coverageStatistics.getTotalCoverage().roundToInt().toString()
         val totalTime = timeStatistics.runningTime.inWholeMilliseconds.toString()

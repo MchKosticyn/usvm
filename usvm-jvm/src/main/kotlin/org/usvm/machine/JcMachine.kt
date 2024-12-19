@@ -7,6 +7,7 @@ import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.jacodb.api.jvm.ext.methods
 import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.jacodb.impl.features.classpaths.JcUnknownMethod
 import org.usvm.CoverageZone
 import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
@@ -17,6 +18,10 @@ import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
+import org.usvm.machine.state.concreteMemory.classesOfLocations
+import org.usvm.machine.state.concreteMemory.isSpringController
+import org.usvm.machine.state.concreteMemory.isSpringFilter
+import org.usvm.machine.state.concreteMemory.isSpringHandlerInterceptor
 import org.usvm.machine.state.concreteMemory.ps.JcConcreteMemoryPathSelector
 import org.usvm.machine.state.lastStmt
 import org.usvm.ps.createPathSelector
@@ -65,7 +70,7 @@ class JcMachine(
             initialStates[it] = interpreter.getInitialState(it, targets)
         }
 
-        val methodsToTrackCoverage =
+        val methodsToTrackCoverage: Set<JcMethod> =
             when (options.coverageZone) {
                 CoverageZone.METHOD,
                 CoverageZone.TRANSITIVE -> methods.toSet()
@@ -76,13 +81,16 @@ class JcMachine(
                     }
                 }.toSet() + methods
                 CoverageZone.APPLICATION -> {
-                    jcMachineOptions
-                        .projectLocations!!
-                        .asSequence()
-                        .flatMap { it.classNames ?: emptySet() }
-                        .mapNotNull { ctx.cp.findClassOrNull(it) }
-                        .filterNot { it is JcUnknownClass }
+                    ctx.classesOfLocations(jcMachineOptions.projectLocations!!)
                         .flatMap { it.declaredMethods }
+                        .filterNot { it is JcUnknownMethod }
+                        .toSet()
+                }
+                CoverageZone.SPRING_APPLICATION -> {
+                    ctx.classesOfLocations(jcMachineOptions.projectLocations!!)
+                        .filter { it.isSpringController || it.isSpringFilter(ctx) || it.isSpringHandlerInterceptor(ctx) }
+                        .flatMap { it.declaredMethods }
+                        .filterNot { it is JcUnknownMethod }
                         .toSet()
                 }
             }
@@ -157,6 +165,7 @@ class JcMachine(
                     CoverageZone.TRANSITIVE -> { _ -> false }
                     CoverageZone.METHOD -> throw IllegalStateException()
                     CoverageZone.APPLICATION -> { m -> !methodsToTrackCoverage.contains(m) }
+                    CoverageZone.SPRING_APPLICATION -> { m -> !methodsToTrackCoverage.contains(m) }
                 }
             observers.add(
                 TransitiveCoverageZoneObserver(
