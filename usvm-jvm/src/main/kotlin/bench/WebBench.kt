@@ -32,6 +32,7 @@ import org.usvm.api.util.JcTestInterpreter
 import org.usvm.logger
 import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions
+import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.util.classpathWithApproximations
 import java.io.File
 import java.io.PrintStream
@@ -46,6 +47,7 @@ import kotlin.io.path.extension
 import kotlin.io.path.walk
 import kotlin.system.measureNanoTime
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
 
 private fun loadWebPetClinicBench(): BenchCp {
@@ -86,7 +88,7 @@ private class BenchCp(
 }
 
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses)
+    val features = listOf(UnknownClasses, JcStringConcatTransformer)
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
@@ -138,7 +140,7 @@ private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp 
 private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.','/')};"
 
 private fun generateTestClass(benchmark: BenchCp): BenchCp {
-    val dir = Path("generated")
+    val dir = Path(System.getProperty("generatedDir"))
     dir.createDirectories()
     val cp = benchmark.cp
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
@@ -181,32 +183,19 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
         startSpringAsmNode.name = "NewStartSpring"
         startSpringAsmNode.write(cp, dir.resolve("NewStartSpring.class"), checkClass = true)
     }
+    val dirFile = dir.toFile()
+    val lambdasDirFile = Path(System.getProperty("lambdasDir")).toFile()
     runBlocking {
-        benchmark.db.load(dir.toFile())
+        benchmark.db.load(dirFile)
+        benchmark.db.load(lambdasDirFile)
         benchmark.db.awaitBackgroundJobs()
     }
-    return loadBench(benchmark.db, benchmark.cpFiles + dir.toFile(), benchmark.classes + dir.toFile(), benchmark.dependencies)
+    val newCpFiles = benchmark.cpFiles + dirFile + lambdasDirFile
+    val newClasses = benchmark.classes + dirFile + lambdasDirFile
+    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies)
 }
 
 private fun analyzeBench(benchmark: BenchCp) {
-    val options = UMachineOptions(
-        pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
-        coverageZone = CoverageZone.APPLICATION,
-        exceptionsPropagation = true,
-        timeout = Duration.INFINITE,
-        solverType = SolverType.YICES,
-        loopIterationLimit = 2,
-        solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
-        typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
-    )
-    val jcMachineOptions =
-        JcMachineOptions(
-            projectLocations = benchmark.classLocations,
-            dependenciesLocations = benchmark.depsLocations,
-            forkOnImplicitExceptions = false,
-            arrayMaxSize = 10_000
-        )
-    val testResolver = JcTestInterpreter()
     val newBench = generateTestClass(benchmark)
     val cp = newBench.cp
     val publicClasses = cp.publicClasses(cp.locations)
@@ -223,6 +212,24 @@ private fun analyzeBench(benchmark: BenchCp) {
     // using file instead of console
     val fileStream = PrintStream("/Users/michael/Documents/Work/usvm/springLog.ansi")
     System.setOut(fileStream)
+    val options = UMachineOptions(
+        pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
+        coverageZone = CoverageZone.SPRING_APPLICATION,
+        exceptionsPropagation = true,
+        timeout = 7.minutes,
+        solverType = SolverType.YICES,
+        loopIterationLimit = 2,
+        solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
+        typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
+    )
+    val jcMachineOptions =
+        JcMachineOptions(
+            projectLocations = newBench.classLocations,
+            dependenciesLocations = newBench.depsLocations,
+//            forkOnImplicitExceptions = false,
+            arrayMaxSize = 10_000
+        )
+    val testResolver = JcTestInterpreter()
     JcMachine(cp, options, jcMachineOptions).use { machine ->
         val states = machine.analyze(method.method)
         states.map { testResolver.resolve(method, it) }

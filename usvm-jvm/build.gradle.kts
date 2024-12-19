@@ -1,5 +1,11 @@
 @file:Suppress("PropertyName", "HasPlatformType")
 
+import kotlin.io.path.Path
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.createDirectories
+import kotlin.io.path.createDirectory
+
+
 plugins {
     id("usvm.kotlin-conventions")
     id("org.springframework.boot") version "3.2.0"
@@ -259,13 +265,20 @@ tasks.register<JavaExec>("runWebBench") {
 
     // TODO: norm? #CM #Valya
     systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)
+    val currentDir = Path(System.getProperty("user.dir"))
+    val generatedDir = currentDir.resolve("generated")
+    generatedDir.createDirectories()
+    systemProperty("generatedDir", generatedDir.absolutePathString())
+    val lambdaDir = generatedDir.resolve("lambdas")
+    lambdaDir.createDirectories()
+    systemProperty("lambdasDir", lambdaDir.absolutePathString())
 
     environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
     environment("usvm.jvm.approximations.jar.path", usvmApproximationJarPath.absolutePath)
 
-    jvmArgs = listOf("-Xmx15g") + mutableListOf<String>().apply {
+    jvmArgs = listOf("-Xmx10g") + mutableListOf<String>().apply {
         add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
-        add("-Djdk.internal.lambda.dumpProxyClasses=/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF/classes/")
+        add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePathString()}")
         openPackage("java.base", "jdk.internal.misc")
         openPackage("java.base", "java.lang")
         openPackage("java.base", "java.lang.reflect")
