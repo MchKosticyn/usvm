@@ -1,6 +1,7 @@
 package org.usvm.machine.state.concreteMemory
 
 import org.jacodb.api.jvm.JcArrayType
+import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
@@ -10,12 +11,16 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.ext.isEnum
+import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.superClasses
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
+import org.jacodb.impl.bytecode.JcMethodImpl
+import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.jacodb.impl.features.classpaths.JcUnknownMethod
 import org.jacodb.impl.fs.LazyClassSourceImpl
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.getFieldValue
@@ -31,6 +36,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 import java.nio.ByteBuffer
+import kotlin.io.path.Path
 
 @Suppress("RecursivePropertyAccessor")
 internal val JcClassType.allFields: List<JcTypedField>
@@ -161,13 +167,16 @@ internal val Class<*>.isProxy: Boolean
     get() = Proxy.isProxyClass(this)
 
 internal val Class<*>.isLambda: Boolean
-    get() = typeName.contains('/') && typeName.contains("\$\$Lambda\$")
+    get() = typeName.contains("\$\$Lambda\$")
 
 internal val Class<*>.isThreadLocal: Boolean
     get() = ThreadLocal::class.java.isAssignableFrom(this)
 
 internal val Class<*>.isByteBuffer: Boolean
     get() = ByteBuffer::class.java.isAssignableFrom(this)
+
+internal val JcClassOrInterface.isLambda: Boolean
+    get() = name.contains("\$\$Lambda\$")
 
 internal val JcClassOrInterface.isException: Boolean
     get() = superClasses.any { it.name == "java.lang.Throwable" }
@@ -200,8 +209,15 @@ private val packagesWithImmutableTypes = setOf(
 internal val Class<*>.isClassLoader: Boolean
     get() = ClassLoader::class.java.isAssignableFrom(this)
 
+internal val Class<*>.isInternalType: Boolean
+    get() = this != JcConcreteMemoryBindings.LambdaInvocationHandler::class.java
+            && packageName.let { it.startsWith("org.usvm") || it.startsWith("org.jacodb") }
+
 internal val Class<*>.isImmutable: Boolean
-    get() = immutableTypes.contains(this.name) || isClassLoader || this.packageName in packagesWithImmutableTypes
+    get() = immutableTypes.contains(name)
+            || isClassLoader
+            || packageName in packagesWithImmutableTypes
+            || isInternalType
 
 //private val JcType.isClassLoader: Boolean
 //    get() = this is JcClassType && this.jcClass.superClasses.any { it.name == "java.lang.ClassLoader" }
@@ -229,8 +245,10 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
             // TODO: add dynamic load of classes into jacodb
             val db = ctx.cp.db
             val vfs = db.javaClass.allInstanceFields.find { it.name == "classesVfs" }!!.getFieldValue(db)!!
-            val loc =
-                ctx.cp.registeredLocations.find { it.jcLocation?.jarOrFolder?.absolutePath?.startsWith("/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF/classes") == true }!!
+            val lambdasDir = System.getProperty("lambdasDir")
+            val loc = ctx.cp.registeredLocations.find {
+                it.jcLocation?.jarOrFolder?.absolutePath == lambdasDir
+            }!!
             val addMethod = vfs.javaClass.methods.find { it.name == "addClass" }!!
             val source = LazyClassSourceImpl(loc, typeName)
             addMethod.invoke(vfs, source)
@@ -243,4 +261,25 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
     } catch (e: Throwable) {
         return null
     }
+}
+
+internal fun JcClassOrInterface.isSpringFilter(ctx: JcContext): Boolean {
+    val filterType = ctx.cp.findClassOrNull("jakarta.servlet.Filter") ?: return false
+    return isSubClassOf(filterType)
+}
+
+internal fun JcClassOrInterface.isSpringHandlerInterceptor(ctx: JcContext): Boolean {
+    val filterType = ctx.cp.findClassOrNull("org.springframework.web.servlet.HandlerInterceptor") ?: return false
+    return isSubClassOf(filterType)
+}
+
+internal val JcClassOrInterface.isSpringController: Boolean
+    get() = annotations.any { it.name == "org.springframework.stereotype.Controller" }
+
+internal fun JcContext.classesOfLocations(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> {
+    return locations
+        .asSequence()
+        .flatMap { it.classNames ?: emptySet() }
+        .mapNotNull { cp.findClassOrNull(it) }
+        .filterNot { it is JcUnknownClass }
 }

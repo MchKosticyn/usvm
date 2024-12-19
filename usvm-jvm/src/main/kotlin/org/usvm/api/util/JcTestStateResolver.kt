@@ -380,6 +380,7 @@ abstract class JcTestStateResolver<T>(
 
         val decodedObject = objectDecoder.createInstance(type.jcClass, refDecoder, decoderApi)
         // TODO: AbstractMap_Entry decoded into it's value, so it can be null #Valya
+        // TODO: not ok!
 //        requireNotNull(decodedObject) {
 //            "Object not properly decoded"
 //        }

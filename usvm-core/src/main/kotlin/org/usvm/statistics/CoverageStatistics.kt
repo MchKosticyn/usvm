@@ -77,14 +77,19 @@ class CoverageStatistics<Method, Statement, State : UState<*, Method, Statement,
      */
     fun getTotalCoveredStatements(): Int = totalCoveredStatements
 
+    fun tryGetMethodCoverage(method: Method): Float? {
+        val uncoveredStatementsCount = uncoveredStatements[method]?.size ?: return null
+        return computeCoverage(coveredStatements.getValue(method).size, uncoveredStatementsCount)
+    }
+
     /**
      * Returns current coverage of specified method (in percents).
      *
      * @param method one of the methods in coverage zone to get coverage of.
      */
     fun getMethodCoverage(method: Method): Float {
-        val uncoveredStatementsCount = uncoveredStatements[method]?.size ?: throw IllegalArgumentException("Trying to get coverage of unknown method $method")
-        return computeCoverage(coveredStatements.getValue(method).size, uncoveredStatementsCount)
+        return tryGetMethodCoverage(method)
+            ?: throw IllegalArgumentException("Trying to get coverage of unknown method $method")
     }
 
     /**
