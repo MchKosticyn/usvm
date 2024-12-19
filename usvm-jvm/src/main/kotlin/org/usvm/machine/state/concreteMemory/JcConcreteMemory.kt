@@ -1,8 +1,6 @@
 package org.usvm.machine.state.concreteMemory
 
 import io.ksmt.utils.asExpr
-import kotlinx.collections.immutable.PersistentMap
-import kotlinx.collections.immutable.persistentMapOf
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -16,7 +14,6 @@ import org.jacodb.api.jvm.ext.findTypeOrNull
 import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.isEnum
-import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.JcEnrichedVirtualMethod
@@ -261,7 +258,7 @@ class JcConcreteMemory private constructor(
         return null
     }
 
-    override fun <Sort: USort> tryExprToInt(expr: UExpr<Sort>): Int? {
+    override fun <Sort : USort> tryExprToInt(expr: UExpr<Sort>): Int? {
         val maybe = marshall.tryExprToFullyConcreteObj(expr, ctx.cp.int)
         check(!(maybe.hasValue && maybe.value == null))
         if (maybe.hasValue)
@@ -317,9 +314,7 @@ class JcConcreteMemory private constructor(
 
     private fun shouldNotInvoke(method: JcMethod): Boolean {
         return forbiddenInvocations.contains(method.humanReadableSignature) ||
-                ctx.cp.findClassOrNull("jakarta.servlet.Filter").let {
-                    it != null && method.enclosingClass.isSubClassOf(it) && method.name == "doFilter"
-                }
+                method.enclosingClass.isSpringFilter(ctx) && method.name == "doFilter"
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
@@ -361,28 +356,22 @@ class JcConcreteMemory private constructor(
         override val decoderApi: JcTestInterpreterDecoderApi = JcTestInterpreterDecoderApi(ctx, JcConcreteMemoryClassLoader)
 
         override fun tryCreateObjectInstance(ref: UConcreteHeapRef, heapRef: UHeapRef): Any? {
-            val addressInModel = ref.address
-
-            if (bindings.contains(addressInModel)) {
-                val obj = bindings.tryFullyConcrete(addressInModel)
-                if (obj != null)
-                    return obj
+            if (heapRef is UConcreteHeapRef) {
+                check(heapRef == ref)
+                return bindings.tryFullyConcrete(heapRef.address)
             }
 
-            if (heapRef !is UConcreteHeapRef)
-                return null
+            val addressInModel = ref.address
+            if (bindings.contains(addressInModel))
+                return bindings.tryFullyConcrete(addressInModel)
 
-            val address = heapRef.address
-            val obj = bindings.tryFullyConcrete(address)
-            if (obj != null)
-                bindings.effectStorage.addObjectToEffectRec(obj)
-
-            return obj
+            return null
         }
 
         private fun resolveConcreteArray(ref: UConcreteHeapRef, type: JcArrayType): Any {
             val address = ref.address
             val obj = bindings.virtToPhys(address)
+            saveResolvedRef(ref.address, obj)
             // TODO: optimize #CM
             bindings.effectStorage.addObjectToEffectRec(obj)
             val elementType = type.elementType
@@ -418,6 +407,7 @@ class JcConcreteMemory private constructor(
         private fun resolveConcreteObject(ref: UConcreteHeapRef, type: JcClassType): Any {
             val address = ref.address
             val obj = bindings.virtToPhys(address)
+            saveResolvedRef(ref.address, obj)
             // TODO: optimize #CM
             bindings.effectStorage.addObjectToEffectRec(obj)
             for (kind in bindings.symbolicMembers(address)) {
@@ -570,7 +560,7 @@ class JcConcreteMemory private constructor(
             // TODO: if method is not mutating (guess via IFDS), backtrack is useless #CM
             bindings.effectStorage.addObjectToEffectRec(thisObj)
             for (arg in objParameters)
-                bindings.effectStorage.addObjectToEffectRec(thisObj)
+                bindings.effectStorage.addObjectToEffectRec(arg)
         }
 
         var thisArg = thisObj
