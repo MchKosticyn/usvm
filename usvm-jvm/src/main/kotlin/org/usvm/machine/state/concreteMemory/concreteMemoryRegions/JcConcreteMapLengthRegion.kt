@@ -51,8 +51,10 @@ internal class JcConcreteMapLengthRegion(
             val address = ref.address
             val lengthObj = marshall.tryExprToObj(value, lengthType)
             val isConcreteWrite = lengthObj.hasValue && guard.isTrue
-            if (isConcreteWrite && bindings.writeMapLength(address, lengthObj.value as Int))
+            if (isConcreteWrite) {
+                bindings.writeMapLength(address, lengthObj.value as Int)
                 return this
+            }
 
             marshall.unmarshallMap(address, key.mapType)
         }

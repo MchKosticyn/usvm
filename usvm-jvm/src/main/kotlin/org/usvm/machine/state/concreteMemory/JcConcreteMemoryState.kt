@@ -3,7 +3,6 @@ package org.usvm.machine.state.concreteMemory
 private enum class State {
     Mutable,
     MutableWithEffect,
-    Immutable,
     Dead
 }
 
@@ -12,14 +11,6 @@ internal class JcConcreteMemoryState private constructor(
 ) {
 
     internal constructor() : this(State.Mutable)
-
-    fun isWritable(): Boolean {
-        return when (state) {
-            State.Mutable -> true
-            State.MutableWithEffect -> true
-            else -> false
-        }
-    }
 
     fun isDead(): Boolean {
         return state == State.Dead
@@ -31,10 +22,6 @@ internal class JcConcreteMemoryState private constructor(
 
     fun isMutableWithEffect(): Boolean {
         return state == State.MutableWithEffect
-    }
-
-    fun makeImmutable() {
-        state = State.Immutable
     }
 
     fun makeMutable() {

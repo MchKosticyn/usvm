@@ -90,7 +90,7 @@ class JcMachine(
                     ctx.classesOfLocations(jcMachineOptions.projectLocations!!)
                         .filter { it.isSpringController || it.isSpringFilter(ctx) || it.isSpringHandlerInterceptor(ctx) }
                         .flatMap { it.declaredMethods }
-                        .filterNot { it is JcUnknownMethod }
+                        .filterNot { it is JcUnknownMethod || it.isConstructor }
                         .toSet()
                 }
             }
