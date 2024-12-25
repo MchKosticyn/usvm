@@ -71,16 +71,14 @@ internal class JcConcreteArrayRegion<Sort : USort>(
             val toDstIdxObj = marshall.tryExprToObj(toDstIdx, indexType)
             val isConcreteCopy =
                 fromSrcIdxObj.hasValue && fromDstIdxObj.hasValue && toDstIdxObj.hasValue && operationGuard.isTrue
-            val success =
-                isConcreteCopy &&
-                        bindings.arrayCopy(
-                            srcRef.address,
-                            dstRef.address,
-                            fromSrcIdxObj.value as Int,
-                            fromDstIdxObj.value as Int,
-                            toDstIdxObj.value as Int + 1 // Incrementing 'toDstIdx' index to make it exclusive
-                        )
-            if (success) {
+            if (isConcreteCopy) {
+                bindings.arrayCopy(
+                    srcRef.address,
+                    dstRef.address,
+                    fromSrcIdxObj.value as Int,
+                    fromDstIdxObj.value as Int,
+                    toDstIdxObj.value as Int + 1 // Incrementing 'toDstIdx' index to make it exclusive
+                )
                 return this
             }
         }
@@ -117,7 +115,8 @@ internal class JcConcreteArrayRegion<Sort : USort>(
                     if (idx.hasValue && elem.hasValue) (idx.value as Int) to elem.value
                     else null
                 }
-                if (elems.size == content.size && bindings.initializeArray(address, elems)) {
+                if (elems.size == content.size) {
+                    bindings.initializeArray(address, elems)
                     return this
                 }
             }
@@ -161,7 +160,8 @@ internal class JcConcreteArrayRegion<Sort : USort>(
             val valueObj = marshall.tryExprToObj(value, arrayType.elementType)
             val indexObj = marshall.tryExprToObj(key.index, indexType)
             val isConcreteWrite = valueObj.hasValue && indexObj.hasValue && guard.isTrue
-            if (isConcreteWrite && bindings.writeArrayIndex(ref.address, indexObj.value as Int, valueObj.value)) {
+            if (isConcreteWrite) {
+                bindings.writeArrayIndex(ref.address, indexObj.value as Int, valueObj.value)
                 return this
             }
 

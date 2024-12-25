@@ -38,6 +38,8 @@ private class JcConcreteSnapshot(
         }
     }
 
+    fun isEmpty(): Boolean = objects.isEmpty() && statics.isEmpty()
+
     private fun cloneObject(obj: Any): Any? {
         try {
             val type = obj.javaClass
@@ -79,6 +81,9 @@ private class JcConcreteSnapshot(
     }
 
     fun addObjectToSnapshot(oldPhys: PhysicalAddress) {
+        if (objects.containsKey(oldPhys))
+            return
+
         val obj = oldPhys.obj!!
         val type = obj.javaClass
         if (type.isImmutable)
@@ -272,8 +277,8 @@ private class JcConcreteEffect(
     }
 
     fun resetToAfter() {
-        check(after != null)
-        val after = after!!
+        check(after != null || before.isEmpty())
+        val after = after ?: return
         after.resetObjects()
         after.resetStatics()
     }

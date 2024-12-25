@@ -49,8 +49,10 @@ internal class JcConcreteArrayLengthRegion(
             val address = ref.address
             val lengthObj = marshall.tryExprToObj(value, lengthType)
             val isConcreteWrite = lengthObj.hasValue && guard.isTrue
-            if (isConcreteWrite && bindings.writeArrayLength(address, lengthObj.value as Int))
+            if (isConcreteWrite) {
+                bindings.writeArrayLength(address, lengthObj.value as Int)
                 return this
+            }
 
             marshall.unmarshallArray(address)
         }

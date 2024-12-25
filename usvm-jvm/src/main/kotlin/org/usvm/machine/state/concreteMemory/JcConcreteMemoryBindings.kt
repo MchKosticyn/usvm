@@ -111,17 +111,10 @@ internal class JcConcreteMemoryBindings private constructor(
 
     //region State Changing
 
-    fun makeImmutable() {
-        state.makeImmutable()
-    }
-
-    fun makeMutableWithEffect() {
+    private fun makeMutableWithEffect() {
         check(state.isAlive())
-        if (state.isMutableWithEffect())
-            return
-
-        effectStorage.startNewEffect(state)
         state.makeMutableWithEffect()
+        effectStorage.startNewEffect(state)
     }
 
     //endregion
@@ -557,124 +550,112 @@ internal class JcConcreteMemoryBindings private constructor(
 
     //region Writing
 
-    fun writeClassField(address: UConcreteHeapAddress, field: Field, value: Any?): Boolean {
-        val isWritable = state.isWritable()
-        if (isWritable) {
-            val obj = virtToPhys(address)
-            if (state.isMutableWithEffect())
-                // TODO: add to backtrack only one field #CM
-                effectStorage.addObjectToEffect(obj)
+    fun writeClassField(address: UConcreteHeapAddress, field: Field, value: Any?) {
+        val obj = virtToPhys(address)
+        if (state.isMutableWithEffect())
+            // TODO: add to backtrack only one field #CM
+            effectStorage.addObjectToEffect(obj)
 
-            field.setFieldValue(obj, value)
+        field.setFieldValue(obj, value)
 
-            if (!field.type.notTracked)
-                setChild(obj, value, FieldChildKind(field))
-        }
-        return isWritable
+        if (!field.type.notTracked)
+            setChild(obj, value, FieldChildKind(field))
     }
 
-    fun <Value> writeArrayIndex(address: UConcreteHeapAddress, index: Int, value: Value): Boolean {
-        val isWritable = state.isWritable()
-        if (isWritable) {
-            val obj = virtToPhys(address)
-            if (state.isMutableWithEffect())
-                effectStorage.addObjectToEffect(obj)
+    fun <Value> writeArrayIndex(address: UConcreteHeapAddress, index: Int, value: Value) {
+        val obj = virtToPhys(address)
+        if (state.isMutableWithEffect())
+            effectStorage.addObjectToEffect(obj)
 
-            obj.setArrayValue(index, value)
+        obj.setArrayValue(index, value)
 
-            val arrayType = typeConstraints.typeOf(address)
-            arrayType as JcArrayType
-            val elemType = arrayType.elementType
-            if (!elemType.notTracked)
-                setChild(obj, value, ArrayIndexChildKind(index))
-        }
-        return isWritable
+        val arrayType = typeConstraints.typeOf(address)
+        arrayType as JcArrayType
+        val elemType = arrayType.elementType
+        if (!elemType.notTracked)
+            setChild(obj, value, ArrayIndexChildKind(index))
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <Value> initializeArray(address: UConcreteHeapAddress, contents: List<Pair<Int, Value>>): Boolean {
-        val isWritable = state.isWritable()
-        if (isWritable) {
-            val obj = virtToPhys(address)
-            if (state.isMutableWithEffect())
-                effectStorage.addObjectToEffect(obj)
+    fun <Value> initializeArray(address: UConcreteHeapAddress, contents: List<Pair<Int, Value>>) {
+        val obj = virtToPhys(address)
+        if (state.isMutableWithEffect())
+            effectStorage.addObjectToEffect(obj)
 
-            val arrayType = obj.javaClass
-            check(arrayType.isArray)
-            val elemType = arrayType.componentType
-            when (obj) {
-                is IntArray -> {
-                    check(elemType.notTracked)
-                    for ((index, value) in contents) {
-                        obj[index] = value as Int
-                    }
+        val arrayType = obj.javaClass
+        check(arrayType.isArray)
+        val elemType = arrayType.componentType
+        when (obj) {
+            is IntArray -> {
+                check(elemType.notTracked)
+                for ((index, value) in contents) {
+                    obj[index] = value as Int
                 }
-
-                is ByteArray -> {
-                    check(elemType.notTracked)
-                    for ((index, value) in contents) {
-                        obj[index] = value as Byte
-                    }
-                }
-
-                is CharArray -> {
-                    check(elemType.notTracked)
-                    for ((index, value) in contents) {
-                        obj[index] = value as Char
-                    }
-                }
-
-                is LongArray -> {
-                    check(elemType.notTracked)
-                    for ((index, value) in contents) {
-                        obj[index] = value as Long
-                    }
-                }
-
-                is FloatArray -> {
-                    check(elemType.notTracked)
-                    for ((index, value) in contents) {
-                        obj[index] = value as Float
-                    }
-                }
-
-                is ShortArray -> {
-                    check(elemType.notTracked)
-                    for ((index, value) in contents) {
-                        obj[index] = value as Short
-                    }
-                }
-
-                is DoubleArray -> {
-                    check(elemType.notTracked)
-                    for ((index, value) in contents) {
-                        obj[index] = value as Double
-                    }
-                }
-
-                is BooleanArray -> {
-                    check(elemType.notTracked)
-                    for ((index, value) in contents) {
-                        obj[index] = value as Boolean
-                    }
-                }
-
-                is Array<*> -> {
-                    obj as Array<Value>
-                    for ((index, value) in contents) {
-                        obj[index] = value
-                        if (!elemType.notTracked)
-                            setChild(obj, value, ArrayIndexChildKind(index))
-                    }
-                }
-
-                else -> error("JcConcreteMemoryBindings.initializeArray: unexpected array $obj")
             }
+
+            is ByteArray -> {
+                check(elemType.notTracked)
+                for ((index, value) in contents) {
+                    obj[index] = value as Byte
+                }
+            }
+
+            is CharArray -> {
+                check(elemType.notTracked)
+                for ((index, value) in contents) {
+                    obj[index] = value as Char
+                }
+            }
+
+            is LongArray -> {
+                check(elemType.notTracked)
+                for ((index, value) in contents) {
+                    obj[index] = value as Long
+                }
+            }
+
+            is FloatArray -> {
+                check(elemType.notTracked)
+                for ((index, value) in contents) {
+                    obj[index] = value as Float
+                }
+            }
+
+            is ShortArray -> {
+                check(elemType.notTracked)
+                for ((index, value) in contents) {
+                    obj[index] = value as Short
+                }
+            }
+
+            is DoubleArray -> {
+                check(elemType.notTracked)
+                for ((index, value) in contents) {
+                    obj[index] = value as Double
+                }
+            }
+
+            is BooleanArray -> {
+                check(elemType.notTracked)
+                for ((index, value) in contents) {
+                    obj[index] = value as Boolean
+                }
+            }
+
+            is Array<*> -> {
+                obj as Array<Value>
+                for ((index, value) in contents) {
+                    obj[index] = value
+                    if (!elemType.notTracked)
+                        setChild(obj, value, ArrayIndexChildKind(index))
+                }
+            }
+
+            else -> error("JcConcreteMemoryBindings.initializeArray: unexpected array $obj")
         }
-        return isWritable
     }
 
-    fun writeArrayLength(address: UConcreteHeapAddress, length: Int): Boolean {
+    fun writeArrayLength(address: UConcreteHeapAddress, length: Int) {
         val arrayType = typeConstraints.typeOf(address)
         arrayType as JcArrayType
         val oldObj = virtToPhys[address]
@@ -682,47 +663,36 @@ internal class JcConcreteMemoryBindings private constructor(
         virtToPhys.remove(address)
         physToVirt.remove(oldObj)
         allocate(address, newObj, arrayType)
-
-        return true
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun writeMapValue(address: UConcreteHeapAddress, key: Any?, value: Any?): Boolean {
-        val isWritable = state.isWritable()
-        if (isWritable) {
-            val obj = virtToPhys(address)
-            if (state.isMutableWithEffect())
-                effectStorage.addObjectToEffect(obj)
+    fun writeMapValue(address: UConcreteHeapAddress, key: Any?, value: Any?) {
+        val obj = virtToPhys(address)
+        if (state.isMutableWithEffect())
+            effectStorage.addObjectToEffect(obj)
 
-            obj as MutableMap<Any?, Any?>
-            obj[key] = value
-        }
-        return isWritable
+        obj as MutableMap<Any?, Any?>
+        obj[key] = value
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun writeMapLength(address: UConcreteHeapAddress, length: Int): Boolean {
+    fun writeMapLength(address: UConcreteHeapAddress, length: Int) {
         val obj = virtToPhys(address)
         obj as Map<Any?, Any?>
         check(obj.size == length)
-        return true
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun changeSetContainsElement(address: UConcreteHeapAddress, element: Any?, contains: Boolean): Boolean {
-        val isWritable = state.isWritable()
-        if (isWritable) {
-            val obj = virtToPhys(address)
-            if (state.isMutableWithEffect())
-                effectStorage.addObjectToEffect(obj)
+    fun changeSetContainsElement(address: UConcreteHeapAddress, element: Any?, contains: Boolean) {
+        val obj = virtToPhys(address)
+        if (state.isMutableWithEffect())
+            effectStorage.addObjectToEffect(obj)
 
-            obj as MutableSet<Any?>
-            if (contains)
-                obj.add(element)
-            else
-                obj.remove(element)
-        }
-        return isWritable
+        obj as MutableSet<Any?>
+        if (contains)
+            obj.add(element)
+        else
+            obj.remove(element)
     }
 
     //endregion
@@ -736,68 +706,64 @@ internal class JcConcreteMemoryBindings private constructor(
         fromSrcIdx: Int,
         fromDstIdx: Int,
         toDstIdx: Int
-    ): Boolean {
-        val isWritable = state.isWritable()
-        if (isWritable) {
-            val srcArray = virtToPhys(srcAddress)
-            val dstArray = virtToPhys(dstAddress)
-            if (state.isMutableWithEffect())
-                effectStorage.addObjectToEffect(dstArray)
+    ) {
+        val srcArray = virtToPhys(srcAddress)
+        val dstArray = virtToPhys(dstAddress)
+        if (state.isMutableWithEffect())
+            effectStorage.addObjectToEffect(dstArray)
 
-            val toSrcIdx = toDstIdx - fromDstIdx + fromSrcIdx
-            val dstArrayType = dstArray.javaClass
-            val dstArrayElemType = dstArrayType.componentType
-            when {
-                srcArray is IntArray && dstArray is IntArray -> {
-                    check(dstArrayElemType.notTracked)
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                }
-
-                srcArray is ByteArray && dstArray is ByteArray -> {
-                    check(dstArrayElemType.notTracked)
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                }
-
-                srcArray is CharArray && dstArray is CharArray -> {
-                    check(dstArrayElemType.notTracked)
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                }
-
-                srcArray is LongArray && dstArray is LongArray -> {
-                    check(dstArrayElemType.notTracked)
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                }
-
-                srcArray is FloatArray && dstArray is FloatArray -> {
-                    check(dstArrayElemType.notTracked)
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                }
-
-                srcArray is ShortArray && dstArray is ShortArray -> {
-                    check(dstArrayElemType.notTracked)
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                }
-
-                srcArray is DoubleArray && dstArray is DoubleArray -> {
-                    check(dstArrayElemType.notTracked)
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                }
-
-                srcArray is BooleanArray && dstArray is BooleanArray -> {
-                    check(dstArrayElemType.notTracked)
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                }
-
-                srcArray is Array<*> && dstArray is Array<*> -> {
-                    dstArray as Array<Any?>
-                    srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                    trackCopy(dstArray, dstArrayType, fromDstIdx, toDstIdx)
-                }
-
-                else -> error("JcConcreteMemoryBindings.arrayCopy: unexpected arrays $srcArray, $dstArray")
+        val toSrcIdx = toDstIdx - fromDstIdx + fromSrcIdx
+        val dstArrayType = dstArray.javaClass
+        val dstArrayElemType = dstArrayType.componentType
+        when {
+            srcArray is IntArray && dstArray is IntArray -> {
+                check(dstArrayElemType.notTracked)
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
             }
+
+            srcArray is ByteArray && dstArray is ByteArray -> {
+                check(dstArrayElemType.notTracked)
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
+            }
+
+            srcArray is CharArray && dstArray is CharArray -> {
+                check(dstArrayElemType.notTracked)
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
+            }
+
+            srcArray is LongArray && dstArray is LongArray -> {
+                check(dstArrayElemType.notTracked)
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
+            }
+
+            srcArray is FloatArray && dstArray is FloatArray -> {
+                check(dstArrayElemType.notTracked)
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
+            }
+
+            srcArray is ShortArray && dstArray is ShortArray -> {
+                check(dstArrayElemType.notTracked)
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
+            }
+
+            srcArray is DoubleArray && dstArray is DoubleArray -> {
+                check(dstArrayElemType.notTracked)
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
+            }
+
+            srcArray is BooleanArray && dstArray is BooleanArray -> {
+                check(dstArrayElemType.notTracked)
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
+            }
+
+            srcArray is Array<*> && dstArray is Array<*> -> {
+                dstArray as Array<Any?>
+                srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
+                trackCopy(dstArray, dstArrayType, fromDstIdx, toDstIdx)
+            }
+
+            else -> error("JcConcreteMemoryBindings.arrayCopy: unexpected arrays $srcArray, $dstArray")
         }
-        return isWritable
     }
 
     //endregion
@@ -805,18 +771,13 @@ internal class JcConcreteMemoryBindings private constructor(
     //region Map Merging
 
     @Suppress("UNCHECKED_CAST")
-    fun mapMerge(srcAddress: UConcreteHeapAddress, dstAddress: UConcreteHeapAddress): Boolean {
-        val isWritable = state.isWritable()
-        if (isWritable) {
-            val srcMap = virtToPhys(srcAddress) as MutableMap<Any, Any>
-            val dstMap = virtToPhys(dstAddress) as MutableMap<Any, Any>
-            if (state.isMutableWithEffect())
-                effectStorage.addObjectToEffect(dstMap)
+    fun mapMerge(srcAddress: UConcreteHeapAddress, dstAddress: UConcreteHeapAddress) {
+        val srcMap = virtToPhys(srcAddress) as MutableMap<Any, Any>
+        val dstMap = virtToPhys(dstAddress) as MutableMap<Any, Any>
+        if (state.isMutableWithEffect())
+            effectStorage.addObjectToEffect(dstMap)
 
-            dstMap.putAll(srcMap)
-        }
-
-        return isWritable
+        dstMap.putAll(srcMap)
     }
 
     //endregion
@@ -824,18 +785,13 @@ internal class JcConcreteMemoryBindings private constructor(
     //region Set Union
 
     @Suppress("UNCHECKED_CAST")
-    fun setUnion(srcAddress: UConcreteHeapAddress, dstAddress: UConcreteHeapAddress): Boolean {
-        val isWritable = state.isWritable()
-        if (isWritable) {
-            val srcSet = virtToPhys(srcAddress) as MutableSet<Any>
-            val dstSet = virtToPhys(dstAddress) as MutableSet<Any>
-            if (state.isMutableWithEffect())
-                effectStorage.addObjectToEffect(dstSet)
+    fun setUnion(srcAddress: UConcreteHeapAddress, dstAddress: UConcreteHeapAddress) {
+        val srcSet = virtToPhys(srcAddress) as MutableSet<Any>
+        val dstSet = virtToPhys(dstAddress) as MutableSet<Any>
+        if (state.isMutableWithEffect())
+            effectStorage.addObjectToEffect(dstSet)
 
-            dstSet.addAll(srcSet)
-        }
-
-        return isWritable
+        dstSet.addAll(srcSet)
     }
 
     //endregion
@@ -874,7 +830,7 @@ internal class JcConcreteMemoryBindings private constructor(
 
     fun copy(typeConstraints: UTypeConstraints<JcType>): JcConcreteMemoryBindings {
         val newState = state.copy()
-        return JcConcreteMemoryBindings(
+        val newBindings = JcConcreteMemoryBindings(
             ctx,
             typeConstraints,
             physToVirt.toMutableMap(),
@@ -887,6 +843,9 @@ internal class JcConcreteMemoryBindings private constructor(
             getThreadLocalValue,
             setThreadLocalValue,
         )
+        newBindings.makeMutableWithEffect()
+        makeMutableWithEffect()
+        return newBindings
     }
 
     //endregion
