@@ -67,7 +67,8 @@ internal class JcConcreteRefSetRegion(
             bindings.contains(dstRef.address)
         ) {
             val isConcreteCopy = operationGuard.isTrue
-            if (isConcreteCopy && bindings.setUnion(srcRef.address, dstRef.address)) {
+            if (isConcreteCopy) {
+                bindings.setUnion(srcRef.address, dstRef.address)
                 return this
             }
         }
@@ -106,7 +107,8 @@ internal class JcConcreteRefSetRegion(
             val keyObj = marshall.tryExprToObj(key.setElement, objType)
             val valueObj = marshall.tryExprToObj(value, ctx.cp.boolean)
             val isConcreteWrite = valueObj.hasValue && keyObj.hasValue && guard.isTrue
-            if (isConcreteWrite && bindings.changeSetContainsElement(address, keyObj.value, valueObj.value as Boolean)) {
+            if (isConcreteWrite) {
+                bindings.changeSetContainsElement(address, keyObj.value, valueObj.value as Boolean)
                 return this
             }
 

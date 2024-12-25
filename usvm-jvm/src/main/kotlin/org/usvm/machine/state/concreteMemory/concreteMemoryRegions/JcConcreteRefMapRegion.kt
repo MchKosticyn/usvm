@@ -55,7 +55,8 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
             bindings.contains(dstRef.address)
         ) {
             val isConcreteCopy = operationGuard.isTrue
-            if (isConcreteCopy && bindings.mapMerge(srcRef.address, dstRef.address)) {
+            if (isConcreteCopy) {
+                bindings.mapMerge(srcRef.address, dstRef.address)
                 return this
             }
         }
@@ -102,7 +103,8 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
             val valueObj = marshall.tryExprToObj(value, ctx.cp.objectType)
             val keyObj = marshall.tryExprToObj(key.mapKey, ctx.cp.objectType)
             val isConcreteWrite = valueObj.hasValue && keyObj.hasValue && guard.isTrue
-            if (isConcreteWrite && bindings.writeMapValue(address, keyObj.value, valueObj.value)) {
+            if (isConcreteWrite) {
+                bindings.writeMapValue(address, keyObj.value, valueObj.value)
                 return this
             }
 
