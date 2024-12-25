@@ -278,8 +278,6 @@ class JcConcreteMemory private constructor(
     ): UMemory<JcType, JcMethod> {
         check(!concretization)
 
-        bindings.makeImmutable()
-
         val clonedStack = stack.clone()
         val clonedMocks = mocks.clone()
         val clonedBindings = bindings.copy(typeConstraints)
@@ -373,7 +371,8 @@ class JcConcreteMemory private constructor(
             val obj = bindings.virtToPhys(address)
             saveResolvedRef(ref.address, obj)
             // TODO: optimize #CM
-            bindings.effectStorage.addObjectToEffectRec(obj)
+            if (bindings.state.isMutableWithEffect())
+                bindings.effectStorage.addObjectToEffectRec(obj)
             val elementType = type.elementType
             val elementSort = ctx.typeToSort(type.elementType)
             val arrayDescriptor = ctx.arrayDescriptorOf(type)
@@ -409,7 +408,8 @@ class JcConcreteMemory private constructor(
             val obj = bindings.virtToPhys(address)
             saveResolvedRef(ref.address, obj)
             // TODO: optimize #CM
-            bindings.effectStorage.addObjectToEffectRec(obj)
+            if (bindings.state.isMutableWithEffect())
+                bindings.effectStorage.addObjectToEffectRec(obj)
             for (kind in bindings.symbolicMembers(address)) {
                 check(kind is FieldChildKind)
                 val field = kind.field
@@ -490,9 +490,8 @@ class JcConcreteMemory private constructor(
 
         val concretizer = JcConcretizer(state)
 
-        bindings.makeMutableWithEffect()
-
-        bindings.effectStorage.addStaticsToEffect(statics)
+        if (bindings.state.isMutableWithEffect())
+            bindings.effectStorage.addStaticsToEffect(statics)
 
         if (!concretization) {
             concretizeStatics(concretizer)
@@ -660,10 +659,6 @@ class JcConcreteMemory private constructor(
         val isProjectLocation = projectLocations == null || methodLocation.isProjectLocation(projectLocations)
         if (isProjectLocation)
             return TryConcreteInvokeFail(false)
-
-        val isWritable = bindings.state.isWritable()
-        if (!isWritable && !forceMethodInvoke(method))
-            bindings.makeMutableWithEffect()
 
         val parameterInfos = method.parameters
         val isStatic = method.isStatic

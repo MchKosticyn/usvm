@@ -554,7 +554,7 @@ class JcMethodApproximationResolver(
     private fun pathFromAnnotation(annotation: JcAnnotation): String {
         val values = annotation.values
         assert(values.size == 1)
-        val value = values["value"] as ArrayList<*>
+        val value = values["value"] as List<*>
         return value[0] as String
     }
 
