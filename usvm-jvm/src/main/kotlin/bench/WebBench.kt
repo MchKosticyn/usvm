@@ -57,13 +57,30 @@ private fun loadWebPetClinicBench(): BenchCp {
     }
 }
 
+private fun loadWebGoatBench(): BenchCp {
+    val webGoatDir = Path("/Users/michael/Documents/Work/WebGoat/target/build/BOOT-INF")
+    return loadWebAppBenchCp(webGoatDir / "classes", webGoatDir / "lib").apply {
+        entrypointFilter = { it.enclosingClass.simpleName.startsWith("WebGoatApplication") }
+    }
+}
+
+private fun loadKafdropBench(): BenchCp {
+    val kafdropDir = Path("/Users/michael/Documents/Work/kafdrop/target/build/BOOT-INF")
+    return loadWebAppBenchCp(kafdropDir / "classes", kafdropDir / "lib").apply {
+        entrypointFilter = { it.enclosingClass.simpleName.startsWith("WebGoatApplication") }
+    }
+}
+
+private fun loadKlawBench(): BenchCp {
+    val klawDir = Path("/Users/michael/Documents/Work/klaw/core/target/build/BOOT-INF")
+    return loadWebAppBenchCp(klawDir / "classes", klawDir / "lib").apply {
+        entrypointFilter = { it.enclosingClass.simpleName.startsWith("WebGoatApplication") }
+    }
+}
+
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadWebPetClinicBench()
-//        loadShopizerBench()
-//        loadPublicCmsBench()
-//        loadIameter()
-//        loadOwaspJavaBench(analysisCwe)
+        loadKlawBench()
     }
 
     logTime("Analysis ALL") {
@@ -149,14 +166,22 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
         .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
         .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
         .toList()
+    val services =
+        cp.nonAbstractClasses(benchmark.classLocations)
+            .filter {
+                it.annotations.any { annotation ->
+                    annotation.name == "org.springframework.stereotype.Service"
+                }
+            }.toList()
+    val mockBeans = repositories + services
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
     val testClassName = "StartSpringTestClass"
     testClass.withAsmNode { classNode ->
 //        classNode.visibleAnnotations = listOf()
         classNode.name = testClassName
-        repositories.forEach { repo ->
-            val name = repo.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
-            val field = FieldNode(Opcodes.ACC_PUBLIC, name, repo.jvmDescriptor, null, null)
+        mockBeans.forEach { mockBeanType ->
+            val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
+            val field = FieldNode(Opcodes.ACC_PUBLIC, name, mockBeanType.jvmDescriptor, null, null)
             field.visibleAnnotations = listOf(AnnotationNode(mockAnnotation.jvmDescriptor))
             classNode.fields.add(field)
         }
@@ -198,16 +223,15 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 private fun analyzeBench(benchmark: BenchCp) {
     val newBench = generateTestClass(benchmark)
     val cp = newBench.cp
-    val publicClasses = cp.publicClasses(cp.locations)
+    val nonAbstractClasses = cp.nonAbstractClasses(newBench.classLocations)
     val webApplicationClass =
-        cp.publicClasses(newBench.classLocations)
-            .find {
-                it.annotations.any { annotation ->
-                    annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
-                }
+        nonAbstractClasses.find {
+            it.annotations.any { annotation ->
+                annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
             }
-    JcConcreteMemoryClassLoader.webApplicationClass = webApplicationClass
-    val startClass = publicClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
+        }
+    JcConcreteMemoryClassLoader.webApplicationClass = webApplicationClass!!
+    val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
     // using file instead of console
     val fileStream = PrintStream("/Users/michael/Documents/Work/usvm/springLog.ansi")
@@ -215,8 +239,8 @@ private fun analyzeBench(benchmark: BenchCp) {
     val options = UMachineOptions(
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.SPRING_APPLICATION,
-        exceptionsPropagation = true,
-        timeout = 7.minutes,
+        exceptionsPropagation = false,
+        timeout = 1.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
@@ -236,7 +260,7 @@ private fun analyzeBench(benchmark: BenchCp) {
     }
 }
 
-private fun JcClasspath.publicClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =
+private fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =
     locations
         .asSequence()
         .flatMap { it.classNames ?: emptySet() }
