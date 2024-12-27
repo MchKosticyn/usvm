@@ -1,9 +1,11 @@
 package org.usvm.api.util
 
+import bench.JcLambdaFeature
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
 import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.usvm.machine.state.concreteMemory.isLambdaTypeName
 import java.io.File
 import java.net.URI
 import java.net.URL
@@ -127,6 +129,10 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
     }
 
     override fun loadClass(name: String?): Class<*> {
+        if (name != null && name.isLambdaTypeName) {
+            return JcLambdaFeature.lambdaClassByName(name) ?: super.loadClass(name)
+        }
+
         val jcClass = name?.let { cp.findClassOrNull(it) }
 
         if (jcClass == null) {
@@ -194,7 +200,7 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         }
 
         if (jcClass is JcUnknownClass) {
-            throw ClassNotFoundException()
+            throw ClassNotFoundException(jcClass.name)
         }
 
         with(jcClass) {
