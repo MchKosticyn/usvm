@@ -1,5 +1,7 @@
 package org.usvm.machine.state.concreteMemory
 
+import bench.JcLambdaFeature
+import org.jacodb.api.jvm.ClassSource
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -10,24 +12,23 @@ import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.JcTypedMethod
+import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.superClasses
 import org.jacodb.api.jvm.ext.toType
+import org.jacodb.api.jvm.throwClassNotFound
 import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
-import org.jacodb.impl.bytecode.JcMethodImpl
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.jacodb.impl.features.classpaths.JcUnknownMethod
-import org.jacodb.impl.fs.LazyClassSourceImpl
+import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.getFieldValue
 import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.util.Reflection.toJavaExecutable
 import org.usvm.instrumentation.util.isStatic
-import org.usvm.instrumentation.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.instrumentation.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.machine.JcContext
 import org.usvm.util.name
@@ -36,7 +37,6 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 import java.nio.ByteBuffer
-import kotlin.io.path.Path
 
 @Suppress("RecursivePropertyAccessor")
 internal val JcClassType.allFields: List<JcTypedField>
@@ -166,8 +166,16 @@ private val notTrackedTypes = setOf(
 internal val Class<*>.isProxy: Boolean
     get() = Proxy.isProxyClass(this)
 
+internal val String.isLambdaTypeName: Boolean
+    get() = contains("\$\$Lambda\$")
+
+internal fun getLambdaCanonicalTypeName(typeName: String): String {
+    check(typeName.isLambdaTypeName)
+    return typeName.split('/')[0]
+}
+
 internal val Class<*>.isLambda: Boolean
-    get() = typeName.contains("\$\$Lambda\$")
+    get() = typeName.isLambdaTypeName
 
 internal val Class<*>.isThreadLocal: Boolean
     get() = ThreadLocal::class.java.isAssignableFrom(this)
@@ -231,6 +239,16 @@ internal val Class<*>.isSolid: Boolean
 //private val JcType.isSolid: Boolean
 //    get() = notTracked || isImmutable || this is JcArrayType && this.elementType.notTracked
 
+class LambdaClassSource(
+    override val location: RegisteredLocation,
+    override val className: String,
+    private val fileName: String
+) : ClassSource {
+    override val byteCode by lazy {
+        location.jcLocation?.resolve(fileName) ?: className.throwClassNotFound()
+    }
+}
+
 internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
     try {
         if (isProxy) {
@@ -242,6 +260,10 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
         }
 
         if (isLambda) {
+            val cachedType = ctx.cp.findTypeOrNull(name)
+            if (cachedType != null && cachedType !is JcUnknownType)
+                return cachedType
+
             // TODO: add dynamic load of classes into jacodb
             val db = ctx.cp.db
             val vfs = db.javaClass.allInstanceFields.find { it.name == "classesVfs" }!!.getFieldValue(db)!!
@@ -250,11 +272,14 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
                 it.jcLocation?.jarOrFolder?.absolutePath == lambdasDir
             }!!
             val addMethod = vfs.javaClass.methods.find { it.name == "addClass" }!!
-            val source = LazyClassSourceImpl(loc, typeName)
+            val fileName = getLambdaCanonicalTypeName(name)
+            val source = LambdaClassSource(loc, name, fileName)
             addMethod.invoke(vfs, source)
 
-            val name = typeName.split('/')[0]
-            return ctx.cp.findTypeOrNull(name)
+            val type = ctx.cp.findTypeOrNull(name)
+            check(type is JcClassType)
+            JcLambdaFeature.addLambdaClass(this, type.jcClass)
+            return type
         }
 
         return ctx.cp.findTypeOrNull(this.typeName)
@@ -265,6 +290,11 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
 
 internal fun JcClassOrInterface.isSpringFilter(ctx: JcContext): Boolean {
     val filterType = ctx.cp.findClassOrNull("jakarta.servlet.Filter") ?: return false
+    return isSubClassOf(filterType)
+}
+
+internal fun JcClassOrInterface.isSpringFilterChain(ctx: JcContext): Boolean {
+    val filterType = ctx.cp.findClassOrNull("jakarta.servlet.FilterChain") ?: return false
     return isSubClassOf(filterType)
 }
 
