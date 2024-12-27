@@ -27,6 +27,7 @@ import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
 import org.jacodb.approximation.JcEnrichedVirtualField
+import org.jacodb.impl.bytecode.JcAnnotationImpl
 import org.usvm.INITIAL_INPUT_ADDRESS
 import org.usvm.INITIAL_STATIC_ADDRESS
 import org.usvm.NULL_ADDRESS
@@ -70,6 +71,7 @@ import org.usvm.machine.interpreter.JcFixedInheritorsNumberTypeSelector
 import org.usvm.machine.interpreter.JcTypeStreamPrioritization
 import org.usvm.machine.interpreter.statics.JcStaticFieldLValue
 import org.usvm.machine.interpreter.statics.extractInitialStatics
+import org.usvm.machine.interpreter.transformers.springjpa.dummyAnnot
 import org.usvm.machine.state.localIdx
 import org.usvm.memory.ULValue
 import org.usvm.memory.UReadOnlyMemory
@@ -326,7 +328,11 @@ abstract class JcTestStateResolver<T>(
                 break
             } else {
                 // TODO: think about it! #CM
-                val fields = cls.declaredFields.filterNot { it.isStatic || cls.isAbstract && it.field is JcEnrichedVirtualField }
+                val fields = cls.declaredFields.filterNot {
+                    it.isStatic
+                            || cls.isAbstract && it.field is JcEnrichedVirtualField
+                            || it.field.annotations.contains(JcAnnotationImpl(dummyAnnot, cls.classpath))
+                }
 
                 for (field in fields) {
                     check(field.field !is JcEnrichedVirtualField) {

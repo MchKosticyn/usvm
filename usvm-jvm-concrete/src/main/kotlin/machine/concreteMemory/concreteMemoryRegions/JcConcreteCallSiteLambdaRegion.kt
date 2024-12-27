@@ -36,7 +36,15 @@ internal class JcConcreteCallSiteLambdaRegion(
                     if (method is JcEnrichedVirtualMethod)
                         method.approximationMethod ?: error("cannot find enriched method")
                     else method
-                invocationHandler.init(actualMethod, lambda.callSiteMethodName, args)
+
+
+                // TODO: move JPA methods to rawInst
+                if (actualMethod is JcJpaMethod) {
+                    bindings.remove(address)
+                }
+                else {
+                    invocationHandler.init(actualMethod, lambda.callSiteMethodName, args)
+                }
             }.onNone {
                 bindings.remove(address)
             }

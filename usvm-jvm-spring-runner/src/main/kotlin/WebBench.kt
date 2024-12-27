@@ -38,6 +38,16 @@ import org.usvm.jvm.util.write
 import org.usvm.logger
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
+import org.usvm.machine.interpreter.transformers.springjpa.JcDataclassTransformer
+import org.usvm.machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
+import org.usvm.machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
+import org.usvm.machine.interpreter.transformers.springjpa.JcRepositoryTransformer
+import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
+import org.usvm.machine.state.concreteMemory.isInternalType
+import org.usvm.machine.state.concreteMemory.isLambda
+import org.usvm.machine.state.concreteMemory.javaName
+import org.usvm.machine.state.concreteMemory.notTracked
+import org.usvm.util.JcTableInfoCollector
 import org.usvm.util.classpathWithApproximations
 import machine.JcConcreteMachineOptions
 import machine.JcSpringMachine
@@ -161,7 +171,7 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
     }
 
     db.awaitBackgroundJobs()
-    loadBench(db, cpFiles, classes, dependencies)
+    loadBench(db, cpFiles, classes, dependencies, true)
 }
 
 private fun loadWebAppBenchCp(classes: Path, dependencies: Path): BenchCp =
@@ -178,7 +188,7 @@ private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp 
             .toList()
     )
 
-private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.','/')};"
+private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.', '/')};"
 
 fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: String) =
     allClasses.filter { it.annotations.any { annotation -> annotation.name == annotationName } }
@@ -231,6 +241,8 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 
     System.setProperty("generatedTestClass", testClassFullName.replace('/', '.'))
 
+    val tablesInfo = DatabaseGenerator(cp, dir, repositories).generateJPADatabase()
+
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
     startSpringClass.withAsmNode { startSpringAsmNode ->
         val startSpringMethod = startSpringClass.declaredMethods.find { it.name == "startSpring" }!!
@@ -255,7 +267,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     }
     val newCpFiles = benchmark.cpFiles + springDirFile
     val newClasses = benchmark.classes + springDirFile
-    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies)
+    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies, false, tablesInfo)
 }
 
 private fun analyzeBench(benchmark: BenchCp) {
