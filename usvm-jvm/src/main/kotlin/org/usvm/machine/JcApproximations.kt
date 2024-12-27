@@ -580,6 +580,11 @@ class JcMethodApproximationResolver(
         return false //path != "/owners/{ownerId}/pets/{petId}/edit" || kind != "post"
     }
 
+    private fun getRequestMappingMethod(annotation: JcAnnotation): String {
+        println(annotation)
+        return "get"
+    }
+
     private fun allControllerPaths(): Map<String, Map<String, List<Any>>> {
         val controllerTypes =
             ctx.classesOfLocations(options.projectLocations!!)
@@ -597,6 +602,7 @@ class JcMethodApproximationResolver(
                 for (annotation in method.annotations) {
                     val kind =
                         when (annotation.name) {
+                            "org.springframework.web.bind.annotation.RequestMapping" -> getRequestMappingMethod(annotation)
                             "org.springframework.web.bind.annotation.GetMapping" -> "get"
                             "org.springframework.web.bind.annotation.PostMapping" -> "post"
                             "org.springframework.web.bind.annotation.PutMapping" -> "put"
@@ -610,30 +616,6 @@ class JcMethodApproximationResolver(
                         val path = if (basePath != null) basePath + localPath else localPath
                         if (shouldSkipPath(path, kind))
                             continue
-//                        var startIndex = 0
-//                        var found: Boolean
-//                        val types = mutableListOf<Class<*>>()
-//                        val parameters = method.parameters
-//                        do {
-//                            val currentStartIndex = path.indexOf('{', startIndex)
-//                            found = currentStartIndex != -1
-//                            if (found) {
-//                                startIndex = currentStartIndex + 1
-//                                val currentEndIndex = path.indexOf('}', startIndex)
-//                                check(currentEndIndex != -1)
-//                                val varName = path.substring(startIndex, currentEndIndex)
-//                                for (p in parameters) {
-//                                    val pathVarAnnotation = p.annotations.find {
-//                                        it.name == "org.springframework.web.bind.annotation.PathVariable"
-//                                    }
-//                                    if (pathVarAnnotation != null && pathVarNameFromAnnotation(pathVarAnnotation) == varName) {
-//                                        val type = ctx.cp.findType(p.type.typeName).toJavaClass(JcConcreteMemoryClassLoader)
-//                                        types.add(type)
-//                                    }
-//                                }
-//                            }
-//                        } while (found)
-//                        val properties = listOf(kind, types)
                         val pathArgsCount = path.filter { it == '{' }.length
                         val properties = listOf(kind, Integer.valueOf(pathArgsCount))
                         paths[path] = properties
