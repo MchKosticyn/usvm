@@ -4,6 +4,8 @@ import kotlinx.coroutines.runBlocking
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcClasspathExtFeature
+import org.jacodb.api.jvm.JcClasspathExtFeature.JcResolvedClassResult
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
@@ -15,6 +17,7 @@ import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages
+import org.jacodb.impl.features.classpaths.AbstractJcResolvedResult
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.UnknownClasses
 import org.jacodb.impl.features.hierarchyExt
@@ -33,6 +36,7 @@ import org.usvm.logger
 import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
+import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
 import org.usvm.util.classpathWithApproximations
 import java.io.File
 import java.io.PrintStream
@@ -80,7 +84,7 @@ private fun loadKlawBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadKlawBench()
+        loadWebPetClinicBench()
     }
 
     logTime("Analysis ALL") {
@@ -104,8 +108,29 @@ private class BenchCp(
     }
 }
 
+internal object JcLambdaFeature: JcClasspathExtFeature {
+
+    private val lambdaClassesByName: MutableMap<String, JcClassOrInterface> = mutableMapOf()
+    private val lambdaClasses: MutableMap<String, Class<*>> = mutableMapOf()
+
+    fun addLambdaClass(lambdaClass: Class<*>, jcClass: JcClassOrInterface) {
+        val realName = jcClass.name
+        val canonicalName = getLambdaCanonicalTypeName(realName)
+        lambdaClassesByName[canonicalName] = jcClass
+        lambdaClasses[realName] = lambdaClass
+    }
+
+    fun lambdaClassByName(name: String): Class<*>? {
+        return lambdaClasses[name]
+    }
+
+    override fun tryFindClass(classpath: JcClasspath, name: String): JcResolvedClassResult? {
+        return lambdaClassesByName[name]?.let { AbstractJcResolvedResult.JcResolvedClassResultImpl(name, it) }
+    }
+}
+
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses, JcStringConcatTransformer)
+    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature)
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
@@ -181,7 +206,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
         classNode.name = testClassName
         mockBeans.forEach { mockBeanType ->
             val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
-            val field = FieldNode(Opcodes.ACC_PUBLIC, name, mockBeanType.jvmDescriptor, null, null)
+            val field = FieldNode(Opcodes.ACC_PRIVATE, name, mockBeanType.jvmDescriptor, null, null)
             field.visibleAnnotations = listOf(AnnotationNode(mockAnnotation.jvmDescriptor))
             classNode.fields.add(field)
         }
@@ -240,7 +265,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.SPRING_APPLICATION,
         exceptionsPropagation = false,
-        timeout = 1.minutes,
+        timeout = 3.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
