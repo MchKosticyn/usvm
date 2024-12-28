@@ -582,6 +582,7 @@ class JcMethodApproximationResolver(
 
     private fun getRequestMappingMethod(annotation: JcAnnotation): String {
         println(annotation)
+        println(annotation.values)
         return "get"
     }
 
