@@ -6,6 +6,7 @@ import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
@@ -25,6 +26,7 @@ import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.byte
 import org.jacodb.api.jvm.ext.char
 import org.jacodb.api.jvm.ext.double
+import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.findType
@@ -74,6 +76,7 @@ import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapRemove
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapSize
 import org.usvm.api.initializeArray
 import org.usvm.api.initializeArrayLength
+import org.usvm.api.makeNullableSymbolicRefSubtype
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefWithSameType
@@ -106,6 +109,7 @@ import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.writeField
 import org.usvm.getIntValue
+import org.usvm.instrumentation.util.toJavaClass
 import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.classesOfLocations
@@ -412,7 +416,7 @@ class JcMethodApproximationResolver(
         if (method.name == "deduceFromClasspath") {
             val returnType = ctx.cp.findTypeOrNull(method.returnType.typeName) as? JcClassType
                 ?: return false
-            assert(returnType.jcClass.isEnum)
+            check(returnType.jcClass.isEnum)
             val enumField = returnType.declaredFields.single { it.isStatic && it.name == "SERVLET" }
             val fieldRef = JcFieldRef(instance = null, field = enumField)
             val value = fieldRef.accept(exprResolver) ?: return true
@@ -429,6 +433,60 @@ class JcMethodApproximationResolver(
                 val message = memory.tryHeapRefToObject(messageExpr) as String
                 println("\u001B[36m" + message + "\u001B[0m")
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        if (method.name.equals("_initObjectSymbolic")) {
+            scope.doWithState {
+                val objRef = methodCall.arguments[0].asExpr(ctx.addressSort) as UConcreteHeapRef
+                val objType = memory.types.typeOf(objRef.address) as JcClassType
+                val fields = objType.allInstanceFields
+                for (field in fields) {
+                    val fieldType = field.type
+                    val fieldSort = ctx.typeToSort(fieldType)
+                    @Suppress("UNCHECKED_CAST")
+                    val symbolicValue = scope.makeSymbolicRefSubtype(fieldType)!! as UExpr<USort>
+                    memory.writeField(objRef, field.field, fieldSort, symbolicValue, ctx.trueExpr)
+                }
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        if (method.name.equals("_initValueFieldsSymbolic")) {
+            scope.doWithState {
+                val objRef = methodCall.arguments[0].asExpr(ctx.addressSort) as UConcreteHeapRef
+                val objType = memory.types.typeOf(objRef.address) as JcClassType
+                val fields = objType.allInstanceFields.filter {
+                    it.field.annotations.any { it.name == "org.springframework.beans.factory.annotation.Value" }
+                }
+                for (field in fields) {
+                    val fieldType = field.type
+                    val fieldSort = ctx.typeToSort(fieldType)
+                    @Suppress("UNCHECKED_CAST")
+                    val symbolicValue = scope.makeSymbolicRefSubtype(fieldType)!! as UExpr<USort>
+                    memory.writeField(objRef, field.field, fieldSort, symbolicValue, ctx.trueExpr)
+                }
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        if (method.name.equals("_classesWithFieldsValueAnnotation")) {
+            scope.doWithState {
+                val types = ctx.classesOfLocations(options.projectLocations!!).filter {
+                    !it.isAbstract && !it.isInterface && !it.isAnonymous && it.fields.any {
+                        it.annotations.any { it.name == "org.springframework.beans.factory.annotation.Value" }
+                    }
+                }
+                val classes = types.map { it.toJavaClass(JcConcreteMemoryClassLoader) }.toList()
+                val classesJcType = ctx.cp.findTypeOrNull(classes.javaClass.typeName)!!
+                val classesRef = memory.tryAllocateConcrete(classes, classesJcType)!!
+                skipMethodInvocationWithValue(methodCall, classesRef)
             }
 
             return true
@@ -553,15 +611,9 @@ class JcMethodApproximationResolver(
 
     private fun pathFromAnnotation(annotation: JcAnnotation): String {
         val values = annotation.values
-        assert(values.size == 1)
+        check(values.contains("value"))
         val value = values["value"] as List<*>
         return value[0] as String
-    }
-
-    private fun pathVarNameFromAnnotation(annotation: JcAnnotation): String {
-        val values = annotation.values
-        assert(values.size == 1)
-        return values["value"] as String
     }
 
     private fun reqMappingPath(controllerType: JcClassOrInterface): String? {
@@ -576,14 +628,22 @@ class JcMethodApproximationResolver(
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun shouldSkipPath(path: String, kind: String): Boolean {
-        return false //path != "/owners/{ownerId}/pets/{petId}/edit" || kind != "post"
+    private fun shouldSkipPath(path: String, kind: String, controllerTypeName: String): Boolean {
+        return false
+    }
+
+    private fun shuoldSkipController(controllerType: JcClassOrInterface): Boolean {
+        return controllerType.annotations.any {
+            // TODO: support conditional controllers and dependend conditional beans
+            it.name == "org.springframework.boot.autoconfigure.condition.ConditionalOnProperty"
+        }
     }
 
     private fun getRequestMappingMethod(annotation: JcAnnotation): String {
-        println(annotation)
-        println(annotation.values)
-        return "get"
+        val values = annotation.values
+        // TODO: suppport list #CM
+        val method = (values["method"] as List<*>)[0] as JcField
+        return method.name.lowercase()
     }
 
     private fun allControllerPaths(): Map<String, Map<String, List<Any>>> {
@@ -594,6 +654,7 @@ class JcMethodApproximationResolver(
                         it.name == "org.springframework.stereotype.Controller"
                     }
                 }
+                .filterNot { shuoldSkipController(it) }
         val result = TreeMap<String, Map<String, List<Any>>>()
         for (controllerType in controllerTypes) {
             val basePath: String? = reqMappingPath(controllerType)
@@ -615,7 +676,7 @@ class JcMethodApproximationResolver(
                     if (kind != null) {
                         val localPath = pathFromAnnotation(annotation)
                         val path = if (basePath != null) basePath + localPath else localPath
-                        if (shouldSkipPath(path, kind))
+                        if (shouldSkipPath(path, kind, controllerType.name))
                             continue
                         val pathArgsCount = path.filter { it == '{' }.length
                         val properties = listOf(kind, Integer.valueOf(pathArgsCount))
@@ -646,7 +707,7 @@ class JcMethodApproximationResolver(
         if (methodName == "printBanner") {
             val bannerType = ctx.cp.findTypeOrNull(method.returnType.typeName) as JcClassType
             val bannerModeType = bannerType.innerTypes.single()
-            assert(bannerModeType.jcClass.isEnum)
+            check(bannerModeType.jcClass.isEnum)
             val enumField = bannerModeType.declaredFields.single { it.isStatic && it.name == "OFF" }
             val fieldRef = JcFieldRef(instance = null, field = enumField)
             val bannerModeOffValue = fieldRef.accept(exprResolver)?.asExpr(ctx.addressSort) ?: return true

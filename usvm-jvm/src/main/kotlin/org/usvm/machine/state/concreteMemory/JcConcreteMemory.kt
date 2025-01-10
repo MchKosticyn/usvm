@@ -76,6 +76,8 @@ import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.URegistersStack
 import org.usvm.mkSizeExpr
 import org.usvm.util.jcTypeOf
+import org.usvm.util.onNone
+import org.usvm.util.onSome
 import org.usvm.util.typedField
 import org.usvm.utils.applySoftConstraints
 import java.lang.reflect.InvocationTargetException
@@ -251,18 +253,16 @@ class JcConcreteMemory private constructor(
 
     override fun tryHeapRefToObject(heapRef: UConcreteHeapRef): Any? {
         val maybe = marshall.tryExprToFullyConcreteObj(heapRef, ctx.cp.objectType)
-        check(!(maybe.hasValue && maybe.value == null))
-        if (maybe.hasValue)
-            return maybe.value!!
+        check(!(maybe.isSome && maybe.getOrThrow() == null))
+        maybe.onSome { return it }
 
         return null
     }
 
     override fun <Sort : USort> tryExprToInt(expr: UExpr<Sort>): Int? {
         val maybe = marshall.tryExprToFullyConcreteObj(expr, ctx.cp.int)
-        check(!(maybe.hasValue && maybe.value == null))
-        if (maybe.hasValue)
-            return maybe.value!! as Int
+        check(!(maybe.isSome && maybe.getOrThrow() == null))
+        maybe.onSome { return it as Int }
 
         return null
     }
@@ -312,8 +312,8 @@ class JcConcreteMemory private constructor(
 
     private fun shouldNotInvoke(method: JcMethod): Boolean {
         return forbiddenInvocations.contains(method.humanReadableSignature) ||
-                method.enclosingClass.isSpringFilter(ctx) && method.name == "doFilter" ||
-                method.enclosingClass.isSpringFilterChain(ctx) && method.name == "doFilter"
+                method.enclosingClass.isSpringFilter(ctx) && (method.name == "doFilter" || method.name == "doFilterInternal") ||
+                method.enclosingClass.isSpringFilterChain(ctx) && (method.name == "doFilter" || method.name == "doFilterInternal")
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
@@ -668,10 +668,9 @@ class JcConcreteMemory private constructor(
 
         if (!isStatic) {
             val thisType = method.enclosingClass.toType()
-            val obj = marshall.tryExprToFullyConcreteObj(arguments[0], thisType)
-            if (!obj.hasValue)
-                return TryConcreteInvokeFail(true)
-            thisObj = obj.value
+            marshall.tryExprToFullyConcreteObj(arguments[0], thisType)
+                .onNone { return TryConcreteInvokeFail(true) }
+                .onSome { thisObj = it }
             parameters = arguments.drop(1)
         }
 
@@ -681,10 +680,9 @@ class JcConcreteMemory private constructor(
             val info = parameterInfos[i]
             val value = parameters[i]
             val type = ctx.cp.findTypeOrNull(info.type)!!
-            val elem = marshall.tryExprToFullyConcreteObj(value, type)
-            if (!elem.hasValue)
-                return TryConcreteInvokeFail(true)
-            objParameters.add(elem.value)
+            marshall.tryExprToFullyConcreteObj(value, type)
+                .onNone { return TryConcreteInvokeFail(true) }
+                .onSome { objParameters.add(it) }
         }
 
         check(objParameters.size == parameters.size)
@@ -839,6 +837,11 @@ class JcConcreteMemory private constructor(
             "java.lang.Object#<init>():void",
             "org.springframework.util.function.ThrowingSupplier#get():java.lang.Object",
             "org.springframework.util.function.ThrowingSupplier#get(java.util.function.BiFunction):java.lang.Object",
+
+            "org.springframework.web.servlet.handler.HandlerMappingIntrospector#lambda\$createCacheFilter\$3(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void",
+            "org.springframework.security.web.FilterChainProxy#doFilterInternal(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void",
+            "org.springframework.security.web.session.DisableEncodeUrlFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
+            "org.springframework.security.web.header.HeaderWriterFilter#doHeadersAfter(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
         )
 
         private val concretizeInvocations = setOf(
