@@ -70,14 +70,14 @@ internal class JcConcreteArrayRegion<Sort : USort>(
             val fromDstIdxObj = marshall.tryExprToObj(fromDstIdx, indexType)
             val toDstIdxObj = marshall.tryExprToObj(toDstIdx, indexType)
             val isConcreteCopy =
-                fromSrcIdxObj.hasValue && fromDstIdxObj.hasValue && toDstIdxObj.hasValue && operationGuard.isTrue
+                fromSrcIdxObj.isSome && fromDstIdxObj.isSome && toDstIdxObj.isSome && operationGuard.isTrue
             if (isConcreteCopy) {
                 bindings.arrayCopy(
                     srcRef.address,
                     dstRef.address,
-                    fromSrcIdxObj.value as Int,
-                    fromDstIdxObj.value as Int,
-                    toDstIdxObj.value as Int + 1 // Incrementing 'toDstIdx' index to make it exclusive
+                    fromSrcIdxObj.getOrThrow() as Int,
+                    fromDstIdxObj.getOrThrow() as Int,
+                    toDstIdxObj.getOrThrow() as Int + 1 // Incrementing 'toDstIdx' index to make it exclusive
                 )
                 return this
             }
@@ -112,7 +112,7 @@ internal class JcConcreteArrayRegion<Sort : USort>(
                 val elems = content.mapNotNull { (index, value) ->
                     val idx = marshall.tryExprToObj(index, ctx.cp.int)
                     val elem = marshall.tryExprToObj(value, elemType)
-                    if (idx.hasValue && elem.hasValue) (idx.value as Int) to elem.value
+                    if (idx.isSome && elem.isSome) (idx.getOrThrow() as Int) to elem.getOrThrow()
                     else null
                 }
                 if (elems.size == content.size) {
@@ -133,8 +133,8 @@ internal class JcConcreteArrayRegion<Sort : USort>(
         if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
             val address = ref.address
             val indexObj = marshall.tryExprToObj(key.index, indexType)
-            if (indexObj.hasValue) {
-                val valueObj = bindings.readArrayIndex(address, indexObj.value as Int)
+            if (indexObj.isSome) {
+                val valueObj = bindings.readArrayIndex(address, indexObj.getOrThrow() as Int)
                 val elemType = (bindings.typeOf(address) as JcArrayType).elementType
                 return marshall.objToExpr(valueObj, elemType)
             }
@@ -159,9 +159,9 @@ internal class JcConcreteArrayRegion<Sort : USort>(
             val arrayType = bindings.typeOf(address) as JcArrayType
             val valueObj = marshall.tryExprToObj(value, arrayType.elementType)
             val indexObj = marshall.tryExprToObj(key.index, indexType)
-            val isConcreteWrite = valueObj.hasValue && indexObj.hasValue && guard.isTrue
+            val isConcreteWrite = valueObj.isSome && indexObj.isSome && guard.isTrue
             if (isConcreteWrite) {
-                bindings.writeArrayIndex(ref.address, indexObj.value as Int, valueObj.value)
+                bindings.writeArrayIndex(ref.address, indexObj.getOrThrow() as Int, valueObj.getOrThrow())
                 return this
             }
 
