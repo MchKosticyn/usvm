@@ -18,6 +18,7 @@ import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.memory.UMemoryRegion
 import org.usvm.util.jcTypeOf
+import org.usvm.util.onSome
 
 internal class JcConcreteRefMapRegion<ValueSort : USort>(
     private val regionId: URefMapRegionId<JcType, ValueSort>,
@@ -79,8 +80,8 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
             val address = ref.address
             val objType = ctx.cp.objectType
             val keyObj = marshall.tryExprToObj(key.mapKey, objType)
-            if (keyObj.hasValue) {
-                val valueObj = bindings.readMapValue(address, keyObj.value)
+            keyObj.onSome {
+                val valueObj = bindings.readMapValue(address, it)
                 return marshall.objToExpr(valueObj, objType)
             }
 
@@ -102,9 +103,9 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
             val address = ref.address
             val valueObj = marshall.tryExprToObj(value, ctx.cp.objectType)
             val keyObj = marshall.tryExprToObj(key.mapKey, ctx.cp.objectType)
-            val isConcreteWrite = valueObj.hasValue && keyObj.hasValue && guard.isTrue
+            val isConcreteWrite = valueObj.isSome && keyObj.isSome && guard.isTrue
             if (isConcreteWrite) {
-                bindings.writeMapValue(address, keyObj.value, valueObj.value)
+                bindings.writeMapValue(address, keyObj.getOrThrow(), valueObj.getOrThrow())
                 return this
             }
 
