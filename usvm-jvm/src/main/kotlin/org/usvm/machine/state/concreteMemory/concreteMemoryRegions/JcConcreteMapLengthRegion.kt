@@ -50,9 +50,9 @@ internal class JcConcreteMapLengthRegion(
         if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
             val address = ref.address
             val lengthObj = marshall.tryExprToObj(value, lengthType)
-            val isConcreteWrite = lengthObj.hasValue && guard.isTrue
+            val isConcreteWrite = lengthObj.isSome && guard.isTrue
             if (isConcreteWrite) {
-                bindings.writeMapLength(address, lengthObj.value as Int)
+                bindings.writeMapLength(address, lengthObj.getOrThrow() as Int)
                 return this
             }
 

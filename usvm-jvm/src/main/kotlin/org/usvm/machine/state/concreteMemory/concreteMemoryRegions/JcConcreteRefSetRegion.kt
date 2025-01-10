@@ -23,6 +23,7 @@ import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.memory.UMemoryRegion
 import org.usvm.util.jcTypeOf
+import org.usvm.util.onSome
 
 @Suppress("UNUSED")
 internal class JcConcreteRefSetRegion(
@@ -106,9 +107,9 @@ internal class JcConcreteRefSetRegion(
             val objType = ctx.cp.objectType
             val keyObj = marshall.tryExprToObj(key.setElement, objType)
             val valueObj = marshall.tryExprToObj(value, ctx.cp.boolean)
-            val isConcreteWrite = valueObj.hasValue && keyObj.hasValue && guard.isTrue
+            val isConcreteWrite = valueObj.isSome && keyObj.isSome && guard.isTrue
             if (isConcreteWrite) {
-                bindings.changeSetContainsElement(address, keyObj.value, valueObj.value as Boolean)
+                bindings.changeSetContainsElement(address, keyObj.getOrThrow(), valueObj.getOrThrow() as Boolean)
                 return this
             }
 
@@ -126,8 +127,8 @@ internal class JcConcreteRefSetRegion(
             val address = ref.address
             val objType = ctx.cp.objectType
             val elem = marshall.tryExprToObj(key.setElement, objType)
-            if (elem.hasValue) {
-                val contains = bindings.checkSetContains(address, elem.value)
+            elem.onSome {
+                val contains = bindings.checkSetContains(address, it)
                 return marshall.objToExpr(contains, ctx.cp.boolean)
             }
             marshall.unmarshallSet(address)

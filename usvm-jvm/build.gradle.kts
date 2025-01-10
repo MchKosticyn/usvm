@@ -226,7 +226,7 @@ tasks.register<JavaExec>("runWebBench") {
     val usvmApiJarPath = `usvm-api-jar`.get().outputs.files.singleFile
     val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
     val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
-    val absolutePaths = org.jetbrains.kotlin.utils.join(springApproximationDepsJarPath.map { it.absolutePath }, ";")
+    val absolutePaths = springApproximationDepsJarPath.joinToString(";") { it.absolutePath }
 
     // TODO: norm? #CM #Valya
     systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)

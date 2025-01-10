@@ -26,8 +26,8 @@ internal class JcConcreteCallSiteLambdaRegion(
         val address = callSite.ref.address
         val lambda = callSite.lambda
         val maybeArgs = marshall.tryExprListToFullyConcreteList(callSite.callSiteArgs, lambda.callSiteArgTypes)
-        if (bindings.contains(address) && maybeArgs.hasValue) {
-            val args = maybeArgs.value!!
+        if (bindings.contains(address) && maybeArgs.isSome) {
+            val args = maybeArgs.getOrThrow()
             val invocationHandler = bindings.readInvocationHandler(address)
             val method = lambda.actualMethod.method.method
             val actualMethod =

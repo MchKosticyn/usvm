@@ -85,9 +85,9 @@ internal class JcConcreteFieldRegion<Sort : USort>(
             val address = ref.address
             if (!isApproximation) {
                 val objValue = marshall.tryExprToObj(value, fieldType)
-                val writeIsConcrete = objValue.hasValue && guard.isTrue
+                val writeIsConcrete = objValue.isSome && guard.isTrue
                 if (writeIsConcrete) {
-                    bindings.writeClassField(address, javaField!!, objValue.value)
+                    bindings.writeClassField(address, javaField!!, objValue.getOrThrow())
                     return this
                 }
             }
