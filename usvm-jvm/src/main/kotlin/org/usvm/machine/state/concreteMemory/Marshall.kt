@@ -51,6 +51,8 @@ import org.usvm.isTrue
 import org.usvm.machine.JcContext
 import org.usvm.util.Maybe
 import org.usvm.util.name
+import org.usvm.util.onNone
+import org.usvm.util.onSome
 import java.lang.reflect.InvocationTargetException
 
 internal class Marshall(
@@ -74,7 +76,7 @@ internal class Marshall(
     private val falseExpr by lazy { ctx.falseExpr }
 
     private val Any?.maybe: Maybe<Any?>
-        get() = Maybe(this)
+        get() = Maybe.some(this)
 
     private val usvmApiSymbolicList by lazy { ctx.cp.findClassOrNull<SymbolicList<*>>()!!.toType() }
     private val javaList by lazy { ctx.cp.findClassOrNull<List<*>>()!!.toType() }
@@ -116,75 +118,75 @@ internal class Marshall(
 
     fun <Sort : USort> commonTryExprToObj(expr: UExpr<Sort>, type: JcType, fullyConcrete: Boolean): Maybe<Any?> {
         return when {
-            expr is UNullRef -> Maybe(null)
-            expr is UConcreteHeapRef && expr.address == NULL_ADDRESS -> Maybe(null)
+            expr is UNullRef -> Maybe.some(null)
+            expr is UConcreteHeapRef && expr.address == NULL_ADDRESS -> Maybe.some(null)
             expr is UConcreteHeapRef && fullyConcrete ->
-                bindings.tryFullyConcrete(expr.address)?.maybe ?: Maybe.empty()
+                bindings.tryFullyConcrete(expr.address)?.maybe ?: Maybe.none()
 
             expr is UConcreteHeapRef ->
-                bindings.tryVirtToPhys(expr.address)?.maybe ?: Maybe.empty()
+                bindings.tryVirtToPhys(expr.address)?.maybe ?: Maybe.none()
 
-            expr is USymbol -> Maybe.empty()
+            expr is USymbol -> Maybe.none()
             type == boolean -> {
                 when (expr) {
                     trueExpr -> true.maybe
                     falseExpr -> false.maybe
-                    else -> Maybe.empty()
+                    else -> Maybe.none()
                 }
             }
 
             type == byte -> {
                 when (expr) {
                     is KBitVec8Value -> expr.byteValue.maybe
-                    else -> Maybe.empty()
+                    else -> Maybe.none()
                 }
             }
 
             type == short -> {
                 when (expr) {
                     is KBitVec16Value -> expr.shortValue.maybe
-                    else -> Maybe.empty()
+                    else -> Maybe.none()
                 }
             }
 
             type == char -> {
                 when (expr) {
                     is KBitVec16Value -> expr.shortValue.toInt().toChar().maybe
-                    else -> Maybe.empty()
+                    else -> Maybe.none()
                 }
             }
 
             type == int -> {
                 when (expr) {
                     is KBitVec32Value -> expr.intValue.maybe
-                    else -> Maybe.empty()
+                    else -> Maybe.none()
                 }
             }
 
             type == long -> {
                 when (expr) {
                     is KBitVec64Value -> expr.longValue.maybe
-                    else -> Maybe.empty()
+                    else -> Maybe.none()
                 }
             }
 
             type == float -> {
                 when (expr) {
                     is KFp32Value -> expr.value.maybe
-                    else -> Maybe.empty()
+                    else -> Maybe.none()
                 }
             }
 
             type == double -> {
                 when (expr) {
                     is KFp64Value -> expr.value.maybe
-                    else -> Maybe.empty()
+                    else -> Maybe.none()
                 }
             }
 
             expr is UIteExpr && expr.condition.isTrue -> commonTryExprToObj(expr.trueBranch, type, fullyConcrete)
             expr is UIteExpr && expr.condition.isFalse -> commonTryExprToObj(expr.falseBranch, type, fullyConcrete)
-            expr is UIteExpr -> Maybe.empty()
+            expr is UIteExpr -> Maybe.none()
 
             else -> error("Marshall.commonTryExprToObj: unexpected expression $expr")
         }
@@ -204,13 +206,12 @@ internal class Marshall(
     ): Maybe<List<Any?>> {
         val result = mutableListOf<Any?>()
         for ((e, t) in expressions.zip(types)) {
-            val obj = tryExprToFullyConcreteObj(e, t)
-            if (!obj.hasValue)
-                return Maybe.empty()
-            result.add(obj.value)
+            tryExprToFullyConcreteObj(e, t)
+                .onNone { return Maybe.none() }
+                .onSome { result.add(it) }
         }
 
-        return Maybe(result)
+        return Maybe.some(result)
     }
 
     //endregion
