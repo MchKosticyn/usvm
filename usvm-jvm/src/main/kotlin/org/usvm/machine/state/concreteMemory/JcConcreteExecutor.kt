@@ -18,7 +18,7 @@ private class JcThreadFactory : ThreadFactory {
     }
 }
 
-internal class JcConcreteExecutor {
+internal class JcConcreteExecutor: ThreadLocalHelper {
     private val executor = Executors.newSingleThreadExecutor(JcThreadFactory())
     private val threadLocalType by lazy { ThreadLocal::class.java }
 
@@ -26,7 +26,25 @@ internal class JcConcreteExecutor {
         executor.submit(task).get()
     }
 
-    fun getThreadLocalValue(threadLocal: Any): Any? {
+    override fun checkIsPresent(threadLocal: Any): Boolean {
+        check(threadLocal.javaClass.isThreadLocal)
+        val isPresentMethod = threadLocalType.declaredMethods.find { it.name == "isPresent" }!!
+        isPresentMethod.isAccessible = true
+        var value = false
+        execute {
+            try {
+                if (threadLocal.javaClass.name.contains("XmlBeans"))
+                    println()
+                value = isPresentMethod.invoke(threadLocal) as Boolean
+            } catch (e: Throwable) {
+                error("unable to check thread local value is present: $e")
+            }
+        }
+
+        return value
+    }
+
+    override fun getThreadLocalValue(threadLocal: Any): Any? {
         check(threadLocal.javaClass.isThreadLocal)
         val getMethod = threadLocalType.getMethod("get")
         var value: Any? = null
@@ -42,7 +60,7 @@ internal class JcConcreteExecutor {
         return value
     }
 
-    fun setThreadLocalValue(threadLocal: Any, value: Any?) {
+    override fun setThreadLocalValue(threadLocal: Any, value: Any?) {
         check(threadLocal.javaClass.isThreadLocal)
         check(value == null || !value.javaClass.isThreadLocal)
         val setMethod = threadLocalType.getMethod("set", Any::class.java)

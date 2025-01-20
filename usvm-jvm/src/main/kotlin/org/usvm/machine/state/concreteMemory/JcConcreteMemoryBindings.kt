@@ -27,7 +27,6 @@ private data class Cell(
     val address: PhysicalAddress?
 ) {
     val isConcrete = address != null
-    val isSymbolic = address == null
 
     companion object {
         operator fun invoke(): Cell {
@@ -53,14 +52,12 @@ internal class JcConcreteMemoryBindings private constructor(
     private val parents: parentsType,
     private val fullyConcretes: MutableSet<PhysicalAddress>,
     val effectStorage: JcConcreteEffectStorage,
-    private val getThreadLocalValue: (threadLocal: Any) -> Any?,
-    private val setThreadLocalValue: (threadLocal: Any, value: Any?) -> Unit,
+    private val threadLocalHelper: ThreadLocalHelper,
 ) {
     internal constructor(
         ctx: JcContext,
         typeConstraints: UTypeConstraints<JcType>,
-        getThreadLocalValue: (threadLocal: Any) -> Any?,
-        setThreadLocalValue: (threadLocal: Any, value: Any?) -> Unit,
+        threadLocalHelper: ThreadLocalHelper
     ) : this(
         ctx,
         typeConstraints,
@@ -70,9 +67,8 @@ internal class JcConcreteMemoryBindings private constructor(
         mutableMapOf(),
         mutableMapOf(),
         mutableSetOf(),
-        JcConcreteEffectStorage(ctx, getThreadLocalValue, setThreadLocalValue),
-        getThreadLocalValue,
-        setThreadLocalValue,
+        JcConcreteEffectStorage(ctx, threadLocalHelper),
+        threadLocalHelper,
     )
 
     init {
@@ -840,8 +836,7 @@ internal class JcConcreteMemoryBindings private constructor(
             copyParents(),
             fullyConcretes.toMutableSet(),
             effectStorage.copy(newState),
-            getThreadLocalValue,
-            setThreadLocalValue,
+            threadLocalHelper,
         )
         newBindings.makeMutableWithEffect()
         makeMutableWithEffect()

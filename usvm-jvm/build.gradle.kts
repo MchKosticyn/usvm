@@ -215,6 +215,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web:3.3.4")
     implementation("org.springframework.boot:spring-boot-starter-test:3.3.4")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.3.4")
+    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
 }
 
 tasks.register<JavaExec>("runWebBench") {
@@ -316,6 +317,12 @@ tasks.register<JavaExec>("runWebBench") {
         openPackage("java.desktop", "java.beans")
         openPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs")
         openPackage("java.base", "java.math")
+        openPackage("java.base", "java.nio.file")
+        openPackage("java.base", "java.nio.channels")
+        openPackage("java.base", "javax.net.ssl")
+        openPackage("java.base", "java.lang.annotation")
+        openPackage("java.base", "java.lang.runtime")
+        openPackage("java.base", "javax.crypto")
         exportPackage("java.base", "sun.util.locale")
         exportPackage("java.base", "jdk.internal.misc")
         exportPackage("java.base", "jdk.internal.reflect")
