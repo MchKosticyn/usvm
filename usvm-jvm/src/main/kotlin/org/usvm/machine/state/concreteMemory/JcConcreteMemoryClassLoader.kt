@@ -1,11 +1,21 @@
 package org.usvm.api.util
 
 import bench.JcLambdaFeature
+import bench.replace
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.cfg.JcRawCallInst
+import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
+import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.usvm.api.internal.ClinitHelper
+import org.usvm.instrumentation.util.toByteArray
+import org.usvm.machine.state.concreteMemory.JcConcreteEffectStorage
+import org.usvm.machine.state.concreteMemory.hasStatics
 import org.usvm.machine.state.concreteMemory.isLambdaTypeName
+import org.usvm.machine.state.concreteMemory.setStaticFieldValue
+import org.usvm.machine.state.concreteMemory.staticFields
 import java.io.File
 import java.net.URI
 import java.net.URL
@@ -25,6 +35,8 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
     var webApplicationClass: JcClassOrInterface? = null
     lateinit var cp: JcClasspath
     private val loadedClasses = hashMapOf<String, Class<*>>()
+    private val initializedStatics = hashSetOf<Class<*>>()
+    private lateinit var effectStorage: JcConcreteEffectStorage
 
     private val File.isJar
         get() = this.extension == "jar"
@@ -128,26 +140,46 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         return null
     }
 
-    override fun loadClass(name: String?): Class<*> {
-        if (name != null && name.isLambdaTypeName) {
+    fun setEffectStorage(effectStorage: JcConcreteEffectStorage) {
+        this.effectStorage = effectStorage
+    }
+
+    fun initializedStatics(): Set<Class<*>> {
+        return initializedStatics
+    }
+
+    private fun doLoadClass(name: String): Class<*> {
+        if (name.isLambdaTypeName)
             return JcLambdaFeature.lambdaClassByName(name) ?: super.loadClass(name)
-        }
 
-        val jcClass = name?.let { cp.findClassOrNull(it) }
+        val jcClass = cp.findClassOrNull(name) ?: throw ClassNotFoundException(name)
 
-        if (jcClass == null) {
+        if (jcClass.declaration.location.isRuntime)
+            return super.loadClass(name)
+
+        return loadClass(jcClass)
+    }
+
+    override fun loadClass(name: String?): Class<*> {
+        if (name == null)
             throw ClassNotFoundException()
-        }
 
-        if (jcClass.declaration.location.isRuntime) {
-            val type = super.loadClass(name)
-            loadedClasses[name] = type
-            return type
-        }
+        val loadedClass = loadedClasses[name]
+        if (loadedClass != null)
+            return loadedClass
 
-        return loadedClasses.getOrPut(name) {
-            loadClass(jcClass)
+        val type = doLoadClass(name)
+        loadedClasses[name] = type
+        if (name == ClinitHelper::class.java.name) {
+            val f: java.util.function.Function<String, Void?> = java.util.function.Function { className: String ->
+                val clazz = loadedClasses[className]!!
+                initializedStatics.add(clazz)
+                effectStorage.addStatics(clazz)
+                null
+            }
+            type.staticFields.find { it.name == "afterClinit" }!!.setStaticFieldValue(f)
         }
+        return type
     }
 
     fun isLoaded(jcClass: JcClassOrInterface): Boolean {
@@ -211,7 +243,18 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
             notVisitedSupers.forEach { defineClassRecursively(it, visited) }
 
             return loadedClasses.getOrPut(name) {
-                defineClass(name, bytecode())
+                val clinit = declaredMethods.find { it.isClassInitializer }
+                if (clinit != null && clinit.let {it.rawInstList.any { it is JcRawCallInst && it.callExpr is JcRawStaticCallExpr && it.callExpr.methodName == "afterClinit" } }) { // class podhachen){// }
+                    val newClinitNode = MethodNodeBuilder(clinit, clinit.rawInstList).build()
+                    jcClass.withAsmNode { asmNode ->
+                        val clinitNode = asmNode.methods.find { it.name == clinit.name }
+                        asmNode.methods.replace(clinitNode, newClinitNode)
+                        val bytecode = asmNode.toByteArray(jcClass.classpath)
+                        defineClass(name, bytecode)
+                    }
+                } else {
+                    defineClass(name, bytecode())
+                }
             }
         }
     }

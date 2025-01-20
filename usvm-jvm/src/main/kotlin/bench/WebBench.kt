@@ -7,13 +7,23 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcClasspathExtFeature
 import org.jacodb.api.jvm.JcClasspathExtFeature.JcResolvedClassResult
 import org.jacodb.api.jvm.JcDatabase
+import org.jacodb.api.jvm.JcInstExtFeature
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.PredefinedPrimitives
+import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
+import org.jacodb.api.jvm.cfg.JcRawCallExpr
+import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
+import org.jacodb.api.jvm.cfg.JcRawInst
+import org.jacodb.api.jvm.cfg.JcRawReturnInst
+import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.findClass
+import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcRamErsSettings
+import org.jacodb.impl.cfg.JcRawString
 import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages
@@ -30,11 +40,13 @@ import org.usvm.CoverageZone
 import org.usvm.PathSelectionStrategy
 import org.usvm.SolverType
 import org.usvm.UMachineOptions
+import org.usvm.api.internal.ClinitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.JcTestInterpreter
 import org.usvm.logger
 import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions
+import org.usvm.machine.SpringAnalysisMode
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
 import org.usvm.util.classpathWithApproximations
@@ -129,8 +141,40 @@ internal object JcLambdaFeature: JcClasspathExtFeature {
     }
 }
 
+fun String.typeName() = TypeNameImpl(this.jvmName())
+
+internal object JcClinitFeature: JcInstExtFeature {
+
+    private fun shouldNotTransform(method: JcMethod, list: JcInstList<JcRawInst>): Boolean {
+        return !method.isClassInitializer || list.size == 0 || method.enclosingClass.declaration.location.isRuntime ||
+                method.enclosingClass.name == ClinitHelper::class.java.name
+    }
+
+    override fun transformRawInstList(method: JcMethod, list: JcInstList<JcRawInst>): JcInstList<JcRawInst> {
+        if (shouldNotTransform(method, list))
+            return list
+
+        val mutableList = list.toMutableList()
+        val callExpr = JcRawStaticCallExpr(
+            declaringClass = ClinitHelper::class.java.name.typeName(),
+            methodName = "afterClinit", // apiMethod.javaMethod?.name
+            argumentTypes = listOf("java.lang.String".typeName()),
+            returnType = PredefinedPrimitives.Void.typeName(),
+            args = listOf(JcRawString(method.enclosingClass.name))
+        )
+
+        val returnStmts = mutableList.filterIsInstance<JcRawReturnInst>()
+        for (returnStmt in returnStmts) {
+            val callInst = JcRawCallInst(method, callExpr)
+            mutableList.insertBefore(returnStmt, callInst)
+        }
+
+        return mutableList
+    }
+}
+
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature)
+    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature)
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
@@ -265,7 +309,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.SPRING_APPLICATION,
         exceptionsPropagation = false,
-        timeout = 3.minutes,
+        timeout = 20.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
@@ -276,7 +320,8 @@ private fun analyzeBench(benchmark: BenchCp) {
             projectLocations = newBench.classLocations,
             dependenciesLocations = newBench.depsLocations,
 //            forkOnImplicitExceptions = false,
-            arrayMaxSize = 10_000
+            arrayMaxSize = 10_000,
+            springAnalysisMode = SpringAnalysisMode.WebMVCTest
         )
     val testResolver = JcTestInterpreter()
     JcMachine(cp, options, jcMachineOptions).use { machine ->
