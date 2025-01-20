@@ -42,9 +42,18 @@ import java.nio.ByteBuffer
 internal val JcClassType.allFields: List<JcTypedField>
     get() = declaredFields + (superType?.allFields ?: emptyList())
 
+internal val Class<*>.safeDeclaredFields: List<Field>
+    get() {
+        return try {
+            declaredFields.toList()
+        } catch (e: Throwable) {
+            emptyList()
+        }
+    }
+
 @Suppress("RecursivePropertyAccessor")
-internal val Class<*>.allFields: Array<Field>
-    get() = declaredFields + (superclass?.allFields ?: emptyArray())
+internal val Class<*>.allFields: List<Field>
+    get() = safeDeclaredFields + (superclass?.allFields ?: emptyList())
 
 internal val JcClassType.allInstanceFields: List<JcTypedField>
     get() = allFields.filter { !it.isStatic }
@@ -57,6 +66,9 @@ internal val Class<*>.allInstanceFields: List<Field>
 
 internal val JcClassOrInterface.staticFields: List<JcField>
     get() = declaredFields.filter { it.isStatic }
+
+internal val Class<*>.staticFields: List<Field>
+    get() = safeDeclaredFields.filter { Modifier.isStatic(it.modifiers) }
 
 internal fun Field.getFieldValue(obj: Any): Any? {
     check(!isStatic)
@@ -149,6 +161,26 @@ internal fun JcEnrichedVirtualMethod.getMethod(ctx: JcContext): JcMethod? {
         ?.find { it.name == this.name }
 }
 
+internal val JcType.isInstanceApproximation: Boolean
+    get() {
+        if (this !is JcClassType)
+            return false
+
+        val originalType = toJavaClass(JcConcreteMemoryClassLoader)
+        val originalFieldNames = originalType.allInstanceFields.map { it.name }
+        return this.allInstanceFields.any { !originalFieldNames.contains(it.field.name) }
+    }
+
+internal val JcType.isStaticApproximation: Boolean
+    get() {
+        if (this !is JcClassType)
+            return false
+
+        val originalType = toJavaClass(JcConcreteMemoryClassLoader)
+        val originalFieldNames = originalType.staticFields.map { it.name }
+        return this.jcClass.staticFields.any { !originalFieldNames.contains(it.name) }
+    }
+
 @Suppress("RecursivePropertyAccessor")
 internal val JcType.isEnum: Boolean
     get() = this is JcClassType && (this.jcClass.isEnum || this.superType?.isEnum == true)
@@ -182,6 +214,9 @@ internal val Class<*>.isThreadLocal: Boolean
 
 internal val Class<*>.isByteBuffer: Boolean
     get() = ByteBuffer::class.java.isAssignableFrom(this)
+
+internal val Class<*>.hasStatics: Boolean
+    get() = staticFields.isNotEmpty()
 
 internal val JcClassOrInterface.isLambda: Boolean
     get() = name.contains("\$\$Lambda\$")
@@ -304,7 +339,8 @@ internal fun JcClassOrInterface.isSpringHandlerInterceptor(ctx: JcContext): Bool
 }
 
 internal val JcClassOrInterface.isSpringController: Boolean
-    get() = annotations.any { it.name == "org.springframework.stereotype.Controller" }
+    get() = annotations.any { // it.name == "org.springframework.stereotype.Controller"
+            it.name == "org.springframework.web.bind.annotation.RestController" }
 
 internal fun JcContext.classesOfLocations(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> {
     return locations

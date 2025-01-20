@@ -76,6 +76,7 @@ import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.URegistersStack
 import org.usvm.mkSizeExpr
 import org.usvm.util.jcTypeOf
+import org.usvm.util.name
 import org.usvm.util.onNone
 import org.usvm.util.onSome
 import org.usvm.util.typedField
@@ -94,7 +95,6 @@ class JcConcreteMemory private constructor(
     regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>>,
     private val executor: JcConcreteExecutor,
     private val bindings: JcConcreteMemoryBindings,
-    private val statics: MutableList<JcClassOrInterface>,
     private var regionStorageVar: JcConcreteRegionStorage? = null,
     private var marshallVar: Marshall? = null,
 ) : UMemory<JcType, JcMethod>(ctx, ownership, typeConstraints, stack, mocks, regions), JcConcreteRegionGetter {
@@ -290,7 +290,6 @@ class JcConcreteMemory private constructor(
             regions,
             executor,
             clonedBindings,
-            statics,
             regionStorage,
             marshall
         )
@@ -341,12 +340,12 @@ class JcConcreteMemory private constructor(
         return forcedInvokeMethods.contains(method.humanReadableSignature) || method.isExceptionCtor
     }
 
-    private fun shouldInvokeClinit(method: JcMethod): Boolean {
+    private fun shouldAnalyzeClinit(method: JcMethod): Boolean {
         check(method.isClassInitializer)
         // TODO: add recursive static fields check: if static field of another class was read it should not be symbolic #CM
-        return forceMethodInvoke(method)
+        return !forceMethodInvoke(method)
                 // TODO: delete this, but create encoding for static fields (analyze clinit symbolically and write fields) #CM
-                || !(method is JcEnrichedVirtualMethod && method.enclosingClass.staticFields.any { it.toJavaField == null })
+                && method is JcEnrichedVirtualMethod && method.enclosingClass.toType().isStaticApproximation
     }
 
     private inner class JcConcretizer(
@@ -492,7 +491,7 @@ class JcConcreteMemory private constructor(
         val concretizer = JcConcretizer(state)
 
         if (bindings.state.isMutableWithEffect())
-            bindings.effectStorage.addStaticsToEffect(statics)
+            bindings.effectStorage.ensureStatics()
 
         if (!concretization) {
             concretizeStatics(concretizer)
@@ -637,15 +636,13 @@ class JcConcreteMemory private constructor(
         val signature = method.humanReadableSignature
 
         if (method.isClassInitializer) {
-            // TODO: can we invoke user's clinit? Should not #CM
-            statics.add(method.enclosingClass)
-            if (!shouldInvokeClinit(method))
-            // Executing clinit symbolically
-                return TryConcreteInvokeFail(false)
-
-            // Executing clinit concretely
-            println(ansiGreen + "Invoking $signature" + ansiReset)
             ensureClinit(method.enclosingClass)
+
+            if (shouldAnalyzeClinit(method)) {
+                // Executing clinit symbolically
+                return TryConcreteInvokeFail(false)
+            }
+
             state.skipMethodInvocationWithValue(stmt, ctx.voidValue)
             return TryConcreteInvokeSuccess()
         }
@@ -671,6 +668,13 @@ class JcConcreteMemory private constructor(
             marshall.tryExprToFullyConcreteObj(arguments[0], thisType)
                 .onNone { return TryConcreteInvokeFail(true) }
                 .onSome { thisObj = it }
+
+            // TODO: support this case:
+            //  A <: B
+            //  A.ctor is called symbolically, but B.ctor called concretelly #CM
+            if (method.isConstructor && thisObj?.javaClass?.name != thisType.name)
+                return TryConcreteInvokeFail(false)
+
             parameters = arguments.drop(1)
         }
 
@@ -687,7 +691,7 @@ class JcConcreteMemory private constructor(
 
         check(objParameters.size == parameters.size)
         if (bindings.state.isMutableWithEffect()) {
-            bindings.effectStorage.addStaticsToEffect(statics)
+            bindings.effectStorage.ensureStatics()
             println(ansiGreen + "Invoking (B) $signature" + ansiReset)
         } else {
             println(ansiGreen + "Invoking $signature" + ansiReset)
@@ -709,7 +713,7 @@ class JcConcreteMemory private constructor(
         if (success is TryConcreteInvokeFail && success.symbolicArguments && stmt.method.isConstructor) {
             // TODO: only if arguments are symbolic? #CM
             val thisArg = stmt.arguments[0]
-            if (thisArg is UConcreteHeapRef && bindings.contains(thisArg.address))
+            if (thisArg is UConcreteHeapRef && bindings.contains(thisArg.address) && types.typeOf(thisArg.address).isInstanceApproximation)
                 bindings.remove(thisArg.address)
         }
 
@@ -734,16 +738,11 @@ class JcConcreteMemory private constructor(
             typeConstraints: UTypeConstraints<JcType>,
         ): JcConcreteMemory {
             val executor = JcConcreteExecutor()
-            val bindings = JcConcreteMemoryBindings(
-                ctx,
-                typeConstraints,
-                { threadLocal: Any -> executor.getThreadLocalValue(threadLocal) },
-                { threadLocal: Any, value: Any? -> executor.setThreadLocalValue(threadLocal, value) }
-            )
+            val bindings = JcConcreteMemoryBindings(ctx, typeConstraints, executor)
             val stack = URegistersStack()
             val mocks = UIndexedMocker<JcMethod>()
             val regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentHashMapOf()
-            val memory = JcConcreteMemory(ctx, ownership, typeConstraints, stack, mocks, regions, executor, bindings, mutableListOf())
+            val memory = JcConcreteMemory(ctx, ownership, typeConstraints, stack, mocks, regions, executor, bindings)
             val storage = JcConcreteRegionStorage(ctx, memory)
             val marshall = Marshall(ctx, bindings, storage)
             memory.regionStorageVar = storage
@@ -825,6 +824,7 @@ class JcConcreteMemory private constructor(
             "org.springframework.web.servlet.mvc.method.annotation.PathVariableMethodArgumentResolver#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
             "org.springframework.web.method.annotation.RequestParamMethodArgumentResolver#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
             "org.springframework.web.method.annotation.ModelAttributeMethodProcessor#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
+            "org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
             "org.springframework.web.method.support.InvocableHandlerMethod#doInvoke(java.lang.Object[]):java.lang.Object",
             "java.lang.reflect.Method#invoke(java.lang.Object,java.lang.Object[]):java.lang.Object",
 
