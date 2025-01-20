@@ -23,11 +23,11 @@ internal interface ThreadLocalHelper {
 
 private class JcConcreteSnapshot(
     private val ctx: JcContext,
-    private val threadLocalHelper: ThreadLocalHelper,
+    val threadLocalHelper: ThreadLocalHelper,
 ) {
-    val objects: MutableMap<PhysicalAddress, PhysicalAddress> = mutableMapOf()
-    val statics: MutableMap<Field, PhysicalAddress> = mutableMapOf()
-    var staticsCache = hashSetOf<Class<*>>()
+    private val objects: MutableMap<PhysicalAddress, PhysicalAddress> = mutableMapOf()
+    private val statics: MutableMap<Field, PhysicalAddress> = mutableMapOf()
+    private var staticsCache = hashSetOf<Class<*>>()
 
     constructor(
         ctx: JcContext,
@@ -42,6 +42,10 @@ private class JcConcreteSnapshot(
             addStaticFieldToSnapshot(field, phys)
         }
     }
+
+    fun getObjects(): Map<PhysicalAddress, PhysicalAddress> = objects
+
+    fun getStatics(): Map<Field, PhysicalAddress> = statics
 
     fun isEmpty(): Boolean = objects.isEmpty() && statics.isEmpty()
 
@@ -180,6 +184,35 @@ private class JcConcreteSnapshot(
 
         for (type in needToAdd) {
             addStaticFields(type)
+        }
+    }
+}
+
+private class JcConcreteSnapshotSeq(
+    snapshots: List<JcConcreteSnapshot>
+) {
+    private val objects: Map<PhysicalAddress, PhysicalAddress>
+    private val statics: Map<Field, PhysicalAddress>
+    private val threadLocalHelper: ThreadLocalHelper
+
+    init {
+        check(snapshots.isNotEmpty())
+        if (snapshots.size == 1) {
+            val snapshot = snapshots[0]
+            objects = snapshot.getObjects()
+            statics = snapshot.getStatics()
+            threadLocalHelper = snapshot.threadLocalHelper
+        } else {
+            threadLocalHelper = snapshots[0].threadLocalHelper
+            val resultObjects = mutableMapOf<PhysicalAddress, PhysicalAddress>()
+            val resultStatics = mutableMapOf<Field, PhysicalAddress>()
+            for (snapshot in snapshots) {
+                check(snapshot.threadLocalHelper === threadLocalHelper)
+                resultObjects.putAll(snapshot.getObjects())
+                resultStatics.putAll(snapshot.getStatics())
+            }
+            objects = resultObjects
+            statics = resultStatics
         }
     }
 
