@@ -113,6 +113,7 @@ import org.usvm.instrumentation.util.toJavaClass
 import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.classesOfLocations
+import org.usvm.machine.state.concreteMemory.isSpringController
 import org.usvm.machine.state.newStmt
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
@@ -204,6 +205,10 @@ class JcMethodApproximationResolver(
         val repositoryType = ctx.cp.findClassOrNull("org.springframework.data.repository.Repository")
         if (repositoryType != null && enclosingClass.isSubClassOf(repositoryType)) {
             if (approximateSpringRepositoryMethod(methodCall)) return true
+        }
+
+        if (enclosingClass.annotations.any { it.name == "org.springframework.stereotype.Service" }) {
+            if (approximateSpringServiceMethod(methodCall)) return true
         }
 
         if (className == "java.lang.reflect.Method") {
@@ -438,24 +443,6 @@ class JcMethodApproximationResolver(
             return true
         }
 
-        if (method.name.equals("_initObjectSymbolic")) {
-            scope.doWithState {
-                val objRef = methodCall.arguments[0].asExpr(ctx.addressSort) as UConcreteHeapRef
-                val objType = memory.types.typeOf(objRef.address) as JcClassType
-                val fields = objType.allInstanceFields
-                for (field in fields) {
-                    val fieldType = field.type
-                    val fieldSort = ctx.typeToSort(fieldType)
-                    @Suppress("UNCHECKED_CAST")
-                    val symbolicValue = scope.makeSymbolicRefSubtype(fieldType)!! as UExpr<USort>
-                    memory.writeField(objRef, field.field, fieldSort, symbolicValue, ctx.trueExpr)
-                }
-                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
-            }
-
-            return true
-        }
-
         if (method.name.equals("_initValueFieldsSymbolic")) {
             scope.doWithState {
                 val objRef = methodCall.arguments[0].asExpr(ctx.addressSort) as UConcreteHeapRef
@@ -646,14 +633,20 @@ class JcMethodApproximationResolver(
         return method.name.lowercase()
     }
 
+    private fun combinePaths(basePath: String, localPath: String): String {
+        val basePathEndsWithSlash = basePath.endsWith('/')
+        val localPathStartsWithSlash = localPath.startsWith('/')
+        if (basePathEndsWithSlash && localPathStartsWithSlash)
+            return basePath + localPath.substring(1)
+        if (basePathEndsWithSlash || localPathStartsWithSlash)
+            return basePath + localPath
+        return "$basePath/$localPath"
+    }
+
     private fun allControllerPaths(): Map<String, Map<String, List<Any>>> {
         val controllerTypes =
             ctx.classesOfLocations(options.projectLocations!!)
-                .filter {
-                    !it.isAbstract && !it.isInterface && !it.isAnonymous && it.annotations.any {
-                        it.name == "org.springframework.stereotype.Controller"
-                    }
-                }
+                .filter { !it.isAbstract && !it.isInterface && !it.isAnonymous && it.isSpringController }
                 .filterNot { shuoldSkipController(it) }
         val result = TreeMap<String, Map<String, List<Any>>>()
         for (controllerType in controllerTypes) {
@@ -675,7 +668,7 @@ class JcMethodApproximationResolver(
 
                     if (kind != null) {
                         val localPath = pathFromAnnotation(annotation)
-                        val path = if (basePath != null) basePath + localPath else localPath
+                        val path = if (basePath != null) combinePaths(basePath, localPath) else localPath
                         if (shouldSkipPath(path, kind, controllerType.name))
                             continue
                         val pathArgsCount = path.filter { it == '{' }.length
@@ -754,6 +747,31 @@ class JcMethodApproximationResolver(
                 val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
                 val heapRef = memory.tryAllocateConcrete(allControllerPaths, jcType)!!
                 skipMethodInvocationWithValue(methodCall, heapRef)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateSpringServiceMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        val returnType = ctx.cp.findType(methodCall.method.returnType.typeName)
+        if (options.springAnalysisMode == SpringAnalysisMode.WebMVCTest) {
+            val mockedValue: UExpr<out USort>
+            when {
+                returnType is JcClassType || returnType is JcArrayType -> {
+                    mockedValue = scope.makeNullableSymbolicRefSubtype(returnType)!!
+                }
+                else -> {
+                    check(returnType is JcPrimitiveType)
+                    mockedValue = scope.calcOnState { makeSymbolicPrimitive(ctx.typeToSort(returnType)) }
+                }
+            }
+
+            println("[Mocked] Mocked service method")
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, mockedValue)
             }
 
             return true
