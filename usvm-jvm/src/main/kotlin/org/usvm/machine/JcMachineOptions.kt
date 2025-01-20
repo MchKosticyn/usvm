@@ -5,6 +5,11 @@ import org.jacodb.api.jvm.JcByteCodeLocation
 /**
  * JcMachine specific options.
  * */
+enum class SpringAnalysisMode {
+    WebMVCTest,
+    SpringBootTest,
+}
+
 data class JcMachineOptions(
     /**
      * During virtual call resolution the machine should consider all possible call implementations.
@@ -30,4 +35,6 @@ data class JcMachineOptions(
     val mockComplexMethods: Boolean = false,
     val projectLocations: List<JcByteCodeLocation>? = null,
     val dependenciesLocations: List<JcByteCodeLocation>? = null,
+
+    val springAnalysisMode: SpringAnalysisMode? = null,
 )

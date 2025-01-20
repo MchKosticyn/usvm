@@ -291,14 +291,13 @@ internal class Marshall(
         val obj = bindings.tryVirtToPhys(address) ?: return
         val type = bindings.typeOf(address)
         type as JcClassType
-        val allFields = type.allInstanceFields
-        val containsApproximationFields = allFields.any { it.field.toJavaField == null }
-        if (containsApproximationFields) {
+        if (type.isInstanceApproximation) {
             encode(address)
             return
         }
 
-        unmarshallFields(address, obj, allFields)
+        println("unmarshalling class for $address of ${type.name}")
+        unmarshallFields(address, obj, type.allInstanceFields)
         bindings.remove(address)
     }
 
@@ -364,6 +363,7 @@ internal class Marshall(
         val obj = bindings.tryVirtToPhys(address) ?: return
         val type = bindings.typeOf(address)
         type as JcArrayType
+        println("unmarshalling array for $address of ${type.typeName}")
         val desc = ctx.arrayDescriptorOf(type)
         val elemSort = ctx.typeToSort(type.elementType)
         unmarshallArray(address, obj, desc, elemSort)
