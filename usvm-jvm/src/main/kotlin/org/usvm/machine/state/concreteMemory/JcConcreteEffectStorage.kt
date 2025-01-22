@@ -1,7 +1,6 @@
 package org.usvm.machine.state.concreteMemory
 
 import org.jacodb.api.jvm.JcArrayType
-import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.api.util.JcConcreteMemoryClassLoader
@@ -25,8 +24,8 @@ private class JcConcreteSnapshot(
     private val ctx: JcContext,
     val threadLocalHelper: ThreadLocalHelper,
 ) {
-    private val objects: MutableMap<PhysicalAddress, PhysicalAddress> = mutableMapOf()
-    private val statics: MutableMap<Field, PhysicalAddress> = mutableMapOf()
+    private val objects: HashMap<PhysicalAddress, PhysicalAddress> = hashMapOf()
+    private val statics: HashMap<Field, PhysicalAddress> = hashMapOf()
     private var staticsCache = hashSetOf<Class<*>>()
 
     constructor(
@@ -163,7 +162,7 @@ private class JcConcreteSnapshot(
     }
 
     fun addStaticFields(type: Class<*>) {
-        if (type.isImmutable)
+        if (type.isImmutable || staticsCache.contains(type))
             return
 
         for (field in type.staticFields) {
@@ -188,7 +187,7 @@ private class JcConcreteSnapshot(
     }
 }
 
-private class JcConcreteSnapshotSeq(
+private class JcConcreteSnapshotSequence(
     snapshots: List<JcConcreteSnapshot>
 ) {
     private val objects: Map<PhysicalAddress, PhysicalAddress>
@@ -204,8 +203,8 @@ private class JcConcreteSnapshotSeq(
             threadLocalHelper = snapshot.threadLocalHelper
         } else {
             threadLocalHelper = snapshots[0].threadLocalHelper
-            val resultObjects = mutableMapOf<PhysicalAddress, PhysicalAddress>()
-            val resultStatics = mutableMapOf<Field, PhysicalAddress>()
+            val resultObjects = hashMapOf<PhysicalAddress, PhysicalAddress>()
+            val resultStatics = hashMapOf<Field, PhysicalAddress>()
             for (snapshot in snapshots) {
                 check(snapshot.threadLocalHelper === threadLocalHelper)
                 resultObjects.putAll(snapshot.getObjects())
@@ -303,47 +302,90 @@ private class JcConcreteSnapshotSeq(
 private class JcConcreteEffect(
     private val ctx: JcContext,
     private val threadLocalHelper: ThreadLocalHelper,
-    myState: JcConcreteMemoryState
-) {
     val before: JcConcreteSnapshot = JcConcreteSnapshot(ctx, threadLocalHelper)
+) {
     var after: JcConcreteSnapshot? = null
-    val forks: MutableList<JcConcreteMemoryState> = mutableListOf(myState)
 
-    private fun createAfter() {
-        if (after != null)
+    private enum class JcConcreteEffectState {
+        Created,
+        Active,
+        Dead
+    }
+
+    private var state = JcConcreteEffectState.Created
+
+    val isAlive: Boolean get() = state != JcConcreteEffectState.Dead
+
+    val isActive: Boolean get() = state == JcConcreteEffectState.Active
+
+    val afterIsEmpty: Boolean get() = after == null
+
+    fun kill() {
+        state = JcConcreteEffectState.Dead
+    }
+
+    fun createAfterIfNeeded() {
+        if (after != null || !isActive)
             return
 
         this.after = JcConcreteSnapshot(ctx, threadLocalHelper, before)
     }
 
-    fun resetToBefore(): Boolean {
-        val isDead = forks.all { it.isDead() }
-        if (!isDead)
-            createAfter()
-        before.resetObjects()
-        before.resetStatics()
-        return isDead
+    fun addObject(obj: Any?) {
+        check(obj !is PhysicalAddress)
+        check(isAlive)
+        check(afterIsEmpty)
+        state = JcConcreteEffectState.Active
+        before.addObjectToSnapshot(PhysicalAddress(obj))
     }
 
-    fun resetToAfter() {
-        check(after != null || before.isEmpty()) { "JcConcreteEffect.resetToAfter: unexpected 'after'" }
-        val after = after ?: return
-        after.resetObjects()
-        after.resetStatics()
+    fun addObjectRec(obj: Any?) {
+        check(obj !is PhysicalAddress)
+        check(isAlive)
+        check(afterIsEmpty)
+        state = JcConcreteEffectState.Active
+        before.addObjectToSnapshotRec(obj)
+    }
+
+    fun ensureStatics() {
+        check(isAlive)
+        check(afterIsEmpty)
+        state = JcConcreteEffectState.Active
+        before.ensureStatics()
+    }
+
+    fun addStaticFields(type: Class<*>) {
+        check(isAlive)
+        check(afterIsEmpty)
+        state = JcConcreteEffectState.Active
+        before.addStaticFields(type)
     }
 }
 
 private class JcConcreteEffectSequence private constructor(
-    private var seq: ArrayDeque<JcConcreteEffect>
+    var seq: ArrayDeque<JcConcreteEffect>
 ) {
     constructor() : this(ArrayDeque())
 
-    fun startNewEffect(
+    private fun startNewEffect(
         ctx: JcContext,
-        threadLocalHelper: ThreadLocalHelper,
-        myState: JcConcreteMemoryState
+        threadLocalHelper: ThreadLocalHelper
     ) {
-        seq.addLast(JcConcreteEffect(ctx, threadLocalHelper, myState))
+        if (seq.isEmpty()) {
+            seq.addLast(JcConcreteEffect(ctx, threadLocalHelper))
+            return
+        }
+
+        val last = seq.last()
+        val lastAfter = last.after
+        if (lastAfter != null) {
+            seq.addLast(JcConcreteEffect(ctx, threadLocalHelper, lastAfter))
+            return
+        }
+
+        val newEffect = JcConcreteEffect(ctx, threadLocalHelper)
+        last.after = newEffect.before
+        seq.addLast(newEffect)
     }
 
     fun head(): JcConcreteEffect? {
@@ -353,47 +395,56 @@ private class JcConcreteEffectSequence private constructor(
     private fun findCommonPartIndex(other: JcConcreteEffectSequence): Int {
         val otherSeq = other.seq
         var index = min(seq.size, otherSeq.size) - 1
-        while (index >= 0 && seq[index] != otherSeq[index])
+        while (index >= 0 && seq[index] !== otherSeq[index])
             index--
 
         return index
     }
 
     fun resetTo(other: JcConcreteEffectSequence) {
-        check(other != this)
+        check(other !== this)
 
         if (seq === other.seq)
             return
 
+        seq.lastOrNull()?.createAfterIfNeeded()
+
         val commonPartEnd = findCommonPartIndex(other) + 1
-        // TODO: optimize intersection (if object contains in older, do not apply others) #CM
-        //   may be done via accumulating big map of effects
-        for (i in seq.size - 1 downTo commonPartEnd) {
-            if (seq[i].resetToBefore())
-                seq.removeAt(i)
+        val snapshots = mutableListOf<JcConcreteSnapshot>()
+        for (i in seq.lastIndex downTo commonPartEnd) {
+            val effect = seq[i]
+            if (effect.isActive) {
+                snapshots.add(effect.before)
+            }
         }
 
         val otherSeq = other.seq
-        // TODO: optimize intersection (if object contains in newer, do not apply others) #CM
-        //   may be done via accumulating big map of effects
         for (i in commonPartEnd until otherSeq.size) {
-            otherSeq[i].resetToAfter()
+            val effect = otherSeq[i]
+            if (effect.isActive) {
+                snapshots.add(effect.after!!)
+            }
+        }
+
+        if (snapshots.isNotEmpty()) {
+            val snapshotSeq = JcConcreteSnapshotSequence(snapshots)
+            snapshotSeq.resetObjects()
+            snapshotSeq.resetStatics()
         }
 
         seq = other.seq
     }
 
-    fun copy(newState: JcConcreteMemoryState): JcConcreteEffectSequence {
-        for (effect in seq) {
-            effect.forks.add(newState)
-        }
-
-        return JcConcreteEffectSequence(ArrayDeque(seq))
+    fun copy(ctx: JcContext, threadLocalHelper: ThreadLocalHelper): JcConcreteEffectSequence {
+        val copied = JcConcreteEffectSequence(ArrayDeque(seq))
+        startNewEffect(ctx, threadLocalHelper)
+        copied.startNewEffect(ctx, threadLocalHelper)
+        return copied
     }
 }
 
 // TODO: do not store effects of new addresses! #CM
-//  Optimize: check if address is allocated during current effect
+//  Optimize: check if address is allocated during current effect: maybe instrumentation of Object<init>?
 internal class JcConcreteEffectStorage private constructor(
     private val ctx: JcContext,
     private val threadLocalHelper: ThreadLocalHelper,
@@ -405,28 +456,27 @@ internal class JcConcreteEffectStorage private constructor(
         threadLocalHelper: ThreadLocalHelper,
     ) : this(ctx, threadLocalHelper, JcConcreteEffectSequence(), JcConcreteEffectSequence())
 
-    fun startNewEffect(myState: JcConcreteMemoryState) {
-        own.startNewEffect(ctx, threadLocalHelper, myState)
-    }
+    private val isCurrent: Boolean
+        get() = own.seq === current.seq
 
     fun addObjectToEffect(obj: Any) {
-        check(own.head()?.after == null)
-        own.head()?.before?.addObjectToSnapshot(PhysicalAddress(obj))
+        check(isCurrent)
+        own.head()!!.addObject(obj)
     }
 
     fun addObjectToEffectRec(obj: Any?) {
-        check(own.head()?.after == null)
-        own.head()?.before?.addObjectToSnapshotRec(obj)
+        check(isCurrent)
+        own.head()!!.addObjectRec(obj)
     }
 
     fun ensureStatics() {
-        check(own.head()?.after == null)
-        own.head()?.before?.ensureStatics()
+        check(isCurrent)
+        own.head()!!.ensureStatics()
     }
 
     fun addStatics(type: Class<*>) {
-        check(own.head()?.after == null)
-        own.head()?.before?.addStaticFields(type)
+        check(isCurrent)
+        own.head()?.addStaticFields(type)
     }
 
     fun reset() {
@@ -434,7 +484,15 @@ internal class JcConcreteEffectStorage private constructor(
         current.resetTo(own)
     }
 
-    fun copy(newState: JcConcreteMemoryState): JcConcreteEffectStorage {
-        return JcConcreteEffectStorage(ctx, threadLocalHelper, own.copy(newState), current)
+    fun kill() {
+        check(isCurrent)
+        own.head()?.kill()
+    }
+
+    fun copy(): JcConcreteEffectStorage {
+        check(isCurrent)
+        val copied = JcConcreteEffectStorage(ctx, threadLocalHelper, own.copy(ctx, threadLocalHelper), current)
+        check(isCurrent && !copied.isCurrent)
+        return copied
     }
 }

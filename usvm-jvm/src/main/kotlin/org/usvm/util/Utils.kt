@@ -4,8 +4,10 @@ import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.findType
+import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.types.JcClassTypeImpl
+import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.USort
@@ -54,3 +56,6 @@ val JcClassType.name: String
 
 val JcClassType.outerClassInstanceField: JcTypedField?
     get() = fields.singleOrNull { it.name == "this\$0" }
+
+val String.typeName: TypeName
+    get() = TypeNameImpl(this.jvmName())

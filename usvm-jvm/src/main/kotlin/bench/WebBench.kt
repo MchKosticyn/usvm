@@ -12,14 +12,12 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
-import org.jacodb.api.jvm.cfg.JcRawCallExpr
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
 import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcRamErsSettings
@@ -49,7 +47,9 @@ import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.SpringAnalysisMode
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
+import org.usvm.machine.state.concreteMemory.javaName
 import org.usvm.util.classpathWithApproximations
+import org.usvm.util.typeName
 import java.io.File
 import java.io.PrintStream
 import java.nio.file.Path
@@ -141,8 +141,6 @@ internal object JcLambdaFeature: JcClasspathExtFeature {
     }
 }
 
-fun String.typeName() = TypeNameImpl(this.jvmName())
-
 internal object JcClinitFeature: JcInstExtFeature {
 
     private fun shouldNotTransform(method: JcMethod, list: JcInstList<JcRawInst>): Boolean {
@@ -156,10 +154,10 @@ internal object JcClinitFeature: JcInstExtFeature {
 
         val mutableList = list.toMutableList()
         val callExpr = JcRawStaticCallExpr(
-            declaringClass = ClinitHelper::class.java.name.typeName(),
-            methodName = "afterClinit", // apiMethod.javaMethod?.name
-            argumentTypes = listOf("java.lang.String".typeName()),
-            returnType = PredefinedPrimitives.Void.typeName(),
+            declaringClass = ClinitHelper::class.java.name.typeName,
+            methodName = ClinitHelper::afterClinit.javaName,
+            argumentTypes = listOf("java.lang.String".typeName),
+            returnType = PredefinedPrimitives.Void.typeName,
             args = listOf(JcRawString(method.enclosingClass.name))
         )
 
@@ -309,7 +307,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.SPRING_APPLICATION,
         exceptionsPropagation = false,
-        timeout = 20.minutes,
+        timeout = 10.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
