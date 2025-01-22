@@ -301,7 +301,7 @@ private fun analyzeBench(benchmark: BenchCp) {
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
     // using file instead of console
-    val fileStream = PrintStream("/Users/michael/Documents/Work/usvm/springLog.ansi")
+    val fileStream = PrintStream("springLog.ansi")
     System.setOut(fileStream)
     val options = UMachineOptions(
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
