@@ -48,6 +48,7 @@ import org.usvm.collections.immutable.implementations.immutableMap.UPersistentHa
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.collections.immutable.persistentHashMapOf
 import org.usvm.constraints.UTypeConstraints
+import org.usvm.instrumentation.util.toJavaClass
 import org.usvm.machine.JcConcreteInvocationResult
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
@@ -371,7 +372,7 @@ class JcConcreteMemory private constructor(
             val obj = bindings.virtToPhys(address)
             saveResolvedRef(ref.address, obj)
             // TODO: optimize #CM
-            if (bindings.state.isMutableWithEffect())
+            if (bindings.isMutableWithEffect())
                 bindings.effectStorage.addObjectToEffectRec(obj)
             val elementType = type.elementType
             val elementSort = ctx.typeToSort(type.elementType)
@@ -408,7 +409,7 @@ class JcConcreteMemory private constructor(
             val obj = bindings.virtToPhys(address)
             saveResolvedRef(ref.address, obj)
             // TODO: optimize #CM
-            if (bindings.state.isMutableWithEffect())
+            if (bindings.isMutableWithEffect())
                 bindings.effectStorage.addObjectToEffectRec(obj)
             for (kind in bindings.symbolicMembers(address)) {
                 check(kind is FieldChildKind)
@@ -490,7 +491,7 @@ class JcConcreteMemory private constructor(
 
         val concretizer = JcConcretizer(state)
 
-        if (bindings.state.isMutableWithEffect())
+        if (bindings.isMutableWithEffect())
             bindings.effectStorage.ensureStatics()
 
         if (!concretization) {
@@ -531,8 +532,12 @@ class JcConcreteMemory private constructor(
     private fun ensureClinit(type: JcClassOrInterface) {
         executor.execute {
             try {
-                // Loading type and executing its class initializer
-                JcConcreteMemoryClassLoader.loadClass(type)
+                val staticFields = type.toJavaClass(JcConcreteMemoryClassLoader).staticFields
+                if (staticFields.isEmpty())
+                    return@execute
+
+                // Forcing class initializer to execute
+                staticFields[0].getStaticFieldValue()
             } catch (e: Throwable) {
                 error("clinit should not throw exceptions")
             }
@@ -555,7 +560,7 @@ class JcConcreteMemory private constructor(
         thisObj: Any?,
         objParameters: List<Any?>
     ) {
-        if (bindings.state.isMutableWithEffect()) {
+        if (bindings.isMutableWithEffect()) {
             // TODO: if method is not mutating (guess via IFDS), backtrack is useless #CM
             bindings.effectStorage.addObjectToEffectRec(thisObj)
             for (arg in objParameters)
@@ -690,7 +695,7 @@ class JcConcreteMemory private constructor(
         }
 
         check(objParameters.size == parameters.size)
-        if (bindings.state.isMutableWithEffect()) {
+        if (bindings.isMutableWithEffect()) {
             bindings.effectStorage.ensureStatics()
             println(ansiGreen + "Invoking (B) $signature" + ansiReset)
         } else {
@@ -721,7 +726,7 @@ class JcConcreteMemory private constructor(
     }
 
     fun kill() {
-        bindings.state.makeDead()
+        bindings.kill()
     }
 
     fun reset() {

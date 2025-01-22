@@ -13,6 +13,8 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.RegisteredLocation
+import org.jacodb.api.jvm.cfg.JcRawCallInst
+import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.superClasses
@@ -24,11 +26,13 @@ import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.JcUnknownType
+import org.usvm.api.internal.ClinitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.getFieldValue
 import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.util.Reflection.toJavaExecutable
 import org.usvm.instrumentation.util.isStatic
+import org.usvm.instrumentation.util.toJavaClass
 import org.usvm.instrumentation.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.machine.JcContext
 import org.usvm.util.name
@@ -37,6 +41,8 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 import java.nio.ByteBuffer
+import kotlin.reflect.jvm.javaField
+import kotlin.reflect.jvm.javaMethod
 
 @Suppress("RecursivePropertyAccessor")
 internal val JcClassType.allFields: List<JcTypedField>
@@ -109,6 +115,12 @@ internal fun Field.setFieldValue(obj: Any, value: Any?) {
     set(obj, value)
 }
 
+internal val kotlin.reflect.KProperty<*>.javaName: String
+    get() = this.javaField?.name ?: error("No java name for field $this")
+
+internal val kotlin.reflect.KFunction<*>.javaName: String
+    get() = this.javaMethod?.name ?: error("No java name for method $this")
+
 @Suppress("UNCHECKED_CAST")
 internal fun <Value> Any.getArrayValue(index: Int): Value {
     return when (this) {
@@ -143,7 +155,7 @@ internal fun <Value> Any.setArrayValue(index: Int, value: Value) {
 }
 
 internal val JcField.toJavaField: Field?
-    get() = enclosingClass.toType().toJavaClass(JcConcreteMemoryClassLoader).allFields.find { it.name == name }
+    get() = enclosingClass.toJavaClass(JcConcreteMemoryClassLoader).allFields.find { it.name == name }
 
 internal val JcMethod.toJavaMethod: Executable?
     get() = this.toJavaExecutable(JcConcreteMemoryClassLoader)
@@ -226,6 +238,12 @@ internal val JcClassOrInterface.isException: Boolean
 
 internal val JcMethod.isExceptionCtor: Boolean
     get() = isConstructor && enclosingClass.isException
+
+internal val JcMethod.isInstrumentedClinit: Boolean
+    get() = isClassInitializer && rawInstList.any {
+        it is JcRawCallInst && it.callExpr is JcRawStaticCallExpr
+                && it.callExpr.methodName == ClinitHelper::afterClinit.javaName
+    }
 
 internal val Class<*>.notTracked: Boolean
     get() =
@@ -339,7 +357,7 @@ internal fun JcClassOrInterface.isSpringHandlerInterceptor(ctx: JcContext): Bool
 }
 
 internal val JcClassOrInterface.isSpringController: Boolean
-    get() = annotations.any { // it.name == "org.springframework.stereotype.Controller"
+    get() = annotations.any { // it.name == "org.springframework.stereotype.Controller" // TODO: uncomment #CM
             it.name == "org.springframework.web.bind.annotation.RestController" }
 
 internal fun JcContext.classesOfLocations(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> {
