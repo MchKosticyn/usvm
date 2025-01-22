@@ -37,17 +37,27 @@ private data class Cell(
 
 //endregion
 
-private typealias childMapType = MutableMap<ChildKind, Cell>
-private typealias childrenType = MutableMap<PhysicalAddress, childMapType>
-private typealias parentMapType = MutableMap<PhysicalAddress, ChildKind>
-private typealias parentsType = MutableMap<PhysicalAddress, parentMapType>
+//region State
+
+private enum class State {
+    Mutable,
+    MutableWithEffect,
+    Dead
+}
+
+//endregion
+
+private typealias childMapType = HashMap<ChildKind, Cell>
+private typealias childrenType = HashMap<PhysicalAddress, childMapType>
+private typealias parentMapType = HashMap<PhysicalAddress, ChildKind>
+private typealias parentsType = HashMap<PhysicalAddress, parentMapType>
 
 internal class JcConcreteMemoryBindings private constructor(
     private val ctx: JcContext,
     private val typeConstraints: UTypeConstraints<JcType>,
-    private val physToVirt: MutableMap<PhysicalAddress, UConcreteHeapAddress>,
-    private val virtToPhys: MutableMap<UConcreteHeapAddress, PhysicalAddress>,
-    val state: JcConcreteMemoryState,
+    private val physToVirt: HashMap<PhysicalAddress, UConcreteHeapAddress>,
+    private val virtToPhys: HashMap<UConcreteHeapAddress, PhysicalAddress>,
+    private var state: State,
     private val children: childrenType,
     private val parents: parentsType,
     private val fullyConcretes: MutableSet<PhysicalAddress>,
@@ -61,11 +71,11 @@ internal class JcConcreteMemoryBindings private constructor(
     ) : this(
         ctx,
         typeConstraints,
-        mutableMapOf(),
-        mutableMapOf(),
-        JcConcreteMemoryState(),
-        mutableMapOf(),
-        mutableMapOf(),
+        hashMapOf(),
+        hashMapOf(),
+        State.Mutable,
+        hashMapOf(),
+        hashMapOf(),
         mutableSetOf(),
         JcConcreteEffectStorage(ctx, threadLocalHelper),
         threadLocalHelper,
@@ -105,12 +115,21 @@ internal class JcConcreteMemoryBindings private constructor(
         return physToVirt[PhysicalAddress(obj)]
     }
 
-    //region State Changing
+    //region State Interaction
 
     private fun makeMutableWithEffect() {
-        check(state.isAlive())
-        state.makeMutableWithEffect()
-        effectStorage.startNewEffect(state)
+        check(state != State.Dead)
+        state = State.MutableWithEffect
+    }
+
+    fun kill() {
+        check(state != State.Dead)
+        state = State.Dead
+        effectStorage.kill()
+    }
+
+    fun isMutableWithEffect(): Boolean {
+        return state == State.MutableWithEffect
     }
 
     //endregion
@@ -140,7 +159,7 @@ internal class JcConcreteMemoryBindings private constructor(
     private fun addToParents(parent: PhysicalAddress, child: PhysicalAddress, childKind: ChildKind) {
         check(parent.obj != null)
         check(child.obj != null)
-        val parentMap = parents.getOrPut(child) { mutableMapOf() }
+        val parentMap = parents.getOrPut(child) { hashMapOf() }
         parentMap[parent] = childKind
     }
 
@@ -160,7 +179,7 @@ internal class JcConcreteMemoryBindings private constructor(
                         childMap[childKind] = Cell(child)
                     }
                 } else {
-                    val newChildMap = mutableMapOf<ChildKind, Cell>()
+                    val newChildMap = hashMapOf<ChildKind, Cell>()
                     newChildMap[childKind] = Cell(child)
                     children[parent] = newChildMap
                 }
@@ -548,7 +567,7 @@ internal class JcConcreteMemoryBindings private constructor(
 
     fun writeClassField(address: UConcreteHeapAddress, field: Field, value: Any?) {
         val obj = virtToPhys(address)
-        if (state.isMutableWithEffect())
+        if (state == State.MutableWithEffect)
             // TODO: add to backtrack only one field #CM
             effectStorage.addObjectToEffect(obj)
 
@@ -560,7 +579,7 @@ internal class JcConcreteMemoryBindings private constructor(
 
     fun <Value> writeArrayIndex(address: UConcreteHeapAddress, index: Int, value: Value) {
         val obj = virtToPhys(address)
-        if (state.isMutableWithEffect())
+        if (state == State.MutableWithEffect)
             effectStorage.addObjectToEffect(obj)
 
         obj.setArrayValue(index, value)
@@ -575,7 +594,7 @@ internal class JcConcreteMemoryBindings private constructor(
     @Suppress("UNCHECKED_CAST")
     fun <Value> initializeArray(address: UConcreteHeapAddress, contents: List<Pair<Int, Value>>) {
         val obj = virtToPhys(address)
-        if (state.isMutableWithEffect())
+        if (state == State.MutableWithEffect)
             effectStorage.addObjectToEffect(obj)
 
         val arrayType = obj.javaClass
@@ -664,10 +683,10 @@ internal class JcConcreteMemoryBindings private constructor(
     @Suppress("UNCHECKED_CAST")
     fun writeMapValue(address: UConcreteHeapAddress, key: Any?, value: Any?) {
         val obj = virtToPhys(address)
-        if (state.isMutableWithEffect())
+        if (state == State.MutableWithEffect)
             effectStorage.addObjectToEffect(obj)
 
-        obj as MutableMap<Any?, Any?>
+        obj as HashMap<Any?, Any?>
         obj[key] = value
     }
 
@@ -681,7 +700,7 @@ internal class JcConcreteMemoryBindings private constructor(
     @Suppress("UNCHECKED_CAST")
     fun changeSetContainsElement(address: UConcreteHeapAddress, element: Any?, contains: Boolean) {
         val obj = virtToPhys(address)
-        if (state.isMutableWithEffect())
+        if (state == State.MutableWithEffect)
             effectStorage.addObjectToEffect(obj)
 
         obj as MutableSet<Any?>
@@ -705,7 +724,7 @@ internal class JcConcreteMemoryBindings private constructor(
     ) {
         val srcArray = virtToPhys(srcAddress)
         val dstArray = virtToPhys(dstAddress)
-        if (state.isMutableWithEffect())
+        if (state == State.MutableWithEffect)
             effectStorage.addObjectToEffect(dstArray)
 
         val toSrcIdx = toDstIdx - fromDstIdx + fromSrcIdx
@@ -768,9 +787,9 @@ internal class JcConcreteMemoryBindings private constructor(
 
     @Suppress("UNCHECKED_CAST")
     fun mapMerge(srcAddress: UConcreteHeapAddress, dstAddress: UConcreteHeapAddress) {
-        val srcMap = virtToPhys(srcAddress) as MutableMap<Any, Any>
-        val dstMap = virtToPhys(dstAddress) as MutableMap<Any, Any>
-        if (state.isMutableWithEffect())
+        val srcMap = virtToPhys(srcAddress) as HashMap<Any, Any>
+        val dstMap = virtToPhys(dstAddress) as HashMap<Any, Any>
+        if (state == State.MutableWithEffect)
             effectStorage.addObjectToEffect(dstMap)
 
         dstMap.putAll(srcMap)
@@ -784,7 +803,7 @@ internal class JcConcreteMemoryBindings private constructor(
     fun setUnion(srcAddress: UConcreteHeapAddress, dstAddress: UConcreteHeapAddress) {
         val srcSet = virtToPhys(srcAddress) as MutableSet<Any>
         val dstSet = virtToPhys(dstAddress) as MutableSet<Any>
-        if (state.isMutableWithEffect())
+        if (state == State.MutableWithEffect)
             effectStorage.addObjectToEffect(dstSet)
 
         dstSet.addAll(srcSet)
@@ -805,9 +824,9 @@ internal class JcConcreteMemoryBindings private constructor(
     //region Copy
 
     private fun copyChildren(): childrenType {
-        val newChildren = mutableMapOf<PhysicalAddress, childMapType>()
+        val newChildren = hashMapOf<PhysicalAddress, childMapType>()
         for ((parent, childMap) in children) {
-            val newChildMap = childMap.toMutableMap()
+            val newChildMap = HashMap(childMap)
             newChildren[parent] = newChildMap
         }
 
@@ -815,9 +834,9 @@ internal class JcConcreteMemoryBindings private constructor(
     }
 
     private fun copyParents(): parentsType {
-        val newParents = mutableMapOf<PhysicalAddress, parentMapType>()
+        val newParents = hashMapOf<PhysicalAddress, parentMapType>()
         for ((child, parentMap) in parents) {
-            val newParentMap = parentMap.toMutableMap()
+            val newParentMap = HashMap(parentMap)
             newParents[child] = newParentMap
         }
 
@@ -825,17 +844,16 @@ internal class JcConcreteMemoryBindings private constructor(
     }
 
     fun copy(typeConstraints: UTypeConstraints<JcType>): JcConcreteMemoryBindings {
-        val newState = state.copy()
         val newBindings = JcConcreteMemoryBindings(
             ctx,
             typeConstraints,
-            physToVirt.toMutableMap(),
-            virtToPhys.toMutableMap(),
-            newState,
+            HashMap(physToVirt),
+            HashMap(virtToPhys),
+            state,
             copyChildren(),
             copyParents(),
             fullyConcretes.toMutableSet(),
-            effectStorage.copy(newState),
+            effectStorage.copy(),
             threadLocalHelper,
         )
         newBindings.makeMutableWithEffect()

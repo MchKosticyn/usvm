@@ -114,6 +114,7 @@ import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.classesOfLocations
 import org.usvm.machine.state.concreteMemory.isSpringController
+import org.usvm.machine.state.concreteMemory.javaName
 import org.usvm.machine.state.newStmt
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
@@ -1672,8 +1673,7 @@ class JcMethodApproximationResolver(
         apiMethod: KFunction<*>,
         body: (JcMethodCall) -> UExpr<*>?,
     ) {
-        val methodName = apiMethod.javaMethod?.name
-            ?: error("No name for $apiMethod")
+        val methodName = apiMethod.javaName
         this[methodName] = body
     }
 
