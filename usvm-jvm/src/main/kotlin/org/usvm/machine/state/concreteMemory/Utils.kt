@@ -357,8 +357,10 @@ internal fun JcClassOrInterface.isSpringHandlerInterceptor(ctx: JcContext): Bool
 }
 
 internal val JcClassOrInterface.isSpringController: Boolean
-    get() = annotations.any { // it.name == "org.springframework.stereotype.Controller" // TODO: uncomment #CM
-            it.name == "org.springframework.web.bind.annotation.RestController" }
+    get() = annotations.any {
+        it.name == "org.springframework.stereotype.Controller"
+                || it.name == "org.springframework.web.bind.annotation.RestController"
+    }
 
 internal fun JcContext.classesOfLocations(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> {
     return locations
