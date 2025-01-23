@@ -3,15 +3,13 @@
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
-import kotlin.io.path.createDirectory
-import kotlin.io.path.deleteExisting
-import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 
 
 plugins {
     id("usvm.kotlin-conventions")
     id("org.springframework.boot") version "3.2.0"
+    kotlin("plugin.serialization") version "1.9.20"
 }
 
 val samples by sourceSets.creating {
@@ -38,11 +36,19 @@ val `usvm-api` by sourceSets.creating {
     }
 }
 
+val bench by sourceSets.creating {
+    java {
+        srcDir("src/bench/java")
+    }
+}
+
+
 val approximations by configurations.creating
 val approximationsRepo = "org.usvm.approximations.java.stdlib"
 val approximationsVersion = "0.0.0"
 
 repositories {
+    maven("https://jitpack.io")
     mavenLocal()
     mavenCentral()
 }
@@ -144,6 +150,29 @@ dependencies {
     testSamplesWithApproximations(approximationsRepo, "tests", approximationsVersion)
 }
 
+val benchImplementation: Configuration by configurations.getting
+val benchApi: Configuration by configurations.getting
+val benchRuntimeOnly by configurations.getting
+
+dependencies {
+    benchImplementation(project(":usvm-jvm"))
+    benchImplementation(project(":usvm-util"))
+    benchImplementation(project(":usvm-core"))
+
+    benchImplementation(Libs.jacodb_core)
+    benchImplementation(Libs.jacodb_api_jvm)
+    benchImplementation(Libs.jacodb_approximations)
+
+    benchImplementation("com.github.ajalt.clikt:clikt:4.2.2")
+    benchImplementation("ch.qos.logback:logback-classic:${Versions.logback}")
+    benchApi("io.github.microutils:kotlin-logging:${Versions.kotlin_logging}")
+    benchImplementation("org.mongodb:mongodb-driver-kotlin-coroutine:5.2.1")
+    benchRuntimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0")
+
+    benchImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    benchImplementation("org.zeroturnaround:zt-exec:1.12")
+}
+
 tasks.withType<Test> {
     dependsOn(`usvm-api-jar`)
     dependsOn(compileSamplesJdk11, testSamples, testSamplesWithApproximations)
@@ -221,130 +250,139 @@ dependencies {
     implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
 }
 
-tasks.register<JavaExec>("runWebBench") {
-    mainClass.set("bench.WebBenchKt")
-    classpath = sourceSets.test.get().runtimeClasspath
+fun registerConcreteMemoryExecTask(name: String, mainClassName: String, taskClasspath: FileCollection) {
+    tasks.register<JavaExec>(name) {
+        mainClass.set(mainClassName)
+        classpath = taskClasspath
 
-    dependsOn(`usvm-api-jar`)
+        dependsOn(`usvm-api-jar`)
 
-    val usvmApiJarPath = `usvm-api-jar`.get().outputs.files.singleFile
-    val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
-    val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
-    val absolutePaths = springApproximationDepsJarPath.joinToString(";") { it.absolutePath }
+        val usvmApiJarPath = `usvm-api-jar`.get().outputs.files.singleFile
+        val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
+        val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
+        val absolutePaths = springApproximationDepsJarPath.joinToString(";") { it.absolutePath }
 
-    // TODO: norm? #CM #Valya
-    systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)
-    val currentDir = Path(System.getProperty("user.dir"))
-    val generatedDir = currentDir.resolve("generated")
-    generatedDir.createDirectories()
-    systemProperty("generatedDir", generatedDir.absolutePathString())
-    val lambdaDir = generatedDir.resolve("lambdas")
-    if (lambdaDir.exists()) {
-        lambdaDir.toFile().listFiles()?.forEach { it.deleteRecursively() }
-    } else {
-        lambdaDir.createDirectories()
+        // TODO: norm? #CM #Valya
+        systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)
+        val currentDir = Path(System.getProperty("user.dir"))
+        val generatedDir = currentDir.resolve("generated")
+        generatedDir.createDirectories()
+        systemProperty("generatedDir", generatedDir.absolutePathString())
+        val lambdaDir = generatedDir.resolve("lambdas")
+        if (lambdaDir.exists()) {
+            lambdaDir.toFile().listFiles()?.forEach { it.deleteRecursively() }
+        } else {
+            lambdaDir.createDirectories()
+        }
+        systemProperty("lambdasDir", lambdaDir.absolutePathString())
+
+        environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
+        environment("usvm.jvm.approximations.jar.path", usvmApproximationJarPath.absolutePath)
+
+        jvmArgs = listOf("-Xmx10g") + mutableListOf<String>().apply {
+            add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
+            add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePathString()}")
+            openPackage("java.base", "jdk.internal.misc")
+            openPackage("java.base", "java.lang")
+            openPackage("java.base", "java.lang.reflect")
+            openPackage("java.base", "sun.security.provider")
+            openPackage("java.base", "jdk.internal.event")
+            openPackage("java.base", "jdk.internal.jimage")
+            openPackage("java.base", "jdk.internal.jimage.decompressor")
+            openPackage("java.base", "jdk.internal.jmod")
+            openPackage("java.base", "jdk.internal.jtrfs")
+            openPackage("java.base", "jdk.internal.loader")
+            openPackage("java.base", "jdk.internal.logger")
+            openPackage("java.base", "jdk.internal.math")
+            openPackage("java.base", "jdk.internal.misc")
+            openPackage("java.base", "jdk.internal.module")
+            openPackage("java.base", "jdk.internal.org.objectweb.asm.commons")
+            openPackage("java.base", "jdk.internal.org.objectweb.asm.signature")
+            openPackage("java.base", "jdk.internal.org.objectweb.asm.tree")
+            openPackage("java.base", "jdk.internal.org.objectweb.asm.tree.analysis")
+            openPackage("java.base", "jdk.internal.org.objectweb.asm.util")
+            openPackage("java.base", "jdk.internal.org.xml.sax")
+            openPackage("java.base", "jdk.internal.org.xml.sax.helpers")
+            openPackage("java.base", "jdk.internal.perf")
+            openPackage("java.base", "jdk.internal.platform")
+            openPackage("java.base", "jdk.internal.ref")
+            openPackage("java.base", "jdk.internal.reflect")
+            openPackage("java.base", "jdk.internal.util")
+            openPackage("java.base", "jdk.internal.util.jar")
+            openPackage("java.base", "jdk.internal.util.xml")
+            openPackage("java.base", "jdk.internal.util.xml.impl")
+            openPackage("java.base", "jdk.internal.vm")
+            openPackage("java.base", "jdk.internal.vm.annotation")
+            openPackage("java.base", "java.util.concurrent.atomic")
+            openPackage("java.base", "java.io")
+            openPackage("java.base", "java.util.zip")
+            openPackage("java.base", "java.util.concurrent")
+            openPackage("java.base", "sun.security.util")
+            openPackage("java.base", "java.lang.invoke")
+            openPackage("java.base", "java.lang.ref")
+            openPackage("java.base", "java.lang.constant")
+            openPackage("java.base", "java.util")
+            openPackage("java.base", "java.util.concurrent.locks")
+            openPackage("java.management", "javax.management")
+            openPackage("java.base", "java.nio.charset")
+            openPackage("java.base", "java.util.regex")
+            openPackage("java.base", "java.net")
+            openPackage("java.base", "sun.util.locale")
+            openPackage("java.base", "java.util.stream")
+            openPackage("java.base", "java.security")
+            openPackage("java.base", "java.time")
+            openPackage("java.base", "jdk.internal.access")
+            openPackage("java.base", "sun.reflect.annotation")
+            openPackage("java.base", "sun.reflect.generics.reflectiveObjects")
+            openPackage("java.base", "sun.reflect.generics.factory")
+            openPackage("java.base", "sun.reflect.generics.tree")
+            openPackage("java.base", "sun.reflect.generics.scope")
+            openPackage("java.base", "sun.invoke.util")
+            openPackage("java.base", "sun.nio.cs")
+            openPackage("java.base", "sun.nio.fs")
+            openPackage("java.base", "java.nio")
+            openPackage("java.logging", "java.util.logging")
+            openPackage("java.base", "java.time.format")
+            openPackage("java.base", "java.time.zone")
+            openPackage("java.base", "java.time.temporal")
+            openPackage("java.base", "java.text")
+            openPackage("java.base", "sun.util.calendar")
+            openPackage("java.base", "sun.net.www.protocol.jar")
+            openPackage("java.base", "java.util.jar")
+            openPackage("java.base", "java.nio.file.attribute")
+            openPackage("java.base", "java.util.function")
+            openPackage("java.desktop", "java.beans")
+            openPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs")
+            openPackage("java.base", "java.math")
+            openPackage("java.base", "java.nio.file")
+            openPackage("java.base", "java.nio.channels")
+            openPackage("java.base", "javax.net.ssl")
+            openPackage("java.base", "java.lang.annotation")
+            openPackage("java.base", "java.lang.runtime")
+            openPackage("java.base", "javax.crypto")
+            openPackage("jdk.zipfs", "jdk.nio.zipfs")
+            openPackage("java.base", "java.nio.file.spi")
+            openPackage("java.base", "jdk.internal.jrtfs")
+            openPackage("java.instrument", "sun.instrument")
+            openPackage("java.xml", "com.sun.xml.internal.stream")
+            openPackage("java.xml", "com.sun.org.apache.xerces.internal.impl")
+            openPackage("java.xml", "com.sun.org.apache.xerces.internal.utils")
+            exportPackage("java.base", "sun.util.locale")
+            exportPackage("java.base", "jdk.internal.misc")
+            exportPackage("java.base", "jdk.internal.reflect")
+            exportPackage("java.base", "sun.nio.cs")
+            exportPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs.util")
+            add("--illegal-access=warn")
+            add("-XX:+UseParallelGC")
+        }
     }
-    systemProperty("lambdasDir", lambdaDir.absolutePathString())
+}
 
-    environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
-    environment("usvm.jvm.approximations.jar.path", usvmApproximationJarPath.absolutePath)
-
-    jvmArgs = listOf("-Xmx10g") + mutableListOf<String>().apply {
-        add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
-        add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePathString()}")
-        openPackage("java.base", "jdk.internal.misc")
-        openPackage("java.base", "java.lang")
-        openPackage("java.base", "java.lang.reflect")
-        openPackage("java.base", "sun.security.provider")
-        openPackage("java.base", "jdk.internal.event")
-        openPackage("java.base", "jdk.internal.jimage")
-        openPackage("java.base", "jdk.internal.jimage.decompressor")
-        openPackage("java.base", "jdk.internal.jmod")
-        openPackage("java.base", "jdk.internal.jtrfs")
-        openPackage("java.base", "jdk.internal.loader")
-        openPackage("java.base", "jdk.internal.logger")
-        openPackage("java.base", "jdk.internal.math")
-        openPackage("java.base", "jdk.internal.misc")
-        openPackage("java.base", "jdk.internal.module")
-        openPackage("java.base", "jdk.internal.org.objectweb.asm.commons")
-        openPackage("java.base", "jdk.internal.org.objectweb.asm.signature")
-        openPackage("java.base", "jdk.internal.org.objectweb.asm.tree")
-        openPackage("java.base", "jdk.internal.org.objectweb.asm.tree.analysis")
-        openPackage("java.base", "jdk.internal.org.objectweb.asm.util")
-        openPackage("java.base", "jdk.internal.org.xml.sax")
-        openPackage("java.base", "jdk.internal.org.xml.sax.helpers")
-        openPackage("java.base", "jdk.internal.perf")
-        openPackage("java.base", "jdk.internal.platform")
-        openPackage("java.base", "jdk.internal.ref")
-        openPackage("java.base", "jdk.internal.reflect")
-        openPackage("java.base", "jdk.internal.util")
-        openPackage("java.base", "jdk.internal.util.jar")
-        openPackage("java.base", "jdk.internal.util.xml")
-        openPackage("java.base", "jdk.internal.util.xml.impl")
-        openPackage("java.base", "jdk.internal.vm")
-        openPackage("java.base", "jdk.internal.vm.annotation")
-        openPackage("java.base", "java.util.concurrent.atomic")
-        openPackage("java.base", "java.io")
-        openPackage("java.base", "java.util.zip")
-        openPackage("java.base", "java.util.concurrent")
-        openPackage("java.base", "sun.security.util")
-        openPackage("java.base", "java.lang.invoke")
-        openPackage("java.base", "java.lang.ref")
-        openPackage("java.base", "java.lang.constant")
-        openPackage("java.base", "java.util")
-        openPackage("java.base", "java.util.concurrent.locks")
-        openPackage("java.management", "javax.management")
-        openPackage("java.base", "java.nio.charset")
-        openPackage("java.base", "java.util.regex")
-        openPackage("java.base", "java.net")
-        openPackage("java.base", "sun.util.locale")
-        openPackage("java.base", "java.util.stream")
-        openPackage("java.base", "java.security")
-        openPackage("java.base", "java.time")
-        openPackage("java.base", "jdk.internal.access")
-        openPackage("java.base", "sun.reflect.annotation")
-        openPackage("java.base", "sun.reflect.generics.reflectiveObjects")
-        openPackage("java.base", "sun.reflect.generics.factory")
-        openPackage("java.base", "sun.reflect.generics.tree")
-        openPackage("java.base", "sun.reflect.generics.scope")
-        openPackage("java.base", "sun.invoke.util")
-        openPackage("java.base", "sun.nio.cs")
-        openPackage("java.base", "sun.nio.fs")
-        openPackage("java.base", "java.nio")
-        openPackage("java.logging", "java.util.logging")
-        openPackage("java.base", "java.time.format")
-        openPackage("java.base", "java.time.zone")
-        openPackage("java.base", "java.time.temporal")
-        openPackage("java.base", "java.text")
-        openPackage("java.base", "sun.util.calendar")
-        openPackage("java.base", "sun.net.www.protocol.jar")
-        openPackage("java.base", "java.util.jar")
-        openPackage("java.base", "java.nio.file.attribute")
-        openPackage("java.base", "java.util.function")
-        openPackage("java.desktop", "java.beans")
-        openPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs")
-        openPackage("java.base", "java.math")
-        openPackage("java.base", "java.nio.file")
-        openPackage("java.base", "java.nio.channels")
-        openPackage("java.base", "javax.net.ssl")
-        openPackage("java.base", "java.lang.annotation")
-        openPackage("java.base", "java.lang.runtime")
-        openPackage("java.base", "javax.crypto")
-        openPackage("jdk.zipfs", "jdk.nio.zipfs")
-        openPackage("java.base", "java.nio.file.spi")
-        openPackage("java.base", "jdk.internal.jrtfs")
-        openPackage("java.instrument", "sun.instrument")
-        openPackage("java.xml", "com.sun.xml.internal.stream")
-        openPackage("java.xml", "com.sun.org.apache.xerces.internal.impl")
-        openPackage("java.xml", "com.sun.org.apache.xerces.internal.utils")
-        exportPackage("java.base", "sun.util.locale")
-        exportPackage("java.base", "jdk.internal.misc")
-        exportPackage("java.base", "jdk.internal.reflect")
-        exportPackage("java.base", "sun.nio.cs")
-        exportPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs.util")
-        add("--illegal-access=warn")
-        add("-XX:+UseParallelGC")
-    }
+registerConcreteMemoryExecTask("runWebBench", "bench.WebBenchKt", sourceSets.test.get().runtimeClasspath)
+registerConcreteMemoryExecTask("runBench", "org.usvm.bench.BenchCliCommandKt", bench.runtimeClasspath)
+tasks.register<JavaExec>("buildBenchProject") {
+    mainClass.set("org.usvm.bench.project.BuildProjectCliCommandKt")
+    classpath = bench.runtimeClasspath
 }
 
 fun MutableList<String>.openPackage(module: String, pakage: String) {

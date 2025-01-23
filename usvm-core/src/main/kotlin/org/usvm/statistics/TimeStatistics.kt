@@ -47,4 +47,9 @@ class TimeStatistics<Method, State : UState<*, Method, *, *, *, State>> : UMachi
         methodTimes.merge(entrypoint, methodStopwatch.elapsed) { current, elapsed -> current + elapsed }
         methodStopwatch.reset()
     }
+
+    override fun onCriticalFail(state: State, exception: Throwable) {
+        check(methodStopwatch.isRunning) { "Method stopwatch was not running after critical fail" }
+        methodStopwatch.stop()
+    }
 }

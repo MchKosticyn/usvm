@@ -29,6 +29,11 @@ interface UMachineObserver<State> {
      * Called before each symbolic execution step on state peeked from path selector.
      */
     fun onStatePeeked(state: State) { }
+
+    /**
+     * Called when a critical machine fail occurred
+     */
+    fun onCriticalFail(state: State, exception: Throwable) { }
 }
 
 class CompositeUMachineObserver<State>(
@@ -54,5 +59,9 @@ class CompositeUMachineObserver<State>(
 
     override fun onStatePeeked(state: State) {
         observers.forEach { it.onStatePeeked(state) }
+    }
+
+    override fun onCriticalFail(state: State, exception: Throwable) {
+        observers.forEach { it.onCriticalFail(state, exception) }
     }
 }
