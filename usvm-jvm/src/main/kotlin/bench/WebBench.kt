@@ -19,6 +19,7 @@ import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.cfg.JcRawThis
 import org.jacodb.api.jvm.ext.findClass
+import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcRamErsSettings
@@ -274,9 +275,11 @@ private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp 
 private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.','/')};"
 
 private fun generateTestClass(benchmark: BenchCp): BenchCp {
+    val cp = benchmark.cp
+
     val dir = Path(System.getProperty("generatedDir"))
     dir.createDirectories()
-    val cp = benchmark.cp
+
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
     val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
     val repositories = runBlocking { cp.hierarchyExt() }
@@ -292,10 +295,23 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             }.toList()
     val mockBeans = repositories + services
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
+
+    val webApplicationPackage =
+        cp.nonAbstractClasses(benchmark.classLocations)
+            .find {
+                it.annotations.any { annotation ->
+                    annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
+                }
+            }?.packageName
+            ?: throw IllegalArgumentException("No entry classes found (with SpringBootApplication annotation)")
+    val entryPackagePath = Path(webApplicationPackage.replace('.', '/'))
+
     val testClassName = "StartSpringTestClass"
+    val testClassFullName = "$entryPackagePath/$testClassName"
+
     testClass.withAsmNode { classNode ->
 //        classNode.visibleAnnotations = listOf()
-        classNode.name = testClassName
+        classNode.name = testClassFullName
         mockBeans.forEach { mockBeanType ->
             val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
             val field = FieldNode(Opcodes.ACC_PRIVATE, name, mockBeanType.jvmDescriptor, null, null)
@@ -303,7 +319,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             classNode.fields.add(field)
         }
 
-        classNode.write(cp, dir.resolve("$testClassName.class"), checkClass = true)
+        classNode.write(cp, dir.resolve("$testClassFullName.class"), checkClass = true)
     }
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
@@ -313,7 +329,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             val rawInstList = startSpringMethod.rawInstList.toMutableList()
             val assign = rawInstList[3] as JcRawAssignInst
             val classConstant = assign.rhv as JcRawClassConstant
-            val newClassConstant = JcRawClassConstant(testClassName.typeName, classConstant.typeName)
+            val newClassConstant = JcRawClassConstant(testClassFullName.typeName, classConstant.typeName)
             val newAssign = JcRawAssignInst(assign.owner, assign.lhv, newClassConstant)
             rawInstList.remove(rawInstList[3])
             rawInstList.insertAfter(rawInstList[2], newAssign)
@@ -341,13 +357,6 @@ private fun analyzeBench(benchmark: BenchCp) {
     val newBench = generateTestClass(benchmark)
     val cp = newBench.cp
     val nonAbstractClasses = cp.nonAbstractClasses(newBench.classLocations)
-    val webApplicationClass =
-        nonAbstractClasses.find {
-            it.annotations.any { annotation ->
-                annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
-            }
-        }
-    JcConcreteMemoryClassLoader.webApplicationClass = webApplicationClass!!
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
     // using file instead of console
