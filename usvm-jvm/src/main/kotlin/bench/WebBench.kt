@@ -276,9 +276,11 @@ private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp 
 private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.','/')};"
 
 private fun generateTestClass(benchmark: BenchCp): BenchCp {
+    val cp = benchmark.cp
+
     val dir = Path(System.getProperty("generatedDir"))
     dir.createDirectories()
-    val cp = benchmark.cp
+
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
     val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
     val repositories = runBlocking { cp.hierarchyExt() }
@@ -294,10 +296,23 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             }.toList()
     val mockBeans = repositories + services
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
+
+    val webApplicationPackage =
+        cp.nonAbstractClasses(benchmark.classLocations)
+            .find {
+                it.annotations.any { annotation ->
+                    annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
+                }
+            }?.packageName
+            ?: throw IllegalArgumentException("No entry classes found (with SpringBootApplication annotation)")
+    val entryPackagePath = Path(webApplicationPackage.replace('.', '/'))
+
     val testClassName = "StartSpringTestClass"
+    val testClassFullName = "$entryPackagePath/$testClassName"
+
     testClass.withAsmNode { classNode ->
 //        classNode.visibleAnnotations = listOf()
-        classNode.name = testClassName
+        classNode.name = testClassFullName
         mockBeans.forEach { mockBeanType ->
             val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
             val field = FieldNode(Opcodes.ACC_PRIVATE, name, mockBeanType.jvmDescriptor, null, null)
@@ -305,7 +320,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             classNode.fields.add(field)
         }
 
-        classNode.write(cp, dir.resolve("$testClassName.class"), checkClass = true)
+        classNode.write(cp, dir.resolve("$testClassFullName.class"), checkClass = true)
     }
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
@@ -315,7 +330,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             val rawInstList = startSpringMethod.rawInstList.toMutableList()
             val assign = rawInstList[3] as JcRawAssignInst
             val classConstant = assign.rhv as JcRawClassConstant
-            val newClassConstant = JcRawClassConstant(TypeNameImpl(testClassName), classConstant.typeName)
+            val newClassConstant = JcRawClassConstant(TypeNameImpl(testClassFullName), classConstant.typeName)
             val newAssign = JcRawAssignInst(assign.owner, assign.lhv, newClassConstant)
             rawInstList.remove(rawInstList[3])
             rawInstList.insertAfter(rawInstList[2], newAssign)
