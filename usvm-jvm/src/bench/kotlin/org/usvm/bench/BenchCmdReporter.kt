@@ -1,6 +1,7 @@
 package org.usvm.bench
 
 import mu.KLogging
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcMethod
 import org.usvm.UMachineOptions
 import org.usvm.machine.JcMachineOptions
@@ -44,6 +45,34 @@ object BenchCmdReporter : BenchStatisticsReporter {
             appendLine("\tCoverage: $coverage")
         }
         logger.info { result.toString() }
+    }
+
+    override fun reportResult(
+        jcClass: JcClassOrInterface,
+        jcMethods: List<JcMethod>,
+        states: List<JcState>,
+        configId: String,
+        coverage: Float,
+        timeElapsedMillis: Long,
+        stepsMade: Int,
+        statesInPathSelector: Int
+    ) {
+        val result = StringBuilder().apply {
+            appendLine("CLASS EXPLORATION STATS: ${jcClass.name}")
+            appendLine("\tMilliseconds elapsed: $timeElapsedMillis")
+            appendLine("\tSuccessful states: ${states.filterNot { it.isExceptional }.size}")
+            appendLine("\tExceptional states: ${states.filter { it.isExceptional }.size}")
+            appendLine("\tStates remaining in PS: $statesInPathSelector")
+            appendLine("\tSteps made: $stepsMade")
+            appendLine("\tCoverage: $coverage")
+        }
+        logger.info { result.toString() }
+    }
+
+    override fun reportClassCriticalFail(jcClass: JcClassOrInterface, e: Throwable, configId: String) {
+        logger.error {
+            "CRITICAL FAIL: $e"
+        }
     }
 
     override fun reportInternalFailure(jcMethod: JcMethod, e: Throwable, configId: String) {

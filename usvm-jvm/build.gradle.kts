@@ -380,6 +380,8 @@ fun registerConcreteMemoryExecTask(name: String, mainClassName: String, taskClas
 
 registerConcreteMemoryExecTask("runWebBench", "bench.WebBenchKt", sourceSets.test.get().runtimeClasspath)
 registerConcreteMemoryExecTask("runBench", "org.usvm.bench.BenchCliCommandKt", bench.runtimeClasspath)
+registerConcreteMemoryExecTask("sbftBench", "org.usvm.bench.SbftBenchCliCommandKt", bench.runtimeClasspath)
+
 tasks.register<JavaExec>("buildBenchProject") {
     mainClass.set("org.usvm.bench.project.BuildProjectCliCommandKt")
     classpath = bench.runtimeClasspath

@@ -2,6 +2,7 @@ package org.usvm.bench
 
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import kotlinx.coroutines.runBlocking
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcMethod
 import org.usvm.PathSelectionStrategy
 import org.usvm.PathSelectorCombinationStrategy
@@ -38,9 +39,27 @@ data class BenchResultRecord(
     val statesInPathSelector: Int
 )
 
+data class ClassBenchResultRecord(
+    val configId: String,
+    val classFqn: String,
+    val methodNames: List<String>,
+    val successfulStatesCount: Int,
+    val exceptionStatesCount: Int,
+    val timeElapsedMillis: Long,
+    val coverage: Float,
+    val stepsMade: Int,
+    val statesInPathSelector: Int
+)
+
 data class BenchInternalFailureRecord(
     val configId: String,
     val method: String,
+    val exception: String
+)
+
+data class BenchClassCriticalFailureRecord(
+    val configId: String,
+    val classFqn: String,
     val exception: String
 )
 
@@ -52,13 +71,16 @@ class BenchMongoReporter(private val databaseName: String, host: String = "local
 
     private val configsCollectionName = "configs"
     private val resultsCollectionName = "results"
+    private val classResultsCollectionName = "class_results"
     private val failuresCollectionName = "failures"
+    private val criticalFailuresCollectionName = "criticals"
 
     init {
         runBlocking {
             database.createCollection(configsCollectionName)
             database.createCollection(resultsCollectionName)
             database.createCollection(failuresCollectionName)
+            database.createCollection(classResultsCollectionName)
         }
     }
 
@@ -119,6 +141,33 @@ class BenchMongoReporter(private val databaseName: String, host: String = "local
         }
     }
 
+    override fun reportResult(
+        jcClass: JcClassOrInterface,
+        jcMethods: List<JcMethod>,
+        states: List<JcState>,
+        configId: String,
+        coverage: Float,
+        timeElapsedMillis: Long,
+        stepsMade: Int,
+        statesInPathSelector: Int
+    ) {
+        val record = ClassBenchResultRecord(
+            configId,
+            jcClass.name,
+            jcMethods.map { MethodId(it).encodedString },
+            states.filterNot { it.isExceptional }.size,
+            states.filter { it.isExceptional }.size,
+            timeElapsedMillis,
+            coverage,
+            stepsMade,
+            statesInPathSelector
+        )
+        runBlocking {
+            val collection = database.getCollection(classResultsCollectionName, ClassBenchResultRecord::class.java)
+            collection.insertOne(record)
+        }
+    }
+
     override fun reportInternalFailure(jcMethod: JcMethod, e: Throwable, configId: String) {
         val record = BenchInternalFailureRecord(
             configId,
@@ -127,6 +176,18 @@ class BenchMongoReporter(private val databaseName: String, host: String = "local
         )
         runBlocking {
             val collection = database.getCollection(failuresCollectionName, BenchInternalFailureRecord::class.java)
+            collection.insertOne(record)
+        }
+    }
+
+    override fun reportClassCriticalFail(jcClass: JcClassOrInterface, e: Throwable, configId: String) {
+        val record = BenchClassCriticalFailureRecord(
+            configId,
+            jcClass.name,
+            "$e ${e.stackTraceToString()}"
+        )
+        runBlocking {
+            val collection = database.getCollection(criticalFailuresCollectionName, BenchClassCriticalFailureRecord::class.java)
             collection.insertOne(record)
         }
     }

@@ -1,5 +1,6 @@
 package org.usvm.bench
 
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcMethod
 import org.usvm.UMachineOptions
 import org.usvm.machine.JcMachineOptions
@@ -23,6 +24,21 @@ interface BenchStatisticsReporter {
         timeElapsedMillis: Long,
         stepsMade: Int,
         statesInPathSelector: Int
+    )
+    fun reportResult(
+        jcClass: JcClassOrInterface,
+        jcMethods: List<JcMethod>,
+        states: List<JcState>,
+        configId: String,
+        coverage: Float,
+        timeElapsedMillis: Long,
+        stepsMade: Int,
+        statesInPathSelector: Int
+    )
+    fun reportClassCriticalFail(
+        jcClass: JcClassOrInterface,
+        e: Throwable,
+        configId: String
     )
     fun reportInternalFailure(jcMethod: JcMethod, e: Throwable, configId: String)
 }

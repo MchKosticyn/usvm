@@ -2,7 +2,6 @@ package org.usvm.bench.project
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcClasspathFeature
