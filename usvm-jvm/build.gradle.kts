@@ -4,6 +4,9 @@ import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createDirectory
+import kotlin.io.path.deleteExisting
+import kotlin.io.path.deleteRecursively
+import kotlin.io.path.exists
 
 
 plugins {
@@ -236,7 +239,11 @@ tasks.register<JavaExec>("runWebBench") {
     generatedDir.createDirectories()
     systemProperty("generatedDir", generatedDir.absolutePathString())
     val lambdaDir = generatedDir.resolve("lambdas")
-    lambdaDir.createDirectories()
+    if (lambdaDir.exists()) {
+        lambdaDir.toFile().listFiles()?.forEach { it.deleteRecursively() }
+    } else {
+        lambdaDir.createDirectories()
+    }
     systemProperty("lambdasDir", lambdaDir.absolutePathString())
 
     environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
@@ -323,6 +330,10 @@ tasks.register<JavaExec>("runWebBench") {
         openPackage("java.base", "java.lang.annotation")
         openPackage("java.base", "java.lang.runtime")
         openPackage("java.base", "javax.crypto")
+        openPackage("jdk.zipfs", "jdk.nio.zipfs")
+        openPackage("java.base", "java.nio.file.spi")
+        openPackage("java.base", "jdk.internal.jrtfs")
+        openPackage("java.instrument", "sun.instrument")
         exportPackage("java.base", "sun.util.locale")
         exportPackage("java.base", "jdk.internal.misc")
         exportPackage("java.base", "jdk.internal.reflect")

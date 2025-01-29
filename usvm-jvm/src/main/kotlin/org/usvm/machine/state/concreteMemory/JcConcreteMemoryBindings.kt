@@ -61,6 +61,7 @@ internal class JcConcreteMemoryBindings private constructor(
     private val children: childrenType,
     private val parents: parentsType,
     private val fullyConcretes: MutableSet<PhysicalAddress>,
+    // TODO: make this private #CM
     val effectStorage: JcConcreteEffectStorage,
     private val threadLocalHelper: ThreadLocalHelper,
 ) {
@@ -233,55 +234,37 @@ internal class JcConcreteMemoryBindings private constructor(
         return allConcrete
     }
 
-    fun reTrackObject(obj: Any?) {
-        if (obj == null)
-            return
-
-        val queue: Queue<PhysicalAddress> = LinkedList()
-        val tracked = mutableSetOf<PhysicalAddress>()
-        var phys: PhysicalAddress? = PhysicalAddress(obj)
-
-        while (phys != null) {
-            if (tracked.add(phys)) {
-                val current = phys.obj ?: return
-                val type = current.javaClass
-                when {
-                    type.isSolid -> continue
-                    type.isArray -> {
-                        val elemType = type.componentType
-                        if (elemType.notTracked) continue
-                        when (current) {
-                            is Array<*> -> {
-                                current.forEachIndexed { i, v ->
-                                    val child = PhysicalAddress(v)
-                                    if (!elemType.isSolid)
-                                        queue.add(child)
-                                    setChild(phys!!, child, ArrayIndexChildKind(i))
-                                }
-                            }
-                            else -> error("reTrack: unexpected array $current")
-                        }
-                    }
-
-                    else -> {
-                        for (field in type.allInstanceFields) {
-                            try {
-                                val fieldType = field.type
-                                if (fieldType.notTracked) continue
-                                val childObj = field.getFieldValue(current)
-                                val child = PhysicalAddress(childObj)
-                                if (!fieldType.isSolid)
-                                    queue.add(child)
-                                setChild(phys, child, FieldChildKind(field))
-                            } catch (e: Exception) {
-                                error("ReTrack class ${type.name} failed on field ${field.name}, cause: ${e.message}")
-                            }
-                        }
-                    }
-                }
-            }
-            phys = queue.poll()
+    private inner class ConcretenessTraversal: ObjectTraversal(threadLocalHelper, false) {
+        override fun skip(phys: PhysicalAddress, type: Class<*>): Boolean {
+            return type.isSolid
         }
+
+        override fun skipField(field: Field): Boolean {
+            return field.type.notTracked
+        }
+
+        override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
+        }
+
+        override fun handleClass(phys: PhysicalAddress, type: Class<*>) {
+        }
+
+        override fun handleThreadLocal(threadLocalPhys: PhysicalAddress, valuePhys: PhysicalAddress) {
+            setChild(threadLocalPhys, valuePhys, ThreadLocalValueChildKind())
+        }
+
+        override fun handleArrayIndex(arrayPhys: PhysicalAddress, index: Int, valuePhys: PhysicalAddress) {
+            setChild(arrayPhys, valuePhys, ArrayIndexChildKind(index))
+        }
+
+        override fun handleClassField(parentPhys: PhysicalAddress, field: Field, valuePhys: PhysicalAddress) {
+            setChild(parentPhys, valuePhys, FieldChildKind(field))
+        }
+
+    }
+
+    fun reTrackObject(obj: Any?) {
+        ConcretenessTraversal().traverse(obj)
     }
 
     private fun checkTrackCopy(dstArrayType: Class<*>, dstFromIdx: Int, dstToIdx: Int): Boolean {
@@ -333,6 +316,43 @@ internal class JcConcreteMemoryBindings private constructor(
         }
 
         return symbolicMembers
+    }
+
+    private fun checkChildrenAreRelevant(): Boolean {
+        for ((parentPhys, childMap) in children) {
+            val obj = parentPhys.obj ?: continue
+            for ((childKind, cell) in childMap) {
+                if (!cell.isConcrete)
+                    continue
+
+                val value = cell.address!!.obj
+                when (childKind) {
+                    is FieldChildKind -> {
+                        if (childKind.field.getFieldValue(obj) !== value)
+                            return false
+                    }
+                    is ArrayIndexChildKind -> {
+                        check(obj is Array<*>)
+                        if (obj[childKind.index] !== value)
+                            return false
+                    }
+                }
+            }
+        }
+
+        return true
+    }
+
+    fun checkIsCorrect(): Boolean {
+        return checkChildrenAreRelevant()
+    }
+
+    //endregion
+
+    //region Effect Storage Interaction
+
+    fun reset() {
+        effectStorage.reset()
     }
 
     //endregion
