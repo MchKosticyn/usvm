@@ -2,28 +2,50 @@ package org.usvm.machine.state.concreteMemory
 
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.ThreadFactory
 
 private class JcThreadFactory : ThreadFactory {
 
-    private var count = 0
+    private var currentThread: Thread? = null
 
     override fun newThread(runnable: Runnable): Thread {
-        check(count == 0)
+        check(currentThread == null)
         val thread = Thread(runnable)
-        count++
         thread.contextClassLoader = JcConcreteMemoryClassLoader
         thread.isDaemon = true
+        currentThread = thread
         return thread
+    }
+
+    fun getCurrentThread(): Thread? {
+        return currentThread
     }
 }
 
 internal class JcConcreteExecutor: ThreadLocalHelper {
-    private val executor = Executors.newSingleThreadExecutor(JcThreadFactory())
+    private val threadFactory = JcThreadFactory()
+    private val executor = Executors.newSingleThreadExecutor(threadFactory)
     private val threadLocalType by lazy { ThreadLocal::class.java }
+    private var lastTask: Future<*>? = null
+
+    private val alreadyInExecutor: Boolean
+        get() = Thread.currentThread() === threadFactory.getCurrentThread()
+
+    private val taskIsRunning: Boolean
+        get() = lastTask != null && lastTask?.isDone == false
 
     fun execute(task: Runnable) {
-        executor.submit(task).get()
+        if (alreadyInExecutor) {
+            check(taskIsRunning)
+            task.run()
+            return
+        }
+
+        check(!taskIsRunning)
+        val future = executor.submit(task)
+        lastTask = future
+        future.get()
     }
 
     override fun checkIsPresent(threadLocal: Any): Boolean {
@@ -33,8 +55,6 @@ internal class JcConcreteExecutor: ThreadLocalHelper {
         var value = false
         execute {
             try {
-                if (threadLocal.javaClass.name.contains("XmlBeans"))
-                    println()
                 value = isPresentMethod.invoke(threadLocal) as Boolean
             } catch (e: Throwable) {
                 error("unable to check thread local value is present: $e")

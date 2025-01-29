@@ -530,16 +530,14 @@ class JcConcreteMemory private constructor(
     }
 
     private fun ensureClinit(type: JcClassOrInterface) {
+        if (type.isInternalType)
+            return
+
         executor.execute {
             try {
-                val staticFields = type.toJavaClass(JcConcreteMemoryClassLoader).staticFields
-                if (staticFields.isEmpty())
-                    return@execute
-
-                // Forcing class initializer to execute
-                staticFields[0].getStaticFieldValue()
+                type.toJavaClass(JcConcreteMemoryClassLoader)
             } catch (e: Throwable) {
-                error("clinit should not throw exceptions")
+                error("clinit should not throw exceptions: $e")
             }
         }
     }
@@ -730,7 +728,7 @@ class JcConcreteMemory private constructor(
     }
 
     fun reset() {
-        bindings.effectStorage.reset()
+        bindings.reset()
     }
 
     //endregion
@@ -851,6 +849,8 @@ class JcConcreteMemory private constructor(
 
         private val concretizeInvocations = setOf(
             "org.springframework.web.servlet.DispatcherServlet#processDispatchResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.HandlerExecutionChain,org.springframework.web.servlet.ModelAndView,java.lang.Exception):void",
+            // TODO: need it? #CM
+            "org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite#handleReturnValue(java.lang.Object,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void",
         )
 
         //endregion

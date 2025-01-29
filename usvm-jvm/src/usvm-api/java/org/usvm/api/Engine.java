@@ -22,6 +22,16 @@ public class Engine {
         return null;
     }
 
+    @SuppressWarnings("unused")
+    public static <T> T makeSymbolicSubtype(Class<T> clazz) {
+        return null;
+    }
+
+    @SuppressWarnings("unused")
+    public static <T> T makeNullableSymbolicSubtype(Class<T> clazz) {
+        return null;
+    }
+
     public static boolean makeSymbolicBoolean() {
         return false;
     }

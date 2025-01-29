@@ -47,6 +47,7 @@ import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.SpringAnalysisMode
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
+import org.usvm.machine.state.concreteMemory.isInternalType
 import org.usvm.machine.state.concreteMemory.javaName
 import org.usvm.util.classpathWithApproximations
 import org.usvm.util.typeName
@@ -96,7 +97,7 @@ private fun loadKlawBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadKlawBench()
+        loadWebPetClinicBench()
     }
 
     logTime("Analysis ALL") {
@@ -144,8 +145,11 @@ internal object JcLambdaFeature: JcClasspathExtFeature {
 internal object JcClinitFeature: JcInstExtFeature {
 
     private fun shouldNotTransform(method: JcMethod, list: JcInstList<JcRawInst>): Boolean {
-        return !method.isClassInitializer || list.size == 0 || method.enclosingClass.declaration.location.isRuntime ||
-                method.enclosingClass.name == ClinitHelper::class.java.name
+        return !method.isClassInitializer
+                || list.size == 0
+                || method.enclosingClass.declaration.location.isRuntime
+                || method.enclosingClass.isInternalType
+                || method.enclosingClass.name == ClinitHelper::class.java.name
     }
 
     override fun transformRawInstList(method: JcMethod, list: JcInstList<JcRawInst>): JcInstList<JcRawInst> {
