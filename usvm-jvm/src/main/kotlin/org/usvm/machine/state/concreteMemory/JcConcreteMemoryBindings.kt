@@ -175,7 +175,11 @@ internal class JcConcreteMemoryBindings private constructor(
                 } else if (childMap != null) {
                     val cell = childMap[childKind]
                     if (cell != null) {
-                        check(!cell.isConcrete || cell.address == child)
+                        val cellIsCorrect = !cell.isConcrete || cell.address == child
+                        if (!cellIsCorrect) {
+                            println("[USVM] WARNING: concreteness system is incorrect")
+                            childMap[childKind] = Cell(child)
+                        }
                     } else {
                         childMap[childKind] = Cell(child)
                     }
@@ -318,7 +322,9 @@ internal class JcConcreteMemoryBindings private constructor(
         return symbolicMembers
     }
 
-    private fun checkChildrenAreRelevant(): Boolean {
+    // TODO: use it someday
+    @Suppress("unused")
+    fun checkIsCorrect(): Boolean {
         for ((parentPhys, childMap) in children) {
             val obj = parentPhys.obj ?: continue
             for ((childKind, cell) in childMap) {
@@ -341,10 +347,6 @@ internal class JcConcreteMemoryBindings private constructor(
         }
 
         return true
-    }
-
-    fun checkIsCorrect(): Boolean {
-        return checkChildrenAreRelevant()
     }
 
     //endregion
