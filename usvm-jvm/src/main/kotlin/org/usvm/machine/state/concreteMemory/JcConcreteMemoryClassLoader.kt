@@ -161,7 +161,7 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
 
     private val afterClinitAction: java.util.function.Function<String, Void?> =
         java.util.function.Function { className: String ->
-            val clazz = loadedClasses[className]!!
+            val clazz = loadedClasses[className] ?: return@Function null
             initializedStatics.add(clazz)
             effectStorage.addStatics(clazz)
             null
@@ -248,6 +248,7 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
             return null
         }
 
+        // TODO: unify with `loadClass` #CM
         if (jcClass.declaration.location.isRuntime || typeIsRuntimeGenerated(jcClass)) {
             val name = jcClass.name
             val type = super.loadClass(name)

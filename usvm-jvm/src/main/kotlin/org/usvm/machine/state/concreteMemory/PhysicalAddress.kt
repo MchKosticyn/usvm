@@ -3,6 +3,10 @@ package org.usvm.machine.state.concreteMemory
 internal data class PhysicalAddress(
     val obj: Any?
 ) {
+    init {
+        check(obj !is PhysicalAddress)
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
