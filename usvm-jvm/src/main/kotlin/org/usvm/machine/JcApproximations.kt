@@ -27,13 +27,13 @@ import org.jacodb.api.jvm.ext.byte
 import org.jacodb.api.jvm.ext.char
 import org.jacodb.api.jvm.ext.double
 import org.jacodb.api.jvm.ext.fields
-import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.findTypeOrNull
 import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.ifArrayGetElementType
 import org.jacodb.api.jvm.ext.int
+import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.long
@@ -43,7 +43,6 @@ import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
 import org.jacodb.impl.cfg.util.isPrimitive
-import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
 import org.usvm.UBvSort
@@ -76,11 +75,11 @@ import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapRemove
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapSize
 import org.usvm.api.initializeArray
 import org.usvm.api.initializeArrayLength
+import org.usvm.api.makeNullableSymbolicRef
 import org.usvm.api.makeNullableSymbolicRefSubtype
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefWithSameType
-import org.usvm.api.mapTypeStream
 import org.usvm.api.memcpy
 import org.usvm.api.objectTypeEquals
 import org.usvm.collection.array.length.UArrayLengthLValue
@@ -98,7 +97,6 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.KFunction0
 import kotlin.reflect.KFunction1
 import kotlin.reflect.KFunction2
-import kotlin.reflect.jvm.javaMethod
 import org.usvm.api.makeNullableSymbolicRefWithSameType
 import org.usvm.api.makeSymbolicRefSubtype
 import org.usvm.api.mapTypeStreamNotNull
@@ -110,7 +108,6 @@ import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.writeField
 import org.usvm.getIntValue
 import org.usvm.instrumentation.util.toJavaClass
-import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.classesOfLocations
 import org.usvm.machine.state.concreteMemory.isSpringController
@@ -118,8 +115,8 @@ import org.usvm.machine.state.concreteMemory.javaName
 import org.usvm.machine.state.newStmt
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
+import java.util.ArrayList
 import java.util.TreeMap
-import kotlin.collections.ArrayList
 
 class JcMethodApproximationResolver(
     private val ctx: JcContext,
@@ -471,7 +468,7 @@ class JcMethodApproximationResolver(
                         it.annotations.any { it.name == "org.springframework.beans.factory.annotation.Value" }
                     }
                 }
-                val classes = types.map { it.toJavaClass(JcConcreteMemoryClassLoader) }.toList()
+                val classes = ArrayList(types.map { it.toJavaClass(JcConcreteMemoryClassLoader) }.toList())
                 val classesJcType = ctx.cp.findTypeOrNull(classes.javaClass.typeName)!!
                 val classesRef = memory.tryAllocateConcrete(classes, classesJcType)!!
                 skipMethodInvocationWithValue(methodCall, classesRef)
@@ -673,7 +670,7 @@ class JcMethodApproximationResolver(
                         if (shouldSkipPath(path, kind, controllerType.name))
                             continue
                         val pathArgsCount = path.filter { it == '{' }.length
-                        val properties = listOf(kind, Integer.valueOf(pathArgsCount))
+                        val properties = ArrayList(listOf(kind, Integer.valueOf(pathArgsCount)))
                         paths[path] = properties
                     }
                 }
@@ -756,13 +753,36 @@ class JcMethodApproximationResolver(
         return false
     }
 
+    private fun findSuitableTypeForMock(type: JcClassType): JcClassType? {
+        val arrayListType by lazy { ctx.cp.findType("java.util.ArrayList") }
+        val hashMapType by lazy { ctx.cp.findType("java.util.HashMap") }
+        val hashSetType by lazy { ctx.cp.findType("java.util.HashSet") }
+
+        return when {
+            !type.jcClass.isInterface && !type.isAbstract -> type
+            type.typeName == "java.util.List" || type.typeName == "java.util.Collection"
+                    || arrayListType.isAssignable(type) -> arrayListType
+            type.typeName == "java.util.Map" || hashMapType.isAssignable(type) -> hashMapType
+            type.typeName == "java.util.Set" || hashSetType.isAssignable(type) -> hashSetType
+            else -> null
+        } as? JcClassType
+    }
+
     private fun approximateSpringServiceMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         val returnType = ctx.cp.findType(methodCall.method.returnType.typeName)
         if (options.springAnalysisMode == SpringAnalysisMode.WebMVCTest) {
             val mockedValue: UExpr<out USort>
             when {
-                returnType is JcClassType || returnType is JcArrayType -> {
-                    mockedValue = scope.makeNullableSymbolicRefSubtype(returnType)!!
+                returnType is JcClassType -> {
+                    val suitableType = findSuitableTypeForMock(returnType)
+                    if (suitableType != null) {
+                        mockedValue = scope.makeSymbolicRef(suitableType)!!
+                    } else {
+                        mockedValue = scope.makeSymbolicRefSubtype(returnType)!!
+                    }
+                }
+                returnType is JcArrayType -> {
+                    mockedValue = scope.makeSymbolicRef(returnType)!!
                 }
                 else -> {
                     check(returnType is JcPrimitiveType)
@@ -785,19 +805,14 @@ class JcMethodApproximationResolver(
         val returnType = ctx.cp.findType(methodCall.method.returnType.typeName)
         val mockedValue: UExpr<out USort>
         when {
-            returnType is JcClassType && returnType.jcClass.let { it.isInterface || it.isAbstract } -> {
-                val typeSystem = ctx.typeSystem<JcType>()
-                val arrayListType = ctx.cp.findType("java.util.ArrayList")
-                val arrayListSuites = typeSystem.isSupertype(returnType, arrayListType)
-                val concreteType =
-                    if (arrayListSuites) arrayListType
-                    else typeSystem.findSubtypes(returnType).filter {
-                        !(it as JcClassType).jcClass.let { it.isInterface || it.isAbstract }
-                    }.first()
-                mockedValue = scope.makeSymbolicRef(concreteType)!!
-            }
             returnType is JcClassType -> {
-                mockedValue = scope.makeSymbolicRef(returnType)!!
+                val suitableType =
+                    findSuitableTypeForMock(returnType) ?:
+                        ctx.typeSystem<JcType>().findSubtypes(returnType).filterNot {
+                            (it as? JcClassType)?.jcClass?.let { it.isInterface || it.isAbstract }
+                                ?: true
+                        }.first()
+                mockedValue = scope.makeSymbolicRef(suitableType)!!
             }
             else -> {
                 check(returnType is JcPrimitiveType)
@@ -1456,6 +1471,44 @@ class JcMethodApproximationResolver(
                 }
                 scope.makeNullableSymbolicRefWithSameType(classRefTypeRepresentative)
             }
+            dispatchMkRef(Engine::makeSymbolicSubtype) {
+                val classRef = it.arguments.single().asExpr(ctx.addressSort)
+
+                if (classRef is UConcreteHeapRef) {
+                    val mock = scope.calcOnState {
+                        val type = memory.tryHeapRefToObject(classRef) ?: return@calcOnState null
+                        type as Class<*>
+                        val jcType = ctx.cp.findTypeOrNull(type.name) ?: return@calcOnState null
+                        scope.makeSymbolicRefSubtype(jcType)
+                    }
+                    if (mock != null)
+                        return@dispatchMkRef mock
+                }
+
+                val classRefTypeRepresentative = scope.calcOnState {
+                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
+                }
+                scope.makeSymbolicRefSubtype(classRefTypeRepresentative)
+            }
+            dispatchMkRef(Engine::makeNullableSymbolicSubtype) {
+                val classRef = it.arguments.single().asExpr(ctx.addressSort)
+
+                if (classRef is UConcreteHeapRef) {
+                    val mock = scope.calcOnState {
+                        val type = memory.tryHeapRefToObject(classRef) ?: return@calcOnState null
+                        type as Class<*>
+                        val jcType = ctx.cp.findTypeOrNull(type.name) ?: return@calcOnState null
+                        scope.makeNullableSymbolicRefSubtype(jcType)
+                    }
+                    if (mock != null)
+                        return@dispatchMkRef mock
+                }
+
+                val classRefTypeRepresentative = scope.calcOnState {
+                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
+                }
+                scope.makeNullableSymbolicRefSubtype(classRefTypeRepresentative)
+            }
             dispatchMkRef2(Engine::makeSymbolicArray) {
                 val (elementClassRefExpr, sizeExpr) = it.arguments
                 val elementClassRef = elementClassRefExpr.asExpr(ctx.addressSort)
@@ -1637,11 +1690,11 @@ class JcMethodApproximationResolver(
     }
 
     private fun approximateUsvmApiEngineStaticMethod(methodCall: JcMethodCall) {
-        // TODO: unexpected clinit #Valya #CM
         if (methodCall.method.isClassInitializer) {
             scope.doWithState { skipMethodInvocationWithValue(methodCall, ctx.voidValue) }
             return
         }
+
         val methodApproximation = usvmApiEngineMethods[methodCall.method.name]
             ?: error("Unexpected engine api method: ${methodCall.method.name}")
         val result = methodApproximation(methodCall) ?: return

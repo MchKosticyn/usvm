@@ -11,3 +11,5 @@ internal data class FieldChildKind(
 internal data class ArrayIndexChildKind(
     val index: Int,
 ) : ChildKind
+
+internal class ThreadLocalValueChildKind : ChildKind
