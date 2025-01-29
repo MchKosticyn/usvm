@@ -109,46 +109,41 @@ private class JcConcreteSnapshot(
         objects[oldPhys] = clonedPhys
     }
 
-    fun addObjectToSnapshotRec(obj: Any?) {
-        obj ?: return
-        val handledObjects: MutableSet<PhysicalAddress> = mutableSetOf()
-        val queue: Queue<Any?> = LinkedList()
-        queue.add(obj)
-        while (queue.isNotEmpty()) {
-            val current = queue.poll() ?: continue
-            val currentPhys = PhysicalAddress(current)
-            if (!handledObjects.add(currentPhys) || objects.containsKey(currentPhys))
-                continue
-
-            val type = current.javaClass
-            if (type.isThreadLocal) {
-                if (!threadLocalHelper.checkIsPresent(current))
-                    continue
-
-                val value = threadLocalHelper.getThreadLocalValue(current)
-                queue.add(value)
-                objects[currentPhys] = PhysicalAddress(value)
-                continue
-            }
-
-            addObjectToSnapshot(currentPhys)
-
-            when {
-                type.isImmutable -> continue
-                current is Array<*> -> queue.addAll(current)
-                type.isArray -> continue
-                else -> {
-                    for (field in type.allInstanceFields) {
-                        try {
-                            queue.add(field.getFieldValue(current))
-                        } catch (e: Throwable) {
-//                            println("addObjectToBacktrackRec failed on class ${type.name}")
-                            continue
-                        }
-                    }
-                }
-            }
+    private inner class EffectTraversal: ObjectTraversal(threadLocalHelper, false) {
+        override fun skip(phys: PhysicalAddress, type: Class<*>): Boolean {
+            return type.notTracked || objects.containsKey(phys)
         }
+
+        override fun skipField(field: Field): Boolean {
+            return field.type.notTracked
+        }
+
+        override fun skipArrayIndices(elementType: Class<*>): Boolean {
+            return elementType.notTracked
+        }
+
+        override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
+            addObjectToSnapshot(phys)
+        }
+
+        override fun handleClass(phys: PhysicalAddress, type: Class<*>) {
+            addObjectToSnapshot(phys)
+        }
+
+        override fun handleThreadLocal(threadLocalPhys: PhysicalAddress, valuePhys: PhysicalAddress) {
+            objects[threadLocalPhys] = valuePhys
+        }
+
+        override fun handleArrayIndex(arrayPhys: PhysicalAddress, index: Int, valuePhys: PhysicalAddress) {
+        }
+
+        override fun handleClassField(parentPhys: PhysicalAddress, field: Field, valuePhys: PhysicalAddress) {
+        }
+
+    }
+
+    fun addObjectToSnapshotRec(obj: Any?) {
+        EffectTraversal().traverse(obj)
     }
 
     fun addStaticFieldToSnapshot(field: Field, phys: PhysicalAddress) {
@@ -229,8 +224,10 @@ private class JcConcreteSnapshotSequence(
             val obj = clonedPhys.obj ?: continue
             val type = oldObj.javaClass
             check(type == obj.javaClass || type.isThreadLocal)
+            check(!type.notTracked)
+            if (type.typeName == "java.util.concurrent.ConcurrentHashMap\$Node[]" && (obj as Array<*>).size == 256)
+                println()
             when {
-                type.isImmutable -> continue
                 type.isThreadLocal -> threadLocalHelper.setThreadLocalValue(oldObj, obj)
                 type.isArray -> {
                     when {
@@ -306,26 +303,21 @@ private class JcConcreteEffect(
 ) {
     var after: JcConcreteSnapshot? = null
 
-    private enum class JcConcreteEffectState {
-        Created,
-        Active,
-        Dead
-    }
+    private var isActiveVar = false
+    private var isAliveVar = true
 
-    private var state = JcConcreteEffectState.Created
+    val isAlive: Boolean get() = isAliveVar
 
-    val isAlive: Boolean get() = state != JcConcreteEffectState.Dead
-
-    val isActive: Boolean get() = state == JcConcreteEffectState.Active
+    val isActive: Boolean get() = isActiveVar
 
     val afterIsEmpty: Boolean get() = after == null
 
     fun kill() {
-        state = JcConcreteEffectState.Dead
+        isAliveVar = false
     }
 
     fun createAfterIfNeeded() {
-        if (after != null || !isActive)
+        if (after != null || !isActive || !isAlive)
             return
 
         this.after = JcConcreteSnapshot(ctx, threadLocalHelper, before)
@@ -335,7 +327,7 @@ private class JcConcreteEffect(
         check(obj !is PhysicalAddress)
         check(isAlive)
         check(afterIsEmpty)
-        state = JcConcreteEffectState.Active
+        isActiveVar = true
         before.addObjectToSnapshot(PhysicalAddress(obj))
     }
 
@@ -343,21 +335,21 @@ private class JcConcreteEffect(
         check(obj !is PhysicalAddress)
         check(isAlive)
         check(afterIsEmpty)
-        state = JcConcreteEffectState.Active
+        isActiveVar = true
         before.addObjectToSnapshotRec(obj)
     }
 
     fun ensureStatics() {
         check(isAlive)
         check(afterIsEmpty)
-        state = JcConcreteEffectState.Active
+        isActiveVar = true
         before.ensureStatics()
     }
 
     fun addStaticFields(type: Class<*>) {
         check(isAlive)
         check(afterIsEmpty)
-        state = JcConcreteEffectState.Active
+        isActiveVar = true
         before.addStaticFields(type)
     }
 }

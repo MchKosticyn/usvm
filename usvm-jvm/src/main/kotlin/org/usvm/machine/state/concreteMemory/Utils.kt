@@ -15,8 +15,10 @@ import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
+import org.jacodb.api.jvm.ext.allSuperHierarchy
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.isSubClassOf
+import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.superClasses
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.throwClassNotFound
@@ -203,10 +205,6 @@ internal val JcType.isEnumArray: Boolean
 internal val JcType.internalName: String
     get() = if (this is JcClassType) this.name else this.typeName
 
-private val notTrackedTypes = setOf(
-    "java.lang.Class",
-)
-
 internal val Class<*>.isProxy: Boolean
     get() = Proxy.isProxyClass(this)
 
@@ -246,16 +244,13 @@ internal val JcMethod.isInstrumentedClinit: Boolean
     }
 
 internal val Class<*>.notTracked: Boolean
-    get() =
-        this.isPrimitive ||
-                this.isEnum ||
-                notTrackedTypes.contains(this.name)
+    get() = this.isPrimitive || isImmutable || this.isEnum
 
 internal val JcType.notTracked: Boolean
     get() =
         this is JcPrimitiveType ||
                 this is JcClassType &&
-                (this.jcClass.isEnum || notTrackedTypes.contains(this.name))
+                (this.jcClass.isEnum || jcClass.isImmutable)
 
 private val immutableTypes = setOf(
     "jdk.internal.loader.ClassLoaders\$AppClassLoader",
@@ -270,9 +265,20 @@ private val packagesWithImmutableTypes = setOf(
 internal val Class<*>.isClassLoader: Boolean
     get() = ClassLoader::class.java.isAssignableFrom(this)
 
+private fun typeNameIsInternal(name: String): Boolean {
+    return name.startsWith("org.usvm.") ||
+            name.startsWith("runtime.LibSLRuntime") ||
+            name.startsWith("runtime.LibSLGlobals") ||
+            name.startsWith("generated.") ||
+            name.startsWith("stub.") ||
+            name.startsWith("org.jacodb.")
+}
+
 internal val Class<*>.isInternalType: Boolean
-    get() = this != JcConcreteMemoryBindings.LambdaInvocationHandler::class.java
-            && packageName.let { it.startsWith("org.usvm") || it.startsWith("org.jacodb") }
+    get() = typeNameIsInternal(name)
+
+internal val JcClassOrInterface.isInternalType: Boolean
+    get() = typeNameIsInternal(name)
 
 internal val Class<*>.isImmutable: Boolean
     get() = immutableTypes.contains(name)
@@ -280,14 +286,17 @@ internal val Class<*>.isImmutable: Boolean
             || packageName in packagesWithImmutableTypes
             || isInternalType
 
-//private val JcType.isClassLoader: Boolean
-//    get() = this is JcClassType && this.jcClass.superClasses.any { it.name == "java.lang.ClassLoader" }
+private val JcClassOrInterface.isClassLoader: Boolean
+    get() = allSuperHierarchy.any { it.name == "java.lang.ClassLoader" }
 
-//private val JcType.isImmutable: Boolean
-//    get() = this !is JcClassType || immutableTypes.contains(this.name) || isClassLoader || jcClass.packageName in packagesWithImmutableTypes
+private val JcClassOrInterface.isImmutable: Boolean
+    get() = immutableTypes.contains(this.name)
+            || isClassLoader
+            || packageName in packagesWithImmutableTypes
+            || isInternalType
 
 internal val Class<*>.isSolid: Boolean
-    get() = notTracked || isImmutable || this.isArray && this.componentType.notTracked
+    get() = notTracked || this.isArray && this.componentType.notTracked
 
 //private val JcType.isSolid: Boolean
 //    get() = notTracked || isImmutable || this is JcArrayType && this.elementType.notTracked
