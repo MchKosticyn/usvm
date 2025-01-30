@@ -8,7 +8,7 @@ import org.usvm.machine.interpreter.JcLambdaCallSite
 import org.usvm.machine.interpreter.JcLambdaCallSiteMemoryRegion
 import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
-import org.usvm.machine.state.concreteMemory.getMethod
+import org.usvm.machine.state.concreteMemory.approximationMethod
 
 internal class JcConcreteCallSiteLambdaRegion(
     private val ctx: JcContext,
@@ -32,7 +32,7 @@ internal class JcConcreteCallSiteLambdaRegion(
             val method = lambda.actualMethod.method.method
             val actualMethod =
                 if (method is JcEnrichedVirtualMethod)
-                    method.getMethod(ctx) ?: error("cannot find enriched method")
+                    method.approximationMethod ?: error("cannot find enriched method")
                 else method
             invocationHandler.init(actualMethod, lambda.callSiteMethodName, args)
         } else {

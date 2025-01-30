@@ -165,15 +165,16 @@ internal val JcMethod.toJavaMethod: Executable?
 internal val JcMethod.toTypedMethod: JcTypedMethod
     get() = enclosingClass.toType().declaredMethods.find { this == it.method }!!
 
-internal fun JcEnrichedVirtualMethod.getMethod(ctx: JcContext): JcMethod? {
-    val originalClassName = OriginalClassName(enclosingClass.name)
-    val approximationClassName =
-        Approximations.findApproximationByOriginOrNull(originalClassName)
-            ?: return null
-    return ctx.cp.findClassOrNull(approximationClassName)
-        ?.declaredMethods
-        ?.find { it.name == this.name }
-}
+internal val JcEnrichedVirtualMethod.approximationMethod: JcMethod?
+    get() {
+        val originalClassName = OriginalClassName(enclosingClass.name)
+        val approximationClassName =
+            Approximations.findApproximationByOriginOrNull(originalClassName)
+                ?: return null
+        return enclosingClass.classpath.findClassOrNull(approximationClassName)
+            ?.declaredMethods
+            ?.find { it.name == this.name }
+    }
 
 internal val JcType.isInstanceApproximation: Boolean
     get() {
@@ -350,20 +351,23 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
     }
 }
 
-internal fun JcClassOrInterface.isSpringFilter(ctx: JcContext): Boolean {
-    val filterType = ctx.cp.findClassOrNull("jakarta.servlet.Filter") ?: return false
-    return isSubClassOf(filterType)
-}
+internal val JcClassOrInterface.isSpringFilter: Boolean
+    get() {
+        val filterType = classpath.findClassOrNull("jakarta.servlet.Filter") ?: return false
+        return isSubClassOf(filterType)
+    }
 
-internal fun JcClassOrInterface.isSpringFilterChain(ctx: JcContext): Boolean {
-    val filterType = ctx.cp.findClassOrNull("jakarta.servlet.FilterChain") ?: return false
-    return isSubClassOf(filterType)
-}
+internal val JcClassOrInterface.isSpringFilterChain: Boolean
+    get() {
+        val filterType = classpath.findClassOrNull("jakarta.servlet.FilterChain") ?: return false
+        return isSubClassOf(filterType)
+    }
 
-internal fun JcClassOrInterface.isSpringHandlerInterceptor(ctx: JcContext): Boolean {
-    val filterType = ctx.cp.findClassOrNull("org.springframework.web.servlet.HandlerInterceptor") ?: return false
-    return isSubClassOf(filterType)
-}
+internal val JcClassOrInterface.isSpringHandlerInterceptor: Boolean
+    get() {
+        val filterType = classpath.findClassOrNull("org.springframework.web.servlet.HandlerInterceptor") ?: return false
+        return isSubClassOf(filterType)
+    }
 
 internal val JcClassOrInterface.isSpringController: Boolean
     get() = annotations.any {

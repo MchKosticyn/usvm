@@ -54,8 +54,9 @@ internal class JcConcreteExecutor: ThreadLocalHelper {
         isPresentMethod.isAccessible = true
         var value = false
         execute {
+            val args = if (isPresentMethod.parameterCount == 0) emptyArray<Any>() else arrayOf(Thread.currentThread())
             try {
-                value = isPresentMethod.invoke(threadLocal) as Boolean
+                value = isPresentMethod.invoke(threadLocal, *args) as Boolean
             } catch (e: Throwable) {
                 error("unable to check thread local value is present: $e")
             }
