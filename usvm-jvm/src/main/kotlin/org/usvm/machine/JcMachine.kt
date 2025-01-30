@@ -88,7 +88,7 @@ class JcMachine(
                 }
                 CoverageZone.SPRING_APPLICATION -> {
                     ctx.classesOfLocations(jcMachineOptions.projectLocations!!)
-                        .filter { it.isSpringController || it.isSpringFilter(ctx) || it.isSpringHandlerInterceptor(ctx) }
+                        .filter { it.isSpringController || it.isSpringFilter || it.isSpringHandlerInterceptor }
                         .flatMap { it.declaredMethods }
                         .filterNot { it is JcUnknownMethod || it.isConstructor }
                         .toSet()
