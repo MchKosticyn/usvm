@@ -225,8 +225,6 @@ private class JcConcreteSnapshotSequence(
             val type = oldObj.javaClass
             check(type == obj.javaClass || type.isThreadLocal)
             check(!type.notTracked)
-            if (type.typeName == "java.util.concurrent.ConcurrentHashMap\$Node[]" && (obj as Array<*>).size == 256)
-                println()
             when {
                 type.isThreadLocal -> threadLocalHelper.setThreadLocalValue(oldObj, obj)
                 type.isArray -> {

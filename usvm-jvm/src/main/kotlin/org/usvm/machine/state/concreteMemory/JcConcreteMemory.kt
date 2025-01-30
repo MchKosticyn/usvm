@@ -312,8 +312,8 @@ class JcConcreteMemory private constructor(
 
     private fun shouldNotInvoke(method: JcMethod): Boolean {
         return forbiddenInvocations.contains(method.humanReadableSignature) ||
-                method.enclosingClass.isSpringFilter(ctx) && (method.name == "doFilter" || method.name == "doFilterInternal") ||
-                method.enclosingClass.isSpringFilterChain(ctx) && (method.name == "doFilter" || method.name == "doFilterInternal")
+                method.enclosingClass.isSpringFilter && (method.name == "doFilter" || method.name == "doFilterInternal") ||
+                method.enclosingClass.isSpringFilterChain && (method.name == "doFilter" || method.name == "doFilterInternal")
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
