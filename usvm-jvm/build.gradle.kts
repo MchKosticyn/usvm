@@ -227,6 +227,8 @@ tasks.register<JavaExec>("runWebBench") {
 
     dependsOn(`usvm-api-jar`)
 
+    systemProperty("jdk.util.jar.enableMultiRelease", false)
+
     val usvmApiJarPath = `usvm-api-jar`.get().outputs.files.singleFile
     val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
     val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
@@ -337,6 +339,11 @@ tasks.register<JavaExec>("runWebBench") {
         openPackage("java.xml", "com.sun.xml.internal.stream")
         openPackage("java.xml", "com.sun.org.apache.xerces.internal.impl")
         openPackage("java.xml", "com.sun.org.apache.xerces.internal.utils")
+        openPackage("java.sql", "java.sql")
+        openPackage("java.base", "sun.nio.ch")
+        openPackage("java.base", "sun.net.util")
+        exportPackage("java.base", "jdk.internal.access.foreign")
+        exportPackage("java.base", "sun.security.action")
         exportPackage("java.base", "sun.util.locale")
         exportPackage("java.base", "jdk.internal.misc")
         exportPackage("java.base", "jdk.internal.reflect")
@@ -344,6 +351,7 @@ tasks.register<JavaExec>("runWebBench") {
         exportPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs.util")
         add("--illegal-access=warn")
         add("-XX:+UseParallelGC")
+        addModule("jdk.incubator.foreign")
     }
 }
 
@@ -355,6 +363,11 @@ fun MutableList<String>.openPackage(module: String, pakage: String) {
 fun MutableList<String>.exportPackage(module: String, pakage: String) {
     add("--add-exports")
     add("$module/$pakage=ALL-UNNAMED")
+}
+
+fun MutableList<String>.addModule(module: String) {
+    add("--add-modules")
+    add(module)
 }
 
 fun JavaExec.addEnvIfExists(envName: String, path: String) {

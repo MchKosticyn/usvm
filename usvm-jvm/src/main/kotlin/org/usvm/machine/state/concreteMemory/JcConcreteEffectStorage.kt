@@ -82,7 +82,7 @@ private class JcConcreteSnapshot(
                 }
                 else -> null
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
 //            println("cloneObject failed on class ${type.name}")
             return null
         }
@@ -284,7 +284,7 @@ private class JcConcreteSnapshotSequence(
                         try {
                             val value = field.getFieldValue(obj)
                             field.setFieldValueUnsafe(oldObj, value)
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) {
                             error("applyBacktrack class ${type.name} failed on field ${field.name}, cause: ${e.message}")
                         }
                     }
@@ -480,9 +480,9 @@ internal class JcConcreteEffectStorage private constructor(
     }
 
     fun copy(): JcConcreteEffectStorage {
-        check(isCurrent)
+        val wasCurrent = isCurrent
         val copied = JcConcreteEffectStorage(ctx, threadLocalHelper, own.copy(ctx, threadLocalHelper), current)
-        check(isCurrent && !copied.isCurrent)
+        check(!wasCurrent || isCurrent && !copied.isCurrent)
         return copied
     }
 }

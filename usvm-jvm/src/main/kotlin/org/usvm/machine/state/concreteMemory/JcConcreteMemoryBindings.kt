@@ -487,8 +487,9 @@ internal class JcConcreteMemoryBindings private constructor(
                 is JcPrimitiveType -> null
                 else -> error("JcConcreteMemoryBindings.allocateDefault: unexpected type $type")
             }
-        } catch (e: Exception) {
-            error("failed to allocate ${type.internalName}")
+        } catch (e: Throwable) {
+            println("failed to allocate ${type.internalName}")
+            return null
         }
     }
 
