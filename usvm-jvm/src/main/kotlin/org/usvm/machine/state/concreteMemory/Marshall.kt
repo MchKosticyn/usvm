@@ -281,7 +281,7 @@ internal class Marshall(
         fields.forEach {
             try {
                 regionStorage.getFieldRegion(it).unmarshallField(ref, obj)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 error("unmarshallFields failed on field ${it.name}, exception: $e")
             }
         }
