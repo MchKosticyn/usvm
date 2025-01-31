@@ -537,6 +537,8 @@ class JcConcreteMemory private constructor(
             try {
                 type.toJavaClass(JcConcreteMemoryClassLoader)
             } catch (e: Throwable) {
+                // TODO: sometimes it could #CM
+                // TODO: io.seata.core.rpc.netty.RmRpcClient|(Ljava/lang/String;Ljava/lang/String;)Lio/seata/core/rpc/netty/RmRpcClient;|getInstance
                 error("clinit should not throw exceptions: $e")
             }
         }

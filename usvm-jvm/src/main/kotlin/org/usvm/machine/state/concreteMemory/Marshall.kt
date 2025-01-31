@@ -447,7 +447,8 @@ internal class Marshall(
             searchingEncoder = encoder == null
             jcClass = if (searchingEncoder) jcClass.superClass else jcClass
         }
-        encoder ?: error("Failed to find encoder for type ${type.name}")
+        encoder ?:
+            error("Failed to find encoder for type ${type.name}")
         val encodeMethod = encoder.javaClass.declaredMethods.find { it.name == "encode" }!!
         val approximatedObj = try {
             encodeMethod.invoke(encoder, obj)

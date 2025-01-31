@@ -39,7 +39,9 @@ class CompletelyFairPathSelector<State, Key>(
 
     init {
         require(peeksInQuantum > 0U) { "peeksInQuantum value must be greater than zero" }
-        require(initialKeys.any()) { "initialKeys must contain at least one element" }
+        require(initialKeys.any()) {
+            "initialKeys must contain at least one element"
+        }
         stopwatch.reset()
         initialKeys.forEach {
             pathSelectors[it] = basePathSelectorFactory(it)

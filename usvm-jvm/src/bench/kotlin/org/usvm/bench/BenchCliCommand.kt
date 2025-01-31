@@ -139,7 +139,8 @@ class BenchCliCommand : CliktCommand() {
         JcBenchMachine(
             project.cpWithApproximations,
             options,
-            { _, e -> statisticsReporter.reportInternalFailure(jcMethod, e, configId) },
+            { _, e ->
+                statisticsReporter.reportInternalFailure(jcMethod, e, configId) },
             jcMachineOptions
         ).use { machine ->
             val result = machine.analyze(jcMethod, emptyList())

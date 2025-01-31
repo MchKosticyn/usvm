@@ -104,7 +104,9 @@ class SbftBenchCliCommand : CliktCommand() {
 
     private fun getBenches(): List<SbftBench> {
         val classLoader = Thread.currentThread().contextClassLoader
-        val sbftResourcesPath = File(classLoader.getResource("sbft")?.toURI() ?: throw IllegalStateException("Resources folder not found"))
+        val sbftResourcesPath =
+            File(classLoader.getResource("sbft")?.toURI()
+                ?: throw IllegalStateException("Resources folder not found"))
 
         val sbftCasesPath = sbftResourcesPath.resolve("cases")
         val sbftJarsPath = sbftResourcesPath.resolve("jars")
@@ -255,7 +257,8 @@ class SbftBenchCliCommand : CliktCommand() {
             JcBenchMachine(
                 cp,
                 options,
-                { s, e -> statisticsReporter.reportInternalFailure(s.entrypoint, e, configId) },
+                { s, e ->
+                    statisticsReporter.reportInternalFailure(s.entrypoint, e, configId) },
                 jcMachineOptions
             ).use { machine ->
                 var methodsToExplore = jcClass.selectBenchMethods()

@@ -31,7 +31,9 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
         if (field is JcEnrichedVirtualField || field.name == staticFieldsInitializedFlagField.name)
             return baseRegion.read(key)
 
-        check(JcConcreteMemoryClassLoader.isLoaded(field.enclosingClass))
+        check(JcConcreteMemoryClassLoader.isLoaded(field.enclosingClass)) {
+            ""
+        }
         val fieldType = field.typedField.type
         val javaField = field.toJavaField!!
         val value = javaField.getStaticFieldValue()
