@@ -21,3 +21,6 @@ run_python_with_gdb.sh
 
 # Ignoring generated files
 usvm-jvm/generated/*
+
+# Ignoring bench resources
+usvm-jvm/src/bench/resources/*
