@@ -4,12 +4,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jacodb.api.jvm.ByteCodeIndexer
-import org.jacodb.api.jvm.JCDBContext
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcFeature
 import org.jacodb.api.jvm.JcSignal
 import org.jacodb.api.jvm.RegisteredLocation
+import org.jacodb.api.storage.StorageContext
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.features.InMemoryHierarchy
@@ -61,7 +61,7 @@ class ProjectIndexer {
                 ?.also { module -> locationProjectModules[location] = module }
         }
 
-        override fun flush(context: JCDBContext) {
+        override fun flush(context: StorageContext) {
         }
 
         override fun index(classNode: ClassNode) {
