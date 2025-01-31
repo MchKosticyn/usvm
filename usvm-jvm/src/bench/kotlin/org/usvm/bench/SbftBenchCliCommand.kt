@@ -20,6 +20,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.approximation.Approximations
+import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages
 import org.jacodb.impl.features.classpaths.JcUnknownClass
@@ -53,7 +54,7 @@ class SbftBenchCliCommand : CliktCommand() {
         .int().default(1)
 
     val saveStatsToMongo by option("--mongo", help = "Save run stats to Mongo database")
-        .boolean().default(true)
+        .boolean().default(false)
 
     val runId by option("-id", help = "Identifier of the benchmark run")
         .default(System.currentTimeMillis().toString())
@@ -78,6 +79,8 @@ class SbftBenchCliCommand : CliktCommand() {
         val allJars = projectJars + depsJars
 
         val db = jacodb {
+            persistenceImpl(JcRamErsSettings)
+
             if (javaHome != null) {
                 useJavaRuntime(File(javaHome))
             } else {

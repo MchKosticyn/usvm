@@ -130,7 +130,7 @@ internal abstract class ObjectTraversal(
                             continue
                         val value = try {
                             field.getFieldValue(current)
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) {
                             if (skipExceptions) continue
                             error("ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
                         }
