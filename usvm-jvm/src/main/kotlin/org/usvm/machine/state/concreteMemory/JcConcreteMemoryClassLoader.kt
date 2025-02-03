@@ -147,18 +147,6 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         return initializedStatics
     }
 
-    private fun doLoadClass(name: String): Class<*> {
-        if (name.isLambdaTypeName)
-            return JcLambdaFeature.lambdaClassByName(name) ?: super.loadClass(name)
-
-        val jcClass = cp.findClassOrNull(name) ?: throw ClassNotFoundException(name)
-
-        if (jcClass.declaration.location.isRuntime)
-            return super.loadClass(name)
-
-        return loadClass(jcClass)
-    }
-
     private val afterClinitAction: java.util.function.Function<String, Void?> =
         java.util.function.Function { className: String ->
             val clazz = loadedClasses[className] ?: return@Function null
@@ -169,6 +157,9 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
 
     private fun initClinitHelper(type: Class<*>) {
         check(type.name == ClinitHelper::class.java.name)
+        // Forcing `<clinit>` of `ClinitHelper`
+        type.declaredFields.first().get(null)
+        // Initializing static fields
         type.staticFields
             .find { it.name == ClinitHelper::afterClinitAction.javaName }!!
             .setStaticFieldValue(afterClinitAction)
@@ -182,21 +173,29 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         if (loadedClass != null)
             return loadedClass
 
-        val type = doLoadClass(name)
-        loadedClasses[name] = type
+        if (name.isLambdaTypeName)
+            return loadLambdaClass(name)
 
-        if (name == ClinitHelper::class.java.name) {
-            initClinitHelper(type)
-        }
-
-        return type
+        val jcClass = cp.findClassOrNull(name) ?: throw ClassNotFoundException(name)
+        return defineClassRecursively(jcClass)
     }
 
     fun isLoaded(jcClass: JcClassOrInterface): Boolean {
         return loadedClasses.containsKey(jcClass.name)
     }
 
-    fun loadClass(jcClass: JcClassOrInterface): Class<*> = defineClassRecursively(jcClass)
+    private fun loadLambdaClass(name: String): Class<*> {
+        val type = JcLambdaFeature.lambdaClassByName(name) ?: super.loadClass(name)
+        loadedClasses[name] = type
+        return type
+    }
+
+    fun loadClass(jcClass: JcClassOrInterface): Class<*> {
+        if (jcClass.name.isLambdaTypeName)
+            return loadLambdaClass(jcClass.name)
+
+        return defineClassRecursively(jcClass)
+    }
 
     private fun defineClass(name: String, code: ByteArray): Class<*> {
         return defineClass(name, ByteBuffer.wrap(code), null as CodeSource?)
@@ -244,33 +243,27 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         jcClass: JcClassOrInterface,
         visited: MutableSet<JcClassOrInterface>
     ): Class<*>? {
-        if (!visited.add(jcClass)) {
-            return null
-        }
+        val className = jcClass.name
 
-        // TODO: unify with `loadClass` #CM
-        if (jcClass.declaration.location.isRuntime || typeIsRuntimeGenerated(jcClass)) {
-            val name = jcClass.name
-            val type = super.loadClass(name)
-            loadedClasses[name] = type
-            return type
-        }
+        if (jcClass is JcUnknownClass)
+            throw ClassNotFoundException(className)
 
-        if (jcClass is JcUnknownClass) {
-            throw ClassNotFoundException(jcClass.name)
-        }
+        return loadedClasses.getOrPut(className) {
+            if (!visited.add(jcClass))
+                return null
 
-        with(jcClass) {
-            // For unknown class we need to load all its supers, all classes mentioned in its ALL (not only declared)
-            // fields (as they are used in resolving), and then define the class itself using its bytecode from jacodb
+            if (jcClass.declaration.location.isRuntime || typeIsRuntimeGenerated(jcClass))
+                return@getOrPut super.loadClass(className)
 
-            val notVisitedSupers = allSuperHierarchySequence.filterNot { it in visited }
+            val notVisitedSupers = jcClass.allSuperHierarchySequence.filterNot { it in visited }
             notVisitedSupers.forEach { defineClassRecursively(it, visited) }
 
-            return loadedClasses.getOrPut(name) {
-                val bytecode = getBytecode(jcClass)
-                defineClass(name, bytecode)
-            }
+            val bytecode = getBytecode(jcClass)
+            val loadedClass = defineClass(className, bytecode)
+            if (loadedClass.name == ClinitHelper::class.java.name)
+                initClinitHelper(loadedClass)
+
+            return@getOrPut loadedClass
         }
     }
 }
