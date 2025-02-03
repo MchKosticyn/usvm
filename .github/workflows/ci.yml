@@ -13,7 +13,8 @@ env:
 
 jobs:
   ci-core:
-    runs-on: ubuntu-24.04
+    runs-on: [ self-hosted, ex44 ]
+    container: ubuntu:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,7 +41,8 @@ jobs:
           retention-days: 1
 
   ci-jvm:
-    runs-on: ubuntu-24.04
+    runs-on: [ self-hosted, ex44 ]
+    container: ubuntu:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -66,7 +68,8 @@ jobs:
           retention-days: 1
 
   ci-python:
-    runs-on: ubuntu-24.04
+    runs-on: [ self-hosted, ex44 ]
+    container: ubuntu:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -102,7 +105,8 @@ jobs:
           retention-days: 1
 
   ci-ts:
-    runs-on: ubuntu-24.04
+    runs-on: [ self-hosted, ex44 ]
+    container: ubuntu:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -160,7 +164,8 @@ jobs:
           retention-days: 1
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, ex44 ]
+    container: ubuntu:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
