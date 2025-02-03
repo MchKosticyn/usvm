@@ -48,6 +48,7 @@ import org.usvm.machine.SpringAnalysisMode
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
 import org.usvm.machine.state.concreteMemory.isInternalType
+import org.usvm.machine.state.concreteMemory.isLambda
 import org.usvm.machine.state.concreteMemory.javaName
 import org.usvm.util.classpathWithApproximations
 import org.usvm.util.typeName
@@ -123,22 +124,22 @@ private class BenchCp(
 
 internal object JcLambdaFeature: JcClasspathExtFeature {
 
-    private val lambdaClassesByName: MutableMap<String, JcClassOrInterface> = mutableMapOf()
-    private val lambdaClasses: MutableMap<String, Class<*>> = mutableMapOf()
+    private val lambdaJcClassesByName: MutableMap<String, JcClassOrInterface> = mutableMapOf()
+    private val lambdaClassesByName: MutableMap<String, Class<*>> = mutableMapOf()
 
     fun addLambdaClass(lambdaClass: Class<*>, jcClass: JcClassOrInterface) {
         val realName = jcClass.name
         val canonicalName = getLambdaCanonicalTypeName(realName)
-        lambdaClassesByName[canonicalName] = jcClass
-        lambdaClasses[realName] = lambdaClass
+        lambdaJcClassesByName[canonicalName] = jcClass
+        lambdaClassesByName[realName] = lambdaClass
     }
 
     fun lambdaClassByName(name: String): Class<*>? {
-        return lambdaClasses[name]
+        return lambdaClassesByName[name]
     }
 
     override fun tryFindClass(classpath: JcClasspath, name: String): JcResolvedClassResult? {
-        return lambdaClassesByName[name]?.let { AbstractJcResolvedResult.JcResolvedClassResultImpl(name, it) }
+        return lambdaJcClassesByName[name]?.let { AbstractJcResolvedResult.JcResolvedClassResultImpl(name, it) }
     }
 }
 
@@ -150,6 +151,8 @@ internal object JcClinitFeature: JcInstExtFeature {
                 || method.enclosingClass.declaration.location.isRuntime
                 || method.enclosingClass.isInternalType
                 || method.enclosingClass.name == ClinitHelper::class.java.name
+                || method.enclosingClass.isLambda
+                || method.enclosingClass.isSynthetic
     }
 
     override fun transformRawInstList(method: JcMethod, list: JcInstList<JcRawInst>): JcInstList<JcRawInst> {
