@@ -244,16 +244,15 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         visited: MutableSet<JcClassOrInterface>
     ): Class<*>? {
         val className = jcClass.name
-
-        if (jcClass is JcUnknownClass)
-            throw ClassNotFoundException(className)
-
         return loadedClasses.getOrPut(className) {
             if (!visited.add(jcClass))
                 return null
 
             if (jcClass.declaration.location.isRuntime || typeIsRuntimeGenerated(jcClass))
                 return@getOrPut super.loadClass(className)
+
+            if (jcClass is JcUnknownClass)
+                throw ClassNotFoundException(className)
 
             val notVisitedSupers = jcClass.allSuperHierarchySequence.filterNot { it in visited }
             notVisitedSupers.forEach { defineClassRecursively(it, visited) }
