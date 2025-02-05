@@ -469,10 +469,11 @@ class JcConcreteMemory private constructor(
                         resolveExpr(value, typedField.type)
                     }
                     // TODO: need to call clinit? #CM
-                    ensureClinit(field.enclosingClass)
-                    val currentValue = javaField.getStaticFieldValue()
-                    if (concretizedValue != currentValue)
-                        javaField.setStaticFieldValue(concretizedValue)
+                    if (ensureClinit(field.enclosingClass)) {
+                        val currentValue = javaField.getStaticFieldValue()
+                        if (concretizedValue != currentValue)
+                            javaField.setStaticFieldValue(concretizedValue)
+                    }
                 }
             }
         }
@@ -529,17 +530,21 @@ class JcConcreteMemory private constructor(
         invoke(state, exprResolver, stmt, method, thisObj, objParameters)
     }
 
-    private fun ensureClinit(type: JcClassOrInterface) {
+    private fun ensureClinit(type: JcClassOrInterface): Boolean {
         if (type.isInternalType)
-            return
+            return true
 
+        var success = true
         executor.execute {
             try {
                 type.toJavaClass(JcConcreteMemoryClassLoader)
             } catch (e: Throwable) {
-                error("clinit should not throw exceptions: $e")
+                println("[WARNING] clinit should not throw exceptions: $e")
+                success = false
             }
         }
+
+        return success
     }
 
     private fun unfoldException(e: Throwable): Throwable {
@@ -639,9 +644,9 @@ class JcConcreteMemory private constructor(
         val signature = method.humanReadableSignature
 
         if (method.isClassInitializer) {
-            ensureClinit(method.enclosingClass)
+            val success = ensureClinit(method.enclosingClass)
 
-            if (shouldAnalyzeClinit(method)) {
+            if (shouldAnalyzeClinit(method) || !success) {
                 // Executing clinit symbolically
                 return TryConcreteInvokeFail(false)
             }

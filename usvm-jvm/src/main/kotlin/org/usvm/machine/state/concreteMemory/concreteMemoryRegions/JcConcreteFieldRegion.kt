@@ -102,8 +102,9 @@ internal class JcConcreteFieldRegion<Sort : USort>(
 
     @Suppress("UNCHECKED_CAST")
     fun unmarshallField(ref: UConcreteHeapRef, obj: Any) {
+        val field = javaField ?: return
         val lvalue = UFieldLValue(sort, ref, jcField)
-        val fieldObj = jcField.getFieldValue(obj)
+        val fieldObj = field.getFieldValue(obj)
         val rvalue = marshall.objToExpr<USort>(fieldObj, fieldType) as UExpr<Sort>
         writeToBase(lvalue, rvalue, ctx.trueExpr)
     }
