@@ -379,15 +379,10 @@ abstract class JcTestStateResolver<T>(
         val refDecoder = TestObjectData(ref)
 
         val decodedObject = objectDecoder.createInstance(type.jcClass, refDecoder, decoderApi)
-        // TODO: AbstractMap_Entry decoded into it's value, so it can be null #Valya
-        // TODO: not ok!
-//        requireNotNull(decodedObject) {
-//            "Object not properly decoded"
-//        }
+        requireNotNull(decodedObject) { "Object not properly decoded" }
         saveResolvedRef(ref.address, decodedObject)
 
-        if (decodedObject != null)
-            objectDecoder.initializeInstance(type.jcClass, refDecoder, decodedObject, decoderApi)
+        objectDecoder.initializeInstance(type.jcClass, refDecoder, decodedObject, decoderApi)
         return decodedObject
     }
 

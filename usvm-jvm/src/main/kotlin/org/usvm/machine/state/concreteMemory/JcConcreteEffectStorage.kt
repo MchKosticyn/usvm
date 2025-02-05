@@ -5,14 +5,9 @@ import org.jacodb.api.jvm.JcClassType
 import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.allocateInstance
-import org.usvm.instrumentation.util.getFieldValue
 import org.usvm.machine.JcContext
 import java.lang.reflect.Field
-import java.util.LinkedList
-import java.util.Queue
 import kotlin.math.min
-import org.usvm.instrumentation.util.getFieldValue as getFieldValueUnsafe
-import org.usvm.instrumentation.util.setFieldValue as setFieldValueUnsafe
 
 internal interface ThreadLocalHelper {
     fun getThreadLocalValue(threadLocal: Any): Any?
@@ -49,8 +44,8 @@ private class JcConcreteSnapshot(
     fun isEmpty(): Boolean = objects.isEmpty() && statics.isEmpty()
 
     private fun cloneObject(obj: Any): Any? {
+        val type = obj.javaClass
         try {
-            val type = obj.javaClass
             val jcType = type.toJcType(ctx) ?: return null
             return when {
                 jcType is JcUnknownType -> null
@@ -75,15 +70,15 @@ private class JcConcreteSnapshot(
                 jcType is JcClassType -> {
                     val newObj = jcType.allocateInstance(JcConcreteMemoryClassLoader)
                     for (field in type.allInstanceFields) {
-                        val value = field.getFieldValueUnsafe(obj)
-                        field.setFieldValueUnsafe(newObj, value)
+                        val value = field.getFieldValue(obj)
+                        field.setFieldValue(newObj, value)
                     }
                     newObj
                 }
                 else -> null
             }
         } catch (e: Throwable) {
-//            println("cloneObject failed on class ${type.name}")
+            println("[WARNING] cloneObject failed on class ${type.name}")
             return null
         }
     }
@@ -94,8 +89,10 @@ private class JcConcreteSnapshot(
 
         val obj = oldPhys.obj!!
         val type = obj.javaClass
-        if (type.isImmutable)
+        if (type.isImmutable) {
+            check(!type.isThreadLocal)
             return
+        }
 
         val clonedObj = if (type.isThreadLocal) {
             if (!threadLocalHelper.checkIsPresent(obj))
@@ -115,11 +112,11 @@ private class JcConcreteSnapshot(
         }
 
         override fun skipField(field: Field): Boolean {
-            return field.type.notTracked
+            return field.type.notTrackedWithSubtypes
         }
 
         override fun skipArrayIndices(elementType: Class<*>): Boolean {
-            return elementType.notTracked
+            return elementType.notTrackedWithSubtypes
         }
 
         override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
@@ -157,17 +154,15 @@ private class JcConcreteSnapshot(
     }
 
     fun addStaticFields(type: Class<*>) {
+        // TODO: add custom filters
+        // TODO: discard all runtime statics! #CM
         if (type.isImmutable || staticsCache.contains(type))
             return
 
         for (field in type.staticFields) {
-            // TODO: add custom filters
-            // TODO: discard all runtime statics! #CM
-            if (field.type.isImmutable)
-                continue
             val value = field.getStaticFieldValue()
-            addObjectToSnapshotRec(value)
             addStaticFieldToSnapshot(field, value)
+            addObjectToSnapshotRec(value)
         }
         staticsCache.add(type)
     }
@@ -283,7 +278,7 @@ private class JcConcreteSnapshotSequence(
                     for (field in type.allInstanceFields) {
                         try {
                             val value = field.getFieldValue(obj)
-                            field.setFieldValueUnsafe(oldObj, value)
+                            field.setFieldValue(oldObj, value)
                         } catch (e: Throwable) {
                             error("applyBacktrack class ${type.name} failed on field ${field.name}, cause: ${e.message}")
                         }

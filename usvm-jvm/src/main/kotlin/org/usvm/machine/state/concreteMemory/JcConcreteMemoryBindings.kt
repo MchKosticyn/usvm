@@ -165,6 +165,9 @@ internal class JcConcreteMemoryBindings private constructor(
     }
 
     private fun addChild(parent: PhysicalAddress, child: PhysicalAddress, childKind: ChildKind, update: Boolean) {
+        if (child.obj?.javaClass?.notTracked == true)
+            return
+
         if (parent != child) {
             if (child.isNull && update) {
                 children[parent]?.remove(childKind)
@@ -177,7 +180,7 @@ internal class JcConcreteMemoryBindings private constructor(
                     if (cell != null) {
                         val cellIsCorrect = !cell.isConcrete || cell.address == child
                         if (!cellIsCorrect) {
-                            println("[USVM] WARNING: concreteness system is incorrect")
+                            println("[WARNING] concreteness system is incorrect")
                             childMap[childKind] = Cell(child)
                         }
                     } else {
@@ -244,7 +247,7 @@ internal class JcConcreteMemoryBindings private constructor(
         }
 
         override fun skipField(field: Field): Boolean {
-            return field.type.notTracked
+            return field.type.notTrackedWithSubtypes
         }
 
         override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
@@ -271,14 +274,16 @@ internal class JcConcreteMemoryBindings private constructor(
         ConcretenessTraversal().traverse(obj)
     }
 
-    private fun checkTrackCopy(dstArrayType: Class<*>, dstFromIdx: Int, dstToIdx: Int): Boolean {
-        check(dstFromIdx <= dstToIdx)
+    private fun skipTrackCopy(dstArrayType: Class<*>): Boolean {
         val elemType = dstArrayType.componentType
-        return !elemType.notTracked
+        return elemType.notTrackedWithSubtypes
     }
 
     private fun trackCopy(updatedDstArray: Array<*>, dstArrayType: Class<*>, dstFromIdx: Int, dstToIdx: Int) {
-        if (!checkTrackCopy(dstArrayType, dstFromIdx, dstToIdx)) return
+        check(dstArrayType.isArray)
+        check(dstFromIdx <= dstToIdx)
+
+        if (skipTrackCopy(dstArrayType)) return
 
         for (i in dstFromIdx..<dstToIdx) {
             setChild(updatedDstArray, updatedDstArray[i], ArrayIndexChildKind(i))
@@ -488,7 +493,7 @@ internal class JcConcreteMemoryBindings private constructor(
                 else -> error("JcConcreteMemoryBindings.allocateDefault: unexpected type $type")
             }
         } catch (e: Throwable) {
-            println("failed to allocate ${type.internalName}")
+            println("[WARNING] failed to allocate ${type.internalName}")
             return null
         }
     }
@@ -508,11 +513,7 @@ internal class JcConcreteMemoryBindings private constructor(
     fun readClassField(address: UConcreteHeapAddress, field: Field): Any? {
         val obj = virtToPhys(address)
         val value = field.getFieldValue(obj)
-
-        val type = field.type
-        if (!type.notTracked)
-            trackChild(obj, value, FieldChildKind(field))
-
+        trackChild(obj, value, FieldChildKind(field))
         return value
     }
 
@@ -533,11 +534,7 @@ internal class JcConcreteMemoryBindings private constructor(
                 else -> error("JcConcreteMemoryBindings.readArrayIndex: unexpected array $obj")
             }
 
-        val arrayType = typeConstraints.typeOf(address)
-        arrayType as JcArrayType
-        val elemType = arrayType.elementType
-        if (!elemType.notTracked)
-            trackChild(obj, value, ArrayIndexChildKind(index))
+        trackChild(obj, value, ArrayIndexChildKind(index))
 
         return value
     }
@@ -595,9 +592,7 @@ internal class JcConcreteMemoryBindings private constructor(
             effectStorage.addObjectToEffect(obj)
 
         field.setFieldValue(obj, value)
-
-        if (!field.type.notTracked)
-            setChild(obj, value, FieldChildKind(field))
+        setChild(obj, value, FieldChildKind(field))
     }
 
     fun <Value> writeArrayIndex(address: UConcreteHeapAddress, index: Int, value: Value) {
@@ -606,12 +601,7 @@ internal class JcConcreteMemoryBindings private constructor(
             effectStorage.addObjectToEffect(obj)
 
         obj.setArrayValue(index, value)
-
-        val arrayType = typeConstraints.typeOf(address)
-        arrayType as JcArrayType
-        val elemType = arrayType.elementType
-        if (!elemType.notTracked)
-            setChild(obj, value, ArrayIndexChildKind(index))
+        setChild(obj, value, ArrayIndexChildKind(index))
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -684,8 +674,7 @@ internal class JcConcreteMemoryBindings private constructor(
                 obj as Array<Value>
                 for ((index, value) in contents) {
                     obj[index] = value
-                    if (!elemType.notTracked)
-                        setChild(obj, value, ArrayIndexChildKind(index))
+                    setChild(obj, value, ArrayIndexChildKind(index))
                 }
             }
 
