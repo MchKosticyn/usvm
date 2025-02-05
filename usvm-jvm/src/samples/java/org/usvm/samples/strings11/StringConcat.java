@@ -111,8 +111,6 @@ public class StringConcat {
 
     public static void concretize() { }
 
-    public static void end() { }
-
     public static boolean wip(int i) {
         LinkedHashMap<String, String> map = new LinkedHashMap<>();
         map.put("str", "abc");
@@ -123,7 +121,6 @@ public class StringConcat {
             wip1(map);
             if (!map.get("str").equals("def"))
                 return false;
-            end();
         } else {
             concretize();
             if (!map.get("str").equals("abc"))
@@ -131,7 +128,6 @@ public class StringConcat {
             wip2(map);
             if (!map.get("str").equals("qwe"))
                 return false;
-            end();
         }
         return true;
     }

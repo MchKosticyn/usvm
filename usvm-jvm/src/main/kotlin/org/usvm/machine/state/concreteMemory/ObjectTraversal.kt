@@ -6,7 +6,7 @@ import java.util.Queue
 
 internal abstract class ObjectTraversal(
     private val threadLocalHelper: ThreadLocalHelper,
-    private val skipExceptions: Boolean
+    private val skipExceptions: Boolean = false
 ) {
 
     abstract fun skip(phys: PhysicalAddress, type: Class<*>): Boolean
@@ -131,7 +131,10 @@ internal abstract class ObjectTraversal(
                         val value = try {
                             field.getFieldValue(current)
                         } catch (e: Throwable) {
-                            if (skipExceptions) continue
+                            if (skipExceptions) {
+                                println("[WARNING] ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
+                                continue
+                            }
                             error("ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
                         }
                         val valuePhys = PhysicalAddress(value)

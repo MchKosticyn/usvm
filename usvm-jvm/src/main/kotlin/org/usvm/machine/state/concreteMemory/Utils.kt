@@ -35,6 +35,7 @@ import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.util.Reflection.toJavaExecutable
 import org.usvm.instrumentation.util.isStatic
 import org.usvm.instrumentation.util.toJavaClass
+import org.usvm.instrumentation.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.instrumentation.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.machine.JcContext
 import org.usvm.util.name
@@ -49,6 +50,10 @@ import kotlin.reflect.jvm.javaMethod
 @Suppress("RecursivePropertyAccessor")
 internal val JcClassType.allFields: List<JcTypedField>
     get() = declaredFields + (superType?.allFields ?: emptyList())
+
+@Suppress("RecursivePropertyAccessor")
+internal val JcClassOrInterface.allFields: List<JcField>
+    get() = declaredFields + (superClass?.allFields ?: emptyList())
 
 internal val Class<*>.safeDeclaredFields: List<Field>
     get() {
@@ -80,42 +85,48 @@ internal val Class<*>.staticFields: List<Field>
 
 internal fun Field.getFieldValue(obj: Any): Any? {
     check(!isStatic)
-    isAccessible = true
-    return get(obj)
+    return try {
+        isAccessible = true
+        get(obj)
+    } catch (_: Throwable) {
+        getFieldValueUnsafe(obj)
+    }
+}
+
+internal fun Field.setFieldValue(obj: Any, value: Any?) {
+    check(!isStatic)
+    check(value !is PhysicalAddress)
+    try {
+        isAccessible = true
+        set(obj, value)
+    } catch (_: Throwable) {
+        setFieldValueUnsafe(obj, value)
+    }
 }
 
 internal fun Field.getStaticFieldValue(): Any? {
     check(isStatic)
-    isAccessible = true
-    return get(null)
-//     TODO: null!! #CM #Valya
-//    return getFieldValueUnsafe(null)
+    return try {
+        isAccessible = true
+        get(null)
+    } catch (_: Throwable) {
+        getFieldValueUnsafe(null)
+    }
 }
 
 internal fun Field.setStaticFieldValue(value: Any?) {
+    check(isStatic)
     check(value !is PhysicalAddress)
-//    isAccessible = true
-//    set(null, value)
-    setFieldValueUnsafe(null, value)
+    try {
+        isAccessible = true
+        set(null, value)
+    } catch (_: Throwable) {
+        setFieldValueUnsafe(null, value)
+    }
 }
 
 internal val Field.isFinal: Boolean
     get() = Modifier.isFinal(modifiers)
-
-internal fun JcField.getFieldValue(obj: Any): Any? {
-    if (this is JcEnrichedVirtualField) {
-        val javaField = obj.javaClass.allInstanceFields.find { it.name == name }!!
-        return javaField.getFieldValue(obj)
-    }
-
-    return this.getFieldValue(JcConcreteMemoryClassLoader, obj)
-}
-
-internal fun Field.setFieldValue(obj: Any, value: Any?) {
-    check(value !is PhysicalAddress)
-    isAccessible = true
-    set(obj, value)
-}
 
 internal val kotlin.reflect.KProperty<*>.javaName: String
     get() = this.javaField?.name ?: error("No java name for field $this")
@@ -245,13 +256,16 @@ internal val JcMethod.isInstrumentedClinit: Boolean
     }
 
 internal val Class<*>.notTracked: Boolean
-    get() = this.isPrimitive || isImmutable || this.isEnum
+    get() = this.isPrimitive || this.isEnum || isImmutable
 
-internal val JcType.notTracked: Boolean
+internal val Class<*>.notTrackedWithSubtypes: Boolean
+    get() = this.isPrimitive || this.isEnum || isImmutableWithSubtypes
+
+internal val JcType.notTrackedWithSubtypes: Boolean
     get() =
         this is JcPrimitiveType ||
                 this is JcClassType &&
-                (this.jcClass.isEnum || jcClass.isImmutable)
+                (this.jcClass.isEnum || jcClass.isImmutableWithSubtypes)
 
 private val immutableTypes = setOf(
     "jdk.internal.loader.ClassLoaders\$AppClassLoader",
@@ -259,9 +273,13 @@ private val immutableTypes = setOf(
     "java.net.NetPermission",
 )
 
-private val packagesWithImmutableTypes = setOf(
-    "java.lang", "java.lang.reflect", "java.lang.invoke"
+private val packagesWithImmutableTypesSubtypes = setOf(
+    "java.lang.reflect", "java.lang.invoke"//, "sun.instrument"
 )
+
+private val packagesWithImmutableTypes = setOf(
+    "java.lang"
+) + packagesWithImmutableTypesSubtypes
 
 internal val Class<*>.isClassLoader: Boolean
     get() = ClassLoader::class.java.isAssignableFrom(this)
@@ -286,21 +304,39 @@ internal val Class<*>.isImmutable: Boolean
             || isClassLoader
             || packageName in packagesWithImmutableTypes
             || isInternalType
+            || isRecord
+            || allFields.isEmpty()
+
+internal val Class<*>.isImmutableWithSubtypes: Boolean
+    get() = immutableTypes.contains(name)
+            || isClassLoader
+            || packageName in packagesWithImmutableTypes && isFinal
+            || packageName in packagesWithImmutableTypesSubtypes
+            || isInternalType
+            || isRecord
+            || allFields.isEmpty() && isFinal
+
+private val JcClassOrInterface.isImmutableWithSubtypes: Boolean
+    get() = immutableTypes.contains(this.name)
+            || isClassLoader
+            || packageName in packagesWithImmutableTypes && isFinal
+            || packageName in packagesWithImmutableTypesSubtypes
+            || isInternalType
+            // TODO: add `isRecord`
+            || allFields.isEmpty() && isFinal
+
+internal val Class<*>.isFinal: Boolean
+    get() = Modifier.isFinal(modifiers)
 
 private val JcClassOrInterface.isClassLoader: Boolean
     get() = allSuperHierarchy.any { it.name == "java.lang.ClassLoader" }
 
-private val JcClassOrInterface.isImmutable: Boolean
-    get() = immutableTypes.contains(this.name)
-            || isClassLoader
-            || packageName in packagesWithImmutableTypes
-            || isInternalType
 
 internal val Class<*>.isSolid: Boolean
     get() = notTracked || this.isArray && this.componentType.notTracked
 
-//private val JcType.isSolid: Boolean
-//    get() = notTracked || isImmutable || this is JcArrayType && this.elementType.notTracked
+internal val Class<*>.isSolidWithSubtypes: Boolean
+    get() = notTrackedWithSubtypes || this.isArray && this.componentType.notTrackedWithSubtypes
 
 class LambdaClassSource(
     override val location: RegisteredLocation,
