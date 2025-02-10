@@ -16,6 +16,7 @@ import org.usvm.isTrue
 import org.usvm.machine.JcContext
 import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
+import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.getFieldValue
 import org.usvm.machine.state.concreteMemory.toJavaField
 import org.usvm.memory.UMemoryRegion
@@ -86,8 +87,7 @@ internal class JcConcreteFieldRegion<Sort : USort>(
             if (!isApproximation) {
                 val objValue = marshall.tryExprToObj(value, fieldType)
                 val writeIsConcrete = objValue.isSome && guard.isTrue
-                if (writeIsConcrete) {
-                    bindings.writeClassField(address, javaField!!, objValue.getOrThrow())
+                if (writeIsConcrete && bindings.writeClassField(address, javaField!!, objValue.getOrThrow())) {
                     return this
                 }
             }
@@ -102,7 +102,10 @@ internal class JcConcreteFieldRegion<Sort : USort>(
 
     @Suppress("UNCHECKED_CAST")
     fun unmarshallField(ref: UConcreteHeapRef, obj: Any) {
-        val field = javaField ?: return
+        val field =
+            javaField
+                ?: obj.javaClass.allInstanceFields.find { it.name == jcField.name }
+                ?: error("Could not find field '${jcField.name}'")
         val lvalue = UFieldLValue(sort, ref, jcField)
         val fieldObj = field.getFieldValue(obj)
         val rvalue = marshall.objToExpr<USort>(fieldObj, fieldType) as UExpr<Sort>

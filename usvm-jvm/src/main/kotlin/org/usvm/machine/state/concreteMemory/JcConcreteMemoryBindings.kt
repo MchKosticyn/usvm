@@ -213,7 +213,8 @@ internal class JcConcreteMemoryBindings private constructor(
         addChild(parent, child, childKind, true)
     }
 
-    private fun setChild(parent: Any?, child: Any?, childKind: ChildKind) {
+    // TODO: make private
+    fun setChild(parent: Any?, child: Any?, childKind: ChildKind) {
         check(parent !is PhysicalAddress && child !is PhysicalAddress)
         setChild(PhysicalAddress(parent), PhysicalAddress(child), childKind)
     }
@@ -248,6 +249,10 @@ internal class JcConcreteMemoryBindings private constructor(
 
         override fun skipField(field: Field): Boolean {
             return field.type.notTrackedWithSubtypes
+        }
+
+        override fun skipArrayIndices(elementType: Class<*>): Boolean {
+            return elementType.notTrackedWithSubtypes
         }
 
         override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
@@ -325,6 +330,55 @@ internal class JcConcreteMemoryBindings private constructor(
         }
 
         return symbolicMembers
+    }
+
+    private inner class IsActualTraversal: ObjectTraversal(threadLocalHelper, false) {
+        private var success = true
+        private var childMap: childMapType? = null
+
+        override fun skip(phys: PhysicalAddress, type: Class<*>): Boolean {
+            childMap = children[phys] ?: return true
+            return false
+        }
+
+        override fun skipField(field: Field): Boolean {
+            return !childMap!!.containsKey(FieldChildKind(field))
+        }
+
+        override fun skipArrayIndices(elementType: Class<*>): Boolean {
+            return childMap!!.isEmpty()
+        }
+
+        override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
+        }
+
+        override fun handleClass(phys: PhysicalAddress, type: Class<*>) {
+        }
+
+        override fun handleThreadLocal(threadLocalPhys: PhysicalAddress, valuePhys: PhysicalAddress) {
+            if (childMap!![ThreadLocalValueChildKind()]?.address?.obj !== valuePhys.obj)
+                success = false
+        }
+
+        override fun handleArrayIndex(arrayPhys: PhysicalAddress, index: Int, valuePhys: PhysicalAddress) {
+            if (childMap!![ArrayIndexChildKind(index)]?.address?.obj !== valuePhys.obj)
+                success = false
+        }
+
+        override fun handleClassField(parentPhys: PhysicalAddress, field: Field, valuePhys: PhysicalAddress) {
+            if (childMap!![FieldChildKind(field)]?.address?.obj !== valuePhys.obj)
+                success = false
+        }
+
+        val isActual: Boolean
+            get() = success
+    }
+
+    fun isActual(obj: Any?): Boolean {
+        obj ?: return true
+        val traverser = IsActualTraversal()
+        traverser.traverse(obj)
+        return traverser.isActual
     }
 
     // TODO: use it someday
@@ -585,14 +639,20 @@ internal class JcConcreteMemoryBindings private constructor(
 
     //region Writing
 
-    fun writeClassField(address: UConcreteHeapAddress, field: Field, value: Any?) {
+    fun writeClassField(address: UConcreteHeapAddress, field: Field, value: Any?): Boolean {
         val obj = virtToPhys(address)
         if (state == State.MutableWithEffect)
             // TODO: add to backtrack only one field #CM
             effectStorage.addObjectToEffect(obj)
 
-        field.setFieldValue(obj, value)
+        try {
+            field.setFieldValue(obj, value)
+        } catch (e: ForbiddenModificationException) {
+            return false
+        }
+
         setChild(obj, value, FieldChildKind(field))
+        return true
     }
 
     fun <Value> writeArrayIndex(address: UConcreteHeapAddress, index: Int, value: Value) {
