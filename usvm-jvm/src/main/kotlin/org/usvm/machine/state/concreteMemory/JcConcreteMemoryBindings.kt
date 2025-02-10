@@ -177,6 +177,7 @@ internal class JcConcreteMemoryBindings private constructor(
                     childMap[childKind] = Cell(child)
                 } else if (childMap != null) {
                     val cell = childMap[childKind]
+                    // TODO: care about update!!!!!!!
                     if (cell != null) {
                         val cellIsCorrect = !cell.isConcrete || cell.address == child
                         if (!cellIsCorrect) {
@@ -459,9 +460,8 @@ internal class JcConcreteMemoryBindings private constructor(
         val interned = internIfNeeded(obj)
         if (interningTypes.contains(type)) {
             val address = tryPhysToVirt(interned)
-            if (address != null) {
+            if (address != null)
                 return address
-            }
         }
 
         val address = createNewAddress(type, static)
@@ -470,15 +470,16 @@ internal class JcConcreteMemoryBindings private constructor(
     }
 
     private fun allocateIfShould(obj: Any, type: JcType): UConcreteHeapAddress? {
-        if (shouldAllocate(type)) {
+        if (shouldAllocate(type))
             return allocate(obj, type, false)
-        }
+
         return null
     }
 
     private fun allocateIfShould(type: JcType, static: Boolean): UConcreteHeapAddress? {
         if (shouldAllocate(type)) {
             val obj = createDefault(type) ?: return null
+            // TODO: add to fullyConcrete?
             return allocate(obj, type, static)
         }
         return null
