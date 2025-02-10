@@ -122,6 +122,7 @@ internal abstract class ObjectTraversal(
                         else -> error("ObjectTraversal.traverse: unexpected array $current")
                     }
                 }
+                // TODO: add special traverse for standard collections (ArrayList, ...) #CM
                 else -> {
                     handleClass(currentPhys, type)
 
