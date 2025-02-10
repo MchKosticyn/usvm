@@ -133,7 +133,7 @@ private fun staticFieldsInitializedFlag(ctx: JcContext, type: JcRefType): JcStat
 /**
  * Synthetic field to track static field initialization state.
  * */
-internal val staticFieldsInitializedFlagField by lazy {
+private val staticFieldsInitializedFlagField by lazy {
     FieldInfo(
         name = "__initialized__",
         signature = null,

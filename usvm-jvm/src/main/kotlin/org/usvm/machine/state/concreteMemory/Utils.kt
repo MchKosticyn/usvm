@@ -23,14 +23,13 @@ import org.jacodb.api.jvm.ext.superClasses
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.throwClassNotFound
 import org.jacodb.approximation.Approximations
-import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
+import org.jacodb.impl.cfg.util.internalDesc
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.api.internal.ClinitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
-import org.usvm.api.util.Reflection.getFieldValue
 import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.util.Reflection.toJavaExecutable
 import org.usvm.instrumentation.util.isStatic
@@ -92,10 +91,32 @@ internal fun Field.getFieldValue(obj: Any): Any? {
         getFieldValueUnsafe(obj)
     }
 }
+private val forbiddenModificationClasses = setOf<Class<*>>(
+    java.lang.Class::class.java,
+    java.lang.Thread::class.java,
+    java.lang.String::class.java,
+    java.lang.Integer::class.java,
+    java.lang.Long::class.java,
+    java.lang.Float::class.java,
+    java.lang.Double::class.java,
+    java.lang.Boolean::class.java,
+    java.lang.Byte::class.java,
+    java.lang.Short::class.java,
+    java.lang.Character::class.java,
+    java.lang.Void::class.java,
+)
+
+private val Class<*>.isForbiddenToModify: Boolean
+    get() = forbiddenModificationClasses.any { it.isAssignableFrom(this) }
+
+class ForbiddenModificationException(msg: String) : Exception(msg)
 
 internal fun Field.setFieldValue(obj: Any, value: Any?) {
     check(!isStatic)
     check(value !is PhysicalAddress)
+    if (declaringClass.isForbiddenToModify)
+        throw ForbiddenModificationException(declaringClass.name)
+
     try {
         isAccessible = true
         set(obj, value)
@@ -168,7 +189,15 @@ internal fun <Value> Any.setArrayValue(index: Int, value: Value) {
 }
 
 internal val JcField.toJavaField: Field?
-    get() = enclosingClass.toJavaClass(JcConcreteMemoryClassLoader).allFields.find { it.name == name }
+    get() {
+        val type = enclosingClass.toJavaClass(JcConcreteMemoryClassLoader)
+        val fields = if (isStatic) type.staticFields else type.allInstanceFields
+        val field = fields.find { it.name == name }
+        check(field == null || field.type.typeName == this.type.typeName) {
+            "invalid field: types of field $field and $this differ ${field?.type?.typeName} and ${this.type.typeName}"
+        }
+        return field
+    }
 
 internal val JcMethod.toJavaMethod: Executable?
     get() = this.toJavaExecutable(JcConcreteMemoryClassLoader)
@@ -261,25 +290,55 @@ internal val Class<*>.notTracked: Boolean
 internal val Class<*>.notTrackedWithSubtypes: Boolean
     get() = this.isPrimitive || this.isEnum || isImmutableWithSubtypes
 
-internal val JcType.notTrackedWithSubtypes: Boolean
-    get() =
-        this is JcPrimitiveType ||
-                this is JcClassType &&
-                (this.jcClass.isEnum || jcClass.isImmutableWithSubtypes)
+private val immutableTypes = setOf<Class<*>>(
+    java.lang.String::class.java,
+    java.lang.Integer::class.java,
+    java.lang.Long::class.java,
+    java.lang.Float::class.java,
+    java.lang.Double::class.java,
+    java.lang.Boolean::class.java,
+    java.lang.Byte::class.java,
+    java.lang.Short::class.java,
+    java.lang.Character::class.java,
+    java.lang.StackTraceElement::class.java,
+    java.lang.Void::class.java,
+    java.lang.System::class.java,
+    java.lang.Math::class.java,
+    java.lang.reflect.Array::class.java,
+    java.lang.Class::class.java,
+    java.lang.Thread::class.java,
+    java.math.BigInteger::class.java,
+    java.math.BigDecimal::class.java,
 
-private val immutableTypes = setOf(
-    "jdk.internal.loader.ClassLoaders\$AppClassLoader",
-    "java.security.AllPermission",
-    "java.net.NetPermission",
-)
+    java.io.File::class.java,
 
-private val packagesWithImmutableTypesSubtypes = setOf(
-    "java.lang.reflect", "java.lang.invoke"//, "sun.instrument"
+    java.awt.Color::class.java,
+    java.awt.Font::class.java,
+    java.awt.BasicStroke::class.java,
+    java.awt.Paint::class.java,
+    java.awt.GradientPaint::class.java,
+    java.awt.LinearGradientPaint::class.java,
+    java.awt.RadialGradientPaint::class.java,
+    java.awt.Cursor::class.java,
+
+    java.security.Permission::class.java,
+
+    java.util.Locale::class.java,
+    java.util.UUID::class.java,
+    java.util.Collections::class.java,
+    java.util.Arrays::class.java,
+
+    java.net.URL::class.java,
+    java.net.URI::class.java,
+    java.net.Inet4Address::class.java,
+    java.net.Inet6Address::class.java,
+    java.net.InetSocketAddress::class.java,
+    java.net.NetPermission::class.java,
 )
 
 private val packagesWithImmutableTypes = setOf(
-    "java.lang"
-) + packagesWithImmutableTypesSubtypes
+    "java.lang.reflect", "java.lang.invoke", "java.time"
+)
 
 internal val Class<*>.isClassLoader: Boolean
     get() = ClassLoader::class.java.isAssignableFrom(this)
@@ -300,37 +359,37 @@ internal val JcClassOrInterface.isInternalType: Boolean
     get() = typeNameIsInternal(name)
 
 internal val Class<*>.isImmutable: Boolean
-    get() = immutableTypes.contains(name)
-            || isClassLoader
-            || packageName in packagesWithImmutableTypes
-            || isInternalType
+    get() = immutableTypes.any { it.isAssignableFrom(this) }
+            || isPrimitive
+            || isEnum
             || isRecord
+            || packageName in packagesWithImmutableTypes
+            || packageName.startsWith("java.time")
+            || isClassLoader
+            || java.security.Permission::class.java.isAssignableFrom(this)
+            || isInternalType
             || allFields.isEmpty()
 
 internal val Class<*>.isImmutableWithSubtypes: Boolean
-    get() = immutableTypes.contains(name)
-            || isClassLoader
-            || packageName in packagesWithImmutableTypes && isFinal
-            || packageName in packagesWithImmutableTypesSubtypes
-            || isInternalType
+    get() = immutableTypes.any { it.isAssignableFrom(this) }
+            || isPrimitive
+            || isEnum
             || isRecord
+            || packageName in packagesWithImmutableTypes
+            || packageName.startsWith("java.time")
+            || isClassLoader
+            || java.security.Permission::class.java.isAssignableFrom(this)
+            || isInternalType
             || allFields.isEmpty() && isFinal
 
-private val JcClassOrInterface.isImmutableWithSubtypes: Boolean
-    get() = immutableTypes.contains(this.name)
-            || isClassLoader
-            || packageName in packagesWithImmutableTypes && isFinal
-            || packageName in packagesWithImmutableTypesSubtypes
-            || isInternalType
-            // TODO: add `isRecord`
-            || allFields.isEmpty() && isFinal
+internal val Class<*>.allInstanceFieldsAreFinal: Boolean
+    get() = allInstanceFields.all { it.isFinal }
 
 internal val Class<*>.isFinal: Boolean
     get() = Modifier.isFinal(modifiers)
 
 private val JcClassOrInterface.isClassLoader: Boolean
     get() = allSuperHierarchy.any { it.name == "java.lang.ClassLoader" }
-
 
 internal val Class<*>.isSolid: Boolean
     get() = notTracked || this.isArray && this.componentType.notTracked

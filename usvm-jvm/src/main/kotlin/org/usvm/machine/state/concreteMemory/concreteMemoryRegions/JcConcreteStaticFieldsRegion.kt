@@ -2,7 +2,6 @@ package org.usvm.machine.state.concreteMemory.concreteMemoryRegions
 
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
-import org.jacodb.approximation.JcEnrichedVirtualField
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.USort
@@ -11,7 +10,6 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.interpreter.statics.JcStaticFieldLValue
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
-import org.usvm.machine.interpreter.statics.staticFieldsInitializedFlagField
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.machine.state.concreteMemory.getStaticFieldValue
 import org.usvm.machine.state.concreteMemory.toJavaField
@@ -28,12 +26,10 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
     // TODO: redo #CM
     override fun read(key: JcStaticFieldLValue<Sort>): UExpr<Sort> {
         val field = key.field
-        if (field is JcEnrichedVirtualField || field.name == staticFieldsInitializedFlagField.name)
-            return baseRegion.read(key)
+        val javaField = field.toJavaField ?: return baseRegion.read(key)
 
         check(JcConcreteMemoryClassLoader.isLoaded(field.enclosingClass))
         val fieldType = field.typedField.type
-        val javaField = field.toJavaField!!
         val value = javaField.getStaticFieldValue()
         // TODO: differs from jcField.getFieldValue(JcConcreteMemoryClassLoader, null) #CM
 //        val value = field.getFieldValue(JcConcreteMemoryClassLoader, null)
