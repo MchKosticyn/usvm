@@ -9,7 +9,6 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.RegisteredLocation
-import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.findTypeOrNull
 import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.jacodb.api.jvm.ext.int
@@ -383,6 +382,8 @@ class JcConcreteMemory private constructor(
                 val value = readArrayIndex(ref, ctx.mkSizeExpr(index), arrayDescriptor, elementSort)
                 val resolved = resolveExpr(value, elementType)
                 obj.setArrayValue(index, resolved)
+                // TODO: delete (not efficient)
+                bindings.setChild(obj, resolved, kind)
             }
 
             return obj
@@ -414,13 +415,15 @@ class JcConcreteMemory private constructor(
             for (kind in bindings.symbolicMembers(address)) {
                 check(kind is FieldChildKind)
                 val field = kind.field
-                val jcField = type.findFieldOrNull(field.name)
+                val jcField = type.allInstanceFields.find { it.name == field.name }
                     ?: error("resolveConcreteObject: can not find field $field")
                 val fieldType = jcField.type
                 val fieldSort = ctx.typeToSort(fieldType)
                 val value = readField(ref, jcField.field, fieldSort)
                 val resolved = resolveExpr(value, fieldType)
                 field.setFieldValue(obj, resolved)
+                // TODO: delete (not efficient)
+                bindings.setChild(obj, resolved, kind)
             }
 
             return obj
@@ -563,6 +566,11 @@ class JcConcreteMemory private constructor(
         thisObj: Any?,
         objParameters: List<Any?>
     ) {
+        // TODO: delete (not efficient)
+        check(objParameters.all { bindings.isActual(it) } && bindings.isActual(thisObj)) {
+            "incorrect state of memory"
+        }
+
         if (bindings.isMutableWithEffect()) {
             // TODO: if method is not mutating (guess via IFDS), backtrack is useless #CM
             bindings.effectStorage.addObjectToEffectRec(thisObj)
@@ -584,7 +592,11 @@ class JcConcreteMemory private constructor(
 
             if (exception == null) {
                 // No exception
-                println("Result $resultObj")
+                try {
+                    println("Result $resultObj")
+                } catch (e: Throwable) {
+                    println("unable to print method invocation result")
+                }
                 if (method.isConstructor) {
                     check(thisObj != null && resultObj != null)
                     // TODO: think about this:
@@ -662,7 +674,8 @@ class JcConcreteMemory private constructor(
 
         val methodLocation = method.declaration.location
         val projectLocations = exprResolver.options.projectLocations
-        val isProjectLocation = projectLocations == null || methodLocation.isProjectLocation(projectLocations)
+        // TODO: change on checking coverage zone #CM
+        val isProjectLocation = projectLocations != null && methodLocation.isProjectLocation(projectLocations)
         if (isProjectLocation)
             return TryConcreteInvokeFail(false)
 

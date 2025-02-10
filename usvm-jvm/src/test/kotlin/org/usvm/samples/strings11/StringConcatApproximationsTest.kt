@@ -31,6 +31,24 @@ class StringConcatApproximationsTest : ApproximationsTestRunner() {
     }
 
     @Test
+    fun testConcatArguments3() {
+        checkDiscoveredPropertiesWithExceptions(
+            StringConcat::wip3,
+            ignoreNumberOfAnalysisResults,
+            invariants = arrayOf({ _, r -> r.getOrNull() == true })
+        )
+    }
+
+    @Test
+    fun testConcatArguments4() {
+        checkDiscoveredPropertiesWithExceptions(
+            StringConcat::wip4,
+            ignoreNumberOfAnalysisResults,
+            invariants = arrayOf({ _, r -> r.getOrNull() == true })
+        )
+    }
+
+    @Test
     fun testConcatArguments2() {
         checkDiscoveredPropertiesWithExceptions(
             StringConcat::kek,

@@ -1,9 +1,7 @@
 package org.usvm.samples.strings11;
 
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 import static org.usvm.api.mock.UMockKt.assume;
 
@@ -130,6 +128,88 @@ public class StringConcat {
                 return false;
         }
         return true;
+    }
+
+    public static boolean wip3(int i) {
+        if (i > 0 && i < 100000) {
+            if (!String.format("a%d", i).contains(Integer.toString(i))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static class Attr {
+        public String name;
+
+        Attr(String name) {
+            this.name = name;
+        }
+    }
+
+    public static final class AttrRepo {
+
+        private final List<String> attrsNames = new ArrayList<String>(10);
+        private final List<Attr> attrs = new ArrayList<Attr>(10);
+        Attr getAttr(String name) {
+            for (int i = 0 ; i < attrsNames.size() ; i++) {
+                if (attrsNames.get(i).equals(name)) {
+                    return attrs.get(i);
+                }
+            }
+            Attr attr = new Attr(name);
+            attrsNames.add(name);
+            attrs.add(attr);
+            return attr;
+        }
+    }
+
+    public static class AttrNames {
+        private static final AttrRepo repo = new AttrRepo();
+        public static Attr getAttr(String name) {
+            return repo.getAttr(name);
+        }
+    }
+
+    public static void F(Attr attr) {
+
+    }
+
+    public static boolean wip4(int i) {
+        if (i > 0) {
+            Attr a = AttrNames.getAttr("abc");
+            F(a);
+            if (i > 5) {
+                Attr b = AttrNames.getAttr("cbd");
+                Attr c = AttrNames.getAttr("abc");
+                if (c != a || b == a)
+                    return false;
+                return true;
+            } else {
+                Attr b = AttrNames.getAttr("cbd");
+                Attr c = AttrNames.getAttr("abc");
+                if (c != a || b == a)
+                    return false;
+                return true;
+            }
+        } else {
+            Attr a = AttrNames.getAttr("cbd");
+            F(a);
+            if (i < -5) {
+                Attr b = AttrNames.getAttr("abc");
+                Attr c = AttrNames.getAttr("cbd");
+                if (c != a || b == a)
+                    return false;
+                return true;
+            } else {
+                Attr b = AttrNames.getAttr("abc");
+                Attr c = AttrNames.getAttr("cbd");
+                if (c != a || b == a)
+                    return false;
+                return true;
+            }
+        }
     }
 
     static class Kekw {

@@ -3,9 +3,6 @@
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
-import kotlin.io.path.createDirectory
-import kotlin.io.path.deleteExisting
-import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
 
 
@@ -219,6 +216,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-test:3.3.4")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.3.4")
     implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:3.3.4")
 }
 
 tasks.register<JavaExec>("runWebBench") {
@@ -349,6 +347,7 @@ tasks.register<JavaExec>("runWebBench") {
         exportPackage("java.base", "jdk.internal.reflect")
         exportPackage("java.base", "sun.nio.cs")
         exportPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs.util")
+        exportPackage("java.base", "jdk.internal.loader")
         add("--illegal-access=warn")
         add("-XX:+UseParallelGC")
         addModule("jdk.incubator.foreign")

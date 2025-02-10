@@ -89,8 +89,7 @@ private class JcConcreteSnapshot(
 
         val obj = oldPhys.obj!!
         val type = obj.javaClass
-        if (type.isImmutable) {
-            check(!type.isThreadLocal)
+        if (!type.isThreadLocal && (type.isImmutable || type.allInstanceFieldsAreFinal)) {
             return
         }
 
@@ -356,6 +355,7 @@ private class JcConcreteEffectSequence private constructor(
         ctx: JcContext,
         threadLocalHelper: ThreadLocalHelper
     ) {
+        // TODO: if previous effect is empty maybe take it? #CM
         if (seq.isEmpty()) {
             seq.addLast(JcConcreteEffect(ctx, threadLocalHelper))
             return
@@ -368,7 +368,8 @@ private class JcConcreteEffectSequence private constructor(
             return
         }
 
-        val newEffect = JcConcreteEffect(ctx, threadLocalHelper)
+        val newBefore = JcConcreteSnapshot(ctx, threadLocalHelper, last.before)
+        val newEffect = JcConcreteEffect(ctx, threadLocalHelper, newBefore)
         last.after = newEffect.before
         seq.addLast(newEffect)
     }
