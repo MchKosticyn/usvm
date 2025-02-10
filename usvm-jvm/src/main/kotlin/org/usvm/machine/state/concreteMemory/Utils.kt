@@ -359,28 +359,28 @@ internal val JcClassOrInterface.isInternalType: Boolean
     get() = typeNameIsInternal(name)
 
 internal val Class<*>.isImmutable: Boolean
-    get() = immutableTypes.any { it.isAssignableFrom(this) }
-            || isPrimitive
-            || isEnum
-            || isRecord
-            || packageName in packagesWithImmutableTypes
-            || packageName.startsWith("java.time")
-            || isClassLoader
-            || java.security.Permission::class.java.isAssignableFrom(this)
-            || isInternalType
-            || allFields.isEmpty()
+    get() = !isArray &&
+            (immutableTypes.any { it.isAssignableFrom(this) }
+                    || isPrimitive
+                    || isEnum
+                    || isRecord
+                    || packageName in packagesWithImmutableTypes
+                    || packageName.startsWith("java.time")
+                    || isClassLoader
+                    || isInternalType
+                    || allFields.isEmpty())
 
 internal val Class<*>.isImmutableWithSubtypes: Boolean
-    get() = immutableTypes.any { it.isAssignableFrom(this) }
-            || isPrimitive
-            || isEnum
-            || isRecord
-            || packageName in packagesWithImmutableTypes
-            || packageName.startsWith("java.time")
-            || isClassLoader
-            || java.security.Permission::class.java.isAssignableFrom(this)
-            || isInternalType
-            || allFields.isEmpty() && isFinal
+    get() = !isArray &&
+            (immutableTypes.any { it.isAssignableFrom(this) }
+                    || isPrimitive
+                    || isEnum
+                    || isRecord
+                    || packageName in packagesWithImmutableTypes
+                    || packageName.startsWith("java.time")
+                    || isClassLoader
+                    || isInternalType
+                    || allFields.isEmpty() && isFinal)
 
 internal val Class<*>.allInstanceFieldsAreFinal: Boolean
     get() = allInstanceFields.all { it.isFinal }
