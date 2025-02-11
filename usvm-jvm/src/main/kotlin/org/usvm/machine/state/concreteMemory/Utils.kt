@@ -93,6 +93,8 @@ internal fun Field.getFieldValue(obj: Any): Any? {
 }
 private val forbiddenModificationClasses = setOf<Class<*>>(
     java.lang.Class::class.java,
+    java.lang.reflect.Field::class.java,
+    java.lang.reflect.Method::class.java,
     java.lang.Thread::class.java,
     java.lang.String::class.java,
     java.lang.Integer::class.java,
@@ -337,7 +339,7 @@ private val immutableTypes = setOf<Class<*>>(
 )
 
 private val packagesWithImmutableTypes = setOf(
-    "java.lang.reflect", "java.lang.invoke", "java.time"
+    "java.lang.reflect", "java.lang.invoke", "java.time", "sun.reflect"
 )
 
 internal val Class<*>.isClassLoader: Boolean
@@ -358,15 +360,18 @@ internal val Class<*>.isInternalType: Boolean
 internal val JcClassOrInterface.isInternalType: Boolean
     get() = typeNameIsInternal(name)
 
+private val Class<*>.isLogger: Boolean
+    get() = packageName.startsWith("org.apache.commons.logging")
+
 internal val Class<*>.isImmutable: Boolean
     get() = !isArray &&
             (immutableTypes.any { it.isAssignableFrom(this) }
                     || isPrimitive
                     || isEnum
                     || isRecord
-                    || packageName in packagesWithImmutableTypes
-                    || packageName.startsWith("java.time")
+                    || packagesWithImmutableTypes.any { packageName.startsWith(it) }
                     || isClassLoader
+                    || isLogger
                     || isInternalType
                     || allFields.isEmpty())
 
@@ -376,9 +381,9 @@ internal val Class<*>.isImmutableWithSubtypes: Boolean
                     || isPrimitive
                     || isEnum
                     || isRecord
-                    || packageName in packagesWithImmutableTypes
-                    || packageName.startsWith("java.time")
+                    || packagesWithImmutableTypes.any { packageName.startsWith(it) }
                     || isClassLoader
+                    || isLogger
                     || isInternalType
                     || allFields.isEmpty() && isFinal)
 
