@@ -177,7 +177,6 @@ internal class JcConcreteMemoryBindings private constructor(
                     childMap[childKind] = Cell(child)
                 } else if (childMap != null) {
                     val cell = childMap[childKind]
-                    // TODO: care about update!!!!!!!
                     if (cell != null) {
                         val cellIsCorrect = !cell.isConcrete || cell.address == child
                         if (!cellIsCorrect) {

@@ -20,6 +20,7 @@ private class JcConcreteSnapshot(
     val threadLocalHelper: ThreadLocalHelper,
 ) {
     private val objects: HashMap<PhysicalAddress, PhysicalAddress> = hashMapOf()
+    private val addedRec: HashSet<PhysicalAddress> = hashSetOf()
     private val statics: HashMap<Field, PhysicalAddress> = hashMapOf()
     private var staticsCache = hashSetOf<Class<*>>()
 
@@ -107,7 +108,7 @@ private class JcConcreteSnapshot(
 
     private inner class EffectTraversal: ObjectTraversal(threadLocalHelper, false) {
         override fun skip(phys: PhysicalAddress, type: Class<*>): Boolean {
-            return type.notTracked || objects.containsKey(phys)
+            return type.notTracked || addedRec.contains(phys)
         }
 
         override fun skipField(field: Field): Boolean {
@@ -120,14 +121,17 @@ private class JcConcreteSnapshot(
 
         override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
             addObjectToSnapshot(phys)
+            addedRec.add(phys)
         }
 
         override fun handleClass(phys: PhysicalAddress, type: Class<*>) {
             addObjectToSnapshot(phys)
+            addedRec.add(phys)
         }
 
         override fun handleThreadLocal(threadLocalPhys: PhysicalAddress, valuePhys: PhysicalAddress) {
             objects[threadLocalPhys] = valuePhys
+            addedRec.add(threadLocalPhys)
         }
 
         override fun handleArrayIndex(arrayPhys: PhysicalAddress, index: Int, valuePhys: PhysicalAddress) {
