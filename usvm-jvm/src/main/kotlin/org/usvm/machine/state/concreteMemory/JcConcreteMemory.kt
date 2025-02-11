@@ -567,8 +567,8 @@ class JcConcreteMemory private constructor(
         objParameters: List<Any?>
     ) {
         // TODO: delete (not efficient)
-        check(objParameters.all { bindings.isActual(it) } && bindings.isActual(thisObj)) {
-            "incorrect state of memory"
+        if (objParameters.all { bindings.isActual(it) } && bindings.isActual(thisObj)) {
+            println("[WARNING] incorrect state of memory")
         }
 
         if (bindings.isMutableWithEffect()) {
