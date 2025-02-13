@@ -116,7 +116,7 @@ internal class Marshall(
 
     //region Expression To Object Conversion
 
-    fun <Sort : USort> commonTryExprToObj(expr: UExpr<Sort>, type: JcType, fullyConcrete: Boolean): Maybe<Any?> {
+    private fun <Sort : USort> commonTryExprToObj(expr: UExpr<Sort>, type: JcType, fullyConcrete: Boolean): Maybe<Any?> {
         return when {
             expr is UNullRef -> Maybe.some(null)
             expr is UConcreteHeapRef && expr.address == NULL_ADDRESS -> Maybe.some(null)
@@ -127,6 +127,11 @@ internal class Marshall(
                 bindings.tryVirtToPhys(expr.address)?.maybe ?: Maybe.none()
 
             expr is USymbol -> Maybe.none()
+
+            expr is UIteExpr && expr.condition.isTrue -> commonTryExprToObj(expr.trueBranch, type, fullyConcrete)
+            expr is UIteExpr && expr.condition.isFalse -> commonTryExprToObj(expr.falseBranch, type, fullyConcrete)
+            expr is UIteExpr -> Maybe.none()
+
             type == boolean -> {
                 when (expr) {
                     trueExpr -> true.maybe
@@ -183,10 +188,6 @@ internal class Marshall(
                     else -> Maybe.none()
                 }
             }
-
-            expr is UIteExpr && expr.condition.isTrue -> commonTryExprToObj(expr.trueBranch, type, fullyConcrete)
-            expr is UIteExpr && expr.condition.isFalse -> commonTryExprToObj(expr.falseBranch, type, fullyConcrete)
-            expr is UIteExpr -> Maybe.none()
 
             else -> error("Marshall.commonTryExprToObj: unexpected expression $expr")
         }

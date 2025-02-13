@@ -17,6 +17,7 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.memory.UMemoryRegion
+import org.usvm.memory.mapWithStaticAsConcrete
 import org.usvm.util.jcTypeOf
 import org.usvm.util.onSome
 
@@ -50,33 +51,45 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
         ownership: MutabilityOwnership
     ): URefMapRegion<JcType, ValueSort> {
         check(this.ownership == ownership)
-        if (srcRef is UConcreteHeapRef &&
-            bindings.contains(srcRef.address) &&
-            dstRef is UConcreteHeapRef &&
-            bindings.contains(dstRef.address)
+
+        val handledSrcRef = handleRefForWrite(srcRef, operationGuard) {
+            marshall.unmarshallMap(it, mapType)
+        }
+
+        val handledDstRef = handleRefForWrite(dstRef, operationGuard) {
+            marshall.unmarshallMap(it, mapType)
+        }
+
+        if (handledSrcRef == null || handledDstRef == null) {
+            baseRegion = baseRegion.merge(srcRef, dstRef, mapType, sort, keySet, operationGuard, ownership)
+            return this
+        }
+
+        if (handledSrcRef is UConcreteHeapRef &&
+            bindings.contains(handledSrcRef.address) &&
+            handledDstRef is UConcreteHeapRef &&
+            bindings.contains(handledDstRef.address)
         ) {
             val isConcreteCopy = operationGuard.isTrue
             if (isConcreteCopy) {
-                bindings.mapMerge(srcRef.address, dstRef.address)
+                bindings.mapMerge(handledSrcRef.address, handledDstRef.address)
                 return this
             }
         }
 
-        if (srcRef is UConcreteHeapRef)
-            marshall.unmarshallMap(srcRef.address, mapType)
+        if (handledSrcRef is UConcreteHeapRef)
+            marshall.unmarshallMap(handledSrcRef.address, mapType)
 
-        if (dstRef is UConcreteHeapRef)
-            marshall.unmarshallMap(dstRef.address, mapType)
+        if (handledDstRef is UConcreteHeapRef)
+            marshall.unmarshallMap(handledDstRef.address, mapType)
 
-        baseRegion = baseRegion.merge(srcRef, dstRef, mapType, sort, keySet, operationGuard, ownership)
+        baseRegion = baseRegion.merge(handledSrcRef, handledDstRef, mapType, sort, keySet, operationGuard, ownership)
 
         return this
     }
 
-    override fun read(key: URefMapEntryLValue<JcType, ValueSort>): UExpr<ValueSort> {
-        // TODO: use key.mapType ? #CM
-        val ref = key.mapRef
-        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+    private fun readConcrete(ref: UConcreteHeapRef, key: URefMapEntryLValue<JcType, ValueSort>): UExpr<ValueSort> {
+        if (bindings.contains(ref.address)) {
             val address = ref.address
             val objType = ctx.cp.objectType
             val keyObj = marshall.tryExprToObj(key.mapKey, objType)
@@ -91,6 +104,15 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
         return baseRegion.read(key)
     }
 
+    override fun read(key: URefMapEntryLValue<JcType, ValueSort>): UExpr<ValueSort> {
+        check(key.mapType == mapType)
+        return key.mapRef.mapWithStaticAsConcrete(
+            concreteMapper = { readConcrete(it, key) },
+            symbolicMapper = { baseRegion.read(key) },
+            ignoreNullRefs = true
+        )
+    }
+
     override fun write(
         key: URefMapEntryLValue<JcType, ValueSort>,
         value: UExpr<ValueSort>,
@@ -98,7 +120,16 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
         ownership: MutabilityOwnership
     ): UMemoryRegion<URefMapEntryLValue<JcType, ValueSort>, ValueSort> {
         check(this.ownership == ownership)
-        val ref = key.mapRef
+        check(key.mapType == mapType)
+        val ref = handleRefForWrite(key.mapRef, guard) {
+            marshall.unmarshallMap(it, mapType)
+        }
+
+        if (ref == null) {
+            writeToBase(key, value, guard)
+            return this
+        }
+
         if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
             val address = ref.address
             val valueObj = marshall.tryExprToObj(value, ctx.cp.objectType)
@@ -109,7 +140,7 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
                 return this
             }
 
-            marshall.unmarshallMap(address, key.mapType)
+            marshall.unmarshallMap(address, mapType)
         }
 
         writeToBase(key, value, guard)

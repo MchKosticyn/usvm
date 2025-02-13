@@ -22,6 +22,7 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.memory.UMemoryRegion
+import org.usvm.memory.mapWithStaticAsConcrete
 import org.usvm.util.jcTypeOf
 import org.usvm.util.onSome
 
@@ -62,32 +63,50 @@ internal class JcConcreteRefSetRegion(
         ownership: MutabilityOwnership
     ): URefSetRegion<JcType> {
         check(this.ownership == ownership)
-        if (srcRef is UConcreteHeapRef &&
-            bindings.contains(srcRef.address) &&
-            dstRef is UConcreteHeapRef &&
-            bindings.contains(dstRef.address)
+
+        val handledSrcRef = handleRefForWrite(srcRef, operationGuard) {
+            marshall.unmarshallSet(it)
+        }
+
+        val handledDstRef = handleRefForWrite(dstRef, operationGuard) {
+            marshall.unmarshallSet(it)
+        }
+
+        if (handledSrcRef == null || handledDstRef == null) {
+            baseRegion = baseRegion.union(srcRef, dstRef, operationGuard, ownership)
+            return this
+        }
+
+        if (handledSrcRef is UConcreteHeapRef &&
+            bindings.contains(handledSrcRef.address) &&
+            handledDstRef is UConcreteHeapRef &&
+            bindings.contains(handledDstRef.address)
         ) {
             val isConcreteCopy = operationGuard.isTrue
             if (isConcreteCopy) {
-                bindings.setUnion(srcRef.address, dstRef.address)
+                bindings.setUnion(handledSrcRef.address, handledDstRef.address)
                 return this
             }
         }
 
-        if (srcRef is UConcreteHeapRef)
-            marshall.unmarshallSet(srcRef.address)
+        if (handledSrcRef is UConcreteHeapRef)
+            marshall.unmarshallSet(handledSrcRef.address)
 
-        if (dstRef is UConcreteHeapRef)
-            marshall.unmarshallSet(dstRef.address)
+        if (handledDstRef is UConcreteHeapRef)
+            marshall.unmarshallSet(handledDstRef.address)
 
-        baseRegion = baseRegion.union(srcRef, dstRef, operationGuard, ownership)
+        baseRegion = baseRegion.union(handledSrcRef, handledDstRef, operationGuard, ownership)
 
         return this
     }
 
     override fun setEntries(ref: UHeapRef): URefSetEntries<JcType> {
-        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
-            marshall.unmarshallSet(ref.address) // TODO: make efficient: create set of entries
+        val handledSrcRef = handleRefForWrite(ref, ctx.trueExpr) {
+            marshall.unmarshallSet(it)
+        }
+
+        if (handledSrcRef is UConcreteHeapRef && bindings.contains(handledSrcRef.address)) {
+            marshall.unmarshallSet(handledSrcRef.address) // TODO: make efficient: create set of entries
             // TODO: set of pairs (allocatedRef, element)
         }
 
@@ -101,7 +120,15 @@ internal class JcConcreteRefSetRegion(
         ownership: MutabilityOwnership
     ): UMemoryRegion<URefSetEntryLValue<JcType>, UBoolSort> {
         check(this.ownership == ownership)
-        val ref = key.setRef
+        val ref = handleRefForWrite(key.setRef, guard) {
+            marshall.unmarshallSet(it)
+        }
+
+        if (ref == null) {
+            writeToBase(key, value, guard)
+            return this
+        }
+
         if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
             val address = ref.address
             val objType = ctx.cp.objectType
@@ -121,9 +148,8 @@ internal class JcConcreteRefSetRegion(
         return this
     }
 
-    override fun read(key: URefSetEntryLValue<JcType>): UExpr<UBoolSort> {
-        val ref = key.setRef
-        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+    private fun readConcrete(ref: UConcreteHeapRef, key: URefSetEntryLValue<JcType>): UExpr<UBoolSort> {
+        if (bindings.contains(ref.address)) {
             val address = ref.address
             val objType = ctx.cp.objectType
             val elem = marshall.tryExprToObj(key.setElement, objType)
@@ -135,6 +161,14 @@ internal class JcConcreteRefSetRegion(
         }
 
         return baseRegion.read(key)
+    }
+
+    override fun read(key: URefSetEntryLValue<JcType>): UExpr<UBoolSort> {
+        return key.setRef.mapWithStaticAsConcrete(
+            concreteMapper = { readConcrete(it, key) },
+            symbolicMapper = { baseRegion.read(key) },
+            ignoreNullRefs = true
+        )
     }
 
     @Suppress("UNCHECKED_CAST")
