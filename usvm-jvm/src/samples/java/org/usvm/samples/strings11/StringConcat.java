@@ -179,37 +179,52 @@ public class StringConcat {
     public static boolean wip4(int i) {
         if (i > 0) {
             Attr a = AttrNames.getAttr("abc");
+            Attr d = AttrNames.getAttr("cbd");
             F(a);
             if (i > 5) {
-                Attr b = AttrNames.getAttr("cbd");
                 Attr c = AttrNames.getAttr("abc");
-                if (c != a || b == a)
+                Attr b = AttrNames.getAttr("cbd");
+                if (c != a || b != d)
                     return false;
                 return true;
             } else {
                 Attr b = AttrNames.getAttr("cbd");
                 Attr c = AttrNames.getAttr("abc");
-                if (c != a || b == a)
+                if (c != a || b != d)
                     return false;
                 return true;
             }
         } else {
             Attr a = AttrNames.getAttr("cbd");
+            Attr d = AttrNames.getAttr("abc");
             F(a);
             if (i < -5) {
                 Attr b = AttrNames.getAttr("abc");
                 Attr c = AttrNames.getAttr("cbd");
-                if (c != a || b == a)
+                if (c != a || b != d)
                     return false;
                 return true;
             } else {
-                Attr b = AttrNames.getAttr("abc");
                 Attr c = AttrNames.getAttr("cbd");
-                if (c != a || b == a)
+                Attr b = AttrNames.getAttr("abc");
+                if (c != a || b != d)
                     return false;
                 return true;
             }
         }
+    }
+
+    public static boolean wip5(int i) {
+        Attr[] attrs = new Attr[] {new Attr("abc"), new Attr("cbd"), new Attr("def"), new Attr("ghi"), new Attr("jkl"), new Attr("mno")};
+        Attr second = attrs[1];
+        if (i >= 0 && i < attrs.length) {
+            Attr attr = attrs[i];
+            attr.name = "kek";
+            if (i == 1 && (!attrs[1].name.equals("kek") || !second.name.equals("kek")))
+                return false;
+        }
+
+        return true;
     }
 
     static class Kekw {
@@ -227,6 +242,7 @@ public class StringConcat {
             x++;
         }
     }
+
     public static boolean kek(int i) {
         Kekw kekw = new Kekw();
         kekw.F();
