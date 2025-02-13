@@ -8,7 +8,6 @@ import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.JcTypedMethod
@@ -18,7 +17,6 @@ import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchy
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.isSubClassOf
-import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.superClasses
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.throwClassNotFound
@@ -26,15 +24,12 @@ import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
-import org.jacodb.impl.cfg.util.internalDesc
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.api.internal.ClinitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
-import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.util.Reflection.toJavaExecutable
 import org.usvm.instrumentation.util.isStatic
-import org.usvm.instrumentation.util.toJavaClass
 import org.usvm.instrumentation.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.instrumentation.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.machine.JcContext
@@ -193,13 +188,17 @@ internal fun <Value> Any.setArrayValue(index: Int, value: Value) {
 
 internal val JcField.toJavaField: Field?
     get() {
-        val type = enclosingClass.toJavaClass(JcConcreteMemoryClassLoader)
-        val fields = if (isStatic) type.staticFields else type.allInstanceFields
-        val field = fields.find { it.name == name }
-        check(field == null || field.type.typeName == this.type.typeName) {
-            "invalid field: types of field $field and $this differ ${field?.type?.typeName} and ${this.type.typeName}"
+        try {
+            val type = JcConcreteMemoryClassLoader.loadClass(enclosingClass)
+            val fields = if (isStatic) type.staticFields else type.allInstanceFields
+            val field = fields.find { it.name == name }
+            check(field == null || field.type.typeName == this.type.typeName) {
+                "invalid field: types of field $field and $this differ ${field?.type?.typeName} and ${this.type.typeName}"
+            }
+            return field
+        } catch (e: Throwable) {
+            return null
         }
-        return field
     }
 
 internal val JcMethod.toJavaMethod: Executable?
@@ -224,7 +223,7 @@ internal val JcType.isInstanceApproximation: Boolean
         if (this !is JcClassType)
             return false
 
-        val originalType = toJavaClass(JcConcreteMemoryClassLoader)
+        val originalType = JcConcreteMemoryClassLoader.loadClass(jcClass)
         val originalFieldNames = originalType.allInstanceFields.map { it.name }
         return this.allInstanceFields.any {
             it.field is JcEnrichedVirtualField
@@ -237,7 +236,7 @@ internal val JcType.isStaticApproximation: Boolean
         if (this !is JcClassType)
             return false
 
-        val originalType = toJavaClass(JcConcreteMemoryClassLoader)
+        val originalType = JcConcreteMemoryClassLoader.loadClass(jcClass)
         val originalFieldNames = originalType.staticFields.map { it.name }
         return this.jcClass.staticFields.any { !originalFieldNames.contains(it.name) }
     }
