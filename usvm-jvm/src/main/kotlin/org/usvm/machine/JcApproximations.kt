@@ -104,10 +104,8 @@ import org.usvm.api.readArrayIndex
 import org.usvm.api.readArrayLength
 import org.usvm.api.readField
 import org.usvm.api.util.JcConcreteMemoryClassLoader
-import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.api.writeField
 import org.usvm.getIntValue
-import org.usvm.instrumentation.util.toJavaClass
 import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.classesOfLocations
 import org.usvm.machine.state.concreteMemory.isSpringController
@@ -468,7 +466,7 @@ class JcMethodApproximationResolver(
                         it.annotations.any { it.name == "org.springframework.beans.factory.annotation.Value" }
                     }
                 }
-                val classes = ArrayList(types.map { it.toJavaClass(JcConcreteMemoryClassLoader) }.toList())
+                val classes = ArrayList(types.map { JcConcreteMemoryClassLoader.loadClass(it) }.toList())
                 val classesJcType = ctx.cp.findTypeOrNull(classes.javaClass.typeName)!!
                 val classesRef = memory.tryAllocateConcrete(classes, classesJcType)!!
                 skipMethodInvocationWithValue(methodCall, classesRef)
@@ -687,7 +685,7 @@ class JcMethodApproximationResolver(
         if (methodName == "deduceMainApplicationClass") {
             scope.doWithState {
                 val firstMethod = callStack.firstMethod()
-                val mainApplicationClass = firstMethod.enclosingClass.toType().toJavaClass(JcConcreteMemoryClassLoader)
+                val mainApplicationClass = JcConcreteMemoryClassLoader.loadClass(firstMethod.enclosingClass)
                 val typeRef = memory.tryAllocateConcrete(mainApplicationClass, ctx.classType)!!
                 skipMethodInvocationWithValue(methodCall, typeRef)
             }

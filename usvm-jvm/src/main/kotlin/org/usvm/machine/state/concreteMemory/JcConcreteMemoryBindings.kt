@@ -11,7 +11,6 @@ import org.usvm.UConcreteHeapAddress
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.api.util.Reflection.invoke
-import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.constraints.UTypeConstraints
 import org.usvm.machine.JcContext
 import java.lang.reflect.Field
@@ -526,10 +525,11 @@ internal class JcConcreteMemoryBindings private constructor(
     }
 
     private fun createProxy(type: JcClassType): Any {
-        check(type.jcClass.isInterface)
+        val jcClass = type.jcClass
+        check(jcClass.isInterface)
         return Proxy.newProxyInstance(
             JcConcreteMemoryClassLoader,
-            arrayOf(type.toJavaClass(JcConcreteMemoryClassLoader)),
+            arrayOf(JcConcreteMemoryClassLoader.loadClass(jcClass)),
             LambdaInvocationHandler()
         )
     }
