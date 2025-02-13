@@ -17,6 +17,7 @@ import org.usvm.machine.USizeSort
 import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.memory.UMemoryRegion
+import org.usvm.memory.mapWithStaticAsConcrete
 
 internal class JcConcreteMapLengthRegion(
     private val regionId: UMapLengthRegionId<JcType, USizeSort>,
@@ -29,14 +30,29 @@ internal class JcConcreteMapLengthRegion(
 
     private val lengthType by lazy { ctx.cp.int }
 
-    override fun read(key: UMapLengthLValue<JcType, USizeSort>): UExpr<USizeSort> {
-        val ref = key.ref
-        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+    private fun writeToBase(
+        key: UMapLengthLValue<JcType, USizeSort>,
+        value: UExpr<USizeSort>,
+        guard: UBoolExpr
+    ) {
+        baseRegion = baseRegion.write(key, value, guard, ownership) as UMapLengthRegion<JcType, USizeSort>
+    }
+
+    private fun readConcrete(ref: UConcreteHeapRef, key: UMapLengthLValue<JcType, USizeSort>): UExpr<USizeSort> {
+        if (bindings.contains(ref.address)) {
             val lengthObj = bindings.readMapLength(ref.address)
             return marshall.objToExpr(lengthObj, lengthType)
-        } else {
-            return baseRegion.read(key)
         }
+
+        return baseRegion.read(key)
+    }
+
+    override fun read(key: UMapLengthLValue<JcType, USizeSort>): UExpr<USizeSort> {
+        return key.ref.mapWithStaticAsConcrete(
+            concreteMapper = { readConcrete(it, key) },
+            symbolicMapper = { baseRegion.read(key) },
+            ignoreNullRefs = true
+        )
     }
 
     override fun write(
@@ -46,7 +62,15 @@ internal class JcConcreteMapLengthRegion(
         ownership: MutabilityOwnership
     ): UMemoryRegion<UMapLengthLValue<JcType, USizeSort>, USizeSort> {
         check(this.ownership == ownership)
-        val ref = key.ref
+        val ref = handleRefForWrite(key.ref, guard) {
+            marshall.unmarshallMap(it, key.mapType)
+        }
+
+        if (ref == null) {
+            writeToBase(key, value, guard)
+            return this
+        }
+
         if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
             val address = ref.address
             val lengthObj = marshall.tryExprToObj(value, lengthType)
@@ -59,7 +83,7 @@ internal class JcConcreteMapLengthRegion(
             marshall.unmarshallMap(address, key.mapType)
         }
 
-        baseRegion = baseRegion.write(key, value, guard, ownership) as UMapLengthRegion<JcType, USizeSort>
+        writeToBase(key, value, guard)
 
         return this
     }
@@ -67,7 +91,7 @@ internal class JcConcreteMapLengthRegion(
     private fun unmarshallLength(ref: UConcreteHeapRef, size: Int) {
         val key = UMapLengthLValue(ref, regionId.mapType, regionId.sort)
         val length = marshall.objToExpr<USizeSort>(size, lengthType)
-        baseRegion = baseRegion.write(key, length, ctx.trueExpr, ownership) as UMapLengthRegion<JcType, USizeSort>
+        writeToBase(key, length, ctx.trueExpr)
     }
 
     fun unmarshallLength(ref: UConcreteHeapRef, obj: Map<*, *>) {

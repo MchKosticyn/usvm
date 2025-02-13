@@ -23,6 +23,7 @@ import org.jacodb.api.jvm.ext.superClasses
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.throwClassNotFound
 import org.jacodb.approximation.Approximations
+import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
 import org.jacodb.impl.cfg.util.internalDesc
@@ -225,7 +226,10 @@ internal val JcType.isInstanceApproximation: Boolean
 
         val originalType = toJavaClass(JcConcreteMemoryClassLoader)
         val originalFieldNames = originalType.allInstanceFields.map { it.name }
-        return this.allInstanceFields.any { !originalFieldNames.contains(it.field.name) }
+        return this.allInstanceFields.any {
+            it.field is JcEnrichedVirtualField
+                    && !originalFieldNames.contains(it.field.name)
+        }
     }
 
 internal val JcType.isStaticApproximation: Boolean

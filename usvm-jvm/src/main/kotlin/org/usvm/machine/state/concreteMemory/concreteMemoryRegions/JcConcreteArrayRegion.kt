@@ -27,6 +27,7 @@ import org.usvm.machine.USizeSort
 import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.memory.UMemoryRegion
+import org.usvm.memory.mapWithStaticAsConcrete
 import org.usvm.mkSizeExpr
 
 internal class JcConcreteArrayRegion<Sort : USort>(
@@ -61,10 +62,24 @@ internal class JcConcreteArrayRegion<Sort : USort>(
         ownership: MutabilityOwnership
     ): UArrayRegion<JcType, Sort, USizeSort> {
         check(this.ownership == ownership)
-        if (srcRef is UConcreteHeapRef &&
-            bindings.contains(srcRef.address) &&
-            dstRef is UConcreteHeapRef &&
-            bindings.contains(dstRef.address)
+
+        val handledSrcRef = handleRefForWrite(srcRef, operationGuard) {
+            marshall.unmarshallArray(it)
+        }
+
+        val handledDstRef = handleRefForWrite(dstRef, operationGuard) {
+            marshall.unmarshallArray(it)
+        }
+
+        if (handledSrcRef == null || handledDstRef == null) {
+            baseRegion = baseRegion.memcpy(srcRef, dstRef, type, elementSort, fromSrcIdx, fromDstIdx, toDstIdx, operationGuard, ownership)
+            return this
+        }
+
+        if (handledSrcRef is UConcreteHeapRef &&
+            bindings.contains(handledSrcRef.address) &&
+            handledDstRef is UConcreteHeapRef &&
+            bindings.contains(handledDstRef.address)
         ) {
             val fromSrcIdxObj = marshall.tryExprToObj(fromSrcIdx, indexType)
             val fromDstIdxObj = marshall.tryExprToObj(fromDstIdx, indexType)
@@ -73,8 +88,8 @@ internal class JcConcreteArrayRegion<Sort : USort>(
                 fromSrcIdxObj.isSome && fromDstIdxObj.isSome && toDstIdxObj.isSome && operationGuard.isTrue
             if (isConcreteCopy) {
                 bindings.arrayCopy(
-                    srcRef.address,
-                    dstRef.address,
+                    handledSrcRef.address,
+                    handledDstRef.address,
                     fromSrcIdxObj.getOrThrow() as Int,
                     fromDstIdxObj.getOrThrow() as Int,
                     toDstIdxObj.getOrThrow() as Int + 1 // Incrementing 'toDstIdx' index to make it exclusive
@@ -83,13 +98,13 @@ internal class JcConcreteArrayRegion<Sort : USort>(
             }
         }
 
-        if (srcRef is UConcreteHeapRef)
-            marshall.unmarshallArray(srcRef.address)
+        if (handledSrcRef is UConcreteHeapRef)
+            marshall.unmarshallArray(handledSrcRef.address)
 
-        if (dstRef is UConcreteHeapRef)
-            marshall.unmarshallArray(dstRef.address)
+        if (handledDstRef is UConcreteHeapRef)
+            marshall.unmarshallArray(handledDstRef.address)
 
-        baseRegion = baseRegion.memcpy(srcRef, dstRef, type, elementSort, fromSrcIdx, fromDstIdx, toDstIdx, operationGuard, ownership)
+        baseRegion = baseRegion.memcpy(handledSrcRef, handledDstRef, type, elementSort, fromSrcIdx, fromDstIdx, toDstIdx, operationGuard, ownership)
 
         return this
     }
@@ -128,9 +143,8 @@ internal class JcConcreteArrayRegion<Sort : USort>(
         return this
     }
 
-    override fun read(key: UArrayIndexLValue<JcType, Sort, USizeSort>): UExpr<Sort> {
-        val ref = key.ref
-        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+    private fun readConcrete(ref: UConcreteHeapRef, key: UArrayIndexLValue<JcType, Sort, USizeSort>): UExpr<Sort> {
+        if (bindings.contains(ref.address)) {
             val address = ref.address
             val indexObj = marshall.tryExprToObj(key.index, indexType)
             if (indexObj.isSome) {
@@ -146,6 +160,14 @@ internal class JcConcreteArrayRegion<Sort : USort>(
         return baseRegion.read(key)
     }
 
+    override fun read(key: UArrayIndexLValue<JcType, Sort, USizeSort>): UExpr<Sort> {
+        return key.ref.mapWithStaticAsConcrete(
+            concreteMapper = { readConcrete(it, key) },
+            symbolicMapper = { baseRegion.read(key) },
+            ignoreNullRefs = true
+        )
+    }
+
     override fun write(
         key: UArrayIndexLValue<JcType, Sort, USizeSort>,
         value: UExpr<Sort>,
@@ -153,7 +175,15 @@ internal class JcConcreteArrayRegion<Sort : USort>(
         ownership: MutabilityOwnership
     ): UMemoryRegion<UArrayIndexLValue<JcType, Sort, USizeSort>, Sort> {
         check(this.ownership == ownership)
-        val ref = key.ref
+        val ref = handleRefForWrite(key.ref, guard) {
+            marshall.unmarshallArray(it)
+        }
+
+        if (ref == null) {
+            writeToBase(key, value, guard)
+            return this
+        }
+
         if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
             val address = ref.address
             val arrayType = bindings.typeOf(address) as JcArrayType

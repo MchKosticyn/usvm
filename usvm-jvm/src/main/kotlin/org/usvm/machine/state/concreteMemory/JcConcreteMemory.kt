@@ -348,6 +348,7 @@ class JcConcreteMemory private constructor(
                 && method is JcEnrichedVirtualMethod && method.enclosingClass.toType().isStaticApproximation
     }
 
+    // TODO: move to bindings?
     private inner class JcConcretizer(
         state: JcState
     ) : JcTestStateResolver<Any?>(state.ctx, state.models.first(), state.memory, state.callStack.lastMethod().toTypedMethod) {
@@ -398,6 +399,7 @@ class JcConcreteMemory private constructor(
             }
 
             val array = super.resolveArray(ref, heapRef, type)
+            // TODO: reTrack here?
             if (array != null && !bindings.contains(addressInModel)) {
                 bindings.allocate(addressInModel, array, type)
             }
@@ -438,6 +440,7 @@ class JcConcreteMemory private constructor(
             }
 
             val obj = super.resolveObject(ref, heapRef, type)
+            // TODO: reTrack here?
             if (obj != null && !bindings.contains(addressInModel)) {
                 bindings.allocate(addressInModel, obj, type)
             }
@@ -567,7 +570,7 @@ class JcConcreteMemory private constructor(
         objParameters: List<Any?>
     ) {
         // TODO: delete (not efficient)
-        if (objParameters.all { bindings.isActual(it) } && bindings.isActual(thisObj)) {
+        if (objParameters.any { !bindings.isActual(it) } || !bindings.isActual(thisObj)) {
             println("[WARNING] incorrect state of memory")
         }
 

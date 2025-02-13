@@ -20,6 +20,7 @@ import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.getFieldValue
 import org.usvm.machine.state.concreteMemory.toJavaField
 import org.usvm.memory.UMemoryRegion
+import org.usvm.memory.mapWithStaticAsConcrete
 import org.usvm.util.typedField
 
 internal class JcConcreteFieldRegion<Sort : USort>(
@@ -49,10 +50,8 @@ internal class JcConcreteFieldRegion<Sort : USort>(
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun read(key: UFieldLValue<JcField, Sort>): UExpr<Sort> {
-        check(jcField == key.field)
-        val ref = key.ref
-        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+    private fun readConcrete(ref: UConcreteHeapRef, key: UFieldLValue<JcField, Sort>): UExpr<Sort> {
+        if (bindings.contains(ref.address)) {
             val address = ref.address
             if (isSyntheticClassField) {
                 val type = bindings.virtToPhys(address) as Class<*>
@@ -73,6 +72,15 @@ internal class JcConcreteFieldRegion<Sort : USort>(
         return baseRegion.read(key)
     }
 
+    override fun read(key: UFieldLValue<JcField, Sort>): UExpr<Sort> {
+        check(jcField == key.field)
+        return key.ref.mapWithStaticAsConcrete(
+            concreteMapper = { readConcrete(it, key) },
+            symbolicMapper = { baseRegion.read(key) },
+            ignoreNullRefs = true
+        )
+    }
+
     override fun write(
         key: UFieldLValue<JcField, Sort>,
         value: UExpr<Sort>,
@@ -81,8 +89,17 @@ internal class JcConcreteFieldRegion<Sort : USort>(
     ): UMemoryRegion<UFieldLValue<JcField, Sort>, Sort> {
         check(this.ownership == ownership)
         check(jcField == key.field)
-        val ref = key.ref
-        if (!isSyntheticClassField && ref is UConcreteHeapRef && bindings.contains(ref.address)) {
+        val ref = handleRefForWrite(key.ref, guard) {
+            // TODO: do not unmarshall if `isSyntheticClassField`
+            marshall.unmarshallClass(it)
+        }
+
+        if (ref == null || isSyntheticClassField) {
+            writeToBase(key, value, guard)
+            return this
+        }
+
+        if (ref is UConcreteHeapRef && bindings.contains(ref.address)) {
             val address = ref.address
             if (!isApproximation) {
                 val objValue = marshall.tryExprToObj(value, fieldType)
