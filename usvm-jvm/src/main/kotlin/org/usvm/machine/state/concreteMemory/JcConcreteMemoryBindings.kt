@@ -564,15 +564,36 @@ internal class JcConcreteMemoryBindings private constructor(
 
     //region Reading
 
-    fun readClassField(address: UConcreteHeapAddress, field: Field): Any? {
+    fun readClassField(address: UConcreteHeapAddress, field: Field): Pair<Boolean, Any?> {
         val obj = virtToPhys(address)
+        if (!field.declaringClass.isAssignableFrom(obj.javaClass))
+            return false to null
+
         val value = field.getFieldValue(obj)
         trackChild(obj, value, FieldChildKind(field))
-        return value
+        return true to value
     }
 
-    fun readArrayIndex(address: UConcreteHeapAddress, index: Int): Any? {
+    private fun indexIsValid(obj: Any, index: Int): Boolean {
+        return when (obj) {
+            is IntArray -> index in 0 until obj.size
+            is ByteArray -> index in 0 until obj.size
+            is CharArray -> index in 0 until obj.size
+            is LongArray -> index in 0 until obj.size
+            is FloatArray -> index in 0 until obj.size
+            is ShortArray -> index in 0 until obj.size
+            is DoubleArray -> index in 0 until obj.size
+            is BooleanArray -> index in 0 until obj.size
+            is Array<*> -> index in 0 until obj.size
+            is String -> index in 0 until obj.length
+            else -> error("JcConcreteMemoryBindings.readArrayIndex: unexpected array $obj")
+        }
+    }
+
+    fun readArrayIndex(address: UConcreteHeapAddress, index: Int): Pair<Boolean, Any?> {
         val obj = virtToPhys(address)
+        if (!indexIsValid(obj, index))
+            return false to null
         val value =
             when (obj) {
                 is IntArray -> obj[index]
@@ -590,7 +611,7 @@ internal class JcConcreteMemoryBindings private constructor(
 
         trackChild(obj, value, ArrayIndexChildKind(index))
 
-        return value
+        return true to value
     }
 
     // TODO: need "GetAllArrayData"?
@@ -641,6 +662,10 @@ internal class JcConcreteMemoryBindings private constructor(
 
     fun writeClassField(address: UConcreteHeapAddress, field: Field, value: Any?): Boolean {
         val obj = virtToPhys(address)
+
+        if (!field.declaringClass.isAssignableFrom(obj.javaClass))
+            return false
+
         if (state == State.MutableWithEffect)
             // TODO: add to backtrack only one field #CM
             effectStorage.addObjectToEffect(obj)
@@ -655,13 +680,18 @@ internal class JcConcreteMemoryBindings private constructor(
         return true
     }
 
-    fun <Value> writeArrayIndex(address: UConcreteHeapAddress, index: Int, value: Value) {
+    fun <Value> writeArrayIndex(address: UConcreteHeapAddress, index: Int, value: Value): Boolean {
         val obj = virtToPhys(address)
+        if (!indexIsValid(obj, index))
+            return false
+
         if (state == State.MutableWithEffect)
             effectStorage.addObjectToEffect(obj)
 
         obj.setArrayValue(index, value)
         setChild(obj, value, ArrayIndexChildKind(index))
+
+        return true
     }
 
     @Suppress("UNCHECKED_CAST")
