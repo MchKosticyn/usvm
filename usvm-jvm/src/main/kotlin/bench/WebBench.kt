@@ -17,6 +17,7 @@ import org.jacodb.api.jvm.cfg.JcRawClassConstant
 import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
+import org.jacodb.api.jvm.cfg.JcRawThis
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
@@ -38,7 +39,7 @@ import org.usvm.CoverageZone
 import org.usvm.PathSelectionStrategy
 import org.usvm.SolverType
 import org.usvm.UMachineOptions
-import org.usvm.api.internal.ClinitHelper
+import org.usvm.api.internal.InitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.JcTestInterpreter
 import org.usvm.logger
@@ -50,6 +51,7 @@ import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
 import org.usvm.machine.state.concreteMemory.isInternalType
 import org.usvm.machine.state.concreteMemory.isLambda
 import org.usvm.machine.state.concreteMemory.javaName
+import org.usvm.machine.state.concreteMemory.notTracked
 import org.usvm.util.classpathWithApproximations
 import org.usvm.util.typeName
 import java.io.File
@@ -98,7 +100,7 @@ private fun loadKlawBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadWebPetClinicBench()
+        loadKlawBench()
     }
 
     logTime("Analysis ALL") {
@@ -150,7 +152,7 @@ internal object JcClinitFeature: JcInstExtFeature {
                 || list.size == 0
                 || method.enclosingClass.declaration.location.isRuntime
                 || method.enclosingClass.isInternalType
-                || method.enclosingClass.name == ClinitHelper::class.java.name
+                || method.enclosingClass.name == InitHelper::class.java.name
                 || method.enclosingClass.isLambda
                 || method.enclosingClass.isSynthetic
     }
@@ -161,8 +163,8 @@ internal object JcClinitFeature: JcInstExtFeature {
 
         val mutableList = list.toMutableList()
         val callExpr = JcRawStaticCallExpr(
-            declaringClass = ClinitHelper::class.java.name.typeName,
-            methodName = ClinitHelper::afterClinit.javaName,
+            declaringClass = InitHelper::class.java.name.typeName,
+            methodName = InitHelper::afterClinit.javaName,
             argumentTypes = listOf("java.lang.String".typeName),
             returnType = PredefinedPrimitives.Void.typeName,
             args = listOf(JcRawString(method.enclosingClass.name))
@@ -178,8 +180,48 @@ internal object JcClinitFeature: JcInstExtFeature {
     }
 }
 
+internal object JcInitFeature: JcInstExtFeature {
+
+    private fun shouldNotTransform(method: JcMethod): Boolean {
+        val type = method.enclosingClass
+        return !method.isConstructor
+                || type.isInterface
+                || type.isAbstract
+                || type.declaration.location.isRuntime
+                || type.name == InitHelper::class.java.name
+                || type.isLambda
+                || type.isSynthetic
+                || type.notTracked
+    }
+
+    override fun transformRawInstList(method: JcMethod, list: JcInstList<JcRawInst>): JcInstList<JcRawInst> {
+        if (shouldNotTransform(method))
+            return list
+
+        val mutableList = list.toMutableList()
+        // TODO: use method.enclosingClass.name.typeName after jacodb fixes
+        // TODO: fix .typeName inside jacodb
+        val typeName = TypeNameImpl(method.enclosingClass.name)
+        val callExpr = JcRawStaticCallExpr(
+            declaringClass = InitHelper::class.java.name.typeName,
+            methodName = InitHelper::afterInit.javaName,
+            argumentTypes = listOf("java.lang.Object".typeName),
+            returnType = PredefinedPrimitives.Void.typeName,
+            args = listOf(JcRawThis(typeName))
+        )
+
+        val returnStmts = mutableList.filterIsInstance<JcRawReturnInst>()
+        for (returnStmt in returnStmts) {
+            val callInst = JcRawCallInst(method, callExpr)
+            mutableList.insertBefore(returnStmt, callInst)
+        }
+
+        return mutableList
+    }
+}
+
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature)
+    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature, JcInitFeature)
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
@@ -314,7 +356,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.SPRING_APPLICATION,
         exceptionsPropagation = false,
-        timeout = 10.minutes,
+        timeout = 5.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests

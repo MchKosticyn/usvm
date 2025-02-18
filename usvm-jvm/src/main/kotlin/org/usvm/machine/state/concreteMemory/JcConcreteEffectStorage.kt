@@ -21,8 +21,9 @@ private class JcConcreteSnapshot(
 ) {
     private val objects: HashMap<PhysicalAddress, PhysicalAddress> = hashMapOf()
     private val addedRec: HashSet<PhysicalAddress> = hashSetOf()
+    private val newObjects: HashSet<PhysicalAddress> = hashSetOf()
     private val statics: HashMap<Field, PhysicalAddress> = hashMapOf()
-    private var staticsCache = hashSetOf<Class<*>>()
+    private var staticsCache: HashSet<Class<*>> = hashSetOf()
 
     constructor(
         ctx: JcContext,
@@ -41,8 +42,6 @@ private class JcConcreteSnapshot(
     fun getObjects(): Map<PhysicalAddress, PhysicalAddress> = objects
 
     fun getStatics(): Map<Field, PhysicalAddress> = statics
-
-    fun isEmpty(): Boolean = objects.isEmpty() && statics.isEmpty()
 
     private fun cloneObject(obj: Any): Any? {
         val type = obj.javaClass
@@ -85,12 +84,12 @@ private class JcConcreteSnapshot(
     }
 
     fun addObjectToSnapshot(oldPhys: PhysicalAddress) {
-        if (objects.containsKey(oldPhys))
+        if (objects.containsKey(oldPhys) || newObjects.contains(oldPhys))
             return
 
         val obj = oldPhys.obj!!
         val type = obj.javaClass
-        if (!type.isThreadLocal && (type.isImmutable || type.allInstanceFieldsAreFinal)) {
+        if (!type.isThreadLocal && (type.isImmutable || !type.isArray && type.allInstanceFieldsAreFinal)) {
             return
         }
 
@@ -108,7 +107,7 @@ private class JcConcreteSnapshot(
 
     private inner class EffectTraversal: ObjectTraversal(threadLocalHelper, false) {
         override fun skip(phys: PhysicalAddress, type: Class<*>): Boolean {
-            return type.notTracked || addedRec.contains(phys)
+            return type.notTracked || addedRec.contains(phys) || newObjects.contains(phys)
         }
 
         override fun skipField(field: Field): Boolean {
@@ -168,6 +167,11 @@ private class JcConcreteSnapshot(
             addObjectToSnapshotRec(value)
         }
         staticsCache.add(type)
+    }
+
+    fun addNewObject(obj: Any) {
+        check(obj !is PhysicalAddress)
+        newObjects.add(PhysicalAddress(obj))
     }
 
     fun ensureStatics() {
@@ -348,6 +352,13 @@ private class JcConcreteEffect(
         isActiveVar = true
         before.addStaticFields(type)
     }
+
+    fun addNewObject(obj: Any) {
+        check(isAlive)
+        check(afterIsEmpty)
+        isActiveVar = true
+        before.addNewObject(obj)
+    }
 }
 
 private class JcConcreteEffectSequence private constructor(
@@ -449,6 +460,9 @@ internal class JcConcreteEffectStorage private constructor(
     private val isCurrent: Boolean
         get() = own.seq === current.seq
 
+    val isEmpty: Boolean
+        get() = own.seq.isEmpty()
+
     fun addObjectToEffect(obj: Any) {
         check(isCurrent)
         own.head()!!.addObject(obj)
@@ -467,6 +481,11 @@ internal class JcConcreteEffectStorage private constructor(
     fun addStatics(type: Class<*>) {
         check(isCurrent)
         own.head()?.addStaticFields(type)
+    }
+
+    fun addNewObject(obj: Any) {
+        check(isCurrent)
+        own.head()?.addNewObject(obj)
     }
 
     fun reset() {
