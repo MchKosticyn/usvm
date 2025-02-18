@@ -5,12 +5,24 @@ import bench.replace
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
+import org.jacodb.approximation.Approximations
+import org.jacodb.approximation.JcEnrichedVirtualField
+import org.jacodb.approximation.JcEnrichedVirtualMethod
+import org.jacodb.impl.bytecode.JcClassOrInterfaceImpl
+import org.jacodb.impl.bytecode.JcMethodImpl
 import org.jacodb.impl.cfg.MethodNodeBuilder
+import org.jacodb.impl.features.JcFeaturesChain
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.usvm.api.internal.ClinitHelper
+import org.jacodb.impl.features.classpaths.UnknownClassMethodsAndFields
+import org.jacodb.impl.features.classpaths.UnknownClasses
+import org.jacodb.impl.types.AnnotationInfo
+import org.jacodb.impl.types.MethodInfo
+import org.jacodb.impl.types.ParameterInfo
+import org.usvm.api.internal.InitHelper
 import org.usvm.instrumentation.util.toByteArray
 import org.usvm.machine.state.concreteMemory.JcConcreteEffectStorage
 import org.usvm.machine.state.concreteMemory.isInstrumentedClinit
+import org.usvm.machine.state.concreteMemory.isInstrumentedInit
 import org.usvm.machine.state.concreteMemory.isLambdaTypeName
 import org.usvm.machine.state.concreteMemory.javaName
 import org.usvm.machine.state.concreteMemory.setStaticFieldValue
@@ -155,14 +167,24 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
             null
         }
 
-    private fun initClinitHelper(type: Class<*>) {
-        check(type.name == ClinitHelper::class.java.name)
-        // Forcing `<clinit>` of `ClinitHelper`
+    private val afterInitAction: java.util.function.Function<Any, Void?> =
+        java.util.function.Function { newObj: Any ->
+            effectStorage.addNewObject(newObj)
+            null
+        }
+
+    private fun initInitHelper(type: Class<*>) {
+        check(type.name == InitHelper::class.java.name)
+        // Forcing `<clinit>` of `InitHelper`
         type.declaredFields.first().get(null)
         // Initializing static fields
-        type.staticFields
-            .find { it.name == ClinitHelper::afterClinitAction.javaName }!!
+        val staticFields = type.staticFields
+        staticFields
+            .find { it.name == InitHelper::afterClinitAction.javaName }!!
             .setStaticFieldValue(afterClinitAction)
+        staticFields
+            .find { it.name == InitHelper::afterInitAction.javaName }!!
+            .setStaticFieldValue(afterInitAction)
     }
 
     override fun loadClass(name: String?): Class<*> {
@@ -225,18 +247,42 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         defineClassRecursively(jcClass, hashSetOf())
             ?: error("Can't define class $jcClass")
 
-    private fun getBytecode(jcClass: JcClassOrInterface): ByteArray {
-        val clinit = jcClass.declaredMethods.find { it.isClassInitializer }
-        if (clinit != null && clinit.isInstrumentedClinit) {
-            val newClinitNode = MethodNodeBuilder(clinit, clinit.rawInstList).build()
-            return jcClass.withAsmNode { asmNode ->
-                val clinitNode = asmNode.methods.find { it.name == clinit.name }
-                asmNode.methods.replace(clinitNode, newClinitNode)
-                asmNode.toByteArray(jcClass.classpath)
-            }
-        }
+    private fun JcClasspath.featuresChainWithoutApproximations(): JcFeaturesChain {
+        val featuresChainField = this.javaClass.getDeclaredField("featuresChain")
+        featuresChainField.isAccessible = true
+        val featuresChain = featuresChainField.get(this) as JcFeaturesChain
+        val features = featuresChain.features.filterNot { it is Approximations }
+        return JcFeaturesChain(features)
+    }
 
-        return jcClass.bytecode()
+    private fun getBytecode(jcClass: JcClassOrInterface): ByteArray {
+        val instrumentedMethods = jcClass.declaredMethods.filter { it.isInstrumentedClinit || it.isInstrumentedInit }
+        if (instrumentedMethods.isEmpty())
+            return jcClass.bytecode()
+
+        return jcClass.withAsmNode { asmNode ->
+            for (method in instrumentedMethods) {
+                val isApproximated = method is JcEnrichedVirtualMethod
+                if (isApproximated && asmNode.methods.none { it.name == method.name && it.desc == method.description })
+                    continue
+
+                val rawInstList = if (isApproximated) {
+                    val parameters = method.parameters.map {
+                        ParameterInfo(it.type.typeName, it.index, it.access, it.name, emptyList())
+                    }
+                    val info = MethodInfo(method.name, method.description, method.signature, method.access, emptyList(), emptyList(), parameters)
+                    val featuresChain = jcClass.classpath.featuresChainWithoutApproximations()
+                    val newMethod = JcMethodImpl(info, featuresChain, jcClass)
+                    newMethod.rawInstList
+                } else { method.rawInstList }
+
+                val newMethodNode = MethodNodeBuilder(method, rawInstList).build()
+                val oldMethodNode = asmNode.methods.find { it.name == method.name && it.desc == method.description }
+                asmNode.methods.replace(oldMethodNode, newMethodNode)
+            }
+
+            asmNode.toByteArray(jcClass.classpath)
+        }
     }
 
     private fun defineClassRecursively(
@@ -259,8 +305,8 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
 
             val bytecode = getBytecode(jcClass)
             val loadedClass = defineClass(className, bytecode)
-            if (loadedClass.name == ClinitHelper::class.java.name)
-                initClinitHelper(loadedClass)
+            if (loadedClass.name == InitHelper::class.java.name)
+                initInitHelper(loadedClass)
 
             return@getOrPut loadedClass
         }

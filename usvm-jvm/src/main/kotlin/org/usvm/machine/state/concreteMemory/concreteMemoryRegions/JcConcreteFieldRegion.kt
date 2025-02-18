@@ -1,9 +1,11 @@
 package org.usvm.machine.state.concreteMemory.concreteMemoryRegions
 
+import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
+import org.jacodb.api.jvm.ext.isSubClassOf
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -18,6 +20,7 @@ import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.getFieldValue
+import org.usvm.machine.state.concreteMemory.isInternalType
 import org.usvm.machine.state.concreteMemory.toJavaField
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.mapWithStaticAsConcrete
@@ -62,11 +65,19 @@ internal class JcConcreteFieldRegion<Sort : USort>(
             }
 
             if (!isApproximation) {
-                val fieldObj = bindings.readClassField(address, javaField!!)
-                return marshall.objToExpr(fieldObj, fieldType) // TODO: use reflect type? #CM
+                val (success, fieldObj) = bindings.readClassField(address, javaField!!)
+                if (success)
+                    // TODO: use reflect type? #CM
+                    return marshall.objToExpr(fieldObj, fieldType)
             }
 
-            marshall.encode(address)
+            // Not unmarshalling during unreachable reads
+            val type = bindings.typeOf(address) as JcClassType
+            if (type.jcClass.isSubClassOf(jcField.enclosingClass)) {
+                marshall.encode(address)
+            } else {
+                println("[WARNING] unreachable read")
+            }
         }
 
         return baseRegion.read(key)
@@ -90,8 +101,9 @@ internal class JcConcreteFieldRegion<Sort : USort>(
         check(this.ownership == ownership)
         check(jcField == key.field)
         val ref = handleRefForWrite(key.ref, guard) {
-            // TODO: do not unmarshall if `isSyntheticClassField`
-            marshall.unmarshallClass(it)
+            val type = bindings.typeOf(it) as JcClassType
+            if (type.jcClass.isSubClassOf(jcField.enclosingClass) && !isSyntheticClassField)
+                marshall.unmarshallClass(it)
         }
 
         if (ref == null || isSyntheticClassField) {
@@ -109,7 +121,13 @@ internal class JcConcreteFieldRegion<Sort : USort>(
                 }
             }
 
-            marshall.unmarshallClass(address)
+            // Not unmarshalling during unreachable writes
+            val type = bindings.typeOf(address) as JcClassType
+            if (type.jcClass.isSubClassOf(jcField.enclosingClass)) {
+                marshall.unmarshallClass(address)
+            } else {
+                println("[WARNING] unreachable write")
+            }
         }
 
         writeToBase(key, value, guard)
@@ -119,10 +137,12 @@ internal class JcConcreteFieldRegion<Sort : USort>(
 
     @Suppress("UNCHECKED_CAST")
     fun unmarshallField(ref: UConcreteHeapRef, obj: Any) {
+        val type = obj.javaClass
         val field =
-            javaField
-                ?: obj.javaClass.allInstanceFields.find { it.name == jcField.name }
-                ?: error("Could not find field '${jcField.name}'")
+            if (type.isInternalType)
+                obj.javaClass.allInstanceFields.find { it.name == jcField.name }
+                    ?: error("Could not find field '${jcField.name}'")
+            else javaField!!
         val lvalue = UFieldLValue(sort, ref, jcField)
         val fieldObj = field.getFieldValue(obj)
         val rvalue = marshall.objToExpr<USort>(fieldObj, fieldType) as UExpr<Sort>

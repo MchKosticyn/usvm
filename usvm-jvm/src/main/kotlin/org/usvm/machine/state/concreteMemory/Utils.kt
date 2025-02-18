@@ -17,6 +17,7 @@ import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchy
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.isSubClassOf
+import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.superClasses
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.throwClassNotFound
@@ -26,10 +27,9 @@ import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.JcUnknownType
-import org.usvm.api.internal.ClinitHelper
+import org.usvm.api.internal.InitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.toJavaExecutable
-import org.usvm.instrumentation.util.isStatic
 import org.usvm.instrumentation.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.instrumentation.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.machine.JcContext
@@ -78,8 +78,15 @@ internal val JcClassOrInterface.staticFields: List<JcField>
 internal val Class<*>.staticFields: List<Field>
     get() = safeDeclaredFields.filter { Modifier.isStatic(it.modifiers) }
 
+internal val Field.isStatic: Boolean
+    get() = Modifier.isStatic(modifiers)
+
 internal fun Field.getFieldValue(obj: Any): Any? {
     check(!isStatic)
+    check(this.declaringClass.isAssignableFrom(obj.javaClass)) {
+        "field $this cannot be red from object of ${obj.javaClass}"
+    }
+
     return try {
         isAccessible = true
         get(obj)
@@ -87,6 +94,7 @@ internal fun Field.getFieldValue(obj: Any): Any? {
         getFieldValueUnsafe(obj)
     }
 }
+
 private val forbiddenModificationClasses = setOf<Class<*>>(
     java.lang.Class::class.java,
     java.lang.reflect.Field::class.java,
@@ -112,6 +120,10 @@ class ForbiddenModificationException(msg: String) : Exception(msg)
 internal fun Field.setFieldValue(obj: Any, value: Any?) {
     check(!isStatic)
     check(value !is PhysicalAddress)
+    check(this.declaringClass.isAssignableFrom(obj.javaClass)) {
+        "field $this cannot be written to object of ${obj.javaClass}"
+    }
+
     if (declaringClass.isForbiddenToModify)
         throw ForbiddenModificationException(declaringClass.name)
 
@@ -223,6 +235,7 @@ internal val JcType.isInstanceApproximation: Boolean
         if (this !is JcClassType)
             return false
 
+        // TODO: check field or method exists in bytecode via classNode
         val originalType = JcConcreteMemoryClassLoader.loadClass(jcClass)
         val originalFieldNames = originalType.allInstanceFields.map { it.name }
         return this.allInstanceFields.any {
@@ -286,7 +299,13 @@ internal val JcMethod.isExceptionCtor: Boolean
 internal val JcMethod.isInstrumentedClinit: Boolean
     get() = isClassInitializer && rawInstList.any {
         it is JcRawCallInst && it.callExpr is JcRawStaticCallExpr
-                && it.callExpr.methodName == ClinitHelper::afterClinit.javaName
+                && it.callExpr.methodName == InitHelper::afterClinit.javaName
+    }
+
+internal val JcMethod.isInstrumentedInit: Boolean
+    get() = isConstructor && rawInstList.any {
+        it is JcRawCallInst && it.callExpr is JcRawStaticCallExpr
+                && it.callExpr.methodName == InitHelper::afterInit.javaName
     }
 
 internal val Class<*>.notTracked: Boolean
@@ -294,6 +313,9 @@ internal val Class<*>.notTracked: Boolean
 
 internal val Class<*>.notTrackedWithSubtypes: Boolean
     get() = this.isPrimitive || this.isEnum || isImmutableWithSubtypes
+
+internal val JcClassOrInterface.notTracked: Boolean
+    get() = this.isEnum || isImmutable
 
 private val immutableTypes = setOf<Class<*>>(
     java.lang.String::class.java,
@@ -342,7 +364,12 @@ private val immutableTypes = setOf<Class<*>>(
 )
 
 private val packagesWithImmutableTypes = setOf(
-    "java.lang.reflect", "java.lang.invoke", "java.time", "sun.reflect"
+    "java.lang.reflect",
+    "java.lang.invoke",
+    "java.time",
+    "sun.reflect",
+    "sun.instrument",
+    "org.mockito.internal",
 )
 
 internal val Class<*>.isClassLoader: Boolean
@@ -363,8 +390,17 @@ internal val Class<*>.isInternalType: Boolean
 internal val JcClassOrInterface.isInternalType: Boolean
     get() = typeNameIsInternal(name)
 
+private val loggingPackages = setOf(
+    "org.hibernate.validator.internal.util.logging",
+    "org.apache.commons.logging",
+    "org.slf4j",
+)
+
 private val Class<*>.isLogger: Boolean
-    get() = packageName.startsWith("org.apache.commons.logging")
+    get() = loggingPackages.any { packageName.startsWith(it) }
+
+private val JcClassOrInterface.isLogger: Boolean
+    get() = loggingPackages.any { packageName.startsWith(it) }
 
 internal val Class<*>.isImmutable: Boolean
     get() = !isArray &&
@@ -389,6 +425,15 @@ internal val Class<*>.isImmutableWithSubtypes: Boolean
                     || isLogger
                     || isInternalType
                     || allFields.isEmpty() && isFinal)
+
+internal val JcClassOrInterface.isImmutable: Boolean
+    get() = immutableTypes.any { this.name == it.name || this.allSuperHierarchy.any { superClass -> superClass.name == it.name } }
+            || isEnum
+            || packagesWithImmutableTypes.any { this.packageName.startsWith(it) }
+            || isClassLoader
+            || isLogger
+            || isInternalType
+            || allFields.isEmpty()
 
 internal val Class<*>.allInstanceFieldsAreFinal: Boolean
     get() = allInstanceFields.all { it.isFinal }
