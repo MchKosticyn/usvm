@@ -148,7 +148,11 @@ internal class JcConcreteArrayRegion<Sort : USort>(
             val address = ref.address
             val indexObj = marshall.tryExprToObj(key.index, indexType)
             if (indexObj.isSome) {
-                val valueObj = bindings.readArrayIndex(address, indexObj.getOrThrow() as Int)
+                val (success, valueObj) = bindings.readArrayIndex(address, indexObj.getOrThrow() as Int)
+                if (!success)
+                    // Filtering unreachable read
+                    return baseRegion.read(key)
+
                 val elemType = (bindings.typeOf(address) as JcArrayType).elementType
                 return marshall.objToExpr(valueObj, elemType)
             }
@@ -161,6 +165,7 @@ internal class JcConcreteArrayRegion<Sort : USort>(
     }
 
     override fun read(key: UArrayIndexLValue<JcType, Sort, USizeSort>): UExpr<Sort> {
+        // TODO: map index also?
         return key.ref.mapWithStaticAsConcrete(
             concreteMapper = { readConcrete(it, key) },
             symbolicMapper = { baseRegion.read(key) },
@@ -191,7 +196,13 @@ internal class JcConcreteArrayRegion<Sort : USort>(
             val indexObj = marshall.tryExprToObj(key.index, indexType)
             val isConcreteWrite = valueObj.isSome && indexObj.isSome && guard.isTrue
             if (isConcreteWrite) {
-                bindings.writeArrayIndex(ref.address, indexObj.getOrThrow() as Int, valueObj.getOrThrow())
+                val success = bindings.writeArrayIndex(ref.address, indexObj.getOrThrow() as Int, valueObj.getOrThrow())
+                if (!success) {
+                    // Filtering unreachable write
+                    writeToBase(key, value, guard)
+                    return this
+                }
+
                 return this
             }
 

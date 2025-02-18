@@ -571,7 +571,10 @@ class JcConcreteMemory private constructor(
     ) {
         // TODO: delete (not efficient)
         if (objParameters.any { !bindings.isActual(it) } || !bindings.isActual(thisObj)) {
-            println("[WARNING] incorrect state of memory")
+            if (bindings.effectStorage.isEmpty)
+                println("[WARNING] incorrect concreteness tracking")
+            else
+                println("[WARNING] incorrect concreteness tracking or effect storage")
         }
 
         if (bindings.isMutableWithEffect()) {
