@@ -445,7 +445,7 @@ private val JcClassOrInterface.isClassLoader: Boolean
     get() = allSuperHierarchy.any { it.name == "java.lang.ClassLoader" }
 
 internal val Class<*>.isSolid: Boolean
-    get() = notTracked || this.isArray && this.componentType.notTracked
+    get() = notTracked || this.isArray && this.componentType.notTrackedWithSubtypes
 
 internal val Class<*>.isSolidWithSubtypes: Boolean
     get() = notTrackedWithSubtypes || this.isArray && this.componentType.notTrackedWithSubtypes

@@ -603,6 +603,7 @@ class JcConcreteMemory private constructor(
                 } catch (e: Throwable) {
                     println("unable to print method invocation result")
                 }
+                bindings.reTrackObject(resultObj)
                 if (method.isConstructor) {
                     check(thisObj != null && resultObj != null)
                     // TODO: think about this:

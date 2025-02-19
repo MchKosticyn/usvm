@@ -131,10 +131,8 @@ public class StringConcat {
     }
 
     public static boolean wip3(int i) {
-        if (i > 0 && i < 100000) {
-            if (!String.format("a%d", i).contains(Integer.toString(i))) {
-                return false;
-            }
+        if (!String.format("GMT%+d:00", i).contains(Integer.toString(i))) {
+            return false;
         }
 
         return true;
