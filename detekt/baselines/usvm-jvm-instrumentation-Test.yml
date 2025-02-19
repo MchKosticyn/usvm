@@ -28,7 +28,7 @@
     <ID>NoBlankLineBeforeRbrace:UTestCreator.kt$UTestCreator.Arrays$ </ID>
     <ID>NoTrailingSpaces:UTestCreator.kt$UTestCreator$ </ID>
     <ID>NoWildcardImports:UTestCreator.kt$import org.jacodb.api.ext.*</ID>
-    <ID>NoWildcardImports:UTestCreator.kt$import org.usvm.instrumentation.testcase.api.*</ID>
+    <ID>NoWildcardImports:UTestCreator.kt$import org.usvm.test.api.*</ID>
     <ID>PropertyWrapping:UTestCreator.kt$UTestCreator.SleepingClass$val jcMethodCall = UTestStaticMethodCall(jcMethod, listOf(UTestLongExpression(timeInMillis, jcClasspath.long)))</ID>
     <ID>SpacingAroundColon:ConcreteExecutorTests.kt$ConcreteExecutorTests$:</ID>
     <ID>SpacingAroundCurly:UTestCreator.kt$UTestCreator.Ex1${</ID>

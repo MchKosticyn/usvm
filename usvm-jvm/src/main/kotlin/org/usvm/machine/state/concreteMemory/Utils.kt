@@ -30,8 +30,8 @@ import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.api.internal.InitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.toJavaExecutable
-import org.usvm.instrumentation.util.getFieldValue as getFieldValueUnsafe
-import org.usvm.instrumentation.util.setFieldValue as setFieldValueUnsafe
+import org.usvm.jvm.util.getFieldValue as getFieldValueUnsafe
+import org.usvm.jvm.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.machine.JcContext
 import org.usvm.util.name
 import java.lang.reflect.Executable
