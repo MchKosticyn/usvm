@@ -1,8 +1,7 @@
-package org.usvm.instrumentation.testcase.api
+package org.usvm.test.api
 
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.ext.*
-import org.jacodb.impl.types.JcArrayTypeImpl
 
 /**
  * Api for UTestExpression
@@ -215,7 +214,7 @@ class UTestCreateArrayExpression(
     val elementType: JcType,
     val size: UTestExpression
 ) : UTestExpression {
-    override val type: JcType = JcArrayTypeImpl(elementType)
+    override val type: JcType = elementType.classpath.arrayTypeOf(elementType)
 }
 
 class UTestCastExpression(

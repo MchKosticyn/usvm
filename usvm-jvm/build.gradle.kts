@@ -29,20 +29,13 @@ val `sample-approximations` by sourceSets.creating {
     }
 }
 
-val `usvm-api` by sourceSets.creating {
-    java {
-        srcDir("src/usvm-api/java")
-    }
+repositories {
+    mavenLocal()
 }
 
 val approximations by configurations.creating
 val approximationsRepo = "org.usvm.approximations.java.stdlib"
 val approximationsVersion = "0.0.0"
-
-repositories {
-    mavenLocal()
-    mavenCentral()
-}
 
 dependencies {
     implementation(project(":usvm-core"))
@@ -52,7 +45,9 @@ dependencies {
     implementation(Libs.jacodb_core)
     implementation(Libs.jacodb_approximations)
 
-    implementation(`usvm-api`.output)
+    implementation(project("usvm-jvm-api"))
+    implementation(project("usvm-jvm-test-api"))
+    implementation(project(":usvm-jvm:usvm-jvm-util"))
 
     implementation(Libs.ksmt_runner)
     implementation(Libs.ksmt_yices)
@@ -82,11 +77,6 @@ dependencies {
     springApproximationsDeps("org.springframework.boot:spring-boot-starter-data-jpa:3.2.0")
 }
 
-val `usvm-apiCompileOnly`: Configuration by configurations.getting
-dependencies {
-    `usvm-apiCompileOnly`(Libs.jacodb_api_jvm)
-}
-
 val samplesImplementation: Configuration by configurations.getting
 
 dependencies {
@@ -97,9 +87,8 @@ dependencies {
     samplesImplementation("org.jetbrains:annotations:${Versions.Samples.jetbrainsAnnotations}")
 
     // Use usvm-api in samples for makeSymbolic, assume, etc.
-    samplesImplementation(`usvm-api`.output)
+    samplesImplementation(project("usvm-jvm-api"))
 
-    implementation(project(":usvm-jvm-instrumentation"))
     testImplementation(project(":usvm-jvm-instrumentation"))
 }
 
@@ -107,14 +96,9 @@ val `sample-approximationsCompileOnly`: Configuration by configurations.getting
 
 dependencies {
     `sample-approximationsCompileOnly`(samples.output)
-    `sample-approximationsCompileOnly`(`usvm-api`.output)
+    `sample-approximationsCompileOnly`(project("usvm-jvm-api"))
     `sample-approximationsCompileOnly`(Libs.jacodb_api_jvm)
     `sample-approximationsCompileOnly`(Libs.jacodb_approximations)
-}
-
-val `usvm-api-jar` = tasks.register<Jar>("usvm-api-jar") {
-    archiveBaseName.set(`usvm-api`.name)
-    from(`usvm-api`.output)
 }
 
 val testSamples by configurations.creating
@@ -132,20 +116,24 @@ val compileSamplesJdk11 = tasks.register<JavaCompile>("compileSamplesJdk11") {
 
 dependencies {
     testSamples(samples.output)
-    testSamples(`usvm-api`.output)
+    testSamples(project("usvm-jvm-api"))
     testSamples(files(`samples-jdk11`.java.destinationDirectory))
 
     testSamplesWithApproximations(samples.output)
-    testSamplesWithApproximations(`usvm-api`.output)
+    testSamplesWithApproximations(project("usvm-jvm-api"))
     testSamplesWithApproximations(`sample-approximations`.output)
     testSamplesWithApproximations(approximationsRepo, "tests", approximationsVersion)
 }
 
+val usvmApiJarConfiguration by configurations.creating
+dependencies {
+    usvmApiJarConfiguration(project("usvm-jvm-api"))
+}
+
 tasks.withType<Test> {
-    dependsOn(`usvm-api-jar`)
     dependsOn(compileSamplesJdk11, testSamples, testSamplesWithApproximations)
 
-    val usvmApiJarPath = `usvm-api-jar`.get().outputs.files.singleFile
+    val usvmApiJarPath = usvmApiJarConfiguration.resolvedConfiguration.files.single()
     val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
 
     environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
@@ -186,7 +174,7 @@ tasks.withType<Test> {
         project(":usvm-jvm-instrumentation")
             .layout
             .buildDirectory
-            .file("libs/usvm-jvm-instrumentation-1.0.jar")
+            .file("libs/usvm-jvm-instrumentation-runner.jar")
             .get().asFile.absolutePath
     )
     environment(
@@ -204,10 +192,6 @@ publishing {
         create<MavenPublication>("maven") {
             from(components["java"])
         }
-        create<MavenPublication>("maven-api") {
-            artifactId = "usvm-jvm-api"
-            artifact(`usvm-api-jar`)
-        }
     }
 }
 
@@ -223,11 +207,9 @@ tasks.register<JavaExec>("runWebBench") {
     mainClass.set("bench.WebBenchKt")
     classpath = sourceSets.test.get().runtimeClasspath
 
-    dependsOn(`usvm-api-jar`)
-
     systemProperty("jdk.util.jar.enableMultiRelease", false)
 
-    val usvmApiJarPath = `usvm-api-jar`.get().outputs.files.singleFile
+    val usvmApiJarPath = usvmApiJarConfiguration.resolvedConfiguration.files.single()
     val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
     val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
     val absolutePaths = springApproximationDepsJarPath.joinToString(";") { it.absolutePath }

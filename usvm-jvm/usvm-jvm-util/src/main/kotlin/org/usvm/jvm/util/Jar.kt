@@ -1,5 +1,14 @@
-package bench
+package org.usvm.jvm.util
 
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.nio.file.Path
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
+import java.util.jar.Manifest
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.objectClass
@@ -7,13 +16,12 @@ import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.Label
 import org.objectweb.asm.commons.JSRInlinerAdapter
-import org.objectweb.asm.tree.*
+import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.FrameNode
+import org.objectweb.asm.tree.LabelNode
+import org.objectweb.asm.tree.MethodNode
+import org.objectweb.asm.tree.TryCatchBlockNode
 import org.objectweb.asm.util.CheckClassAdapter
-import java.io.*
-import java.nio.file.Path
-import java.util.jar.JarEntry
-import java.util.jar.JarOutputStream
-import java.util.jar.Manifest
 
 
 data class Package(val components: List<String>, val isConcrete: Boolean) {
@@ -58,10 +66,7 @@ internal fun ClassNode.inlineJsrs() {
     this.methods = methods.map { it.jsrInlined }
 }
 
-val JarEntry.isClass get() = this.name.endsWith(".class")
 val JarEntry.fullName get() = this.name.removeSuffix(".class")
-val JarEntry.pkg get() = Package(fullName.dropLastWhile { it != Package.SEPARATOR })
-val JarEntry.isManifest get() = this.name == "META-INF/MANIFEST.MF"
 
 val ClassNode.hasFrameInfo: Boolean
     get() {
@@ -72,7 +77,7 @@ val ClassNode.hasFrameInfo: Boolean
         return hasInfo
     }
 
-class ClassReadException(msg: String): Exception(msg)
+class ClassReadException(msg: String) : Exception(msg)
 
 data class Flags(val value: Int) : Comparable<Flags> {
     companion object {
@@ -196,7 +201,7 @@ fun ClassNode.toByteArray(
     return cw.toByteArray()
 }
 
-internal fun ClassNode.write(
+fun ClassNode.write(
     jcClassPath: JcClasspath,
     path: Path,
     flags: Flags = Flags.writeComputeAll,
@@ -206,29 +211,6 @@ internal fun ClassNode.write(
         parentFile?.mkdirs()
         this.writeBytes(this@write.toByteArray(jcClassPath, flags, checkClass))
     }
-
-fun <T> MutableList<T>.replace(replace: T, replacement: T): Boolean {
-    with(indexOf(replace)) {
-        return if (this == -1) {
-            false
-        } else {
-            removeAt(this)
-            add(this, replacement)
-            true
-        }
-    }
-}
-
-inline fun <A, K, V, R : MutableMap<K, V>> Collection<A>.mapIndexedNotNullTo(
-    result: R,
-    body: (Int, A) -> Pair<K, V>?
-): R {
-    for (element in this.withIndex()) {
-        val transformed = body(element.index, element.value) ?: continue
-        result += transformed
-    }
-    return result
-}
 
 internal class LabelFilterer(private val mn: MethodNode) {
 
@@ -300,3 +282,5 @@ internal class LabelFilterer(private val mn: MethodNode) {
         return new
     }
 }
+
+

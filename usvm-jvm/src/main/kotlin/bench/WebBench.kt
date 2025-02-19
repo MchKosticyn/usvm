@@ -42,6 +42,9 @@ import org.usvm.UMachineOptions
 import org.usvm.api.internal.InitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.JcTestInterpreter
+import org.usvm.jvm.util.isSameSignature
+import org.usvm.jvm.util.replace
+import org.usvm.jvm.util.write
 import org.usvm.logger
 import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions

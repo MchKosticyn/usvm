@@ -1,7 +1,6 @@
 package org.usvm.api.util
 
 import bench.JcLambdaFeature
-import bench.replace
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
@@ -19,7 +18,7 @@ import org.jacodb.impl.types.AnnotationInfo
 import org.jacodb.impl.types.MethodInfo
 import org.jacodb.impl.types.ParameterInfo
 import org.usvm.api.internal.InitHelper
-import org.usvm.instrumentation.util.toByteArray
+import org.usvm.jvm.util.toByteArray
 import org.usvm.machine.state.concreteMemory.JcConcreteEffectStorage
 import org.usvm.machine.state.concreteMemory.isInstrumentedClinit
 import org.usvm.machine.state.concreteMemory.isInstrumentedInit
@@ -36,6 +35,7 @@ import java.security.SecureClassLoader
 import java.util.*
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
+import org.usvm.jvm.util.replace
 
 /**
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
@@ -107,12 +107,12 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         if (single) {
             for (current in jar.entries()) {
                 if (current.matchResource(name, true))
-                    return listOf(URL("$jarPath/${current.name}"))
+                    return listOf(URI("$jarPath/${current.name}").toURL())
             }
         } else {
             val result = jar.entries().toList().mapNotNull {
                 if (it.matchResource(name, false))
-                    URL("$jarPath/${it.name}")
+                    URI("$jarPath/${it.name}").toURL()
                 else null
             }
             if (result.isNotEmpty())

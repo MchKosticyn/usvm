@@ -47,7 +47,7 @@ import org.usvm.collections.immutable.implementations.immutableMap.UPersistentHa
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.collections.immutable.persistentHashMapOf
 import org.usvm.constraints.UTypeConstraints
-import org.usvm.instrumentation.util.toJavaClass
+import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.JcConcreteInvocationResult
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
