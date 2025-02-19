@@ -12,9 +12,9 @@ TODO:
 * Concolic trace
 
 Input:
-* classpath of analyzing project + UTest (see Tests and org.usvm.instrumentation.testcase.api.api.kt)
+* classpath of analyzing project + UTest (see Tests and org.usvm.test.api.api.kt)
 
 Output:
-* Execution state (see org.usvm.instrumentation.testcase.api.response.kt)
+* Execution state (see org.usvm.test.api.response.kt)
 
 Example of module usage for simple classes and guava located in tests

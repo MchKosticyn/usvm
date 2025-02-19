@@ -8,11 +8,11 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.instrumentation.instrumentation.JcInstrumenter
 import org.usvm.instrumentation.instrumentation.JcInstrumenterFactory
 import org.usvm.instrumentation.rd.InstrumentedProcess
-import org.usvm.instrumentation.testcase.UTest
 import org.usvm.instrumentation.testcase.api.UTestExecutionResult
 import org.usvm.instrumentation.util.InstrumentationModuleConstants
 import org.usvm.instrumentation.util.OpenModulesContainer
 import org.usvm.instrumentation.util.osSpecificJavaExecutable
+import org.usvm.test.api.UTest
 import java.io.File
 import java.nio.file.Paths
 import kotlin.reflect.KClass
@@ -22,7 +22,9 @@ import kotlin.time.Duration
 class InstrumentationProcessRunner(
     private val testingProjectClasspath: String,
     private val jcClasspath: JcClasspath,
-    private val instrumentationClassFactory: KClass<out JcInstrumenterFactory<out JcInstrumenter>>
+    private val instrumentationClassFactory: KClass<out JcInstrumenterFactory<out JcInstrumenter>>,
+    private val instrumentedClasses: List<String> = listOf(),
+    private val executionMode: InstrumentedProcess.UTestExecMode = InstrumentedProcess.UTestExecMode.STATE
 ) {
 
     private lateinit var rdProcessRunner: RdProcessRunner
@@ -55,8 +57,10 @@ class InstrumentationProcessRunner(
 
     private fun createWorkerProcessArgs(rdPort: Int): List<String> =
         listOf("-cp", testingProjectClasspath) +
-        listOf("-t", "${InstrumentationModuleConstants.concreteExecutorProcessTimeout}") +
-        listOf("-p", "$rdPort")
+                listOf("-ic", instrumentedClasses.joinToString(" ")) +
+                listOf("-em", executionMode.id) +
+                listOf("-t", "${InstrumentationModuleConstants.concreteExecutorProcessTimeout}") +
+                listOf("-p", "$rdPort")
 
     suspend fun init(parentLifetime: Lifetime) {
         val processLifetime = LifetimeDefinition(parentLifetime)
@@ -76,6 +80,4 @@ class InstrumentationProcessRunner(
     suspend fun executeUTestAsync(uTest: UTest): UTestExecutionResult = rdProcessRunner.callUTestAsync(uTest)
 
     fun destroy() = rdProcessRunner.destroy()
-
-
 }

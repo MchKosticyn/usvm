@@ -1,6 +1,7 @@
-package org.usvm.util
+package org.usvm.test.api
 
 import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
@@ -11,40 +12,12 @@ import org.jacodb.api.jvm.ext.double
 import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.long
-import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.api.decoder.DecoderApi
-import org.usvm.instrumentation.testcase.api.UTestArrayGetExpression
-import org.usvm.instrumentation.testcase.api.UTestArrayLengthExpression
-import org.usvm.instrumentation.testcase.api.UTestArraySetStatement
-import org.usvm.instrumentation.testcase.api.UTestBooleanExpression
-import org.usvm.instrumentation.testcase.api.UTestByteExpression
-import org.usvm.instrumentation.testcase.api.UTestCastExpression
-import org.usvm.instrumentation.testcase.api.UTestCharExpression
-import org.usvm.instrumentation.testcase.api.UTestClassExpression
-import org.usvm.instrumentation.testcase.api.UTestConstructorCall
-import org.usvm.instrumentation.testcase.api.UTestCreateArrayExpression
-import org.usvm.instrumentation.testcase.api.UTestDoubleExpression
-import org.usvm.instrumentation.testcase.api.UTestExpression
-import org.usvm.instrumentation.testcase.api.UTestFloatExpression
-import org.usvm.instrumentation.testcase.api.UTestGetFieldExpression
-import org.usvm.instrumentation.testcase.api.UTestGetStaticFieldExpression
-import org.usvm.instrumentation.testcase.api.UTestInst
-import org.usvm.instrumentation.testcase.api.UTestIntExpression
-import org.usvm.instrumentation.testcase.api.UTestLongExpression
-import org.usvm.instrumentation.testcase.api.UTestMethodCall
-import org.usvm.instrumentation.testcase.api.UTestNullExpression
-import org.usvm.instrumentation.testcase.api.UTestSetFieldStatement
-import org.usvm.instrumentation.testcase.api.UTestSetStaticFieldStatement
-import org.usvm.instrumentation.testcase.api.UTestShortExpression
-import org.usvm.instrumentation.testcase.api.UTestStaticMethodCall
-import org.usvm.instrumentation.testcase.api.UTestStringExpression
-import org.usvm.instrumentation.util.stringType
-import org.usvm.machine.JcContext
 
 class JcTestExecutorDecoderApi(
-    private val ctx: JcContext
+    private val cp: JcClasspath
 ) : DecoderApi<UTestExpression> {
     private val instructions = mutableListOf<UTestInst>()
 
@@ -75,31 +48,31 @@ class JcTestExecutorDecoderApi(
         }
 
     override fun createBoolConst(value: Boolean): UTestExpression =
-        UTestBooleanExpression(value, ctx.cp.boolean)
+        UTestBooleanExpression(value, cp.boolean)
 
     override fun createByteConst(value: Byte): UTestExpression =
-        UTestByteExpression(value, ctx.cp.byte)
+        UTestByteExpression(value, cp.byte)
 
     override fun createShortConst(value: Short): UTestExpression =
-        UTestShortExpression(value, ctx.cp.short)
+        UTestShortExpression(value, cp.short)
 
     override fun createIntConst(value: Int): UTestExpression =
-        UTestIntExpression(value, ctx.cp.int)
+        UTestIntExpression(value, cp.int)
 
     override fun createLongConst(value: Long): UTestExpression =
-        UTestLongExpression(value, ctx.cp.long)
+        UTestLongExpression(value, cp.long)
 
     override fun createFloatConst(value: Float): UTestExpression =
-        UTestFloatExpression(value, ctx.cp.float)
+        UTestFloatExpression(value, cp.float)
 
     override fun createDoubleConst(value: Double): UTestExpression =
-        UTestDoubleExpression(value, ctx.cp.double)
+        UTestDoubleExpression(value, cp.double)
 
     override fun createCharConst(value: Char): UTestExpression =
-        UTestCharExpression(value, ctx.cp.char)
+        UTestCharExpression(value, cp.char)
 
     override fun createStringConst(value: String): UTestExpression =
-        UTestStringExpression(value, ctx.cp.stringType())
+        UTestStringExpression(value, cp.stringType)
 
     override fun createClassConst(type: JcType): UTestExpression =
         UTestClassExpression(type)
@@ -123,3 +96,6 @@ class JcTestExecutorDecoderApi(
     override fun castClass(type: JcClassOrInterface, obj: UTestExpression): UTestExpression =
         UTestCastExpression(obj, type.toType())
 }
+
+internal val JcClasspath.stringType: JcType
+    get() = findClassOrNull("java.lang.String")!!.toType()

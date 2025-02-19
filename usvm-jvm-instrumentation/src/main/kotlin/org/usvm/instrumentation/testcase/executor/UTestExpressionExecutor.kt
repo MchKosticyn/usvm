@@ -1,4 +1,5 @@
 @file:Suppress("UNCHECKED_CAST")
+
 package org.usvm.instrumentation.testcase.executor
 
 import org.jacodb.api.jvm.JcArrayType
@@ -7,12 +8,20 @@ import org.jacodb.api.jvm.ext.*
 import org.usvm.instrumentation.classloader.WorkerClassLoader
 import org.usvm.instrumentation.instrumentation.JcInstructionTracer.StaticFieldAccessType
 import org.usvm.instrumentation.mock.MockHelper
-import org.usvm.instrumentation.testcase.api.*
+import org.usvm.test.api.*
 import org.usvm.instrumentation.collector.trace.MockCollector
 import org.usvm.instrumentation.collector.trace.MockCollector.MockValueArrayWrapper
-import org.usvm.instrumentation.util.*
 import java.lang.ClassCastException
 import java.lang.IllegalArgumentException
+import org.usvm.instrumentation.util.invokeWithAccessibility
+import org.usvm.instrumentation.util.newInstanceWithAccessibility
+import org.usvm.jvm.util.ReflectionUtils
+import org.usvm.jvm.util.getFieldValue
+import org.usvm.jvm.util.setFieldValue
+import org.usvm.jvm.util.toJavaClass
+import org.usvm.jvm.util.toJavaConstructor
+import org.usvm.jvm.util.toJavaField
+import org.usvm.jvm.util.toJavaMethod
 
 class UTestExpressionExecutor(
     private val workerClassLoader: WorkerClassLoader,

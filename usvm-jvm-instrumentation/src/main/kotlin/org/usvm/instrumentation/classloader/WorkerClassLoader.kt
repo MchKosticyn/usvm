@@ -12,6 +12,10 @@ import java.lang.instrument.ClassDefinition
 import java.lang.instrument.Instrumentation
 import java.security.CodeSource
 import java.security.SecureClassLoader
+import org.usvm.jvm.util.isFinal
+import org.usvm.jvm.util.isStatic
+import org.usvm.jvm.util.setFieldValue
+import org.usvm.jvm.util.toByteArray
 
 /**
  * Worker classloader using as classloader in testing project
@@ -23,7 +27,6 @@ class WorkerClassLoader(
     private val mockCollectorClassName: String,
     val jcClasspath: JcClasspath
 ) : SecureClassLoader(null) {
-
     private lateinit var instrumentation: Instrumentation
     var shouldInstrumentCurrentClass = true
     private val redefineQueue = ArrayList<Pair<Class<*>, ClassNode>>()
