@@ -6,7 +6,7 @@ import java.util.Queue
 
 internal abstract class ObjectTraversal(
     private val threadLocalHelper: ThreadLocalHelper,
-    private val skipExceptions: Boolean = false
+    private val skipExceptions: Boolean = false,
 ) {
 
     abstract fun skip(phys: PhysicalAddress, type: Class<*>): Boolean
@@ -27,6 +27,102 @@ internal abstract class ObjectTraversal(
     open fun skipField(field: Field): Boolean = false
 
     open fun skipArrayIndices(elementType: Class<*>): Boolean = false
+
+    private fun traverseArray(phys: PhysicalAddress, type: Class<*>, traverseQueue: Queue<PhysicalAddress>) {
+        handleArray(phys, type)
+
+        if (skipArrayIndices(type.componentType))
+            return
+
+        when (val obj = phys.obj!!) {
+            is Array<*> -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            is IntArray -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            is ByteArray -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            is CharArray -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            is LongArray -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            is FloatArray -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            is ShortArray -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            is DoubleArray -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            is BooleanArray -> {
+                obj.forEachIndexed { i, v ->
+                    val child = PhysicalAddress(v)
+                    handleArrayIndex(phys, i, child)
+                    traverseQueue.add(child)
+                }
+            }
+            else -> error("ObjectTraversal.traverse: unexpected array $obj")
+        }
+    }
+
+    private fun traverseClass(phys: PhysicalAddress, type: Class<*>, traverseQueue: Queue<PhysicalAddress>) {
+        handleClass(phys, type)
+        val obj = phys.obj!!
+
+        for (field in type.allInstanceFields) {
+            if (skipField(field))
+                continue
+            val value = try {
+                field.getFieldValue(obj)
+            } catch (e: Throwable) {
+                if (skipExceptions) {
+                    println("[WARNING] ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
+                    continue
+                }
+                error("ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
+            }
+            val valuePhys = PhysicalAddress(value)
+            handleClassField(phys, field, valuePhys)
+            traverseQueue.add(valuePhys)
+        }
+    }
 
     fun traverse(obj: Any?) {
         obj ?: return
@@ -50,98 +146,13 @@ internal abstract class ObjectTraversal(
                     handleThreadLocal(currentPhys, valuePhys)
                 }
                 type.isArray -> {
-                    handleArray(currentPhys, type)
-
-                    if (skipArrayIndices(type.componentType))
-                        continue
-
-                    when (current) {
-                        is Array<*> -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        is IntArray -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        is ByteArray -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        is CharArray -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        is LongArray -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        is FloatArray -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        is ShortArray -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        is DoubleArray -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        is BooleanArray -> {
-                            current.forEachIndexed { i, v ->
-                                val child = PhysicalAddress(v)
-                                handleArrayIndex(currentPhys, i, child)
-                                queue.add(child)
-                            }
-                        }
-                        else -> error("ObjectTraversal.traverse: unexpected array $current")
-                    }
+                    traverseArray(currentPhys, type, queue)
                 }
-                // TODO: add special traverse for standard collections (ArrayList, ...) #CM
-                else -> {
-                    handleClass(currentPhys, type)
 
-                    for (field in type.allInstanceFields) {
-                        if (skipField(field))
-                            continue
-                        val value = try {
-                            field.getFieldValue(current)
-                        } catch (e: Throwable) {
-                            if (skipExceptions) {
-                                println("[WARNING] ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
-                                continue
-                            }
-                            error("ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
-                        }
-                        val valuePhys = PhysicalAddress(value)
-                        handleClassField(currentPhys, field, valuePhys)
-                        queue.add(valuePhys)
-                    }
+                // TODO: add special traverse for standard collections (ArrayList, ...) #CM
+                //  care about not fully completed operations of those collections
+                else -> {
+                    traverseClass(currentPhys, type, queue)
                 }
             }
         }
