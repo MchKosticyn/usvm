@@ -72,6 +72,7 @@ import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapMergeInto
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapPut
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapRemove
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapSize
+import org.usvm.api.SpringReqSettings
 import org.usvm.api.initializeArray
 import org.usvm.api.initializeArrayLength
 import org.usvm.api.makeNullableSymbolicRef
@@ -493,6 +494,36 @@ class JcMethodApproximationResolver(
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
             }
 
+            return true
+        }
+
+        if (method.name.equals("_saveReqPath")) {
+            scope.doWithState {
+                reqSetup += Pair(
+                    SpringReqSettings.PATH,
+                    methodCall.arguments[0].asExpr(ctx.addressSort)
+                )
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+            return true
+        }
+
+        if (method.name.equals("_saveReqKind")) {
+            scope.doWithState {
+                reqSetup += Pair(
+                    SpringReqSettings.KIND,
+                    methodCall.arguments[0].asExpr(ctx.addressSort)
+                )
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+            return true
+        }
+
+        if (method.name.equals("_saveResSave")) {
+            scope.doWithState {
+                res = methodCall.arguments[0].asExpr(ctx.integerSort)
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
             return true
         }
 

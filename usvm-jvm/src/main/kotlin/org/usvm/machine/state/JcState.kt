@@ -9,6 +9,8 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.UState
+import org.usvm.api.JcSpringTest
+import org.usvm.api.SpringReqSettings
 import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
@@ -31,7 +33,10 @@ class JcState(
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
     var methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
-    var userDefinedValues: Map<String, Pair<UExpr<out USort>, JcType>> = emptyMap()
+    var userDefinedValues: Map<String, Pair<UExpr<out USort>, JcType>> = emptyMap(),
+    var reqSetup: Map<SpringReqSettings, UExpr<out USort>> = emptyMap(),
+    var res: UExpr<out USort>? = null,
+    var resultConclusion: JcSpringTest? = null,
 ) : UState<JcType, JcMethod, JcInst, JcContext, JcTarget, JcState>(
     ctx,
     ownership,
@@ -69,7 +74,10 @@ class JcState(
             forkPoints,
             methodResult,
             targets.clone(),
-            userDefinedValues
+            userDefinedValues,
+            reqSetup,
+            res,
+            resultConclusion?.let { error("State cannot be cloned if resultConclusion was generated from it") }
         )
 
         println("\u001B[34m" + "[${this.id}] -> [${this.id}, ${new.id}]" + "\u001B[0m")
@@ -115,6 +123,7 @@ class JcState(
 
         this.ownership = newThisOwnership
         other.ownership = newOtherOwnership
+//        TODO: support new JcState info merge (userDefinedValues, reqSetup, res, resultConclusion...)
         return JcState(
             ctx,
             mergedOwnership,

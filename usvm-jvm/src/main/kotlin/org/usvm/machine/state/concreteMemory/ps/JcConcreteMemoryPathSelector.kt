@@ -2,8 +2,10 @@ package org.usvm.machine.state.concreteMemory.ps
 
 import org.jacodb.api.jvm.JcClassType
 import org.usvm.UConcreteHeapRef
-import org.usvm.UHeapRef
 import org.usvm.UPathSelector
+import org.usvm.api.DSLInternalShower
+import org.usvm.api.JcSpringTest
+import org.usvm.api.util.JcTestStateResolver
 import org.usvm.machine.state.JcState
 import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 
@@ -40,7 +42,7 @@ class JcConcreteMemoryPathSelector(
     private fun getConcreteValue(state: JcState, expr: UConcreteHeapRef) : Any? {
         if (expr.address == 0) return "null"
         val type = state.ctx.stringType as JcClassType
-        return (state.memory as JcConcreteMemory).concretize(state, expr, expr as UHeapRef, type)
+        return (state.memory as JcConcreteMemory).concretize(state, expr, type, JcTestStateResolver.ResolveMode.MODEL)
     }
 
     private fun printSpringTestSummary(state: JcState) {
@@ -63,6 +65,16 @@ class JcConcreteMemoryPathSelector(
         check(fixedState == state)
         fixedState = null
         printSpringTestSummary(state)
+
+        if (state.res != null) {
+//            TODO: add exn
+            state.resultConclusion = JcSpringTest.generateFromState(state)
+            state.resultConclusion?.let { dsl ->
+                println("\uD83D\uDE35 TEST-DSL:\n${DSLInternalShower.toStringUTest(dsl.generateTestDSL())}")
+            }
+        }
+
+
         selector.remove(state)
         (state.memory as JcConcreteMemory).kill()
         println("removed state: ${state.id}")

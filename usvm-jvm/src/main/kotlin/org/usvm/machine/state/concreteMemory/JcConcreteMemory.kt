@@ -349,10 +349,10 @@ class JcConcreteMemory private constructor(
                 && method is JcEnrichedVirtualMethod && method.enclosingClass.toType().isStaticApproximation
     }
 
-    public fun concretize(state: JcState, ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): Any? {
+    fun concretize(state: JcState, expr: UExpr<*>, type: JcType, modeFlag: ResolveMode): Any? {
         val concretizer = JcConcretizer(state)
-        return concretizer.withMode(ResolveMode.MODEL){
-            return@withMode concretizer.resolveObject(ref, heapRef, type);
+        return concretizer.withMode(modeFlag){
+            return@withMode concretizer.resolveExpr(expr, type);
         }
     }
 
