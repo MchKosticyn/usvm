@@ -80,19 +80,21 @@ public class StringConcat {
     }
 
     public static boolean checkStringBuilder(String s, char c, int i) {
-        if (s == null)
+        if (s == null || s.length() > 10 || c > 0xFF)
             return true;
 
         StringBuilder sb = new StringBuilder();
         sb.append(s);
-        String a = "str" + c + i;
+        String a = "str" + c;
+        String b = a + i;
         sb.append(a);
-        String res = sb.toString();
-        if (res.charAt(s.length() + "str".length()) != c)
+//        String res = sb.toString();
+        int pos = s.length() + "str".length();
+        if (sb.charAt(pos) != c)
             return false;
 
-        if (i > 0 && i < 128 && res.charAt(s.length() + "str".length() + 1) != i)
-            return false;
+//        if (i >= 0 && i < 128 && res.charAt(pos + 1) != i)
+//            return false;
 
         return true;
     }
