@@ -6,6 +6,8 @@ import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.PathNode
 import org.usvm.UCallStack
 import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
+import org.usvm.USort
 import org.usvm.UState
 import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
@@ -29,6 +31,7 @@ class JcState(
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
     var methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
+    var userDefinedValues: Map<String, Pair<UExpr<out USort>, JcType>> = emptyMap()
 ) : UState<JcType, JcMethod, JcInst, JcContext, JcTarget, JcState>(
     ctx,
     ownership,
@@ -41,6 +44,10 @@ class JcState(
     targets
 ) {
 
+    fun getUserDefinedValue(key: String): Pair<UExpr<out USort>, JcType>? {
+        return userDefinedValues[key]
+    }
+
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcState {
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()
@@ -49,8 +56,8 @@ class JcState(
             it.changeOwnership(cloneOwnership)
         } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
         this.ownership = newThisOwnership
-        println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
-        return JcState(
+
+        val new = JcState(
             ctx,
             cloneOwnership,
             entrypoint,
@@ -62,7 +69,14 @@ class JcState(
             forkPoints,
             methodResult,
             targets.clone(),
+            userDefinedValues
         )
+
+        println("\u001B[34m" + "[${this.id}] -> [${this.id}, ${new.id}]" + "\u001B[0m")
+        println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
+        println("\u001B[34mCallstack for fork $callStack\u001B[0m")
+
+        return new
     }
 
     /**

@@ -511,6 +511,11 @@ internal val JcClassOrInterface.isSpringFilterChain: Boolean
         return isSubClassOf(filterType)
     }
 
+internal fun JcClassOrInterface.isArgumentResolver(ctx: JcContext): Boolean {
+    val argumentResolverType = ctx.cp.findClassOrNull("org.springframework.web.method.support.HandlerMethodArgumentResolver") ?: return false
+    return isSubClassOf(argumentResolverType)
+}
+
 internal val JcClassOrInterface.isSpringHandlerInterceptor: Boolean
     get() {
         val filterType = classpath.findClassOrNull("org.springframework.web.servlet.HandlerInterceptor") ?: return false

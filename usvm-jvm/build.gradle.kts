@@ -322,6 +322,7 @@ tasks.register<JavaExec>("runWebBench") {
         openPackage("java.sql", "java.sql")
         openPackage("java.base", "sun.nio.ch")
         openPackage("java.base", "sun.net.util")
+        openPackage("java.xml", "com.sun.org.apache.xalan.internal.xsltc.trax")
         exportPackage("java.base", "jdk.internal.access.foreign")
         exportPackage("java.base", "sun.security.action")
         exportPackage("java.base", "sun.util.locale")

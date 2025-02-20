@@ -158,8 +158,12 @@ class JcInterpreter(
         return state
     }
 
+    var step_number = 0
+
     override fun step(state: JcState): StepResult<JcState> {
         val stmt = state.lastStmt
+
+        step_number++
 
         logger.debug("Step: {}", stmt)
 
@@ -171,6 +175,10 @@ class JcInterpreter(
             handleException(scope, result, stmt)
             return scope.stepResult()
         }
+
+        val formattedStateId = state.id.toString()
+        val methodNameWithClass = stmt.method.enclosingClass.name.split(".").last() + "#" + stmt.method.name + " " + stmt.toString()
+        println("$step_number [$formattedStateId] $methodNameWithClass")
 
         when (stmt) {
             is JcMethodCallBaseInst -> visitMethodCall(scope, stmt)
