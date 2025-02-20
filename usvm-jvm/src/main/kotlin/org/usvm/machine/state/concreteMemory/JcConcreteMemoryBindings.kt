@@ -20,22 +20,6 @@ import java.lang.reflect.Proxy
 import java.util.LinkedList
 import java.util.Queue
 
-//region Cell
-
-private data class Cell(
-    val address: PhysicalAddress?
-) {
-    val isConcrete = address != null
-
-    companion object {
-        operator fun invoke(): Cell {
-            return Cell(null)
-        }
-    }
-}
-
-//endregion
-
 //region State
 
 private enum class State {
@@ -46,19 +30,12 @@ private enum class State {
 
 //endregion
 
-private typealias childMapType = HashMap<ChildKind, Cell>
-private typealias childrenType = HashMap<PhysicalAddress, childMapType>
-private typealias parentMapType = HashMap<PhysicalAddress, ChildKind>
-private typealias parentsType = HashMap<PhysicalAddress, parentMapType>
-
 internal class JcConcreteMemoryBindings private constructor(
     private val ctx: JcContext,
     private val typeConstraints: UTypeConstraints<JcType>,
     private val physToVirt: HashMap<PhysicalAddress, UConcreteHeapAddress>,
     private val virtToPhys: HashMap<UConcreteHeapAddress, PhysicalAddress>,
     private var state: State,
-    private val children: childrenType,
-    private val parents: parentsType,
     private val fullyConcretes: MutableSet<PhysicalAddress>,
     // TODO: make this private #CM
     val effectStorage: JcConcreteEffectStorage,
