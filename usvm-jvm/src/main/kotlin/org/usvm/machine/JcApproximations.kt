@@ -262,10 +262,6 @@ class JcMethodApproximationResolver(
             if (approximateSpringBootStaticMethod(methodCall)) return true
         }
 
-        if (className == "org.springframework.util.ClassUtils") {
-            if (approximateClassUtilsStaticMethod(methodCall)) return true
-        }
-
         if (className == "jdk.internal.reflect.Reflection") {
             if (approximateJavaReflectionMethod(methodCall)) return true
         }
@@ -470,21 +466,6 @@ class JcMethodApproximationResolver(
                 val classesJcType = ctx.cp.findTypeOrNull(classes.javaClass.typeName)!!
                 val classesRef = memory.tryAllocateConcrete(classes, classesJcType)!!
                 skipMethodInvocationWithValue(methodCall, classesRef)
-            }
-
-            return true
-        }
-
-        return false
-    }
-
-    private fun approximateClassUtilsStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        if (method.name == "getMainPackageName") {
-            val springAppClass = JcConcreteMemoryClassLoader.webApplicationClass ?: return false
-            val javaClass = JcConcreteMemoryClassLoader.loadClass(springAppClass)
-            scope.doWithState {
-                val packageName = memory.tryAllocateConcrete(javaClass.packageName, ctx.stringType)!!
-                skipMethodInvocationWithValue(methodCall, packageName)
             }
 
             return true

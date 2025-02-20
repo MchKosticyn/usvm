@@ -19,6 +19,7 @@ import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.cfg.JcRawThis
 import org.jacodb.api.jvm.ext.findClass
+import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcRamErsSettings
@@ -287,8 +288,9 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
         .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
         .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
         .toList()
+    val nonAbstractClasses = cp.nonAbstractClasses(benchmark.classLocations)
     val services =
-        cp.nonAbstractClasses(benchmark.classLocations)
+        nonAbstractClasses
             .filter {
                 it.annotations.any { annotation ->
                     annotation.name == "org.springframework.stereotype.Service"
@@ -298,7 +300,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
 
     val webApplicationPackage =
-        cp.nonAbstractClasses(benchmark.classLocations)
+        nonAbstractClasses
             .find {
                 it.annotations.any { annotation ->
                     annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
