@@ -38,6 +38,7 @@ abstract class UTestExecutor(
         val callMethodExpr = uTest.callMethodExpression
 
         val executor = UTestExpressionExecutor(workerClassLoader, accessedStatics, mockHelper)
+
         val initStmts = (uTest.initStatements + listOf(callMethodExpr.instance) + callMethodExpr.args).filterNotNull()
         executor.executeUTestInsts(initStmts)
             ?.onFailure {
@@ -138,11 +139,7 @@ abstract class UTestExecutor(
         classLoader = workerClassLoader
     )
 
-    init {
-        workerClassLoader.setStaticDescriptorsBuilder(staticDescriptorsBuilder)
-    }
-
-    protected fun reset() {
+    protected open fun reset() {
         initStateDescriptorBuilder = Value2DescriptorConverter(
             workerClassLoader = workerClassLoader,
             previousState = null

@@ -194,7 +194,7 @@ class JcTestMethodBodyRenderer(
             is UTestLongExpression -> LongLiteralExpr(this.value.toString())
             is UTestNullExpression -> NullLiteralExpr()
             is UTestShortExpression -> IntegerLiteralExpr(this.value.toString())
-            is UTestStringExpression -> StringLiteralExpr(this.value)
+            is UTestStringExpression -> StringLiteralExpr("").also { it.setString(this.value) }
             is UTestCreateArrayExpression -> ArrayCreationExpr(typeTranslator.typeReprOf(this.elementType))
             is UTestGetFieldExpression -> FieldAccessExpr(
                 this.instance.toExpression(),

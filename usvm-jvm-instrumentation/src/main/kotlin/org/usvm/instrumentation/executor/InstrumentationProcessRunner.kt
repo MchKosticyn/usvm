@@ -40,16 +40,17 @@ class InstrumentationProcessRunner(
 
     private val jvmArgs: List<String> by lazy {
         val instrumentationClassNameFactoryName = instrumentationClassFactory.java.name
-        val memoryLimit = listOf("-Xmx1g")
+        val memoryLimit = listOf("-Xmx5g")
         val pathToJava = Paths.get(InstrumentationModuleConstants.pathToJava)
         val usvmClasspath = System.getProperty("java.class.path")
         val javaVersionSpecificArguments = OpenModulesContainer.javaVersionSpecificArguments
         val instrumentedProcessClassName =
-            InstrumentedProcess::class.qualifiedName ?: error("Can't find instumented process")
+            InstrumentedProcess::class.qualifiedName ?: error("Can't find instrumented process")
         listOf(pathToJava.resolve("bin${File.separatorChar}${osSpecificJavaExecutable()}").toString()) +
                 listOf("-ea") +
                 listOf("-javaagent:${InstrumentationModuleConstants.pathToUsvmInstrumentationJar}=$instrumentationClassNameFactoryName") +
                 memoryLimit +
+                listOf("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:${NetUtils.findFreePort(0)}") +
                 javaVersionSpecificArguments +
                 listOf("-classpath", usvmClasspath) +
                 listOf(instrumentedProcessClassName)

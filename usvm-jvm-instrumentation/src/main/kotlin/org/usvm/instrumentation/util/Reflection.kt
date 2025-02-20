@@ -6,24 +6,26 @@ import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.util.concurrent.TimeoutException
 
-fun Method.invokeWithAccessibility(instance: Any?, args: List<Any?>): Any? =
-    executeWithTimeout {
+fun Method.invokeWithAccessibility(instance: Any?, args: List<Any?>, customClassLoader: ClassLoader? = null): Any? =
+    executeWithTimeout(customClassLoader) {
         withAccessibility {
             invoke(instance, *args.toTypedArray())
         }
     }
 
-fun Constructor<*>.newInstanceWithAccessibility(args: List<Any?>): Any =
-    executeWithTimeout {
+fun Constructor<*>.newInstanceWithAccessibility(args: List<Any?>, customClassLoader: ClassLoader? = null): Any =
+    executeWithTimeout(customClassLoader) {
         withAccessibility {
             newInstance(*args.toTypedArray())
         }
     } ?: error("Cant instantiate class ${this.declaringClass.name}")
 
-fun executeWithTimeout(body: () -> Any?): Any? {
+fun executeWithTimeout(customClassLoader: ClassLoader? = null, body: () -> Any?): Any? {
     var result: Any? = null
     val thread = Thread {
         result = try {
+            if (customClassLoader != null)
+                Thread.currentThread().contextClassLoader = customClassLoader
             body()
         } catch (e: Throwable) {
             e

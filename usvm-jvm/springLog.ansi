@@ -1,0 +1,1520 @@
+Debug | ByteBufferAsyncProcessor  | 1:main @coroutine#493 | PAUSE ('Socket not connected') :: {id = usvm-executor-socket/Sender, state = 'Initialized'} 
+Debug | Server                    | 130:usvm-executor-socket | usvm-executor-socket: listening /127.0.0.1:50304 
+Debug | Server                    | 130:usvm-executor-socket | usvm-executor-socket : connected 
+Debug | ByteBufferAsyncProcessor  | 130:usvm-executor-socket | RESUME :: {id = usvm-executor-socket/Sender, state = 'AsyncProcessing'} 
+picked state: 1
+[31mCalling org.springframework.test.context.TestContextManager#<init>(java.lang.Class):void[0m
+[32mInvoking org.springframework.test.context.BootstrapUtils#resolveTestContextBootstrapper(java.lang.Class):org.springframework.test.context.TestContextBootstrapper[0m
+Result org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTestContextBootstrapper@4c33450c
+[31mCalling org.springframework.test.context.TestContextManager#<init>(org.springframework.test.context.TestContextBootstrapper):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[32mInvoking java.util.ArrayList#<init>(int):void[0m
+Result []
+[31mCalling org.springframework.boot.test.context.SpringBootTestContextBootstrapper#buildTestContext():org.springframework.test.context.TestContext[0m
+[31mCalling org.springframework.test.context.support.AbstractTestContextBootstrapper#buildTestContext():org.springframework.test.context.TestContext[0m
+[32mInvoking org.springframework.test.context.support.AbstractTestContextBootstrapper#getBootstrapContext():org.springframework.test.context.BootstrapContext[0m
+Result [DefaultBootstrapContext@6a29476d testClass = org.usvm.spring.benchmarks.StartSpringTestClass, cacheAwareContextLoaderDelegate = org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate]
+[32mInvoking org.springframework.test.context.support.DefaultBootstrapContext#getTestClass():java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.StartSpringTestClass
+[31mCalling org.springframework.test.context.support.AbstractTestContextBootstrapper#buildMergedContextConfiguration():org.springframework.test.context.MergedContextConfiguration[0m
+[32mInvoking org.springframework.test.context.support.AbstractTestContextBootstrapper#getBootstrapContext():org.springframework.test.context.BootstrapContext[0m
+Result [DefaultBootstrapContext@6a29476d testClass = org.usvm.spring.benchmarks.StartSpringTestClass, cacheAwareContextLoaderDelegate = org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate]
+[32mInvoking org.springframework.test.context.support.DefaultBootstrapContext#getTestClass():java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.StartSpringTestClass
+[32mInvoking org.springframework.test.context.support.AbstractTestContextBootstrapper#getCacheAwareContextLoaderDelegate():org.springframework.test.context.CacheAwareContextLoaderDelegate[0m
+Result org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate@2779acb2
+[32mInvoking org.springframework.test.context.TestContextAnnotationUtils#findAnnotationDescriptorForTypes(java.lang.Class,java.lang.Class[]):org.springframework.test.context.TestContextAnnotationUtils$UntypedAnnotationDescriptor[0m
+Result null
+[31mCalling org.springframework.test.context.support.AbstractTestContextBootstrapper#buildDefaultMergedContextConfiguration(java.lang.Class,org.springframework.test.context.CacheAwareContextLoaderDelegate):org.springframework.test.context.MergedContextConfiguration[0m
+[32mInvoking org.springframework.test.context.ContextConfigurationAttributes#<init>(java.lang.Class):void[0m
+Result [ContextConfigurationAttributes@7b7d69d1 declaringClass = org.usvm.spring.benchmarks.StartSpringTestClass, classes = [], locations = [], inheritLocations = false, initializers = [], inheritInitializers = true, name = null, contextLoaderClass = org.springframework.test.context.ContextLoader]
+[32mInvoking java.util.Collections#singletonList(java.lang.Object):java.util.List[0m
+Result [[ContextConfigurationAttributes@7b7d69d1 declaringClass = org.usvm.spring.benchmarks.StartSpringTestClass, classes = [], locations = [], inheritLocations = false, initializers = [], inheritInitializers = true, name = null, contextLoaderClass = org.springframework.test.context.ContextLoader]]
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#resolveContextLoader(java.lang.Class,java.util.List):org.springframework.test.context.ContextLoader[0m
+Result org.springframework.boot.test.context.SpringBootContextLoader@b61c70e
+[31mCalling org.apache.commons.logging.Log#isTraceEnabled():boolean[0m
+[31mCalling org.apache.commons.logging.Log#isDebugEnabled():boolean[0m
+[31mCalling org.springframework.test.context.support.AbstractTestContextBootstrapper#buildMergedContextConfiguration(java.lang.Class,java.util.List,org.springframework.test.context.MergedContextConfiguration,org.springframework.test.context.CacheAwareContextLoaderDelegate,boolean):org.springframework.test.context.MergedContextConfiguration[0m
+[32mInvoking org.springframework.util.Assert#notEmpty(java.util.Collection,java.lang.String):void[0m
+Result null
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#resolveContextLoader(java.lang.Class,java.util.List):org.springframework.test.context.ContextLoader[0m
+Result org.springframework.boot.test.context.SpringBootContextLoader@42f7523d
+[32mInvoking java.util.ArrayList#<init>():void[0m
+Result []
+[32mInvoking java.util.ArrayList#<init>():void[0m
+Result []
+[32mInvoking java.util.ArrayList#<init>():void[0m
+Result []
+[32mInvoking java.util.Collections$SingletonList#iterator():java.util.Iterator[0m
+Result java.util.Collections$1@7ca802e3
+[32mInvoking java.util.Collections$1#hasNext():boolean[0m
+Result true
+[32mInvoking java.util.Collections$1#next():java.lang.Object[0m
+Result [ContextConfigurationAttributes@7b7d69d1 declaringClass = org.usvm.spring.benchmarks.StartSpringTestClass, classes = [], locations = [], inheritLocations = false, initializers = [], inheritInitializers = true, name = null, contextLoaderClass = org.springframework.test.context.ContextLoader]
+[31mCalling org.apache.commons.logging.Log#isTraceEnabled():boolean[0m
+[32mInvoking org.springframework.boot.test.context.SpringBootContextLoader#processContextConfiguration(org.springframework.test.context.ContextConfigurationAttributes):void[0m
+02:38:47.193 [Thread-110] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [org.usvm.spring.benchmarks.StartSpringTestClass]: StartSpringTestClass does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+Result null
+[32mInvoking org.springframework.test.context.ContextConfigurationAttributes#getLocations():java.lang.String[][0m
+Result [Ljava.lang.String;@997a59f
+[32mInvoking java.util.Arrays#asList(java.lang.Object[]):java.util.List[0m
+Result []
+[32mInvoking java.util.ArrayList#addAll(int,java.util.Collection):boolean[0m
+Result false
+[32mInvoking org.springframework.test.context.ContextConfigurationAttributes#getClasses():java.lang.Class[][0m
+Result [Ljava.lang.Class;@15be8dc4
+[32mInvoking java.util.Arrays#asList(java.lang.Object[]):java.util.List[0m
+Result []
+[32mInvoking java.util.ArrayList#addAll(int,java.util.Collection):boolean[0m
+Result false
+[32mInvoking org.springframework.test.context.ContextConfigurationAttributes#getInitializers():java.lang.Class[][0m
+Result [Ljava.lang.Class;@8e39ba9
+[32mInvoking java.util.Arrays#asList(java.lang.Object[]):java.util.List[0m
+Result []
+[32mInvoking java.util.ArrayList#addAll(int,java.util.Collection):boolean[0m
+Result false
+[32mInvoking org.springframework.test.context.ContextConfigurationAttributes#isInheritLocations():boolean[0m
+Result false
+[32mInvoking java.util.Collections#unmodifiableList(java.util.List):java.util.List[0m
+Result [[ContextConfigurationAttributes@7b7d69d1 declaringClass = org.usvm.spring.benchmarks.StartSpringTestClass, classes = [], locations = [], inheritLocations = false, initializers = [], inheritInitializers = true, name = null, contextLoaderClass = org.springframework.test.context.ContextLoader]]
+[32mInvoking org.springframework.test.context.support.AbstractTestContextBootstrapper#getContextCustomizers(java.lang.Class,java.util.List):java.util.Set[0m
+Result [org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@72e077d2, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@154e0feb, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@3355627b, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@bef301e, [ImportsContextCustomizer@590cdb9a key = [org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.HttpEncodingAutoConfiguration, org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration, org.springframework.boot.autoconfigure.context.MessageSourceAutoConfiguration, org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguration, org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration, org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration, org.springframework.boot.test.autoconfigure.web.reactive.WebTestClientAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration, org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcSecurityConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebDriverAutoConfiguration, org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration, org.springframework.boot.autoconfigure.gson.GsonAutoConfiguration, org.springframework.boot.autoconfigure.jsonb.JsonbAutoConfiguration, org.springframework.boot.autoconfigure.freemarker.FreeMarkerAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration, org.springframework.boot.autoconfigure.groovy.template.GroovyTemplateAutoConfiguration, org.springframework.boot.autoconfigure.mustache.MustacheAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@7f74bd16, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@6848f18c, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0]
+[32mInvoking org.springframework.util.Assert#state(boolean,java.util.function.Supplier):void[0m
+Result null
+[32mInvoking org.springframework.test.context.support.TestPropertySourceUtils#buildMergedTestPropertySources(java.lang.Class):org.springframework.test.context.support.MergedTestPropertySources[0m
+Result [MergedTestPropertySources@162304e3 descriptors = [], properties = []]
+[32mInvoking org.springframework.util.StringUtils#toStringArray(java.util.Collection):java.lang.String[][0m
+Result [Ljava.lang.String;@1653cc95
+[32mInvoking org.springframework.util.ClassUtils#toClassArray(java.util.Collection):java.lang.Class[][0m
+Result [Ljava.lang.Class;@15be8dc4
+[32mInvoking org.springframework.test.context.support.ApplicationContextInitializerUtils#resolveInitializerClasses(java.util.List):java.util.Set[0m
+Result []
+[32mInvoking org.springframework.test.context.support.ActiveProfilesUtils#resolveActiveProfiles(java.lang.Class):java.lang.String[][0m
+Result [Ljava.lang.String;@1653cc95
+[32mInvoking org.springframework.test.context.support.MergedTestPropertySources#getPropertySourceDescriptors():java.util.List[0m
+Result []
+[32mInvoking org.springframework.test.context.support.MergedTestPropertySources#getProperties():java.lang.String[][0m
+Result [Ljava.lang.String;@6a5f05f5
+[31mCalling org.springframework.test.context.MergedContextConfiguration#<init>(java.lang.Class,java.lang.String[],java.lang.Class[],java.util.Set,java.lang.String[],java.util.List,java.lang.String[],java.util.Set,org.springframework.test.context.ContextLoader,org.springframework.test.context.CacheAwareContextLoaderDelegate,org.springframework.test.context.MergedContextConfiguration):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#processStrings(java.lang.String[]):java.lang.String[][0m
+Result [Ljava.lang.String;@1653cc95
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#processClasses(java.lang.Class[]):java.lang.Class[][0m
+Result [Ljava.lang.Class;@15be8dc4
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#processContextInitializerClasses(java.util.Set):java.util.Set[0m
+Result []
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#processActiveProfiles(java.lang.String[]):java.lang.String[][0m
+Result [Ljava.lang.String;@1653cc95
+[32mInvoking java.util.Collections#unmodifiableList(java.util.List):java.util.List[0m
+Result []
+[32mInvoking java.util.Collections$UnmodifiableCollection#stream():java.util.stream.Stream[0m
+Result java.util.stream.ReferencePipeline$Head@ac94285
+[32mInvoking java.util.stream.ReferencePipeline#map(java.util.function.Function):java.util.stream.Stream[0m
+Result java.util.stream.ReferencePipeline$3@aa16802
+[32mInvoking java.util.stream.ReferencePipeline#flatMap(java.util.function.Function):java.util.stream.Stream[0m
+Result java.util.stream.ReferencePipeline$7@1a6c32a2
+[32mInvoking java.util.stream.ReferencePipeline#toArray(java.util.function.IntFunction):java.lang.Object[][0m
+Result [Ljava.lang.String;@24ccb18d
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#processStrings(java.lang.String[]):java.lang.String[][0m
+Result [Ljava.lang.String;@6a5f05f5
+[31mCalling org.springframework.test.context.MergedContextConfiguration#processContextCustomizers(java.util.Set):java.util.Set[0m
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+Result null
+[31mCalling org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTestContextBootstrapper#processMergedContextConfiguration(org.springframework.test.context.MergedContextConfiguration):org.springframework.test.context.MergedContextConfiguration[0m
+[31mCalling org.springframework.boot.test.context.SpringBootTestContextBootstrapper#processMergedContextConfiguration(org.springframework.test.context.MergedContextConfiguration):org.springframework.test.context.MergedContextConfiguration[0m
+[31mCalling org.springframework.boot.test.context.SpringBootTestContextBootstrapper#getOrFindConfigurationClasses(org.springframework.test.context.MergedContextConfiguration):java.lang.Class[][0m
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#getClasses():java.lang.Class[][0m
+Result [Ljava.lang.Class;@15be8dc4
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#containsNonTestComponent(java.lang.Class[]):boolean[0m
+Result false
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#hasLocations():boolean[0m
+Result false
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#getTestClass():java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.StartSpringTestClass
+[31mCalling org.springframework.boot.test.context.SpringBootTestContextBootstrapper#findConfigurationClass(java.lang.Class):java.lang.Class[0m
+[32mInvoking java.lang.Class#getName():java.lang.String[0m
+Result org.springframework.boot.test.context.SpringBootTestContextBootstrapper
+[32mInvoking java.lang.Class#getName():java.lang.String[0m
+Result org.usvm.spring.benchmarks.StartSpringTestClass
+[31mCalling java.lang.String#<clinit>():void[0m
+[32mInvoking java.lang.String#<init>(byte[]):void[0m
+Result 
+[32mInvoking java.lang.String#formatted(java.lang.Object[]):java.lang.String[0m
+Result org.springframework.boot.test.context.SpringBootTestContextBootstrapper.SpringBootConfiguration.org.usvm.spring.benchmarks.StartSpringTestClass
+[32mInvoking org.springframework.test.context.aot.DefaultAotTestAttributes#getString(java.lang.String):java.lang.String[0m
+Result null
+[32mInvoking org.springframework.boot.test.context.AnnotatedClassFinder#<init>(java.lang.Class):void[0m
+Result org.springframework.boot.test.context.AnnotatedClassFinder@191a8997
+[31mCalling org.springframework.boot.test.context.AnnotatedClassFinder#findFromClass(java.lang.Class):java.lang.Class[0m
+[32mInvoking org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+Result null
+[31mCalling org.springframework.util.ClassUtils#getPackageName(java.lang.Class):java.lang.String[0m
+[32mInvoking java.lang.Class#getName():java.lang.String[0m
+Result org.usvm.spring.benchmarks.StartSpringTestClass
+[31mApproximated java.lang.String#equals(java.lang.Object):boolean[0m
+[32mInvoking java.lang.Class#getPackageName():java.lang.String[0m
+Result org.usvm.spring.benchmarks
+[32mInvoking org.springframework.boot.test.context.AnnotatedClassFinder#findFromPackage(java.lang.String):java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.SpringBenchmarks
+[32mInvoking org.springframework.util.Assert#state(boolean,java.lang.String):void[0m
+Result null
+[32mInvoking java.lang.Class#getName():java.lang.String[0m
+Result org.usvm.spring.benchmarks.SpringBenchmarks
+[32mInvoking org.springframework.test.context.aot.DefaultAotTestAttributes#setAttribute(java.lang.String,java.lang.String):void[0m
+Result null
+[32mInvoking java.lang.Class#getName():java.lang.String[0m
+Result org.usvm.spring.benchmarks.SpringBenchmarks
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#getTestClass():java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.StartSpringTestClass
+[32mInvoking java.lang.String#concat(java.lang.String):java.lang.String[0m
+Result Found @SpringBootConfiguration org.usvm.spring.benchmarks.SpringBenchmarks
+[32mInvoking java.lang.String#concat(java.lang.String):java.lang.String[0m
+Result Found @SpringBootConfiguration org.usvm.spring.benchmarks.SpringBenchmarks for test 
+[32mInvoking java.lang.String#valueOf(java.lang.Object):java.lang.String[0m
+Result class org.usvm.spring.benchmarks.StartSpringTestClass
+[32mInvoking java.lang.String#concat(java.lang.String):java.lang.String[0m
+Result Found @SpringBootConfiguration org.usvm.spring.benchmarks.SpringBenchmarks for test class org.usvm.spring.benchmarks.StartSpringTestClass
+[31mCalling org.apache.commons.logging.Log#info(java.lang.Object):void[0m
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#merge(java.lang.Class,java.lang.Class[]):java.lang.Class[][0m
+Result [Ljava.lang.Class;@263b0a8d
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#getAndProcessPropertySourceProperties(org.springframework.test.context.MergedContextConfiguration):java.util.List[0m
+Result [org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTestContextBootstrapper=true]
+[32mInvoking org.springframework.util.StringUtils#toStringArray(java.util.Collection):java.lang.String[][0m
+Result [Ljava.lang.String;@435932e3
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#createModifiedConfig(org.springframework.test.context.MergedContextConfiguration,java.lang.Class[],java.lang.String[]):org.springframework.test.context.MergedContextConfiguration[0m
+Result [MergedContextConfiguration@351b70c1 testClass = org.usvm.spring.benchmarks.StartSpringTestClass, locations = [], classes = [org.usvm.spring.benchmarks.SpringBenchmarks], contextInitializerClasses = [], activeProfiles = [], propertySourceDescriptors = [], propertySourceProperties = ["org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTestContextBootstrapper=true"], contextCustomizers = [org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@72e077d2, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@154e0feb, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@3355627b, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@bef301e, [ImportsContextCustomizer@590cdb9a key = [org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.HttpEncodingAutoConfiguration, org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration, org.springframework.boot.autoconfigure.context.MessageSourceAutoConfiguration, org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguration, org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration, org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration, org.springframework.boot.test.autoconfigure.web.reactive.WebTestClientAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration, org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcSecurityConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebDriverAutoConfiguration, org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration, org.springframework.boot.autoconfigure.gson.GsonAutoConfiguration, org.springframework.boot.autoconfigure.jsonb.JsonbAutoConfiguration, org.springframework.boot.autoconfigure.freemarker.FreeMarkerAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration, org.springframework.boot.autoconfigure.groovy.template.GroovyTemplateAutoConfiguration, org.springframework.boot.autoconfigure.mustache.MustacheAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@7f74bd16, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@6848f18c, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@c2d512e2], contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null]
+[32mInvoking org.springframework.test.context.MergedContextConfiguration#getTestClass():java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.StartSpringTestClass
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#getWebEnvironment(java.lang.Class):org.springframework.boot.test.context.SpringBootTest$WebEnvironment[0m
+Result null
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#determineResourceBasePath(org.springframework.test.context.MergedContextConfiguration):java.lang.String[0m
+Result src/main/webapp
+[32mInvoking org.springframework.test.context.web.WebMergedContextConfiguration#<init>(org.springframework.test.context.MergedContextConfiguration,java.lang.String):void[0m
+Result [WebMergedContextConfiguration@5877a9e7 testClass = org.usvm.spring.benchmarks.StartSpringTestClass, locations = [], classes = [org.usvm.spring.benchmarks.SpringBenchmarks], contextInitializerClasses = [], activeProfiles = [], propertySourceDescriptors = [], propertySourceProperties = ["org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTestContextBootstrapper=true"], contextCustomizers = [org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@72e077d2, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@154e0feb, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@3355627b, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@bef301e, [ImportsContextCustomizer@590cdb9a key = [org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.HttpEncodingAutoConfiguration, org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration, org.springframework.boot.autoconfigure.context.MessageSourceAutoConfiguration, org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguration, org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration, org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration, org.springframework.boot.test.autoconfigure.web.reactive.WebTestClientAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration, org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcSecurityConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebDriverAutoConfiguration, org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration, org.springframework.boot.autoconfigure.gson.GsonAutoConfiguration, org.springframework.boot.autoconfigure.jsonb.JsonbAutoConfiguration, org.springframework.boot.autoconfigure.freemarker.FreeMarkerAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration, org.springframework.boot.autoconfigure.groovy.template.GroovyTemplateAutoConfiguration, org.springframework.boot.autoconfigure.mustache.MustacheAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@7f74bd16, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@6848f18c, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@c2d512e2], resourceBasePath = "src/main/webapp", contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null]
+[32mInvoking org.springframework.test.context.support.AbstractTestContextBootstrapper#getCacheAwareContextLoaderDelegate():org.springframework.test.context.CacheAwareContextLoaderDelegate[0m
+Result org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate@2779acb2
+[32mInvoking org.springframework.test.context.support.DefaultTestContext#<init>(java.lang.Class,org.springframework.test.context.MergedContextConfiguration,org.springframework.test.context.CacheAwareContextLoaderDelegate):void[0m
+Result [DefaultTestContext@4284bd5 testClass = org.usvm.spring.benchmarks.StartSpringTestClass, testInstance = null, testMethod = null, testException = null, mergedContextConfiguration = [WebMergedContextConfiguration@5877a9e7 testClass = org.usvm.spring.benchmarks.StartSpringTestClass, locations = [], classes = [org.usvm.spring.benchmarks.SpringBenchmarks], contextInitializerClasses = [], activeProfiles = [], propertySourceDescriptors = [], propertySourceProperties = ["org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTestContextBootstrapper=true"], contextCustomizers = [org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@72e077d2, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@154e0feb, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@3355627b, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@bef301e, [ImportsContextCustomizer@590cdb9a key = [org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.HttpEncodingAutoConfiguration, org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration, org.springframework.boot.autoconfigure.context.MessageSourceAutoConfiguration, org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguration, org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration, org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration, org.springframework.boot.test.autoconfigure.web.reactive.WebTestClientAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration, org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcSecurityConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebDriverAutoConfiguration, org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration, org.springframework.boot.autoconfigure.gson.GsonAutoConfiguration, org.springframework.boot.autoconfigure.jsonb.JsonbAutoConfiguration, org.springframework.boot.autoconfigure.freemarker.FreeMarkerAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration, org.springframework.boot.autoconfigure.groovy.template.GroovyTemplateAutoConfiguration, org.springframework.boot.autoconfigure.mustache.MustacheAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@7f74bd16, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@6848f18c, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@c2d512e2], resourceBasePath = "src/main/webapp", contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null], attributes = {}]
+[32mInvoking org.springframework.test.context.support.DefaultTestContext#getTestClass():java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.StartSpringTestClass
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#verifyConfiguration(java.lang.Class):void[0m
+Result null
+[32mInvoking org.springframework.test.context.support.DefaultTestContext#getTestClass():java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.StartSpringTestClass
+[32mInvoking org.springframework.boot.test.context.SpringBootTestContextBootstrapper#getWebEnvironment(java.lang.Class):org.springframework.boot.test.context.SpringBootTest$WebEnvironment[0m
+Result null
+[32mInvoking org.springframework.test.context.support.AbstractTestContextBootstrapper#getTestExecutionListeners():java.util.List[0m
+Result [org.springframework.test.context.web.ServletTestExecutionListener@285e483f, org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener@59bb4c42, org.springframework.test.context.event.ApplicationEventsTestExecutionListener@4178535a, org.springframework.boot.test.mock.mockito.MockitoTestExecutionListener@2d23561e, org.springframework.test.context.support.DependencyInjectionTestExecutionListener@77e6ec35, org.springframework.test.context.support.DirtiesContextTestExecutionListener@74bc67d7, org.springframework.test.context.transaction.TransactionalTestExecutionListener@77dd1899, org.springframework.test.context.jdbc.SqlScriptsTestExecutionListener@40f923da, org.springframework.test.context.event.EventPublishingTestExecutionListener@3ef8b4, org.springframework.boot.test.autoconfigure.restdocs.RestDocsTestExecutionListener@17abb5bb, org.springframework.boot.test.autoconfigure.web.client.MockRestServiceServerResetTestExecutionListener@82d6e07, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrintOnlyOnFailureTestExecutionListener@1c37b2b, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverTestExecutionListener@764fd8ff, org.springframework.boot.test.autoconfigure.webservices.client.MockWebServiceServerTestExecutionListener@3c83bde0, org.springframework.boot.test.mock.mockito.ResetMocksTestExecutionListener@5fbda121]
+[32mInvoking org.springframework.test.context.TestContextManager#registerTestExecutionListeners(java.util.List):void[0m
+[WARNING] incorrect concreteness tracking
+Result null
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking
+Result null
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking
+Result null
+[31mCalling org.springframework.test.context.TestContextManager#getTestContext():org.springframework.test.context.TestContext[0m
+[31mCalling org.springframework.test.context.support.DefaultTestContext#getApplicationContext():org.springframework.context.ApplicationContext[0m
+[31mCalling org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate#loadContext(org.springframework.test.context.MergedContextConfiguration):org.springframework.context.ApplicationContext[0m
+[32mInvoking org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate#replaceIfNecessary(org.springframework.test.context.MergedContextConfiguration):org.springframework.test.context.MergedContextConfiguration[0m
+Result [WebMergedContextConfiguration@5877a9e7 testClass = org.usvm.spring.benchmarks.StartSpringTestClass, locations = [], classes = [org.usvm.spring.benchmarks.SpringBenchmarks], contextInitializerClasses = [], activeProfiles = [], propertySourceDescriptors = [], propertySourceProperties = ["org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTestContextBootstrapper=true"], contextCustomizers = [org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@72e077d2, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@154e0feb, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@3355627b, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@bef301e, [ImportsContextCustomizer@590cdb9a key = [org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.HttpEncodingAutoConfiguration, org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration, org.springframework.boot.autoconfigure.context.MessageSourceAutoConfiguration, org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguration, org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration, org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration, org.springframework.boot.test.autoconfigure.web.reactive.WebTestClientAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration, org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcSecurityConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebClientAutoConfiguration, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcWebDriverAutoConfiguration, org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration, org.springframework.boot.autoconfigure.gson.GsonAutoConfiguration, org.springframework.boot.autoconfigure.jsonb.JsonbAutoConfiguration, org.springframework.boot.autoconfigure.freemarker.FreeMarkerAutoConfiguration, org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration, org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration, org.springframework.boot.autoconfigure.groovy.template.GroovyTemplateAutoConfiguration, org.springframework.boot.autoconfigure.mustache.MustacheAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@7f74bd16, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@6848f18c, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@c2d512e2], resourceBasePath = "src/main/webapp", contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null]
+[32mInvoking org.springframework.test.context.cache.DefaultContextCache#get(org.springframework.test.context.MergedContextConfiguration):org.springframework.context.ApplicationContext[0m
+Result null
+[32mInvoking org.springframework.test.context.cache.DefaultContextCache#getFailureCount(org.springframework.test.context.MergedContextConfiguration):int[0m
+Result 0
+[31mCalling org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate#loadContextInternal(org.springframework.test.context.MergedContextConfiguration):org.springframework.context.ApplicationContext[0m
+[32mInvoking org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate#getContextLoader(org.springframework.test.context.MergedContextConfiguration):org.springframework.test.context.ContextLoader[0m
+Result org.springframework.boot.test.context.SpringBootContextLoader@42f7523d
+[31mCalling org.springframework.boot.test.context.SpringBootContextLoader#loadContext(org.springframework.test.context.MergedContextConfiguration):org.springframework.context.ApplicationContext[0m
+[31mCalling org.springframework.boot.test.context.SpringBootContextLoader#loadContext(org.springframework.test.context.MergedContextConfiguration,org.springframework.boot.test.context.SpringBootContextLoader$Mode,org.springframework.context.ApplicationContextInitializer):org.springframework.context.ApplicationContext[0m
+[32mInvoking org.springframework.boot.test.context.SpringBootContextLoader#assertHasClassesOrLocations(org.springframework.test.context.MergedContextConfiguration):void[0m
+Result null
+[32mInvoking org.springframework.boot.test.context.SpringBootTestAnnotation#get(org.springframework.test.context.MergedContextConfiguration):org.springframework.boot.test.context.SpringBootTestAnnotation[0m
+Result org.springframework.boot.test.context.SpringBootTestAnnotation@c2d512e2
+[32mInvoking org.springframework.boot.test.context.SpringBootTestAnnotation#getArgs():java.lang.String[][0m
+Result [Ljava.lang.String;@58c4d427
+[32mInvoking org.springframework.boot.test.context.SpringBootTestAnnotation#getUseMainMethod():org.springframework.boot.test.context.SpringBootTest$UseMainMethod[0m
+Result NEVER
+[32mInvoking org.springframework.boot.test.context.SpringBootContextLoader#getMainMethod(org.springframework.test.context.MergedContextConfiguration,org.springframework.boot.test.context.SpringBootTest$UseMainMethod):java.lang.reflect.Method[0m
+Result null
+[31mCalling org.springframework.boot.test.context.SpringBootContextLoader#getSpringApplication():org.springframework.boot.SpringApplication[0m
+[32mInvoking org.springframework.boot.SpringApplication#<init>(java.lang.Class[]):void[0m
+Result org.springframework.boot.SpringApplication@55eb1d69
+[32mInvoking org.springframework.boot.SpringApplication#setRegisterShutdownHook(boolean):void[0m
+[WARNING] incorrect concreteness tracking
+Result null
+[32mInvoking org.springframework.boot.test.context.SpringBootContextLoader#configure(org.springframework.test.context.MergedContextConfiguration,org.springframework.boot.SpringApplication):void[0m
+[WARNING] incorrect concreteness tracking
+Result null
+[31mCalling org.springframework.boot.test.context.SpringBootContextLoader$ContextLoaderHook#<init>(org.springframework.boot.test.context.SpringBootContextLoader$Mode,org.springframework.context.ApplicationContextInitializer,java.util.function.Consumer):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[32mInvoking java.util.ArrayList#<init>():void[0m
+Result []
+[32mInvoking java.util.Collections#synchronizedList(java.util.List):java.util.List[0m
+Result []
+[32mInvoking java.util.ArrayList#<init>():void[0m
+Result []
+[32mInvoking java.util.Collections#synchronizedList(java.util.List):java.util.List[0m
+Result []
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+Result null
+[31mCalling org.springframework.boot.test.context.SpringBootContextLoader$ContextLoaderHook#run(org.springframework.util.function.ThrowingSupplier):org.springframework.context.ApplicationContext[0m
+[31mCalling org.springframework.boot.SpringApplication#withHook(org.springframework.boot.SpringApplicationHook,org.springframework.util.function.ThrowingSupplier):java.lang.Object[0m
+[32mInvoking java.lang.ThreadLocal#set(java.lang.Object):void[0m
+Result null
+[31mCalling org.springframework.util.function.ThrowingSupplier#get():java.lang.Object[0m
+[31mCalling org.springframework.util.function.ThrowingSupplier#get(java.util.function.BiFunction):java.lang.Object[0m
+[31mCalling org.springframework.boot.test.context.SpringBootContextLoader#lambda$loadContext$3(org.springframework.boot.SpringApplication,java.lang.String[]):org.springframework.context.ConfigurableApplicationContext[0m
+[31mCalling org.springframework.boot.SpringApplication#run(java.lang.String[]):org.springframework.context.ConfigurableApplicationContext[0m
+[32mInvoking org.springframework.boot.SpringApplication$Startup#create():org.springframework.boot.SpringApplication$Startup[0m
+Result org.springframework.boot.SpringApplication$StandardStartup@2d3572fb
+[32mInvoking org.springframework.boot.SpringApplication#createBootstrapContext():org.springframework.boot.DefaultBootstrapContext[0m
+[WARNING] incorrect concreteness tracking
+Result org.springframework.boot.DefaultBootstrapContext@4e59830b
+[32mInvoking org.springframework.boot.SpringApplication#configureHeadlessProperty():void[0m
+[WARNING] incorrect concreteness tracking
+Result null
+[32mInvoking org.springframework.boot.SpringApplication#getRunListeners(java.lang.String[]):org.springframework.boot.SpringApplicationRunListeners[0m
+[WARNING] incorrect concreteness tracking
+Result org.springframework.boot.SpringApplicationRunListeners@3f30f01e
+[32mInvoking org.springframework.boot.SpringApplicationRunListeners#starting(org.springframework.boot.ConfigurableBootstrapContext,java.lang.Class):void[0m
+[WARNING] incorrect concreteness tracking
+Result null
+[32mInvoking org.springframework.boot.DefaultApplicationArguments#<init>(java.lang.String[]):void[0m
+Result org.springframework.boot.DefaultApplicationArguments@185f8899
+[32mInvoking org.springframework.boot.SpringApplication#prepareEnvironment(org.springframework.boot.SpringApplicationRunListeners,org.springframework.boot.DefaultBootstrapContext,org.springframework.boot.ApplicationArguments):org.springframework.core.env.ConfigurableEnvironment[0m
+[WARNING] incorrect concreteness tracking
+Result ApplicationServletEnvironment {activeProfiles=[], defaultProfiles=[default], propertySources=[ConfigurationPropertySourcesPropertySource {name='configurationProperties'}, MapPropertySource {name='Inlined Test Properties'}, StubPropertySource {name='servletConfigInitParams'}, StubPropertySource {name='servletContextInitParams'}, PropertiesPropertySource {name='systemProperties'}, OriginAwareSystemEnvironmentPropertySource {name='systemEnvironment'}, RandomValuePropertySource {name='random'}, OriginTrackedMapPropertySource {name='Config resource 'class path resource [application.properties]' via location 'optional:classpath:/''}]}
+[31mApproximated org.springframework.boot.SpringApplication#printBanner(org.springframework.core.env.ConfigurableEnvironment):org.springframework.boot.Banner[0m
+[31mApproximated org.springframework.boot.SpringApplication#printBanner(org.springframework.core.env.ConfigurableEnvironment):org.springframework.boot.Banner[0m
+[32mInvoking org.springframework.boot.SpringApplication#createApplicationContext():org.springframework.context.ConfigurableApplicationContext[0m
+[WARNING] incorrect concreteness tracking
+Result org.springframework.web.context.support.GenericWebApplicationContext@631da3f8, started on Thu Jan 01 03:00:00 MSK 1970
+[32mInvoking org.springframework.context.support.GenericApplicationContext#setApplicationStartup(org.springframework.core.metrics.ApplicationStartup):void[0m
+Result null
+[32mInvoking org.springframework.boot.SpringApplication#prepareContext(org.springframework.boot.DefaultBootstrapContext,org.springframework.context.ConfigurableApplicationContext,org.springframework.core.env.ConfigurableEnvironment,org.springframework.boot.SpringApplicationRunListeners,org.springframework.boot.ApplicationArguments,org.springframework.boot.Banner):void[0m
+[WARNING] incorrect concreteness tracking
+2025-03-14T02:38:56.246+03:00  INFO 17884 --- [     Thread-110] o.u.s.benchmarks.StartSpringTestClass    : Starting StartSpringTestClass using Java 17.0.13 with PID 17884 (started by arthur in C:\Users\arthur\Documents\ausvm\usvm-jvm)
+2025-03-14T02:38:56.255+03:00  INFO 17884 --- [     Thread-110] o.u.s.benchmarks.StartSpringTestClass    : No active profile set, falling back to 1 default profile: "default"
+Result null
+[32mInvoking org.springframework.boot.SpringApplication#refreshContext(org.springframework.context.ConfigurableApplicationContext):void[0m
+[WARNING] incorrect concreteness tracking
+2025-03-14T02:39:09.269+03:00  INFO 17884 --- [     Thread-110] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2025-03-14T02:39:09.269+03:00  INFO 17884 --- [     Thread-110] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2025-03-14T02:39:09.270+03:00  INFO 17884 --- [     Thread-110] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+Result null
+[31mCalling org.springframework.boot.SpringApplication#afterRefresh(org.springframework.context.ConfigurableApplicationContext,org.springframework.boot.ApplicationArguments):void[0m
+starting, state.id = 1
+[31mApproximated org.springframework.boot.SpringApplication#_startAnalysis():void[0m
+[32mInvoking org.springframework.context.support.AbstractApplicationContext#getBeansOfType(java.lang.Class):java.util.Map[0m
+[WARNING] incorrect concreteness tracking
+Result {stopThousandFilter=org.usvm.spring.benchmarks.filters.StopThousandFilter@6924c731, requestContextFilter=org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter@5eec2e63, formContentFilter=org.springframework.boot.web.servlet.filter.OrderedFormContentFilter@3a4c84b2, characterEncodingFilter=org.springframework.boot.web.servlet.filter.OrderedCharacterEncodingFilter@65b469c5}
+[32mInvoking java.util.LinkedHashMap#values():java.util.Collection[0m
+[WARNING] incorrect concreteness tracking
+Result [org.usvm.spring.benchmarks.filters.StopThousandFilter@6924c731, org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter@5eec2e63, org.springframework.boot.web.servlet.filter.OrderedFormContentFilter@3a4c84b2, org.springframework.boot.web.servlet.filter.OrderedCharacterEncodingFilter@65b469c5]
+[32mInvoking java.util.LinkedHashMap$LinkedValues#toArray():java.lang.Object[][0m
+[WARNING] incorrect concreteness tracking
+Result [Ljava.lang.Object;@65c9dd88
+[32mInvoking java.util.Arrays#copyOf(java.lang.Object[],int,java.lang.Class):java.lang.Object[][0m
+[WARNING] incorrect concreteness tracking
+Result [Ljakarta.servlet.Filter;@74d18aec
+[32mInvoking org.springframework.test.web.servlet.setup.MockMvcBuilders#webAppContextSetup(org.springframework.web.context.WebApplicationContext):org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder[0m
+[WARNING] incorrect concreteness tracking
+Result org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder@71092212
+[32mInvoking org.springframework.test.web.servlet.setup.AbstractMockMvcBuilder#addFilters(jakarta.servlet.Filter[]):org.springframework.test.web.servlet.setup.AbstractMockMvcBuilder[0m
+[WARNING] incorrect concreteness tracking
+Result org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder@71092212
+[32mInvoking org.springframework.test.web.servlet.setup.AbstractMockMvcBuilder#build():org.springframework.test.web.servlet.MockMvc[0m
+[WARNING] incorrect concreteness tracking
+2025-03-14T02:39:13.115+03:00  INFO 17884 --- [     Thread-110] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2025-03-14T02:39:13.116+03:00  INFO 17884 --- [     Thread-110] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2025-03-14T02:39:13.116+03:00  INFO 17884 --- [     Thread-110] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+Result org.springframework.test.web.servlet.MockMvc@25eb6c8e
+[31mApproximated org.springframework.boot.SpringApplication#_classesWithFieldsValueAnnotation():java.util.List[0m
+[32mInvoking java.util.ArrayList#iterator():java.util.Iterator[0m
+Result java.util.ArrayList$Itr@b831604
+[32mInvoking java.util.ArrayList$Itr#hasNext():boolean[0m
+Result false
+[31mApproximated org.springframework.boot.SpringApplication#_allControllerPaths():java.util.Map[0m
+[32mInvoking java.util.TreeMap#keySet():java.util.Set[0m
+Result [org.usvm.spring.benchmarks.controllers.SimpleController]
+[32mInvoking java.util.TreeMap$KeySet#iterator():java.util.Iterator[0m
+Result java.util.TreeMap$KeyIterator@78e627ce
+[32mInvoking java.util.TreeMap$PrivateEntryIterator#hasNext():boolean[0m
+Result true
+[32mInvoking java.util.TreeMap$KeyIterator#next():java.lang.Object[0m
+Result org.usvm.spring.benchmarks.controllers.SimpleController
+[31mApproximated org.usvm.api.Engine#<clinit>():void[0m
+[31mApproximated org.usvm.api.Engine#makeSymbolicBoolean():boolean[0m
+[32mInvoking (B) java.util.TreeMap$PrivateEntryIterator#hasNext():boolean[0m
+Result false
+removed state: 1
+picked state: 2
+[32mInvoking (B) java.util.TreeMap#get(java.lang.Object):java.lang.Object[0m
+Result {/simple/increment_from_header=[GET, 0]}
+[32mInvoking (B) java.util.TreeMap#keySet():java.util.Set[0m
+Result [/simple/increment_from_header]
+[32mInvoking (B) java.util.TreeMap$KeySet#iterator():java.util.Iterator[0m
+Result java.util.TreeMap$KeyIterator@17e38d81
+[32mInvoking (B) java.util.TreeMap$PrivateEntryIterator#hasNext():boolean[0m
+Result true
+[32mInvoking (B) java.util.TreeMap$KeyIterator#next():java.lang.Object[0m
+Result /simple/increment_from_header
+[31mApproximated org.usvm.api.Engine#makeSymbolicBoolean():boolean[0m
+[32mInvoking (B) java.util.TreeMap$PrivateEntryIterator#hasNext():boolean[0m
+Result false
+removed state: 2
+picked state: 3
+[31mCalling org.springframework.boot.SpringApplication#_internalLog(java.lang.String[]):void[0m
+[36m[USVM] starting to analyze path [0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+[36m/simple/increment_from_header[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+[36m of controller [0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+[36morg.usvm.spring.benchmarks.controllers.SimpleController[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+[32mInvoking (B) java.util.TreeMap#get(java.lang.Object):java.lang.Object[0m
+Result [GET, 0]
+[32mInvoking (B) java.util.ArrayList#get(int):java.lang.Object[0m
+Result GET
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<clinit>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Enum#<init>(java.lang.String,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueSource#$values():generated.org.springframework.boot.pinnedValues.PinnedValueSource[][0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.Object):void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.String,java.lang.Object):void[0m
+[32mInvoking (B) java.lang.Enum#name():java.lang.String[0m
+Result REQUEST_PATH
+[31mApproximated generated.org.springframework.boot.pinnedValues.PinnedValueStorage#_writePinnedInner(java.lang.String,java.lang.String,java.lang.Object,java.lang.Class):void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.Object):void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.String,java.lang.Object):void[0m
+[32mInvoking (B) java.lang.Enum#name():java.lang.String[0m
+Result REQUEST_METHOD
+[31mApproximated generated.org.springframework.boot.pinnedValues.PinnedValueStorage#_writePinnedInner(java.lang.String,java.lang.String,java.lang.Object,java.lang.Class):void[0m
+[32mInvoking (B) java.util.ArrayList#get(int):java.lang.Object[0m
+Result 0
+[32mInvoking (B) java.lang.Integer#intValue():int[0m
+Result 0
+[32mInvoking (B) java.lang.Integer#valueOf(int):java.lang.Integer[0m
+Result 0
+[32mInvoking (B) java.util.Arrays#fill(java.lang.Object[],java.lang.Object):void[0m
+Result null
+[32mInvoking (B) org.springframework.http.HttpMethod#valueOf(java.lang.String):org.springframework.http.HttpMethod[0m
+Result GET
+[32mInvoking (B) org.springframework.test.web.servlet.request.MockMvcRequestBuilders#request(org.springframework.http.HttpMethod,java.lang.String,java.lang.Object[]):org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder[0m
+Result org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder@42e1089e
+[31mCalling org.springframework.test.web.servlet.MockMvc#perform(org.springframework.test.web.servlet.RequestBuilder):org.springframework.test.web.servlet.ResultActions[0m
+[32mInvoking (B) org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder#buildRequest(jakarta.servlet.ServletContext):org.springframework.mock.web.MockHttpServletRequest[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletRequest@24331615
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#getAsyncContext():jakarta.servlet.AsyncContext[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletResponse#<init>():void[0m
+Result org.springframework.mock.web.MockHttpServletResponse@3cd7cca
+[32mInvoking (B) org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder#postProcessRequest(org.springframework.mock.web.MockHttpServletRequest):org.springframework.mock.web.MockHttpServletRequest[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletRequest@24331615
+[32mInvoking (B) org.springframework.test.web.servlet.DefaultMvcResult#<init>(org.springframework.mock.web.MockHttpServletRequest,org.springframework.mock.web.MockHttpServletResponse):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.test.web.servlet.DefaultMvcResult@65c3517f
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.context.request.RequestContextHolder#getRequestAttributes():org.springframework.web.context.request.RequestAttributes[0m
+Result null
+[32mInvoking (B) org.springframework.web.context.request.ServletRequestAttributes#<init>(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletRequest@24331615
+[32mInvoking (B) org.springframework.web.context.request.RequestContextHolder#setRequestAttributes(org.springframework.web.context.request.RequestAttributes):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.mock.web.MockFilterChain#<init>(jakarta.servlet.Servlet,jakarta.servlet.Filter[]):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockFilterChain@5fea9b8d
+[31mCalling org.springframework.mock.web.MockFilterChain#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void[0m
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+Result null
+[32mInvoking (B) org.springframework.util.Assert#state(boolean,java.lang.String):void[0m
+Result null
+[32mInvoking (B) java.util.ImmutableCollections$AbstractImmutableList#iterator():java.util.Iterator[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result java.util.ImmutableCollections$ListItr@40527f22
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#hasNext():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result true
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#next():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.usvm.spring.benchmarks.filters.StopThousandFilter@6924c731
+[31mCalling org.usvm.spring.benchmarks.filters.StopThousandFilter#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void[0m
+[31mCalling org.springframework.mock.web.MockHttpServletRequest#getParameterMap():java.util.Map[0m
+[31mCalling stub.java.util.map.RequestMultiValueMap#<init>(generated.org.springframework.boot.pinnedValues.PinnedValueSource):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[31mCalling org.springframework.mock.web.MockFilterChain#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void[0m
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+Result null
+[32mInvoking (B) org.springframework.util.Assert#state(boolean,java.lang.String):void[0m
+Result null
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#hasNext():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result true
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#next():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter@5eec2e63
+[31mCalling org.springframework.web.filter.OncePerRequestFilter#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void[0m
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#getAlreadyFilteredAttributeName():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result requestContextFilter.FILTERED
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#getAttribute(java.lang.String):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#skipDispatch(jakarta.servlet.http.HttpServletRequest):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#shouldNotFilter(jakarta.servlet.http.HttpServletRequest):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.springframework.web.filter.RequestContextFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void[0m
+[32mInvoking (B) org.springframework.web.context.request.ServletRequestAttributes#<init>(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletRequest@24331615
+[32mInvoking (B) org.springframework.web.filter.RequestContextFilter#initContextHolders(jakarta.servlet.http.HttpServletRequest,org.springframework.web.context.request.ServletRequestAttributes):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.springframework.mock.web.MockFilterChain#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void[0m
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+Result null
+[32mInvoking (B) org.springframework.util.Assert#state(boolean,java.lang.String):void[0m
+Result null
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#hasNext():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result true
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#next():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.boot.web.servlet.filter.OrderedFormContentFilter@3a4c84b2
+[31mCalling org.springframework.web.filter.OncePerRequestFilter#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void[0m
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#getAlreadyFilteredAttributeName():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result formContentFilter.FILTERED
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#getAttribute(java.lang.String):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#skipDispatch(jakarta.servlet.http.HttpServletRequest):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#shouldNotFilter(jakarta.servlet.http.HttpServletRequest):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.springframework.web.filter.FormContentFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void[0m
+[32mInvoking (B) org.springframework.web.filter.FormContentFilter#parseIfNecessary(jakarta.servlet.http.HttpServletRequest):org.springframework.util.MultiValueMap[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.util.CollectionUtils#isEmpty(java.util.Map):boolean[0m
+Result true
+[31mCalling org.springframework.mock.web.MockFilterChain#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void[0m
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+Result null
+[32mInvoking (B) org.springframework.util.Assert#state(boolean,java.lang.String):void[0m
+Result null
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#hasNext():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result true
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#next():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.boot.web.servlet.filter.OrderedCharacterEncodingFilter@65b469c5
+[31mCalling org.springframework.web.filter.OncePerRequestFilter#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void[0m
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#getAlreadyFilteredAttributeName():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result characterEncodingFilter.FILTERED
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#getAttribute(java.lang.String):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#skipDispatch(jakarta.servlet.http.HttpServletRequest):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.web.filter.OncePerRequestFilter#shouldNotFilter(jakarta.servlet.http.HttpServletRequest):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.springframework.web.filter.CharacterEncodingFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void[0m
+[32mInvoking (B) org.springframework.web.filter.CharacterEncodingFilter#getEncoding():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result UTF-8
+[32mInvoking (B) org.springframework.web.filter.CharacterEncodingFilter#isForceRequestEncoding():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result true
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setCharacterEncoding(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.filter.CharacterEncodingFilter#isForceResponseEncoding():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[31mCalling org.springframework.mock.web.MockFilterChain#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void[0m
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+Result null
+[32mInvoking (B) org.springframework.util.Assert#state(boolean,java.lang.String):void[0m
+Result null
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#hasNext():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result true
+[32mInvoking (B) java.util.ImmutableCollections$ListItr#next():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.test.web.servlet.TestDispatcherServlet@7d54e06f
+[31mCalling org.springframework.mock.web.MockFilterChain$ServletFilterProxy#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void[0m
+[31mCalling jakarta.servlet.http.HttpServlet#service(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void[0m
+[31mCalling org.springframework.test.web.servlet.TestDispatcherServlet#service(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[32mInvoking (B) org.springframework.test.web.servlet.TestDispatcherServlet#registerAsyncResultInterceptors(jakarta.servlet.http.HttpServletRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.springframework.web.servlet.FrameworkServlet#service(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#getMethod():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result GET
+[32mInvoking (B) java.util.ImmutableCollections$SetN#contains(java.lang.Object):boolean[0m
+Result true
+[31mCalling jakarta.servlet.http.HttpServlet#service(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#getMethod():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result GET
+[31mApproximated java.lang.String#equals(java.lang.Object):boolean[0m
+[32mInvoking (B) jakarta.servlet.http.HttpServlet#getLastModified(jakarta.servlet.http.HttpServletRequest):long[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result -1
+[31mCalling org.springframework.web.servlet.FrameworkServlet#doGet(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[31mCalling org.springframework.web.servlet.FrameworkServlet#processRequest(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[32mInvoking (B) java.lang.System#currentTimeMillis():long[0m
+Result 1741909178165
+[32mInvoking (B) org.springframework.context.i18n.LocaleContextHolder#getLocaleContext():org.springframework.context.i18n.LocaleContext[0m
+Result en
+[32mInvoking (B) org.springframework.web.servlet.DispatcherServlet#buildLocaleContext(jakarta.servlet.http.HttpServletRequest):org.springframework.context.i18n.LocaleContext[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.servlet.DispatcherServlet$$Lambda$1385/0x00000214e6731c98@1b0edea2
+[32mInvoking (B) org.springframework.web.context.request.RequestContextHolder#getRequestAttributes():org.springframework.web.context.request.RequestAttributes[0m
+Result org.springframework.mock.web.MockHttpServletRequest@24331615
+[32mInvoking (B) org.springframework.web.servlet.FrameworkServlet#buildRequestAttributes(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.context.request.RequestAttributes):org.springframework.web.context.request.ServletRequestAttributes[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletRequest@24331615
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncUtils#getAsyncManager(jakarta.servlet.ServletRequest):org.springframework.web.context.request.async.WebAsyncManager[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.request.async.WebAsyncManager@6cda3811
+[32mInvoking (B) java.lang.Class#getName():java.lang.String[0m
+Result org.springframework.web.servlet.FrameworkServlet
+[32mInvoking (B) org.springframework.web.servlet.FrameworkServlet$RequestBindingInterceptor#<init>(org.springframework.web.servlet.FrameworkServlet):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.servlet.FrameworkServlet$RequestBindingInterceptor@41024fa4
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncManager#registerCallableInterceptor(java.lang.Object,org.springframework.web.context.request.async.CallableProcessingInterceptor):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.servlet.FrameworkServlet#initContextHolders(jakarta.servlet.http.HttpServletRequest,org.springframework.context.i18n.LocaleContext,org.springframework.web.context.request.RequestAttributes):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.springframework.web.servlet.DispatcherServlet#doService(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[32mInvoking (B) org.springframework.web.servlet.DispatcherServlet#logRequest(jakarta.servlet.http.HttpServletRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.util.WebUtils#isIncludeRequest(jakarta.servlet.ServletRequest):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.web.servlet.FrameworkServlet#getWebApplicationContext():org.springframework.web.context.WebApplicationContext[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.support.GenericWebApplicationContext@631da3f8, started on Fri Mar 14 02:38:56 MSK 2025
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.servlet.DispatcherServlet#getThemeSource():org.springframework.ui.context.ThemeSource[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.support.GenericWebApplicationContext@631da3f8, started on Fri Mar 14 02:38:56 MSK 2025
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.servlet.support.AbstractFlashMapManager#retrieveAndUpdate(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):org.springframework.web.servlet.FlashMap[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.servlet.FlashMap#<init>():void[0m
+Result FlashMap [attributes={}, targetRequestPath=null, targetRequestParams={}]
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#setAttribute(java.lang.String,java.lang.Object):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#getAttribute(java.lang.String):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.util.ServletRequestPathUtils#parseAndCache(jakarta.servlet.http.HttpServletRequest):org.springframework.http.server.RequestPath[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result /simple/increment_from_header
+[31mCalling org.springframework.web.servlet.DispatcherServlet#doDispatch(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncUtils#getAsyncManager(jakarta.servlet.ServletRequest):org.springframework.web.context.request.async.WebAsyncManager[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.request.async.WebAsyncManager@6cda3811
+[32mInvoking (B) org.springframework.web.servlet.DispatcherServlet#checkMultipart(jakarta.servlet.http.HttpServletRequest):jakarta.servlet.http.HttpServletRequest[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletRequest@24331615
+[32mInvoking (B) org.springframework.test.web.servlet.TestDispatcherServlet#getHandler(jakarta.servlet.http.HttpServletRequest):org.springframework.web.servlet.HandlerExecutionChain[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result HandlerExecutionChain with [org.usvm.spring.benchmarks.controllers.SimpleController#incrementHeader(String)] and 2 interceptors
+[32mInvoking (B) org.springframework.web.servlet.HandlerExecutionChain#getHandler():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.usvm.spring.benchmarks.controllers.SimpleController#incrementHeader(String)
+[32mInvoking (B) org.springframework.web.servlet.DispatcherServlet#getHandlerAdapter(java.lang.Object):org.springframework.web.servlet.HandlerAdapter[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter@2f60b26
+[32mInvoking (B) org.springframework.mock.web.MockHttpServletRequest#getMethod():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result GET
+[32mInvoking (B) org.springframework.http.HttpMethod#matches(java.lang.String):boolean[0m
+Result true
+[32mInvoking (B) org.springframework.web.servlet.HandlerExecutionChain#getHandler():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.usvm.spring.benchmarks.controllers.SimpleController#incrementHeader(String)
+[32mInvoking (B) org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter#getLastModified(jakarta.servlet.http.HttpServletRequest,java.lang.Object):long[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result -1
+[32mInvoking (B) org.springframework.web.context.request.ServletWebRequest#<init>(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result ServletWebRequest: uri=/simple/increment_from_header;client=127.0.0.1
+[32mInvoking (B) org.springframework.web.context.request.ServletWebRequest#checkNotModified(long):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.web.servlet.HandlerExecutionChain#applyPreHandle(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result true
+[32mInvoking (B) org.springframework.web.servlet.HandlerExecutionChain#getHandler():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.usvm.spring.benchmarks.controllers.SimpleController#incrementHeader(String)
+[31mCalling org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter#handle(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,java.lang.Object):org.springframework.web.servlet.ModelAndView[0m
+[31mCalling org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#handleInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.method.HandlerMethod):org.springframework.web.servlet.ModelAndView[0m
+[32mInvoking (B) org.springframework.web.servlet.support.WebContentGenerator#checkRequest(jakarta.servlet.http.HttpServletRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#invokeHandlerMethod(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.method.HandlerMethod):org.springframework.web.servlet.ModelAndView[0m
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncUtils#getAsyncManager(jakarta.servlet.ServletRequest):org.springframework.web.context.request.async.WebAsyncManager[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.request.async.WebAsyncManager@6cda3811
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncUtils#createAsyncWebRequest(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):org.springframework.web.context.request.async.AsyncWebRequest[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result ServletWebRequest: uri=/simple/increment_from_header;client=127.0.0.1
+[32mInvoking (B) org.springframework.web.context.request.async.StandardServletAsyncWebRequest#setTimeout(java.lang.Long):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncManager#setTaskExecutor(org.springframework.core.task.AsyncTaskExecutor):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncManager#setAsyncWebRequest(org.springframework.web.context.request.async.AsyncWebRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncManager#registerCallableInterceptors(org.springframework.web.context.request.async.CallableProcessingInterceptor[]):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncManager#registerDeferredResultInterceptors(org.springframework.web.context.request.async.DeferredResultProcessingInterceptor[]):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.context.request.ServletWebRequest#getNativeResponse(java.lang.Class):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.request.async.StandardServletAsyncWebRequest$LifecycleHttpServletResponse@749c5e7d
+[32mInvoking (B) org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#getDataBinderFactory(org.springframework.web.method.HandlerMethod):org.springframework.web.bind.support.WebDataBinderFactory[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.servlet.mvc.method.annotation.ServletRequestDataBinderFactory@4581e701
+[32mInvoking (B) org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#getModelFactory(org.springframework.web.method.HandlerMethod,org.springframework.web.bind.support.WebDataBinderFactory):org.springframework.web.method.annotation.ModelFactory[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.method.annotation.ModelFactory@5f1df022
+[32mInvoking (B) org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#createInvocableHandlerMethod(org.springframework.web.method.HandlerMethod):org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.usvm.spring.benchmarks.controllers.SimpleController#incrementHeader(String)
+[32mInvoking (B) org.springframework.web.method.support.InvocableHandlerMethod#setHandlerMethodArgumentResolvers(org.springframework.web.method.support.HandlerMethodArgumentResolverComposite):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod#setHandlerMethodReturnValueHandlers(org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.method.support.InvocableHandlerMethod#setDataBinderFactory(org.springframework.web.bind.support.WebDataBinderFactory):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.method.support.InvocableHandlerMethod#setParameterNameDiscoverer(org.springframework.core.ParameterNameDiscoverer):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.method.support.InvocableHandlerMethod#setMethodValidator(org.springframework.validation.method.MethodValidator):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.method.support.ModelAndViewContainer#<init>():void[0m
+Result ModelAndViewContainer: View is [null]; default model {}
+[32mInvoking (B) org.springframework.web.servlet.support.RequestContextUtils#getInputFlashMap(jakarta.servlet.http.HttpServletRequest):java.util.Map[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.method.support.ModelAndViewContainer#addAllAttributes(java.util.Map):org.springframework.web.method.support.ModelAndViewContainer[0m
+Result ModelAndViewContainer: View is [null]; default model {}
+[31mCalling org.springframework.web.method.annotation.ModelFactory#initModel(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.method.HandlerMethod):void[0m
+[32mInvoking (B) org.springframework.web.method.annotation.SessionAttributesHandler#retrieveAttributes(org.springframework.web.context.request.WebRequest):java.util.Map[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result {}
+[32mInvoking (B) org.springframework.web.method.support.ModelAndViewContainer#mergeAttributes(java.util.Map):org.springframework.web.method.support.ModelAndViewContainer[0m
+Result ModelAndViewContainer: View is [null]; default model {}
+[31mCalling org.springframework.web.method.annotation.ModelFactory#invokeModelAttributeMethods(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer):void[0m
+[32mInvoking (B) java.util.ArrayList#isEmpty():boolean[0m
+Result true
+[32mInvoking (B) org.springframework.web.method.annotation.ModelFactory#findSessionAttributeArguments(org.springframework.web.method.HandlerMethod):java.util.List[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result []
+[32mInvoking (B) java.util.ArrayList#iterator():java.util.Iterator[0m
+Result java.util.ArrayList$Itr@5828853e
+[32mInvoking (B) java.util.ArrayList$Itr#hasNext():boolean[0m
+Result false
+[32mInvoking (B) org.springframework.web.method.support.ModelAndViewContainer#setIgnoreDefaultModelOnRedirect(boolean):void[0m
+Result null
+[32mInvoking (B) org.springframework.web.context.request.async.WebAsyncManager#hasConcurrentResult():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[31mCalling org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod#invokeAndHandle(org.springframework.web.context.request.ServletWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):void[0m
+[31mCalling org.springframework.web.method.support.InvocableHandlerMethod#invokeForRequest(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):java.lang.Object[0m
+[31mCalling org.springframework.web.method.support.InvocableHandlerMethod#getMethodArgumentValues(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):java.lang.Object[][0m
+[32mInvoking (B) org.springframework.core.annotation.AnnotatedMethod#getMethodParameters():org.springframework.core.MethodParameter[][0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result [Lorg.springframework.core.MethodParameter;@4f3667f8
+[32mInvoking (B) org.springframework.util.ObjectUtils#isEmpty(java.lang.Object[]):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.core.MethodParameter#initParameterNameDiscovery(org.springframework.core.ParameterNameDiscoverer):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.core.annotation.AnnotatedMethod#findProvidedArgument(org.springframework.core.MethodParameter,java.lang.Object[]):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#supportsParameter(org.springframework.core.MethodParameter):boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result true
+[31mCalling org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object[0m
+[32mInvoking (B) org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#getArgumentResolver(org.springframework.core.MethodParameter):org.springframework.web.method.support.HandlerMethodArgumentResolver[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.method.annotation.RequestHeaderMethodArgumentResolver@2554a237
+[31mCalling org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object[0m
+[32mInvoking (B) org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver#getNamedValueInfo(org.springframework.core.MethodParameter):org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver$NamedValueInfo[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver$NamedValueInfo@65c0f51c
+[32mInvoking (B) org.springframework.core.MethodParameter#nestedIfOptional():org.springframework.core.MethodParameter[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result method 'incrementHeader' parameter 0
+[32mInvoking (B) org.springframework.core.KotlinDetector#isKotlinReflectPresent():boolean[0m
+Result false
+[32mInvoking (B) org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver#resolveEmbeddedValuesAndExpressions(java.lang.String):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result Sample_HeAdEr
+[32mInvoking (B) java.lang.String#toString():java.lang.String[0m
+Result Sample_HeAdEr
+[31mCalling org.springframework.web.method.annotation.RequestHeaderMethodArgumentResolver#resolveName(java.lang.String,org.springframework.core.MethodParameter,org.springframework.web.context.request.NativeWebRequest):java.lang.Object[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#getPinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.String,java.lang.Class):java.lang.Object[0m
+[32mInvoking (B) java.lang.Enum#name():java.lang.String[0m
+Result REQUEST_HEADER
+[31mApproximated generated.org.springframework.boot.pinnedValues.PinnedValueStorage#_readPinnedInner(java.lang.String,java.lang.String,java.lang.Class):java.lang.Object[0m
+[31mApproximated java.lang.String#equals(java.lang.Object):boolean[0m
+[31mApproximated org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver#convertIfNecessary(org.springframework.core.MethodParameter,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory,org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver$NamedValueInfo,java.lang.Object):java.lang.Object[0m
+[31mCalling org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver#handleResolvedValue(java.lang.Object,java.lang.String,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void[0m
+unmarshalling array for 214 of java.lang.Object[]
+[31mCalling org.apache.commons.logging.Log#isTraceEnabled():boolean[0m
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#shouldValidateArguments():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[31mCalling org.springframework.web.method.support.InvocableHandlerMethod#doInvoke(java.lang.Object[]):java.lang.Object[0m
+[32mInvoking (B) org.springframework.core.annotation.AnnotatedMethod#getBridgedMethod():java.lang.reflect.Method[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result public java.lang.String org.usvm.spring.benchmarks.controllers.SimpleController.incrementHeader(java.lang.String)
+[32mInvoking (B) org.springframework.core.KotlinDetector#isKotlinReflectPresent():boolean[0m
+Result false
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#getBean():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.usvm.spring.benchmarks.controllers.SimpleController@2a591772
+[31mApproximated java.lang.reflect.Method#invoke(java.lang.Object,java.lang.Object[]):java.lang.Object[0m
+[31mCalling org.usvm.spring.benchmarks.controllers.SimpleController#incrementHeader(java.lang.String):java.lang.String[0m
+[31mCalling java.util.Objects#equals(java.lang.Object,java.lang.Object):boolean[0m
+[31mApproximated java.lang.String#equals(java.lang.Object):boolean[0m
+[31mCalling org.usvm.spring.benchmarks.controllers.SimpleController#emptyMethod():void[0m
+[31mCalling java.lang.String#concat(java.lang.String):java.lang.String[0m
+[31mCalling java.lang.String#_assumeInvariants():void[0m
+[31mCalling java.lang.String#_assumeInvariants(java.lang.String):void[0m
+[31mCalling java.lang.String#_currentCoder():byte[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+removed state: 3
+picked state: 4
+[32mInvoking (B) org.springframework.core.MethodParameter#isOptional():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver#handleMissingValue(java.lang.String,org.springframework.core.MethodParameter,org.springframework.web.context.request.NativeWebRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Exception class org.springframework.web.bind.MissingRequestHeaderException with message Required request header 'Sample_HeAdEr' for method parameter type String is not present
+exception thrown org.springframework.web.bind.MissingRequestHeaderException
+[31mCalling org.apache.commons.logging.Log#isDebugEnabled():boolean[0m
+exception thrown java.lang.Exception
+[32mConcretizing statics[0m
+[32mConcretizing org.springframework.web.servlet.DispatcherServlet#processDispatchResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.HandlerExecutionChain,org.springframework.web.servlet.ModelAndView,java.lang.Exception):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+2025-03-14T02:40:13.681+03:00  WARN 17884 --- [     Thread-110] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.bind.MissingRequestHeaderException: Required request header 'Sample_HeAdEr' for method parameter type String is not present]
+Result null
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isMultipartRequestParsed():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncUtils#getAsyncManager(jakarta.servlet.ServletRequest):org.springframework.web.context.request.async.WebAsyncManager[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.request.async.WebAsyncManager@6cda3811
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.util.ServletRequestPathUtils#setParsedRequestPath(org.springframework.http.server.RequestPath,jakarta.servlet.ServletRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#resetContextHolders(jakarta.servlet.http.HttpServletRequest,org.springframework.context.i18n.LocaleContext,org.springframework.web.context.request.RequestAttributes):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.AbstractRequestAttributes#requestCompleted():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#logResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,java.lang.Throwable,org.springframework.web.context.request.async.WebAsyncManager):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#publishRequestHandledEvent(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,long,java.lang.Throwable):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#getAsyncContext():jakarta.servlet.AsyncContext[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.filter.RequestContextFilter#resetContextHolders():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.apache.commons.logging.Log#isTraceEnabled():boolean[0m
+[32mConcretizing org.springframework.web.context.request.AbstractRequestAttributes#requestCompleted():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#getDispatcherType():jakarta.servlet.DispatcherType[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result REQUEST
+[32mConcretizing java.lang.Enum#equals(java.lang.Object):boolean[0m
+Result false
+[32mConcretizing org.springframework.test.web.servlet.MockMvc#applyDefaultResultActions(org.springframework.test.web.servlet.MvcResult):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.RequestContextHolder#setRequestAttributes(org.springframework.web.context.request.RequestAttributes):void[0m
+Result null
+[32mConcretizing org.springframework.test.web.servlet.MockMvc$1#<init>(org.springframework.test.web.servlet.MockMvc,org.springframework.test.web.servlet.MvcResult):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.test.web.servlet.MockMvc$1@20b105b5
+[32mConcretizing org.springframework.test.web.servlet.MockMvc$1#andReturn():org.springframework.test.web.servlet.MvcResult[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.test.web.servlet.DefaultMvcResult@65c3517f
+[32mConcretizing org.springframework.test.web.servlet.DefaultMvcResult#getResponse():org.springframework.mock.web.MockHttpServletResponse[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletResponse@3cd7cca
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.Object):void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.String,java.lang.Object):void[0m
+[32mConcretizing java.lang.Enum#name():java.lang.String[0m
+Result RESPONSE
+[31mApproximated generated.org.springframework.boot.pinnedValues.PinnedValueStorage#_writePinnedInner(java.lang.String,java.lang.String,java.lang.Object,java.lang.Class):void[0m
+[31mCalling org.springframework.boot.SpringApplication#_internalLog(java.lang.String[]):void[0m
+[36m[USVM] end of path analysis[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+[36m/simple/increment_from_header[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+removed state: 4
+UTestExecutionSuccessResult(trace=[], result=Null(type=org.jacodb.api.jvm.PredefinedPrimitive@375194), initialState=UTestExecutionState(instanceDescriptor=null, argsDescriptors=[], statics={}), resultState=UTestExecutionState(instanceDescriptor=null, argsDescriptors=[], statics={}))
+inaccessible field get
+picked state: 5
+[31mApproximated org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver#convertIfNecessary(org.springframework.core.MethodParameter,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory,org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver$NamedValueInfo,java.lang.Object):java.lang.Object[0m
+[31mCalling org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver#handleResolvedValue(java.lang.Object,java.lang.String,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void[0m
+unmarshalling array for 214 of java.lang.Object[]
+[31mCalling org.apache.commons.logging.Log#isTraceEnabled():boolean[0m
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#shouldValidateArguments():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[31mCalling org.springframework.web.method.support.InvocableHandlerMethod#doInvoke(java.lang.Object[]):java.lang.Object[0m
+[32mInvoking (B) org.springframework.core.annotation.AnnotatedMethod#getBridgedMethod():java.lang.reflect.Method[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result public java.lang.String org.usvm.spring.benchmarks.controllers.SimpleController.incrementHeader(java.lang.String)
+[32mInvoking (B) org.springframework.core.KotlinDetector#isKotlinReflectPresent():boolean[0m
+Result false
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#getBean():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.usvm.spring.benchmarks.controllers.SimpleController@2a591772
+[31mApproximated java.lang.reflect.Method#invoke(java.lang.Object,java.lang.Object[]):java.lang.Object[0m
+[31mCalling org.usvm.spring.benchmarks.controllers.SimpleController#incrementHeader(java.lang.String):java.lang.String[0m
+[31mCalling java.util.Objects#equals(java.lang.Object,java.lang.Object):boolean[0m
+[31mApproximated java.lang.String#equals(java.lang.Object):boolean[0m
+[31mCalling org.usvm.spring.benchmarks.controllers.SimpleController#emptyMethod():void[0m
+[31mCalling java.lang.String#concat(java.lang.String):java.lang.String[0m
+[31mCalling java.lang.String#_assumeInvariants():void[0m
+[31mCalling java.lang.String#_assumeInvariants(java.lang.String):void[0m
+[31mCalling java.lang.String#_currentCoder():byte[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+removed state: 5
+picked state: 6
+[32mInvoking (B) java.lang.IllegalArgumentException#<init>(java.lang.String):void[0m
+Result java.lang.IllegalArgumentException: Header must not be 1234
+exception thrown java.lang.IllegalArgumentException
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#getBean():java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.usvm.spring.benchmarks.controllers.SimpleController@2a591772
+[31mCalling org.springframework.web.method.HandlerMethod#assertTargetBean(java.lang.reflect.Method,java.lang.Object,java.lang.Object[]):void[0m
+[32mInvoking (B) java.lang.reflect.Method#getDeclaringClass():java.lang.Class[0m
+Result class org.usvm.spring.benchmarks.controllers.SimpleController
+[31mApproximated java.lang.Object#getClass():java.lang.Class[0m
+[32mInvoking (B) java.lang.Class#isAssignableFrom(java.lang.Class):boolean[0m
+Result true
+[32mInvoking (B) java.lang.Throwable#getMessage():java.lang.String[0m
+Result Header must not be 1234
+[32mInvoking (B) java.lang.Throwable#getCause():java.lang.Throwable[0m
+Result null
+[32mInvoking (B) java.lang.Throwable#getMessage():java.lang.String[0m
+Result Header must not be 1234
+[31mApproximated org.springframework.web.method.HandlerMethod#formatInvokeError(java.lang.String,java.lang.Object[]):java.lang.String[0m
+[32mInvoking (B) java.lang.IllegalStateException#<init>(java.lang.String,java.lang.Throwable):void[0m
+Result java.lang.IllegalStateException: Header must not be 1234
+exception thrown java.lang.IllegalStateException
+[32mConcretizing statics[0m
+[32mConcretizing org.springframework.web.servlet.DispatcherServlet#processDispatchResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.HandlerExecutionChain,org.springframework.web.servlet.ModelAndView,java.lang.Exception):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Exception class java.lang.IllegalStateException with message Header must not be 1234
+exception thrown java.lang.IllegalStateException
+[32mConcretizing org.springframework.web.servlet.DispatcherServlet#triggerAfterCompletion(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.HandlerExecutionChain,java.lang.Exception):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Exception class java.lang.IllegalStateException with message Header must not be 1234
+exception thrown java.lang.IllegalStateException
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isMultipartRequestParsed():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+exception thrown java.lang.Throwable
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncUtils#getAsyncManager(jakarta.servlet.ServletRequest):org.springframework.web.context.request.async.WebAsyncManager[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.request.async.WebAsyncManager@6cda3811
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.util.ServletRequestPathUtils#setParsedRequestPath(org.springframework.http.server.RequestPath,jakarta.servlet.ServletRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+exception thrown java.lang.Throwable
+[32mConcretizing java.lang.String#valueOf(java.lang.Object):java.lang.String[0m
+Result java.lang.IllegalStateException: Header must not be 1234
+[32mConcretizing java.lang.String#concat(java.lang.String):java.lang.String[0m
+Result Request processing failed: java.lang.IllegalStateException: Header must not be 1234
+[32mConcretizing jakarta.servlet.ServletException#<init>(java.lang.String,java.lang.Throwable):void[0m
+Result jakarta.servlet.ServletException: Request processing failed: java.lang.IllegalStateException: Header must not be 1234
+exception thrown jakarta.servlet.ServletException
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#resetContextHolders(jakarta.servlet.http.HttpServletRequest,org.springframework.context.i18n.LocaleContext,org.springframework.web.context.request.RequestAttributes):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.AbstractRequestAttributes#requestCompleted():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#logResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,java.lang.Throwable,org.springframework.web.context.request.async.WebAsyncManager):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#publishRequestHandledEvent(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,long,java.lang.Throwable):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+exception thrown java.lang.Throwable
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+exception thrown java.lang.Throwable
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+exception thrown java.lang.Throwable
+[32mConcretizing org.springframework.web.filter.RequestContextFilter#resetContextHolders():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.apache.commons.logging.Log#isTraceEnabled():boolean[0m
+[32mConcretizing org.springframework.web.context.request.AbstractRequestAttributes#requestCompleted():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+exception thrown java.lang.Throwable
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+exception thrown java.lang.Throwable
+[31mCalling org.springframework.boot.SpringApplication#_internalLog(java.lang.String[]):void[0m
+[36m[USVM] analysis finished with exception[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+[36m/simple/increment_from_header[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+removed state: 6
+UTestExecutionSuccessResult(trace=[], result=Null(type=org.jacodb.api.jvm.PredefinedPrimitive@375194), initialState=UTestExecutionState(instanceDescriptor=null, argsDescriptors=[], statics={}), resultState=UTestExecutionState(instanceDescriptor=null, argsDescriptors=[], statics={}))
+inaccessible field get
+picked state: 7
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+removed state: 7
+picked state: 8
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+removed state: 8
+picked state: 9
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+removed state: 9
+picked state: 10
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mCalling java.lang.String#_assumeInvariants(java.lang.String):void[0m
+[31mCalling java.lang.String#_currentCoder():byte[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+unmarshalling array for 255 of byte[]
+[31mCalling runtime.LibSLRuntime$ArrayActions#copy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mCalling runtime.LibSLRuntime$ArrayActions#copy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+unmarshalling array for 254 of byte[]
+[31mApproximated java.lang.System#arraycopy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mCalling java.lang.String#<init>(byte[]):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+unmarshalling array for 256 of byte[]
+unmarshalling class for 50 of java.lang.String
+[31mCalling java.lang.String#_currentCoder():byte[0m
+[31mCalling runtime.LibSLRuntime$ArrayActions#copy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated java.lang.System#arraycopy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+unmarshalling class for 240 of java.lang.String
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#shouldValidateReturnValue():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod#setResponseStatus(org.springframework.web.context.request.ServletWebRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#getResponseStatusReason():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.util.StringUtils#hasText(java.lang.String):boolean[0m
+Result false
+[32mInvoking (B) org.springframework.web.method.support.ModelAndViewContainer#setRequestHandled(boolean):void[0m
+Result null
+[32mInvoking (B) org.springframework.util.Assert#state(boolean,java.lang.String):void[0m
+Result null
+[31mCalling org.springframework.core.annotation.AnnotatedMethod#getReturnValueType(java.lang.Object):org.springframework.core.MethodParameter[0m
+[31mCalling org.springframework.core.annotation.AnnotatedMethod$ReturnValueMethodParameter#<init>(org.springframework.core.annotation.AnnotatedMethod,java.lang.Object):void[0m
+[31mCalling org.springframework.core.annotation.AnnotatedMethod$AnnotatedMethodParameter#<init>(org.springframework.core.annotation.AnnotatedMethod,int):void[0m
+[32mInvoking (B) org.springframework.core.annotation.AnnotatedMethod#getBridgedMethod():java.lang.reflect.Method[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result public java.lang.String org.usvm.spring.benchmarks.controllers.SimpleController.incrementHeader(java.lang.String)
+[31mCalling org.springframework.core.annotation.SynthesizingMethodParameter#<init>(java.lang.reflect.Method,int):void[0m
+[31mCalling org.springframework.core.MethodParameter#<init>(java.lang.reflect.Method,int):void[0m
+[31mCalling org.springframework.core.MethodParameter#<init>(java.lang.reflect.Method,int,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+Result null
+[32mInvoking (B) org.springframework.core.MethodParameter#validateIndex(java.lang.reflect.Executable,int):int[0m
+Result -1
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mApproximated java.lang.Object#getClass():java.lang.Class[0m
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing statics[0m
+[32mConcretizing org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite#handleReturnValue(java.lang.Object,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#getModelAndView(org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.method.annotation.ModelFactory,org.springframework.web.context.request.NativeWebRequest):org.springframework.web.servlet.ModelAndView[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletResponse#containsHeader(java.lang.String):boolean[0m
+Result false
+[32mConcretizing org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#getSessionAttributesHandler(org.springframework.web.method.HandlerMethod):org.springframework.web.method.annotation.SessionAttributesHandler[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.method.annotation.SessionAttributesHandler@307ef04c
+[32mConcretizing org.springframework.web.method.annotation.SessionAttributesHandler#hasSessionAttributes():boolean[0m
+Result false
+[32mConcretizing org.springframework.web.servlet.support.WebContentGenerator#prepareResponse(jakarta.servlet.http.HttpServletResponse):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.servlet.DispatcherServlet#applyDefaultViewName(jakarta.servlet.http.HttpServletRequest,org.springframework.web.servlet.ModelAndView):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.HandlerExecutionChain#applyPostHandle(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.ModelAndView):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.DispatcherServlet#processDispatchResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.HandlerExecutionChain,org.springframework.web.servlet.ModelAndView,java.lang.Exception):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isMultipartRequestParsed():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncUtils#getAsyncManager(jakarta.servlet.ServletRequest):org.springframework.web.context.request.async.WebAsyncManager[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.request.async.WebAsyncManager@6cda3811
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.util.ServletRequestPathUtils#setParsedRequestPath(org.springframework.http.server.RequestPath,jakarta.servlet.ServletRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#resetContextHolders(jakarta.servlet.http.HttpServletRequest,org.springframework.context.i18n.LocaleContext,org.springframework.web.context.request.RequestAttributes):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.AbstractRequestAttributes#requestCompleted():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#logResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,java.lang.Throwable,org.springframework.web.context.request.async.WebAsyncManager):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#publishRequestHandledEvent(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,long,java.lang.Throwable):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#getAsyncContext():jakarta.servlet.AsyncContext[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.filter.RequestContextFilter#resetContextHolders():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.apache.commons.logging.Log#isTraceEnabled():boolean[0m
+[32mConcretizing org.springframework.web.context.request.AbstractRequestAttributes#requestCompleted():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#getDispatcherType():jakarta.servlet.DispatcherType[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result REQUEST
+[32mConcretizing java.lang.Enum#equals(java.lang.Object):boolean[0m
+Result false
+[32mConcretizing org.springframework.test.web.servlet.MockMvc#applyDefaultResultActions(org.springframework.test.web.servlet.MvcResult):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.RequestContextHolder#setRequestAttributes(org.springframework.web.context.request.RequestAttributes):void[0m
+Result null
+[32mConcretizing org.springframework.test.web.servlet.MockMvc$1#<init>(org.springframework.test.web.servlet.MockMvc,org.springframework.test.web.servlet.MvcResult):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.test.web.servlet.MockMvc$1@729b7781
+[32mConcretizing org.springframework.test.web.servlet.MockMvc$1#andReturn():org.springframework.test.web.servlet.MvcResult[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.test.web.servlet.DefaultMvcResult@65c3517f
+[32mConcretizing org.springframework.test.web.servlet.DefaultMvcResult#getResponse():org.springframework.mock.web.MockHttpServletResponse[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletResponse@3cd7cca
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.Object):void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.String,java.lang.Object):void[0m
+[32mConcretizing java.lang.Enum#name():java.lang.String[0m
+Result RESPONSE
+[31mApproximated generated.org.springframework.boot.pinnedValues.PinnedValueStorage#_writePinnedInner(java.lang.String,java.lang.String,java.lang.Object,java.lang.Class):void[0m
+[31mCalling org.springframework.boot.SpringApplication#_internalLog(java.lang.String[]):void[0m
+[36m[USVM] end of path analysis[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+[36m/simple/increment_from_header[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+removed state: 10
+UTestExecutionSuccessResult(trace=[], result=Null(type=org.jacodb.api.jvm.PredefinedPrimitive@375194), initialState=UTestExecutionState(instanceDescriptor=null, argsDescriptors=[], statics={}), resultState=UTestExecutionState(instanceDescriptor=null, argsDescriptors=[], statics={}))
+inaccessible field get
+picked state: 11
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mCalling java.lang.String#_assumeInvariants(java.lang.String):void[0m
+[31mCalling java.lang.String#_currentCoder():byte[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+unmarshalling array for 267 of byte[]
+[31mCalling runtime.LibSLRuntime$ArrayActions#copy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated java.lang.System#arraycopy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mCalling runtime.LibSLRuntime$ArrayActions#copy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+unmarshalling array for 266 of byte[]
+[31mApproximated java.lang.System#arraycopy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mCalling java.lang.String#<init>(byte[]):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+unmarshalling array for 268 of byte[]
+unmarshalling class for 50 of java.lang.String
+[31mCalling java.lang.String#_currentCoder():byte[0m
+[31mCalling runtime.LibSLRuntime$ArrayActions#copy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated org.usvm.api.Engine#assume(boolean):void[0m
+[31mApproximated java.lang.System#arraycopy(java.lang.Object,int,java.lang.Object,int,int):void[0m
+unmarshalling class for 227 of java.lang.String
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#shouldValidateReturnValue():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mInvoking (B) org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod#setResponseStatus(org.springframework.web.context.request.ServletWebRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.web.method.HandlerMethod#getResponseStatusReason():java.lang.String[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mInvoking (B) org.springframework.util.StringUtils#hasText(java.lang.String):boolean[0m
+Result false
+[32mInvoking (B) org.springframework.web.method.support.ModelAndViewContainer#setRequestHandled(boolean):void[0m
+Result null
+[32mInvoking (B) org.springframework.util.Assert#state(boolean,java.lang.String):void[0m
+Result null
+[31mCalling org.springframework.core.annotation.AnnotatedMethod#getReturnValueType(java.lang.Object):org.springframework.core.MethodParameter[0m
+[31mCalling org.springframework.core.annotation.AnnotatedMethod$ReturnValueMethodParameter#<init>(org.springframework.core.annotation.AnnotatedMethod,java.lang.Object):void[0m
+[31mCalling org.springframework.core.annotation.AnnotatedMethod$AnnotatedMethodParameter#<init>(org.springframework.core.annotation.AnnotatedMethod,int):void[0m
+[32mInvoking (B) org.springframework.core.annotation.AnnotatedMethod#getBridgedMethod():java.lang.reflect.Method[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result public java.lang.String org.usvm.spring.benchmarks.controllers.SimpleController.incrementHeader(java.lang.String)
+[31mCalling org.springframework.core.annotation.SynthesizingMethodParameter#<init>(java.lang.reflect.Method,int):void[0m
+[31mCalling org.springframework.core.MethodParameter#<init>(java.lang.reflect.Method,int):void[0m
+[31mCalling org.springframework.core.MethodParameter#<init>(java.lang.reflect.Method,int,int):void[0m
+[31mCalling java.lang.Object#<init>():void[0m
+[32mInvoking (B) org.springframework.util.Assert#notNull(java.lang.Object,java.lang.String):void[0m
+Result null
+[32mInvoking (B) org.springframework.core.MethodParameter#validateIndex(java.lang.reflect.Executable,int):int[0m
+Result -1
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mApproximated java.lang.Object#getClass():java.lang.Class[0m
+[31mCalling org.usvm.api.internal.InitHelper#afterInit(java.lang.Object):void[0m
+[32mInvoking (B) java.util.function.Function#apply(java.lang.Object):java.lang.Object[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing statics[0m
+[32mConcretizing org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite#handleReturnValue(java.lang.Object,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#getModelAndView(org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.method.annotation.ModelFactory,org.springframework.web.context.request.NativeWebRequest):org.springframework.web.servlet.ModelAndView[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletResponse#containsHeader(java.lang.String):boolean[0m
+Result false
+[32mConcretizing org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#getSessionAttributesHandler(org.springframework.web.method.HandlerMethod):org.springframework.web.method.annotation.SessionAttributesHandler[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.method.annotation.SessionAttributesHandler@307ef04c
+[32mConcretizing org.springframework.web.method.annotation.SessionAttributesHandler#hasSessionAttributes():boolean[0m
+Result false
+[32mConcretizing org.springframework.web.servlet.support.WebContentGenerator#prepareResponse(jakarta.servlet.http.HttpServletResponse):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.servlet.DispatcherServlet#applyDefaultViewName(jakarta.servlet.http.HttpServletRequest,org.springframework.web.servlet.ModelAndView):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.HandlerExecutionChain#applyPostHandle(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.ModelAndView):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.DispatcherServlet#processDispatchResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.HandlerExecutionChain,org.springframework.web.servlet.ModelAndView,java.lang.Exception):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isMultipartRequestParsed():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncUtils#getAsyncManager(jakarta.servlet.ServletRequest):org.springframework.web.context.request.async.WebAsyncManager[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.web.context.request.async.WebAsyncManager@6cda3811
+[32mConcretizing org.springframework.web.context.request.async.WebAsyncManager#isConcurrentHandlingStarted():boolean[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result false
+[32mConcretizing org.springframework.web.util.ServletRequestPathUtils#setParsedRequestPath(org.springframework.http.server.RequestPath,jakarta.servlet.ServletRequest):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#resetContextHolders(jakarta.servlet.http.HttpServletRequest,org.springframework.context.i18n.LocaleContext,org.springframework.web.context.request.RequestAttributes):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.AbstractRequestAttributes#requestCompleted():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#logResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,java.lang.Throwable,org.springframework.web.context.request.async.WebAsyncManager):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.servlet.FrameworkServlet#publishRequestHandledEvent(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,long,java.lang.Throwable):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#getAsyncContext():jakarta.servlet.AsyncContext[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.filter.RequestContextFilter#resetContextHolders():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[31mCalling org.apache.commons.logging.Log#isTraceEnabled():boolean[0m
+[32mConcretizing org.springframework.web.context.request.AbstractRequestAttributes#requestCompleted():void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#removeAttribute(java.lang.String):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.mock.web.MockHttpServletRequest#getDispatcherType():jakarta.servlet.DispatcherType[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result REQUEST
+[32mConcretizing java.lang.Enum#equals(java.lang.Object):boolean[0m
+Result false
+[32mConcretizing org.springframework.test.web.servlet.MockMvc#applyDefaultResultActions(org.springframework.test.web.servlet.MvcResult):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result null
+[32mConcretizing org.springframework.web.context.request.RequestContextHolder#setRequestAttributes(org.springframework.web.context.request.RequestAttributes):void[0m
+Result null
+[32mConcretizing org.springframework.test.web.servlet.MockMvc$1#<init>(org.springframework.test.web.servlet.MockMvc,org.springframework.test.web.servlet.MvcResult):void[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.test.web.servlet.MockMvc$1@3ab5c441
+[32mConcretizing org.springframework.test.web.servlet.MockMvc$1#andReturn():org.springframework.test.web.servlet.MvcResult[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.test.web.servlet.DefaultMvcResult@65c3517f
+[32mConcretizing org.springframework.test.web.servlet.DefaultMvcResult#getResponse():org.springframework.mock.web.MockHttpServletResponse[0m
+[WARNING] incorrect concreteness tracking or effect storage
+Result org.springframework.mock.web.MockHttpServletResponse@3cd7cca
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.Object):void[0m
+[31mCalling generated.org.springframework.boot.pinnedValues.PinnedValueStorage#writePinnedValue(generated.org.springframework.boot.pinnedValues.PinnedValueSource,java.lang.String,java.lang.Object):void[0m
+[32mConcretizing java.lang.Enum#name():java.lang.String[0m
+Result RESPONSE
+[31mApproximated generated.org.springframework.boot.pinnedValues.PinnedValueStorage#_writePinnedInner(java.lang.String,java.lang.String,java.lang.Object,java.lang.Class):void[0m
+[31mCalling org.springframework.boot.SpringApplication#_internalLog(java.lang.String[]):void[0m
+[36m[USVM] end of path analysis[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+[36m/simple/increment_from_header[0m
+[31mApproximated org.springframework.boot.SpringApplication#_println(java.lang.String):void[0m
+removed state: 11
+UTestExecutionSuccessResult(trace=[], result=Null(type=org.jacodb.api.jvm.PredefinedPrimitive@375194), initialState=UTestExecutionState(instanceDescriptor=null, argsDescriptors=[], statics={}), resultState=UTestExecutionState(instanceDescriptor=null, argsDescriptors=[], statics={}))
+inaccessible field get

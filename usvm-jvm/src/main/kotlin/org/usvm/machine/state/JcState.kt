@@ -5,9 +5,6 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.PathNode
 import org.usvm.UCallStack
-import org.usvm.UConcreteHeapRef
-import org.usvm.UExpr
-import org.usvm.USort
 import org.usvm.UState
 import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
@@ -19,7 +16,7 @@ import org.usvm.merging.MutableMergeGuard
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
-class JcState(
+open class JcState(
     ctx: JcContext,
     ownership: MutabilityOwnership,
     override val entrypoint: JcMethod,
@@ -31,7 +28,6 @@ class JcState(
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
     var methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
-    var userDefinedValues: Map<String, Pair<UExpr<out USort>, JcType>> = emptyMap()
 ) : UState<JcType, JcMethod, JcInst, JcContext, JcTarget, JcState>(
     ctx,
     ownership,
@@ -43,11 +39,6 @@ class JcState(
     forkPoints,
     targets
 ) {
-
-    fun getUserDefinedValue(key: String): Pair<UExpr<out USort>, JcType>? {
-        return userDefinedValues[key]
-    }
-
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcState {
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()
@@ -69,7 +60,6 @@ class JcState(
             forkPoints,
             methodResult,
             targets.clone(),
-            userDefinedValues
         )
 
         println("\u001B[34m" + "[${this.id}] -> [${this.id}, ${new.id}]" + "\u001B[0m")
@@ -115,6 +105,7 @@ class JcState(
 
         this.ownership = newThisOwnership
         other.ownership = newOtherOwnership
+//        TODO: support new JcState info merge (userDefinedValues, reqSetup, res, resultConclusion...)
         return JcState(
             ctx,
             mergedOwnership,

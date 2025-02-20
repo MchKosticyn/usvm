@@ -312,7 +312,8 @@ class JcConcreteMemory private constructor(
     private fun shouldNotInvoke(method: JcMethod): Boolean {
         return forbiddenInvocations.contains(method.humanReadableSignature) ||
                 method.enclosingClass.isSpringFilter && (method.name == "doFilter" || method.name == "doFilterInternal") ||
-                method.enclosingClass.isSpringFilterChain && (method.name == "doFilter" || method.name == "doFilterInternal")
+                method.enclosingClass.isSpringFilterChain && (method.name == "doFilter" || method.name == "doFilterInternal") ||
+                method.enclosingClass.isArgumentResolver(ctx) && (method.name == "resolveArgument" || method.name == "readWithMessageConverters" || method.name == "resolveName")
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
@@ -346,6 +347,13 @@ class JcConcreteMemory private constructor(
         return !forceMethodInvoke(method)
                 // TODO: delete this, but create encoding for static fields (analyze clinit symbolically and write fields) #CM
                 && method is JcEnrichedVirtualMethod && method.enclosingClass.toType().isStaticApproximation
+    }
+
+    fun concretize(state: JcState, expr: UExpr<*>, type: JcType, modeFlag: ResolveMode): Any? {
+        val concretizer = JcConcretizer(state)
+        return concretizer.withMode(modeFlag){
+            return@withMode concretizer.resolveExpr(expr, type);
+        }
     }
 
     // TODO: move to bindings?
@@ -848,9 +856,6 @@ class JcConcreteMemory private constructor(
             "org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod#invokeAndHandle(org.springframework.web.context.request.ServletWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):void",
             "org.springframework.web.method.support.InvocableHandlerMethod#invokeForRequest(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):java.lang.Object",
             "org.springframework.web.method.support.InvocableHandlerMethod#getMethodArgumentValues(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):java.lang.Object[]",
-            "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
-            "org.springframework.web.servlet.mvc.method.annotation.PathVariableMethodArgumentResolver#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
-            "org.springframework.web.method.annotation.RequestParamMethodArgumentResolver#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
             "org.springframework.web.method.annotation.ModelAttributeMethodProcessor#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
             "org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
             "org.springframework.web.method.support.InvocableHandlerMethod#doInvoke(java.lang.Object[]):java.lang.Object",
@@ -870,6 +875,33 @@ class JcConcreteMemory private constructor(
             "org.springframework.security.web.FilterChainProxy#doFilterInternal(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void",
             "org.springframework.security.web.session.DisableEncodeUrlFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
             "org.springframework.security.web.header.HeaderWriterFilter#doHeadersAfter(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
+
+            // TODO: check all below
+            "org.springframework.mock.web.MockHttpServletRequest#getParameterMap():java.util.Map",
+            "org.springframework.mock.web.MockHttpServletRequest#_getHeaderMap():java.util.Map",
+            "org.springframework.mock.web.MockHttpServletRequest#_getMatrixMap():java.util.Map",
+            "org.springframework.mock.web.MockHttpServletRequest#getHeader(java.lang.String):java.lang.String",
+            "org.springframework.mock.web.MockHttpServletRequest#getParameter(java.lang.String):java.lang.String",
+
+            "org.springframework.http.HttpHeaders#getContentType():org.springframework.http.MediaType",
+
+            "org.springframework.security.web.access.intercept.AuthorizationFilter#getAuthentication():org.springframework.security.core.Authentication",
+            "org.springframework.security.core.context.ThreadLocalSecurityContextHolderStrategy#getContext():org.springframework.security.core.context.SecurityContext",
+            "org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors\$SecurityContextRequestPostProcessorSupport\$TestSecurityContextRepository#loadContext(org.springframework.security.web.context.HttpRequestResponseHolder):org.springframework.security.core.context.SecurityContext",
+            "org.springframework.security.web.context.DelegatingSecurityContextRepository#loadContext(org.springframework.security.web.context.HttpRequestResponseHolder):org.springframework.security.core.context.SecurityContext",
+            "org.springframework.security.web.context.RequestAttributeSecurityContextRepository#loadContext(org.springframework.security.web.context.HttpRequestResponseHolder):org.springframework.security.core.context.SecurityContext",
+            "org.springframework.security.core.context.ThreadLocalSecurityContextHolderStrategy#lambda\$getDeferredContext\$0(org.springframework.security.core.context.SecurityContext):org.springframework.security.core.context.SecurityContext",
+            "org.springframework.security.core.context.ThreadLocalSecurityContextHolderStrategy#getDeferredContext():java.util.function.Supplier",
+
+            // TODO: Temporary, to check JSON object creation issues
+            "org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter#read(java.lang.reflect.Type,java.lang.Class,org.springframework.http.HttpInputMessage):java.lang.Object",
+            "org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter#readJavaType(com.fasterxml.jackson.databind.JavaType,org.springframework.http.HttpInputMessage):java.lang.Object",
+            "com.fasterxml.jackson.databind.ObjectReader#readValue(java.io.InputStream):java.lang.Object",
+            "com.fasterxml.jackson.databind.ObjectReader#_bindAndClose(com.fasterxml.jackson.core.JsonParser):java.lang.Object",
+            "com.fasterxml.jackson.databind.deser.DefaultDeserializationContext#readRootValue(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.JavaType,com.fasterxml.jackson.databind.JsonDeserializer,java.lang.Object):java.lang.Object",
+            "com.fasterxml.jackson.databind.deser.BeanDeserializer#deserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext):java.lang.Object",
+            "com.fasterxml.jackson.databind.deser.BeanDeserializer#deserializeFromObject(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext):java.lang.Object",
+            "com.fasterxml.jackson.databind.deser.impl.MethodProperty#deserializeAndSet(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext,java.lang.Object):void"
         )
 
         private val concretizeInvocations = setOf(

@@ -8,6 +8,7 @@ import java.io.InputStream
 import java.net.URL
 import java.security.AccessController
 import java.security.CodeSigner
+import java.util.Enumeration
 
 class URLClassPathLoader(classPath: List<File>) {
 
@@ -33,6 +34,7 @@ class URLClassPathLoader(classPath: List<File>) {
 
     private val urlClassPath = URLClassPath(classPath.map { it.toURI().toURL() }.toTypedArray(), AccessController.getContext())
 
-    fun getResource(name: String): Resource = InternalResourceWrapper(urlClassPath.getResource(name, false))
+    fun getResource(name: String): Resource? = urlClassPath.getResource(name, false)?.let { InternalResourceWrapper(it) }
+    fun getResources(name: String): Sequence<Resource> = urlClassPath.getResources(name, false).asSequence().map { InternalResourceWrapper(it) }
 
 }

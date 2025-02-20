@@ -8,7 +8,6 @@ import kotlin.io.path.exists
 
 plugins {
     id("usvm.kotlin-conventions")
-    id("org.springframework.boot") version "3.2.0"
 }
 
 val samples by sourceSets.creating {
@@ -40,6 +39,7 @@ val approximationsVersion = "0.0.0"
 dependencies {
     implementation(project(":usvm-core"))
     implementation(project(":usvm-jvm-dataflow"))
+    implementation(project(":usvm-jvm-instrumentation"))
 
     implementation(Libs.jacodb_api_jvm)
     implementation(Libs.jacodb_core)
@@ -48,6 +48,12 @@ dependencies {
     implementation(project("usvm-jvm-api"))
     implementation(project("usvm-jvm-test-api"))
     implementation(project(":usvm-jvm:usvm-jvm-util"))
+    implementation(project(":usvm-jvm:usvm-jvm-reproducer"))
+
+    implementation("org.springframework.boot:spring-boot-starter-test:3.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-web:3.2.0")
+    implementation("org.springframework:spring-jcl:6.1.1")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.2.0")
 
     implementation(Libs.ksmt_runner)
     implementation(Libs.ksmt_yices)
@@ -73,6 +79,8 @@ val springApproximationsDeps by configurations.creating
 dependencies {
     springApproximationsDeps("org.springframework.boot:spring-boot-starter-test:3.2.0")
     springApproximationsDeps("org.springframework.boot:spring-boot-starter-web:3.2.0")
+    // springApproximationsDeps("org.springframework.boot:spring-boot-starter-security:3.3.4")
+    // springApproximationsDeps("org.springframework.security:spring-security-test:6.2.0")
     springApproximationsDeps("org.springframework:spring-jcl:6.1.1")
     springApproximationsDeps("org.springframework.boot:spring-boot-starter-data-jpa:3.2.0")
 }
@@ -91,6 +99,20 @@ dependencies {
 
     testImplementation(project(":usvm-jvm-instrumentation"))
 }
+
+val testReproducingDeps by configurations.creating
+
+dependencies {
+    testReproducingDeps("org.springframework.boot:spring-boot-starter-test:${Versions.bootStarterTest}")
+    testReproducingDeps("org.slf4j:slf4j-api:${Versions.Samples.slf4j}")
+//    testReproducingDeps("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.0")
+//    testReproducingDeps("org.jetbrains.xodus:xodus-utils:2.0.1")
+//    testReproducingDeps("org.jetbrains.xodus:xodus-entity-store:2.0.1")
+//    testReproducingDeps("org.jetbrains.xodus:xodus-environment:2.0.1")
+//    testReproducingDeps(Libs.jacodb_api_jvm)
+//    testReproducingDeps(Libs.jacodb_approximations)
+}
+
 
 val `sample-approximationsCompileOnly`: Configuration by configurations.getting
 
@@ -196,11 +218,7 @@ publishing {
 }
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web:3.3.4")
-    implementation("org.springframework.boot:spring-boot-starter-test:3.3.4")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.3.4")
     implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:3.3.4")
 }
 
 tasks.register<JavaExec>("runWebBench") {
@@ -209,6 +227,8 @@ tasks.register<JavaExec>("runWebBench") {
 
     systemProperty("jdk.util.jar.enableMultiRelease", false)
 
+    environment("usvm-jvm-instrumentation-jar", "C:/Users/arthur/Documents/ausvm/usvm-jvm-instrumentation/build/libs/usvm-jvm-instrumentation-runner.jar")
+    environment("usvm-jvm-collectors-jar", "C:/Users/arthur/Documents/ausvm/usvm-jvm-instrumentation/build/libs/usvm-jvm-instrumentation-collectors.jar")
     val usvmApiJarPath = usvmApiJarConfiguration.resolvedConfiguration.files.single()
     val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
     val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
@@ -216,6 +236,8 @@ tasks.register<JavaExec>("runWebBench") {
 
     // TODO: norm? #CM #Valya
     systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)
+    val testReproducingDepsPaths = testReproducingDeps.resolvedConfiguration.files.joinToString(";") { it.absolutePath }
+    environment("usvm.jvm.testReproducingDeps.paths", testReproducingDepsPaths)
     val currentDir = Path(System.getProperty("user.dir"))
     val generatedDir = currentDir.resolve("generated")
     generatedDir.createDirectories()

@@ -34,6 +34,7 @@ import org.jacodb.impl.features.hierarchyExt
 import org.jacodb.impl.jacodb
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.FieldNode
 import org.usvm.CoverageZone
@@ -47,7 +48,7 @@ import org.usvm.jvm.util.isSameSignature
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
 import org.usvm.logger
-import org.usvm.machine.JcMachine
+import org.usvm.machine.JcSpringMachine
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.SpringAnalysisMode
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
@@ -102,9 +103,16 @@ private fun loadKlawBench(): BenchCp {
     }
 }
 
+private fun loadSynthBench(): BenchCp {
+    val benchDir = Path("C:/Users/arthur/Documents/usvm-spring-benchmarks/build/libs/BOOT-INF")
+    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib").apply {
+        entrypointFilter = { it.enclosingClass.simpleName.startsWith("SpringBenchmarks") }
+    }
+}
+
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadKlawBench()
+        loadSynthBench()
     }
 
     logTime("Analysis ALL") {
@@ -283,7 +291,14 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     dir.createDirectories()
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
+    val importAnnotation = cp.findClass("org.springframework.context.annotation.Import")
     val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
+    val securityConfigs = cp.nonAbstractClasses(benchmark.classLocations)
+        .filter {
+            it.annotations.any { annotation ->
+                annotation.name == "org.springframework.security.config.annotation.web.configuration.EnableWebSecurity"
+            }
+        }.toList()
     val repositories = runBlocking { cp.hierarchyExt() }
         .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
         .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
@@ -307,7 +322,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
                 }
             }?.packageName
             ?: throw IllegalArgumentException("No entry classes found (with SpringBootApplication annotation)")
-    val entryPackagePath = Path(webApplicationPackage.replace('.', '/'))
+    val entryPackagePath = webApplicationPackage.replace('.', '/')
 
     val testClassName = "StartSpringTestClass"
     val testClassFullName = "$entryPackagePath/$testClassName"
@@ -321,7 +336,9 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             field.visibleAnnotations = listOf(AnnotationNode(mockAnnotation.jvmDescriptor))
             classNode.fields.add(field)
         }
-
+        val importAnnotationNode = AnnotationNode(importAnnotation.jvmDescriptor)
+        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) })
+        classNode.visibleAnnotations.add(importAnnotationNode)
         classNode.write(cp, dir.resolve("$testClassFullName.class"), checkClass = true)
     }
 
@@ -376,7 +393,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.SPRING_APPLICATION,
         exceptionsPropagation = false,
-        timeout = 5.minutes,
+        timeout = 15.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
@@ -391,7 +408,7 @@ private fun analyzeBench(benchmark: BenchCp) {
             springAnalysisMode = SpringAnalysisMode.WebMVCTest
         )
     val testResolver = JcTestInterpreter()
-    JcMachine(cp, options, jcMachineOptions).use { machine ->
+    JcSpringMachine(cp, options, jcMachineOptions).use { machine ->
         val states = machine.analyze(method.method)
         states.map { testResolver.resolve(method, it) }
     }

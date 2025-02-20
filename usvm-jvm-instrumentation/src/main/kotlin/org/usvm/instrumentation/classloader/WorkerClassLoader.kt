@@ -7,15 +7,21 @@ import org.jacodb.api.jvm.ext.findClass
 import org.objectweb.asm.tree.ClassNode
 import org.usvm.instrumentation.instrumentation.JcRuntimeTraceInstrumenter
 import org.usvm.instrumentation.testcase.descriptor.StaticDescriptorsBuilder
-import org.usvm.instrumentation.util.*
-import java.lang.instrument.ClassDefinition
-import java.lang.instrument.Instrumentation
-import java.security.CodeSource
-import java.security.SecureClassLoader
+import org.usvm.instrumentation.util.URLClassPathLoader
+import org.usvm.instrumentation.util.invokeWithAccessibility
 import org.usvm.jvm.util.isFinal
 import org.usvm.jvm.util.isStatic
 import org.usvm.jvm.util.setFieldValue
 import org.usvm.jvm.util.toByteArray
+import java.lang.instrument.ClassDefinition
+import java.lang.instrument.Instrumentation
+import java.net.URL
+import java.security.CodeSource
+import java.security.SecureClassLoader
+import java.util.Enumeration
+import java.util.Collections
+import kotlin.collections.ArrayList
+import kotlin.collections.LinkedHashMap
 
 /**
  * Worker classloader using as classloader in testing project
@@ -126,7 +132,7 @@ class WorkerClassLoader(
     private fun getWorkerResource(name: String): URLClassPathLoader.Resource = cachedClasses.getOrPut(name) {
         val path = name.replace('.', '/') + ".class"
         val resource = urlClassPath.getResource(path)
-        WorkerResource(resource)
+        WorkerResource(resource!!)
     }
 
     companion object {
@@ -134,9 +140,17 @@ class WorkerClassLoader(
     }
 
     private class WorkerResource(val resource: URLClassPathLoader.Resource) : URLClassPathLoader.Resource by resource {
-
         private val cachedBytes by lazy { resource.getBytes() }
         override fun getBytes(): ByteArray = cachedBytes
     }
 
+    override fun getResource(name: String?): URL? {
+        if (name == null) return null
+        return urlClassPath.getResource(name)?.getURL()
+    }
+
+    override fun findResources(name: String): Enumeration<URL> {
+        val resourceUrls = urlClassPath.getResources(name).map { it.getURL() }
+        return Collections.enumeration(resourceUrls.toList())
+    }
 }

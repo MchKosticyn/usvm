@@ -29,7 +29,6 @@ import org.jacodb.api.jvm.ext.double
 import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.findType
-import org.jacodb.api.jvm.ext.findTypeOrNull
 import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.ifArrayGetElementType
 import org.jacodb.api.jvm.ext.int
@@ -106,15 +105,20 @@ import org.usvm.api.readField
 import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.writeField
 import org.usvm.getIntValue
+import org.usvm.machine.state.newStmt
+import org.usvm.mkSizeAddExpr
+import org.usvm.mkSizeExpr
+import org.usvm.types.single
+import java.util.ArrayList
+import java.util.TreeMap
+import org.usvm.machine.state.JcSpringState
 import org.usvm.machine.state.concreteMemory.allInstanceFields
 import org.usvm.machine.state.concreteMemory.classesOfLocations
 import org.usvm.machine.state.concreteMemory.isSpringController
 import org.usvm.machine.state.concreteMemory.javaName
-import org.usvm.machine.state.newStmt
-import org.usvm.mkSizeAddExpr
-import org.usvm.mkSizeExpr
-import java.util.ArrayList
-import java.util.TreeMap
+import org.usvm.machine.state.concreteMemory.toJcType
+import org.usvm.machine.state.pinnedValues.JcSpringPinnedValueKey
+import org.usvm.machine.state.pinnedValues.JcSpringPinnedValueSource
 
 class JcMethodApproximationResolver(
     private val ctx: JcContext,
@@ -207,6 +211,18 @@ class JcMethodApproximationResolver(
             if (approximateSpringServiceMethod(methodCall)) return true
         }
 
+        if (className.contains("org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodArgumentResolver\$EmptyBodyCheckingHttpInputMessage")) {
+            if (approximateMessageConverter(methodCall)) return true
+        }
+
+        if (className.contains("org.springframework.mock.web.MockHttpServletRequest")) {
+            if (approximateMockHttpRequest(methodCall)) return true
+        }
+
+        if (className.contains("java.lang.String")) {
+            if (approximateStringMethod(methodCall)) return true
+        }
+
         if (className == "java.lang.reflect.Method") {
             if (approximateMethodMethod(methodCall)) return true
         }
@@ -262,12 +278,24 @@ class JcMethodApproximationResolver(
             if (approximateSpringBootStaticMethod(methodCall)) return true
         }
 
+        if (className == "com.fasterxml.jackson.databind.deser.BeanDeserializer") {
+            if (approximateBeanDeserializerStatic(methodCall)) return true
+        }
+
+        if (className == "org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver") {
+            if (approximateArgumentResolverStatic(methodCall)) return true
+        }
+
         if (className == "jdk.internal.reflect.Reflection") {
             if (approximateJavaReflectionMethod(methodCall)) return true
         }
 
         if (className == "java.lang.reflect.Array") {
             if (approximateArrayReflectionMethod(methodCall)) return true
+        }
+
+        if (className == "generated.org.springframework.boot.pinnedValues.PinnedValueStorage") {
+            if (approximatePinnedValueStorage(methodCall)) return true
         }
 
         return approximateEmptyNativeMethod(methodCall)
@@ -339,16 +367,15 @@ class JcMethodApproximationResolver(
         if (method.name == "isInstance") {
             val classRef = arguments[0].asExpr(ctx.addressSort)
             val objectRef = arguments[1].asExpr(ctx.addressSort)
-            scope.doWithState {
-                val classRefTypeRepresentative =
-                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
-                classRefTypeRepresentative as UConcreteHeapRef
-                val classType = memory.types.typeOf(classRefTypeRepresentative.address)
+            return scope.calcOnState {
+                if (classRef is UConcreteHeapRef)
+                    return@calcOnState false
+                val classObj = memory.tryHeapRefToObject(classRef as UConcreteHeapRef) as Class<*>
+                val classType = ctx.cp.findType(classObj.name);
                 val isExpr = memory.types.evalIsSubtype(objectRef, classType)
                 skipMethodInvocationWithValue(methodCall, isExpr)
+                return@calcOnState true
             }
-
-            return true
         }
 
         return false
@@ -426,9 +453,16 @@ class JcMethodApproximationResolver(
 
         if (method.name.equals("_println")) {
             scope.doWithState {
-                val messageExpr = methodCall.arguments[0].asExpr(ctx.addressSort) as UConcreteHeapRef
-                val message = memory.tryHeapRefToObject(messageExpr) as String
-                println("\u001B[36m" + message + "\u001B[0m")
+                val firstArg = methodCall.arguments[0].asExpr(ctx.addressSort)
+
+                if (firstArg is UNullRef) {
+                    println("\u001B[36m null \u001B[0m")
+                }
+                else {
+                    val messageExpr = firstArg as UConcreteHeapRef
+                    val message = memory.tryHeapRefToObject(messageExpr) as String?
+                    println("\u001B[36m" + (message ?: "null") + "\u001B[0m")
+                }
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
             }
 
@@ -593,10 +627,10 @@ class JcMethodApproximationResolver(
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldSkipPath(path: String, kind: String, controllerTypeName: String): Boolean {
-        return false
+        return path != "/simple/increment_from_header"
     }
 
-    private fun shuoldSkipController(controllerType: JcClassOrInterface): Boolean {
+    private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
         return controllerType.annotations.any {
             // TODO: support conditional controllers and dependend conditional beans
             it.name == "org.springframework.boot.autoconfigure.condition.ConditionalOnProperty"
@@ -607,7 +641,7 @@ class JcMethodApproximationResolver(
         val values = annotation.values
         // TODO: suppport list #CM
         val method = (values["method"] as List<*>)[0] as JcField
-        return method.name.lowercase()
+        return method.name.uppercase()
     }
 
     private fun combinePaths(basePath: String, localPath: String): String {
@@ -624,7 +658,7 @@ class JcMethodApproximationResolver(
         val controllerTypes =
             ctx.classesOfLocations(options.projectLocations!!)
                 .filter { !it.isAbstract && !it.isInterface && !it.isAnonymous && it.isSpringController }
-                .filterNot { shuoldSkipController(it) }
+                .filterNot { shouldSkipController(it) }
         val result = TreeMap<String, Map<String, List<Any>>>()
         for (controllerType in controllerTypes) {
             val basePath: String? = reqMappingPath(controllerType)
@@ -635,11 +669,11 @@ class JcMethodApproximationResolver(
                     val kind =
                         when (annotation.name) {
                             "org.springframework.web.bind.annotation.RequestMapping" -> getRequestMappingMethod(annotation)
-                            "org.springframework.web.bind.annotation.GetMapping" -> "get"
-                            "org.springframework.web.bind.annotation.PostMapping" -> "post"
-                            "org.springframework.web.bind.annotation.PutMapping" -> "put"
-                            "org.springframework.web.bind.annotation.DeleteMapping" -> "delete"
-                            "org.springframework.web.bind.annotation.PatchMapping" -> "patch"
+                            "org.springframework.web.bind.annotation.GetMapping" -> "GET"
+                            "org.springframework.web.bind.annotation.PostMapping" -> "POST"
+                            "org.springframework.web.bind.annotation.PutMapping" -> "PUT"
+                            "org.springframework.web.bind.annotation.DeleteMapping" -> "DELETE"
+                            "org.springframework.web.bind.annotation.PatchMapping" -> "PATCH"
                             else -> null
                         }
 
@@ -658,8 +692,192 @@ class JcMethodApproximationResolver(
                 result[controllerType.name] = paths
         }
 
+        // TODO: Remove filter for all controller research
         return result
     }
+
+    private fun createNullableSymbolic(type: JcType, sort: USort = ctx.addressSort) : UExpr<out USort>? {
+        return scope.makeNullableSymbolicRef(type)?.asExpr(sort)
+    }
+
+    private fun getTypeFromParameter(parameter: UHeapRef) : JcType? = scope.calcOnState {
+        // TODO: rework (ask Artur)
+        val annotatedMethodParameterType = memory.types.typeOf((parameter as UConcreteHeapRef).address) as JcClassType
+        val parameterTypeField = annotatedMethodParameterType.allInstanceFields.single {it.name == "parameterType"}
+        val parameterTypeRef = memory.readField(parameter, parameterTypeField.field, ctx.addressSort) as UConcreteHeapRef
+        val typeType = memory.types.getTypeStream(parameterTypeRef).single() as JcClassType
+        val typeNameField = typeType.allInstanceFields.single {it.name == "name"}
+        val typeNameRef = memory.readField(parameterTypeRef, typeNameField.field, ctx.addressSort) as UConcreteHeapRef
+        val typeName = memory.tryHeapRefToObject(typeNameRef) as String
+        val type = ctx.cp.findTypeOrNull(typeName)
+
+        if (type == null) {
+            println("Non-concrete type is not supported for controller parameter")
+            return@calcOnState null
+        }
+
+        return@calcOnState type
+    }
+
+    private fun approximatePinnedValueStorage(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "_writePinnedInner") {
+            return scope.calcOnState {
+                this as JcSpringState
+                val pinnedSourceNameArg = methodCall.arguments[0] as UConcreteHeapRef
+                val nameArg = methodCall.arguments[1]
+                val sourceArg = methodCall.arguments[2]
+                val clazzArg = methodCall.arguments[3] as UConcreteHeapRef
+                val pinnedSourceName = memory.tryHeapRefToObject(pinnedSourceNameArg) as String?
+                val name = if (nameArg is UNullRef) null else memory.tryHeapRefToObject(nameArg as UConcreteHeapRef) as String
+                val clazz = memory.tryHeapRefToObject(clazzArg) as Class<*>?
+
+                if (clazz == null || pinnedSourceName == null) {
+                    println("Source and class should be concrete")
+                    return@calcOnState false
+                }
+
+                val type = clazz.toJcType(ctx)
+                if (type == null) {
+                    println("Type cannot be found: ${clazz.name}")
+                    return@calcOnState false
+                }
+
+                val source = JcSpringPinnedValueSource.valueOf(pinnedSourceName)
+                val key = JcSpringPinnedValueKey.ofSource(source, name)
+                setPinnedValue(key, sourceArg, type)
+
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+                return@calcOnState true
+            }
+        }
+
+        if (method.name == "_readPinnedInner") {
+            return scope.calcOnState {
+                this as JcSpringState
+                val pinnedSourceNameArg = methodCall.arguments[0] as UConcreteHeapRef
+                val nameArg = methodCall.arguments[1]
+                val clazzArg = methodCall.arguments[2] as UConcreteHeapRef
+                val pinnedSourceName = memory.tryHeapRefToObject(pinnedSourceNameArg) as String?
+                val clazz = memory.tryHeapRefToObject(clazzArg) as Class<*>?
+                val name = if (nameArg is UNullRef) null else memory.tryHeapRefToObject(nameArg as UConcreteHeapRef) as String
+
+                if (clazz == null || pinnedSourceName == null) {
+                    println("Source and class should be concrete")
+                    return@calcOnState false
+                }
+
+                val type = clazz.toJcType(ctx)
+                if (type == null) {
+                    println("Type cannot be found: ${clazz.name}")
+                    return@calcOnState false
+                }
+
+                val source = JcSpringPinnedValueSource.valueOf(pinnedSourceName)
+                val key = JcSpringPinnedValueKey.ofSource(source, name)
+                // TODO: Other sorts? #AA
+                val value = createPinnedIfAbsent(key, type, scope, ctx.addressSort) ?: return@calcOnState false
+
+                skipMethodInvocationWithValue(methodCall, value.getExpr())
+                return@calcOnState true
+            }
+        }
+
+        return false
+    }
+
+    private fun approximateArgumentResolverStatic(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        /* AbstractNamedValueMethodArgumentResolver
+         * Web data binder convert is too hard to execute symbolically
+         * If it is convertible, will just replace string argument given in state user values
+         */
+        if (method.name == "convertIfNecessary") {
+            val parameter = methodCall.arguments[0] as UConcreteHeapRef
+            val source = methodCall.arguments[4]
+            return scope.calcOnState {
+                this as JcSpringState
+                val type = getTypeFromParameter(parameter)
+                val key = getPinnedValueKey(source)
+                val newSymbolicValue = createPinnedIfAbsent(key!!, type!!, scope, ctx.addressSort, true) ?: return@calcOnState false
+                skipMethodInvocationWithValue(methodCall, newSymbolicValue.getExpr())
+                return@calcOnState true
+            }
+        }
+
+        return@with false
+    }
+
+    private fun approximateMockHttpRequest(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "setAttribute") {
+            val keyArgument = arguments[1].asExpr(ctx.addressSort)
+            val valueArgument = arguments[2].asExpr(ctx.addressSort)
+            return scope.calcOnState {
+                this as JcSpringState
+                val key = memory.tryHeapRefToObject(keyArgument as UConcreteHeapRef) as String?
+                val value = memory.tryHeapRefToObject(valueArgument as UConcreteHeapRef)
+
+                // TODO: Use other symbolic check if possible #AA
+                if (value != null || key == null) return@calcOnState false
+
+                val pinnedValueKey = JcSpringPinnedValueKey.requestAttribute(key)
+                setPinnedValue(pinnedValueKey, valueArgument, ctx.cp.objectType)
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+                return@calcOnState true
+            }
+        }
+
+        if (method.name == "getAttribute") {
+            val keyArgument = arguments[1].asExpr(ctx.addressSort)
+            return scope.calcOnState {
+                this as JcSpringState
+                val key = memory.tryHeapRefToObject(keyArgument as UConcreteHeapRef) as String? ?: return@calcOnState false
+                val userValueKey = JcSpringPinnedValueKey.requestAttribute(key)
+                val writtenValue = getPinnedValue(userValueKey) ?: return@calcOnState false
+                skipMethodInvocationWithValue(methodCall, writtenValue.getExpr())
+                return@calcOnState true
+            }
+        }
+
+        return false
+    }
+
+
+    private fun approximateMessageConverter(methodCall: JcMethodCall): Boolean {
+        if (methodCall.method.name == "hasBody") {
+            return scope.calcOnState {
+                this as JcSpringState
+                val hasBody = createPinnedIfAbsent(JcSpringPinnedValueKey.requestHasBody(), ctx.cp.boolean, scope, ctx.booleanSort) ?: return@calcOnState false
+                skipMethodInvocationWithValue(methodCall, hasBody.getExpr())
+                return@calcOnState true
+            }
+        }
+        return false
+    }
+
+    private fun approximateBeanDeserializerStatic(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "_concreteDeserialization") {
+            return scope.calcOnState {
+                // TODO: In any user code too
+                val concreteDeserializationMode = callStack.any { it.method.name == "readWithMessageConverters" && it.method.enclosingClass.name == "org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor" }
+                skipMethodInvocationWithValue(methodCall, ctx.mkBool(!concreteDeserializationMode))
+                return@calcOnState true
+            }
+        }
+        return false
+    }
+
+    private fun approximateStringMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "equals") {
+            return scope.calcOnState {
+                val first = arguments[0].asExpr(ctx.addressSort)
+                val second = arguments[1].asExpr(ctx.addressSort)
+                val result = stringEquals(first, second)
+                skipMethodInvocationWithValue(methodCall, result)
+                return@calcOnState true
+            }
+        }
+        return false
+    }
+
 
     private fun approximateSpringBootMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         val methodName = method.name
@@ -675,6 +893,7 @@ class JcMethodApproximationResolver(
         }
 
         if (methodName == "printBanner") {
+            // TODO: depends on version
             val bannerType = ctx.cp.findTypeOrNull(method.returnType.typeName) as JcClassType
             val bannerModeType = bannerType.innerTypes.single()
             check(bannerModeType.jcClass.isEnum)
@@ -685,11 +904,12 @@ class JcMethodApproximationResolver(
                 method.enclosingClass
                     .toType()
                     .declaredFields
-                    .single { it.name == "bannerMode" }
-                    .field
+                    .singleOrNull { it.name == "bannerMode" }
+                    ?.field
             val springApplication = arguments.first().asExpr(ctx.addressSort)
             scope.doWithState {
-                memory.writeField(springApplication, bannerModeField, ctx.addressSort, bannerModeOffValue, ctx.trueExpr)
+                if (bannerModeField != null)
+                    memory.writeField(springApplication, bannerModeField, ctx.addressSort, bannerModeOffValue, ctx.trueExpr)
                 skipMethodInvocationWithValue(methodCall, ctx.nullRef)
             }
 
@@ -889,7 +1109,18 @@ class JcMethodApproximationResolver(
                 val fields = declaringClass.declaredFields + declaringClass.fields
                 val jcField = fields.find { it.name == field.name } ?: return@calcOnState false
                 val sort = ctx.typeToSort(jcField.type)
-                memory.writeField(thisArg, jcField.field, sort, arguments[2].asExpr(ctx.addressSort), ctx.trueExpr)
+                // TODO: unify with another autoboxing
+                val valueSource = arguments[2].asExpr(ctx.addressSort)
+                if (jcField.type is JcPrimitiveType) {
+                    val boxedType = jcField.type.autoboxIfNeeded() as JcClassType
+                    val valueField = boxedType.declaredFields.find { it.name == "value" } ?: return@calcOnState false
+                    val value = memory.readField(valueSource, valueField.field, sort)
+                    memory.writeField(thisArg, jcField.field, sort, value, ctx.trueExpr)
+                }
+                else {
+                    memory.writeField(thisArg, jcField.field, sort, arguments[2].asExpr(ctx.addressSort), ctx.trueExpr)
+                }
+
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
 
                 return@calcOnState true

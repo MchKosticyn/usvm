@@ -21,6 +21,7 @@ object Versions {
     const val sarif4k = "0.5.0"
     const val shadow = "8.3.3"
     const val slf4j = "1.6.1"
+    const val bootStarterTest = "3.2.0"
 
     // versions for jvm samples
     object Samples {

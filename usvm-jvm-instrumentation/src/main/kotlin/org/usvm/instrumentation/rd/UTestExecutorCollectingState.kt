@@ -22,6 +22,10 @@ class UTestExecutorCollectingState(
     ucp: URLClassPathLoader
 ) : UTestExecutor(jcClasspath, ucp) {
 
+    init {
+        workerClassLoader.setStaticDescriptorsBuilder(staticDescriptorsBuilder)
+    }
+
     override fun buildExecutionState(
         callMethodExpr: UTestCall,
         executor: UTestExpressionExecutor,

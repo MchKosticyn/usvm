@@ -31,7 +31,6 @@ class UTestExpressionExecutor(
 
     private val jcClasspath = workerClassLoader.jcClasspath
 
-
     private val executedUTestInstructions: MutableMap<UTestInst, Any?> = hashMapOf()
     val objectToInstructionsCache: MutableList<Pair<Any?, UTestInst>> = mutableListOf()
 
@@ -301,7 +300,7 @@ class UTestExpressionExecutor(
     private fun executeUTestStaticMethodCall(uTestStaticMethodCall: UTestStaticMethodCall): Any? {
         val jMethod = uTestStaticMethodCall.method.toJavaMethod(workerClassLoader)
         val args = uTestStaticMethodCall.args.map { exec(it) }
-        return jMethod.invokeWithAccessibility(null, args)
+        return jMethod.invokeWithAccessibility(null, args, workerClassLoader)
     }
 
     private fun executeUTestCastExpression(uTestCastExpression: UTestCastExpression): Any? {
@@ -320,7 +319,7 @@ class UTestExpressionExecutor(
     private fun executeConstructorCall(uConstructorCall: UTestConstructorCall): Any {
         val jConstructor = uConstructorCall.method.toJavaConstructor(workerClassLoader)
         val args = uConstructorCall.args.map { exec(it) }
-        return jConstructor.newInstanceWithAccessibility(args)
+        return jConstructor.newInstanceWithAccessibility(args, workerClassLoader)
     }
 
     private fun executeMethodCall(uMethodCall: UTestMethodCall): Any? {
@@ -328,9 +327,9 @@ class UTestExpressionExecutor(
         val args = uMethodCall.args.map { exec(it) }
         return with(uMethodCall.method) {
             if (isConstructor) {
-                toJavaConstructor(workerClassLoader).newInstanceWithAccessibility(args)
+                toJavaConstructor(workerClassLoader).newInstanceWithAccessibility(args, workerClassLoader)
             } else {
-                toJavaMethod(workerClassLoader).invokeWithAccessibility(instance, args)
+                toJavaMethod(workerClassLoader).invokeWithAccessibility(instance, args, workerClassLoader)
             }
         }
     }

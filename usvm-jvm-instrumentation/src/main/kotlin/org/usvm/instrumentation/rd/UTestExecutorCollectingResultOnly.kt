@@ -26,4 +26,16 @@ class UTestExecutorCollectingResultOnly(jcClasspath: JcClasspath, ucp: URLClassP
         descriptorBuilder: Value2DescriptorConverter,
         accessedStatics: MutableSet<Pair<JcField, JcInstructionTracer.StaticFieldAccessType>>
     ): UTestExecutionState = emptyExecState
+
+    init {
+        if (InstrumentationModuleConstants.testExecutorStaticsRollbackStrategy != StaticsRollbackStrategy.REINIT)
+            workerClassLoader.setStaticDescriptorsBuilder(staticDescriptorsBuilder)
+    }
+
+    override fun reset() {
+        if (InstrumentationModuleConstants.testExecutorStaticsRollbackStrategy != StaticsRollbackStrategy.REINIT)
+            return super.reset()
+        JcInstructionTracer.reset()
+        MockCollector.mocks.clear()
+    }
 }

@@ -354,7 +354,8 @@ private class JcConcreteEffect(
     }
 
     fun addNewObject(obj: Any) {
-        check(isAlive)
+        // TODO: Think #AA
+        // check(isAlive)
         check(afterIsEmpty)
         isActiveVar = true
         before.addNewObject(obj)
