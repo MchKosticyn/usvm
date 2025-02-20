@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import org.usvm.PathSelectionStrategy
 import org.usvm.samples.approximations.ApproximationsTestRunner
 import org.usvm.samples.concretemem.ConcreteMemoryTests
+import org.usvm.samples.concretemem.SampleA
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
 import kotlin.time.Duration
 
@@ -55,6 +56,14 @@ class StringConcatApproximationsTest : ApproximationsTestRunner() {
             StringConcat::wip5,
             ignoreNumberOfAnalysisResults,
             invariants = arrayOf({ _, r -> r.getOrNull() == true })
+        )
+    }
+
+    @Test
+    fun nuf() {
+        checkDiscoveredPropertiesWithExceptions(
+            SampleA::genericUsage,
+            ignoreNumberOfAnalysisResults
         )
     }
 
