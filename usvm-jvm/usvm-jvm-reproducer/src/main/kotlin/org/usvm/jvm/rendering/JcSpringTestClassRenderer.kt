@@ -68,9 +68,7 @@ class JcSpringTestClassRenderer(
         }
 
         private fun loadFileAndValidate(file: File, meta: JcSpringTestMeta): JcSpringTestClassRenderer {
-            fun isValid(cu: CompilationUnit): Boolean =
-                cu.types.any { declaration -> declaration.name == SimpleName(meta.classUnderTest.jcClass.simpleName + CLASS_NAME_SUFFIX) }
-
+            fun isValid(cu: CompilationUnit): Boolean = true
             val cu = StaticJavaParser.parse(file)
             return if (isValid(cu)) {
                 JcSpringTestClassRenderer(
@@ -201,7 +199,10 @@ class JcSpringTestClassRenderer(
     }
 
     private fun TypeDeclaration<*>.injectTestBy(meta: JcSpringTestMeta): MethodDeclaration {
-        val test = this.addMethod(meta.pathUnderTest + METHOD_NAME_PREFIX + methods.size, Modifier.Keyword.PUBLIC)
+        val test = this.addMethod(
+            meta.pathUnderTest.replace("/", "") + METHOD_NAME_PREFIX + methods.size,
+            Modifier.Keyword.PUBLIC
+        )
         // TODO does not scale now
         test.addAnnotation(MarkerAnnotationExpr(Name(JUNIT5_ANNOTATION)))
         importManager.tryAdd(JUNIT5_ANNOTATION, simpleNameFromString(JUNIT5_ANNOTATION))

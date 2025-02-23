@@ -56,8 +56,25 @@ class JcSpringState(
     }
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
-        val jcStateClone = super.clone(newConstraints)
-        val new = defaultFromJcState(jcStateClone)
-        return new
+        val newThisOwnership = MutabilityOwnership()
+        val cloneOwnership = MutabilityOwnership()
+        val clonedConstraints = newConstraints?.also {
+            this.pathConstraints.changeOwnership(newThisOwnership)
+            it.changeOwnership(cloneOwnership)
+        } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
+        this.ownership = newThisOwnership
+        return JcSpringState(
+            ctx,
+            cloneOwnership,
+            entrypoint,
+            callStack.clone(),
+            clonedConstraints,
+            memory.clone(clonedConstraints.typeConstraints, newThisOwnership, cloneOwnership),
+            models,
+            pathNode,
+            forkPoints,
+            methodResult,
+            targets.clone(),
+        )
     }
 }
