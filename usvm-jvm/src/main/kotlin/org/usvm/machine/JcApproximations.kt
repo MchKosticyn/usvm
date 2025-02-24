@@ -1036,21 +1036,7 @@ class JcMethodApproximationResolver(
         }
 
         if (methodName == "printBanner") {
-            val bannerType = ctx.cp.findTypeOrNull(method.returnType.typeName) as JcClassType
-            val bannerModeType = bannerType.innerTypes.single()
-            check(bannerModeType.jcClass.isEnum)
-            val enumField = bannerModeType.declaredFields.single { it.isStatic && it.name == "OFF" }
-            val fieldRef = JcFieldRef(instance = null, field = enumField)
-            val bannerModeOffValue = fieldRef.accept(exprResolver)?.asExpr(ctx.addressSort) ?: return true
-            val bannerModeField =
-                method.enclosingClass
-                    .toType()
-                    .declaredFields
-                    .single { it.name == "bannerMode" }
-                    .field
-            val springApplication = arguments.first().asExpr(ctx.addressSort)
             scope.doWithState {
-                memory.writeField(springApplication, bannerModeField, ctx.addressSort, bannerModeOffValue, ctx.trueExpr)
                 skipMethodInvocationWithValue(methodCall, ctx.nullRef)
             }
 
