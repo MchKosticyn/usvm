@@ -8,6 +8,7 @@ import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.JcTypedMethod
@@ -18,7 +19,6 @@ import org.jacodb.api.jvm.ext.allSuperHierarchy
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.packageName
-import org.jacodb.api.jvm.ext.superClasses
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.throwClassNotFound
 import org.jacodb.approximation.Approximations
@@ -29,6 +29,8 @@ import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.api.internal.InitHelper
 import org.usvm.api.util.JcConcreteMemoryClassLoader
+import org.usvm.api.util.Reflection.allocateInstance
+import org.usvm.api.util.Reflection.invoke
 import org.usvm.api.util.Reflection.toJavaExecutable
 import org.usvm.jvm.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.jvm.util.setFieldValue as setFieldValueUnsafe
@@ -36,6 +38,8 @@ import org.usvm.machine.JcContext
 import org.usvm.util.name
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 import java.nio.ByteBuffer
@@ -278,6 +282,9 @@ internal val Class<*>.isLambda: Boolean
 internal val Class<*>.isThreadLocal: Boolean
     get() = ThreadLocal::class.java.isAssignableFrom(this)
 
+internal val JcClassOrInterface.isThreadLocal: Boolean
+    get() = allSuperHierarchyWithThis.any { it.name == "java.lang.ThreadLocal" }
+
 internal val Class<*>.isByteBuffer: Boolean
     get() = ByteBuffer::class.java.isAssignableFrom(this)
 
@@ -288,7 +295,7 @@ internal val JcClassOrInterface.isLambda: Boolean
     get() = name.contains("\$\$Lambda\$")
 
 internal val JcClassOrInterface.isException: Boolean
-    get() = superClasses.any { it.name == "java.lang.Throwable" }
+    get() = allSuperHierarchyWithThis.any { it.name == "java.lang.Throwable" }
 
 internal val JcMethod.isExceptionCtor: Boolean
     get() = isConstructor && enclosingClass.isException
@@ -373,7 +380,7 @@ internal val Class<*>.isClassLoader: Boolean
     get() = ClassLoader::class.java.isAssignableFrom(this)
 
 private fun typeNameIsInternal(name: String): Boolean {
-    return name.startsWith("org.usvm.") ||
+    return name.startsWith("org.usvm.") && !name.startsWith("org.usvm.samples") ||
             name.startsWith("runtime.LibSLRuntime") ||
             name.startsWith("runtime.LibSLGlobals") ||
             name.startsWith("generated.") ||
@@ -424,7 +431,7 @@ internal val Class<*>.isImmutableWithSubtypes: Boolean
                     || allFields.isEmpty() && isFinal)
 
 internal val JcClassOrInterface.isImmutable: Boolean
-    get() = immutableTypes.any { this.name == it.name || this.allSuperHierarchy.any { superClass -> superClass.name == it.name } }
+    get() = immutableTypes.any { this.allSuperHierarchyWithThis.any { cls -> cls.name == it.name } }
             || isEnum
             || packagesWithImmutableTypes.any { this.packageName.startsWith(it) }
             || isClassLoader
@@ -438,8 +445,11 @@ internal val Class<*>.allInstanceFieldsAreFinal: Boolean
 internal val Class<*>.isFinal: Boolean
     get() = Modifier.isFinal(modifiers)
 
+private val JcClassOrInterface.allSuperHierarchyWithThis: Set<JcClassOrInterface>
+    get() = allSuperHierarchy + this
+
 private val JcClassOrInterface.isClassLoader: Boolean
-    get() = allSuperHierarchy.any { it.name == "java.lang.ClassLoader" }
+    get() = allSuperHierarchyWithThis.any { it.name == "java.lang.ClassLoader" }
 
 internal val Class<*>.isSolid: Boolean
     get() = notTracked || this.isArray && this.componentType.notTrackedWithSubtypes
@@ -492,6 +502,66 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
 
         return ctx.cp.findTypeOrNull(this.typeName)
     } catch (e: Throwable) {
+        return null
+    }
+}
+
+internal class LambdaInvocationHandler : InvocationHandler {
+
+    private var methodName: String? = null
+    private var actualMethod: JcMethod? = null
+    private var closureArgs: List<Any?> = listOf()
+
+    fun init(actualMethod: JcMethod, methodName: String, args: List<Any?>) {
+        check(actualMethod !is JcEnrichedVirtualMethod)
+        this.methodName = methodName
+        this.actualMethod = actualMethod
+        closureArgs = args
+    }
+
+    override fun invoke(proxy: Any?, method: Method, args: Array<Any?>?): Any? {
+        if (methodName != null && methodName == method.name) {
+            var allArgs =
+                if (args == null) closureArgs
+                else closureArgs + args
+            var thisArg: Any? = null
+            val methodToInvoke = actualMethod!!
+            if (!methodToInvoke.isStatic) {
+                thisArg = allArgs[0]
+                allArgs = allArgs.drop(1)
+            }
+            return methodToInvoke.invoke(JcConcreteMemoryClassLoader, thisArg, allArgs)
+
+        }
+
+        val newArgs = args ?: arrayOf()
+        return InvocationHandler.invokeDefault(proxy, method, *newArgs)
+    }
+}
+
+private fun createProxy(type: JcClassType): Any {
+    val jcClass = type.jcClass
+    check(jcClass.isInterface)
+    return Proxy.newProxyInstance(
+        JcConcreteMemoryClassLoader,
+        arrayOf(JcConcreteMemoryClassLoader.loadClass(jcClass)),
+        LambdaInvocationHandler()
+    )
+}
+
+internal fun createDefault(type: JcType): Any? {
+    try {
+        return when (type) {
+            is JcArrayType -> type.allocateInstance(JcConcreteMemoryClassLoader, 1)
+            is JcClassType -> {
+                if (type.jcClass.isInterface) createProxy(type)
+                else type.allocateInstance(JcConcreteMemoryClassLoader)
+            }
+            is JcPrimitiveType -> null
+            else -> error("createDefault: unexpected type $type")
+        }
+    } catch (e: Throwable) {
+        println("[WARNING] failed to allocate ${type.internalName}")
         return null
     }
 }

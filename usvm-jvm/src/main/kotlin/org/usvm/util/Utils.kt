@@ -58,4 +58,4 @@ val JcClassType.outerClassInstanceField: JcTypedField?
     get() = fields.singleOrNull { it.name == "this\$0" }
 
 val String.typeName: TypeName
-    get() = TypeNameImpl(this.jvmName())
+    get() = TypeNameImpl.fromTypeName(this)
