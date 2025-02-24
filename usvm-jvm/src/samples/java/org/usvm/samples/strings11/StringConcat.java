@@ -140,18 +140,124 @@ public class StringConcat {
         return true;
     }
 
-    private void testConcretizeCall(RunnableContainer c) {}
-
     public static class RunnableContainer {
         public Runnable r;
         public RunnableContainer() {}
     }
 
-    public RunnableContainer runnableAsFieldTest(Object o) {
+    static class ClassWithInt {
+        public int a;
+    }
+
+    private boolean check(ClassWithInt c, int i) {
+        return c.a == i;
+    }
+
+    public boolean runnableAsFieldTest(int i) {
         RunnableContainer c = new RunnableContainer();
-        c.r = () -> System.out.println(o);
-        testConcretizeCall(c);
-        return c;
+        ClassWithInt x = new ClassWithInt();
+        c.r = () -> x.a += i;
+        c.r.run();
+        if (x.a != i) return false;
+        concretize();
+        c.r.run();
+        return check(x, i + i);
+    }
+
+    static class ClassWithClassWithInt {
+        public ClassWithInt a = new ClassWithInt();
+    }
+
+    private static void F(ClassWithInt x, ClassWithClassWithInt y) {
+        x.a += y.a.a;
+    }
+
+    private static void F(RunnableContainer c) {
+        c.r.run();
+    }
+
+    public boolean runnableAsFieldTest1(int i) {
+        RunnableContainer c = new RunnableContainer();
+        ClassWithClassWithInt y = new ClassWithClassWithInt();
+        ClassWithInt x = new ClassWithInt();
+        if (i != 42) {
+            i = i + 1;
+            y.a.a = i;
+            c.r = () -> F(x, y);
+            c.r.run();
+            if (x.a != i) return false;
+            concretize();
+            F(c);
+        } else {
+            i = i + 10;
+            y.a.a = i;
+            c.r = () -> F(x, y);
+            c.r.run();
+            if (x.a != i) return false;
+            concretize();
+            F(c);
+        }
+        return check(x, i + i);
+    }
+
+    static class NamedThreadLocal<T> extends ThreadLocal<T> {
+        public int x;
+    }
+
+    private boolean check(NamedThreadLocal<Integer> n, int x) {
+        return n.get() == x && n.x == x;
+    }
+
+    public boolean threadLocalTest(int a) {
+        NamedThreadLocal<Integer> x = new NamedThreadLocal<>();
+        x.set(1);
+        x.x = 10;
+        if (a > 0) {
+            if (x.get() != 1 || x.x != 10) return false;
+            x.set(a);
+            x.x = a;
+            if (x.get() != a || x.x != a) return false;
+            concretize();
+            if (!check(x, a)) return false;
+        } else {
+            if (x.get() != 1 || x.x != 10) return false;
+            x.set(a);
+            x.x = a;
+            if (x.get() != a || x.x != a) return false;
+            concretize();
+            if (!check(x, a)) return false;
+        }
+
+        return true;
+    }
+
+    private boolean check(NamedThreadLocal<ClassWithClassWithInt> n, ClassWithClassWithInt x) {
+        return n.get().a.a == x.a.a && n.x == x.a.a;
+    }
+
+    public boolean threadLocalTest1(int a) {
+        ClassWithClassWithInt y = new ClassWithClassWithInt();
+        y.a.a = 1;
+        NamedThreadLocal<ClassWithClassWithInt> x = new NamedThreadLocal<>();
+        x.set(y);
+        x.x = 10;
+        if (a > 0) {
+            if (x.get().a.a != 1 || x.x != 10) return false;
+            y.a.a = a;
+            x.x = a;
+            if (x.get().a.a != a || x.x != a) return false;
+            concretize();
+            if (!check(x, y)) return false;
+        } else {
+            if (x.get().a.a != 1 || x.x != 10) return false;
+            y.a.a = a;
+            x.x = a;
+            if (x.get().a.a != a || x.x != a) return false;
+            concretize();
+            if (!check(x, y)) return false;
+        }
+
+        return true;
     }
 
     public static class Attr {

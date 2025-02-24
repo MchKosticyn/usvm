@@ -32,7 +32,6 @@ import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.UnknownClasses
 import org.jacodb.impl.features.hierarchyExt
 import org.jacodb.impl.jacodb
-import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.FieldNode
@@ -203,9 +202,7 @@ internal object JcInitFeature: JcInstExtFeature {
             return list
 
         val mutableList = list.toMutableList()
-        // TODO: use method.enclosingClass.name.typeName after jacodb fixes
-        // TODO: fix .typeName inside jacodb
-        val typeName = TypeNameImpl(method.enclosingClass.name)
+        val typeName = method.enclosingClass.name.typeName
         val callExpr = JcRawStaticCallExpr(
             declaringClass = InitHelper::class.java.name.typeName,
             methodName = InitHelper::afterInit.javaName,
@@ -332,7 +329,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             val rawInstList = startSpringMethod.rawInstList.toMutableList()
             val assign = rawInstList[3] as JcRawAssignInst
             val classConstant = assign.rhv as JcRawClassConstant
-            val newClassConstant = JcRawClassConstant(TypeNameImpl(testClassFullName), classConstant.typeName)
+            val newClassConstant = JcRawClassConstant(testClassFullName.typeName, classConstant.typeName)
             val newAssign = JcRawAssignInst(assign.owner, assign.lhv, newClassConstant)
             rawInstList.remove(rawInstList[3])
             rawInstList.insertAfter(rawInstList[2], newAssign)
@@ -360,13 +357,6 @@ private fun analyzeBench(benchmark: BenchCp) {
     val newBench = generateTestClass(benchmark)
     val cp = newBench.cp
     val nonAbstractClasses = cp.nonAbstractClasses(newBench.classLocations)
-    val webApplicationClass =
-        nonAbstractClasses.find {
-            it.annotations.any { annotation ->
-                annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
-            }
-        }
-    JcConcreteMemoryClassLoader.webApplicationClass = webApplicationClass!!
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
     // using file instead of console

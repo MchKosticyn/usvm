@@ -15,6 +15,7 @@ import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
+import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -27,12 +28,12 @@ import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.JcTestInterpreterDecoderApi
 import org.usvm.api.util.JcTestStateResolver
 import org.usvm.api.util.JcTestStateResolver.ResolveMode
-import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.api.util.Reflection.invoke
 import org.usvm.collection.array.UArrayRegion
 import org.usvm.collection.array.UArrayRegionId
 import org.usvm.collection.array.length.UArrayLengthsRegion
 import org.usvm.collection.array.length.UArrayLengthsRegionId
+import org.usvm.collection.field.UFieldLValue
 import org.usvm.collection.field.UFieldsRegion
 import org.usvm.collection.field.UFieldsRegionId
 import org.usvm.collection.map.length.UMapLengthRegion
@@ -82,6 +83,7 @@ import org.usvm.util.onSome
 import org.usvm.util.typedField
 import org.usvm.utils.applySoftConstraints
 import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Proxy
 import java.util.concurrent.ExecutionException
 
 //region Concrete Memory
@@ -403,22 +405,46 @@ class JcConcreteMemory private constructor(
             }
 
             val array = super.resolveArray(ref, heapRef, type)
-            if (array != null && !bindings.contains(addressInModel)) {
+            if (array != null && !bindings.contains(addressInModel))
                 bindings.allocate(addressInModel, array, type)
-            }
 
             return array
         }
 
+        private fun initLambdaIfNeeded(heapRef: UConcreteHeapRef, obj: Any) {
+            val lambdaRegion = regionStorage.getLambdaCallSiteRegion(JcLambdaCallSiteRegionId(ctx))
+            val callSite = lambdaRegion.findCallSite(heapRef)
+            if (callSite != null) {
+                val args = callSite.callSiteArgs
+                val lambda = callSite.lambda
+                val argTypes = lambda.callSiteArgTypes
+                val callSiteArgs = mutableListOf<Any?>()
+                for ((arg, argType) in args.zip(argTypes)) {
+                    callSiteArgs.add(resolveExpr(arg, argType))
+                }
+                val invHandler = Proxy.getInvocationHandler(obj) as LambdaInvocationHandler
+                val method = lambda.actualMethod.method.method
+                val actualMethod =
+                    if (method is JcEnrichedVirtualMethod)
+                        method.approximationMethod ?: error("cannot find enriched method")
+                    else method
+                invHandler.init(actualMethod, lambda.callSiteMethodName, callSiteArgs)
+            }
+        }
+
         private fun resolveConcreteObject(ref: UConcreteHeapRef, type: JcClassType): Any {
+            check(!type.jcClass.isInterface)
             val address = ref.address
             val obj = bindings.virtToPhys(address)
-            if (obj.javaClass.isThreadLocal)
-                error("ThreadLocal concretization is not implemented!")
+            check(!obj.javaClass.isThreadLocal) { "ThreadLocal concretization not fully supported" }
             saveResolvedRef(ref.address, obj)
             // TODO: optimize #CM
             if (bindings.isMutableWithEffect())
                 bindings.effectStorage.addObjectToEffectRec(obj)
+
+            if (Proxy.isProxyClass(obj.javaClass))
+                initLambdaIfNeeded(ref, obj)
+
             for (field in bindings.symbolicFields(obj)) {
                 val jcField = type.allInstanceFields.find { it.name == field.name }
                     ?: error("resolveConcreteObject: can not find field $field")
@@ -432,6 +458,26 @@ class JcConcreteMemory private constructor(
             return obj
         }
 
+        private fun resolveThreadLocal(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): Any {
+            val instance = allocateClassInstance(type)
+            saveResolvedRef(ref.address, instance)
+            for (field in type.allInstanceFields) {
+                val fieldType = field.type
+                val lvalue = UFieldLValue(ctx.typeToSort(fieldType), heapRef, field.field)
+                val fieldValue = resolveLValue(lvalue, fieldType)
+
+                if (field.enclosingType.jcClass.name == "java.lang.ThreadLocal" && field.name == "storage") {
+                    executor.setThreadLocalValue(instance, fieldValue)
+                    continue
+                }
+
+                check(field.field !is JcEnrichedVirtualField)
+                decoderApi.setField(field.field, instance, fieldValue)
+            }
+
+            return instance
+        }
+
         override fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): Any? {
             val addressInModel = ref.address
             if (heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
@@ -440,16 +486,23 @@ class JcConcreteMemory private constructor(
                 return obj
             }
 
-            val obj = super.resolveObject(ref, heapRef, type)
-            if (obj != null && !bindings.contains(addressInModel)) {
-                bindings.allocate(addressInModel, obj, type)
+            val obj = if (type.jcClass.isThreadLocal) {
+                resolveThreadLocal(ref, heapRef, type)
+            } else {
+                val resolved = super.resolveObject(ref, heapRef, type) ?: return null
+                if (Proxy.isProxyClass(resolved.javaClass) && heapRef is UConcreteHeapRef)
+                    initLambdaIfNeeded(heapRef, resolved)
+                resolved
             }
+
+            if (!bindings.contains(addressInModel))
+                bindings.allocate(addressInModel, obj, type)
 
             return obj
         }
 
         override fun allocateClassInstance(type: JcClassType): Any =
-            type.allocateInstance(JcConcreteMemoryClassLoader)
+            createDefault(type) ?: error("createDefault: can not create instance of ${type.jcClass.name}")
 
         override fun allocateString(value: Any?): Any = when (value) {
             is CharArray -> String(value)
@@ -752,7 +805,7 @@ class JcConcreteMemory private constructor(
             val regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentHashMapOf()
             val memory = JcConcreteMemory(ctx, ownership, typeConstraints, stack, mocks, regions, executor, bindings)
             val storage = JcConcreteRegionStorage(ctx, memory)
-            val marshall = Marshall(ctx, bindings, storage)
+            val marshall = Marshall(ctx, bindings, executor, storage)
             memory.regionStorageVar = storage
             memory.marshallVar = marshall
             return memory
@@ -873,7 +926,7 @@ class JcConcreteMemory private constructor(
             // TODO: need it? #CM
             "org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite#handleReturnValue(java.lang.Object,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void",
             // TODO: delete #CM
-            "org.usvm.samples.strings11.StringConcat#testConcretizeCall(org.usvm.samples.strings11.StringConcat\$RunnableContainer):void"
+            "org.usvm.samples.strings11.StringConcat#concretize():void",
         )
 
         //endregion
