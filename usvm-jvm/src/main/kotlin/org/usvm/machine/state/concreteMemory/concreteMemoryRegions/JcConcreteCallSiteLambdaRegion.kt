@@ -9,6 +9,8 @@ import org.usvm.machine.interpreter.JcLambdaCallSiteMemoryRegion
 import org.usvm.machine.state.concreteMemory.JcConcreteMemoryBindings
 import org.usvm.machine.state.concreteMemory.Marshall
 import org.usvm.machine.state.concreteMemory.approximationMethod
+import org.usvm.util.onNone
+import org.usvm.util.onSome
 
 internal class JcConcreteCallSiteLambdaRegion(
     private val ctx: JcContext,
@@ -26,17 +28,18 @@ internal class JcConcreteCallSiteLambdaRegion(
         val address = callSite.ref.address
         val lambda = callSite.lambda
         val maybeArgs = marshall.tryExprListToFullyConcreteList(callSite.callSiteArgs, lambda.callSiteArgTypes)
-        if (bindings.contains(address) && maybeArgs.isSome) {
-            val args = maybeArgs.getOrThrow()
-            val invocationHandler = bindings.readInvocationHandler(address)
-            val method = lambda.actualMethod.method.method
-            val actualMethod =
-                if (method is JcEnrichedVirtualMethod)
-                    method.approximationMethod ?: error("cannot find enriched method")
-                else method
-            invocationHandler.init(actualMethod, lambda.callSiteMethodName, args)
-        } else {
-            bindings.remove(address)
+        if (bindings.contains(address)) {
+            maybeArgs.onSome { args ->
+                val invocationHandler = bindings.readInvocationHandler(address)
+                val method = lambda.actualMethod.method.method
+                val actualMethod =
+                    if (method is JcEnrichedVirtualMethod)
+                        method.approximationMethod ?: error("cannot find enriched method")
+                    else method
+                invocationHandler.init(actualMethod, lambda.callSiteMethodName, args)
+            }.onNone {
+                bindings.remove(address)
+            }
         }
 
         baseRegion = baseRegion.writeCallSite(callSite, ownership)
