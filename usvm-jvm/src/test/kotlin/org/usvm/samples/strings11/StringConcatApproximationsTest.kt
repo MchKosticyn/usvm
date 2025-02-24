@@ -46,7 +46,34 @@ class StringConcatApproximationsTest : ApproximationsTestRunner() {
         checkDiscoveredPropertiesWithExceptions(
             StringConcat::runnableAsFieldTest,
             ignoreNumberOfAnalysisResults,
-            { _, _, _ -> true },
+            invariants = arrayOf({ _, _, r -> r.getOrNull() == true })
+        )
+    }
+
+    @Test
+    fun runnableAsField2() {
+        checkDiscoveredPropertiesWithExceptions(
+            StringConcat::runnableAsFieldTest1,
+            ignoreNumberOfAnalysisResults,
+            invariants = arrayOf({ _, _, r -> r.getOrNull() == true })
+        )
+    }
+
+    @Test
+    fun testThreadLocal() {
+        checkDiscoveredPropertiesWithExceptions(
+            StringConcat::threadLocalTest,
+            ignoreNumberOfAnalysisResults,
+            invariants = arrayOf({ _, _, r -> r.getOrNull() == true })
+        )
+    }
+
+    @Test
+    fun testThreadLocal1() {
+        checkDiscoveredPropertiesWithExceptions(
+            StringConcat::threadLocalTest1,
+            ignoreNumberOfAnalysisResults,
+            invariants = arrayOf({ _, _, r -> r.getOrNull() == true })
         )
     }
 

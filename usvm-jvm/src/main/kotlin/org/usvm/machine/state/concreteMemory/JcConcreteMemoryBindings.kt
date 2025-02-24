@@ -290,67 +290,6 @@ internal class JcConcreteMemoryBindings private constructor(
         return allocate(obj, type, false)
     }
 
-    class LambdaInvocationHandler : InvocationHandler {
-
-        private var methodName: String? = null
-        private var actualMethod: JcMethod? = null
-        private var closureArgs: List<Any?> = listOf()
-
-        fun init(actualMethod: JcMethod, methodName: String, args: List<Any?>) {
-            check(actualMethod !is JcEnrichedVirtualMethod)
-            this.methodName = methodName
-            this.actualMethod = actualMethod
-            closureArgs = args
-        }
-
-        override fun invoke(proxy: Any?, method: Method, args: Array<Any?>?): Any? {
-            if (methodName != null && methodName == method.name) {
-                var allArgs =
-                    if (args == null) closureArgs
-                    else closureArgs + args
-                var thisArg: Any? = null
-                val methodToInvoke = actualMethod!!
-                if (!methodToInvoke.isStatic) {
-                    thisArg = allArgs[0]
-                    allArgs = allArgs.drop(1)
-                }
-                return methodToInvoke.invoke(JcConcreteMemoryClassLoader, thisArg, allArgs)
-
-            }
-
-            val newArgs = args ?: arrayOf()
-            return InvocationHandler.invokeDefault(proxy, method, *newArgs)
-        }
-    }
-
-    private fun createProxy(type: JcClassType): Any {
-        val jcClass = type.jcClass
-        check(jcClass.isInterface)
-        return Proxy.newProxyInstance(
-            JcConcreteMemoryClassLoader,
-            arrayOf(JcConcreteMemoryClassLoader.loadClass(jcClass)),
-            LambdaInvocationHandler()
-        )
-    }
-
-    private fun createDefault(type: JcType): Any? {
-        try {
-            return when (type) {
-                is JcArrayType -> type.allocateInstance(JcConcreteMemoryClassLoader, 1)
-                is JcClassType -> {
-                    if (type.jcClass.isInterface) createProxy(type)
-                    else type.allocateInstance(JcConcreteMemoryClassLoader)
-                }
-
-                is JcPrimitiveType -> null
-                else -> error("JcConcreteMemoryBindings.allocateDefault: unexpected type $type")
-            }
-        } catch (e: Throwable) {
-            println("[WARNING] failed to allocate ${type.internalName}")
-            return null
-        }
-    }
-
     fun allocateDefaultConcrete(type: JcType): UConcreteHeapAddress? {
         return allocateIfShould(type, false)
     }
