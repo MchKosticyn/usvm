@@ -1,5 +1,6 @@
 package org.usvm.machine.state.concreteMemory
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
@@ -17,8 +18,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
-import java.util.LinkedList
-import java.util.Queue
+import java.util.IdentityHashMap
 
 //region State
 
@@ -33,10 +33,11 @@ private enum class State {
 internal class JcConcreteMemoryBindings private constructor(
     private val ctx: JcContext,
     private val typeConstraints: UTypeConstraints<JcType>,
-    private val physToVirt: HashMap<PhysicalAddress, UConcreteHeapAddress>,
-    private val virtToPhys: HashMap<UConcreteHeapAddress, PhysicalAddress>,
+    private val physToVirt: IdentityHashMap<Any?, UConcreteHeapAddress>,
+    private val virtToPhys: Object2ObjectOpenHashMap<UConcreteHeapAddress, Any?>,
     private var state: State,
-    private val fullyConcretes: MutableSet<PhysicalAddress>,
+    private val transitiveConcretes: IdentityHashMap<Any, Unit>,
+    private val transitiveSymbolics: IdentityHashMap<Any, Unit>,
     // TODO: make this private #CM
     val effectStorage: JcConcreteEffectStorage,
     private val threadLocalHelper: ThreadLocalHelper,
@@ -48,12 +49,11 @@ internal class JcConcreteMemoryBindings private constructor(
     ) : this(
         ctx,
         typeConstraints,
-        hashMapOf(),
-        hashMapOf(),
+        IdentityHashMap(),
+        Object2ObjectOpenHashMap(),
         State.Mutable,
-        hashMapOf(),
-        hashMapOf(),
-        mutableSetOf(),
+        IdentityHashMap(),
+        IdentityHashMap(),
         JcConcreteEffectStorage(ctx, threadLocalHelper),
         threadLocalHelper,
     )
@@ -73,23 +73,23 @@ internal class JcConcreteMemoryBindings private constructor(
     }
 
     fun tryVirtToPhys(address: UConcreteHeapAddress): Any? {
-        return virtToPhys[address]?.obj
+        return virtToPhys[address]
     }
 
     fun virtToPhys(address: UConcreteHeapAddress): Any {
-        return virtToPhys[address]?.obj!!
+        return virtToPhys[address]!!
     }
 
     fun tryFullyConcrete(address: UConcreteHeapAddress): Any? {
-        val phys = virtToPhys[address]
-        if (phys != null && checkConcreteness(phys)) {
-            return phys.obj
+        val obj = virtToPhys[address]
+        if (obj != null && checkConcreteness(obj)) {
+            return obj
         }
         return null
     }
 
     fun tryPhysToVirt(obj: Any): UConcreteHeapAddress? {
-        return physToVirt[PhysicalAddress(obj)]
+        return physToVirt[obj]
     }
 
     //region State Interaction
@@ -113,114 +113,45 @@ internal class JcConcreteMemoryBindings private constructor(
 
     //region Concreteness Tracking
 
-    private fun hasFullyConcreteParent(phys: PhysicalAddress): Boolean {
-        val tested = mutableSetOf<PhysicalAddress>()
-        val queue: Queue<PhysicalAddress> = LinkedList()
-        var contains = false
-        var child: PhysicalAddress? = phys
+    private fun isConcrete(obj: Any): Boolean {
+        val address = physToVirt[obj] ?: return true
+        return virtToPhys.contains(address)
+    }
 
-        while (!contains && child != null) {
-            if (tested.add(child)) {
-                contains = fullyConcretes.contains(child)
-                parents[child]?.forEach {
-                    val parent = it.key
-                    queue.add(parent)
-                }
-            }
-            child = queue.poll()
+    private fun checkConcreteness(obj: Any): Boolean {
+        val traverser = ConcretenessTraversal()
+        val handledObjects = traverser.traverse(obj)
+        val isConcrete = traverser.isConcrete
+        if (isConcrete)
+            transitiveConcretes.putAll(handledObjects)
+        else
+            transitiveSymbolics[obj] = Unit
+
+        return isConcrete
+    }
+
+    // TODO: cache more info about symbolic objects
+    private inner class ConcretenessTraversal : ObjectTraversal(threadLocalHelper, false) {
+
+        private var isConcreteVar = true
+
+        private fun symbolicFound() {
+            isConcreteVar = false
+            stop()
         }
 
-        return contains
-    }
-
-    private fun addToParents(parent: PhysicalAddress, child: PhysicalAddress, childKind: ChildKind) {
-        check(parent.obj != null)
-        check(child.obj != null)
-        val parentMap = parents.getOrPut(child) { hashMapOf() }
-        parentMap[parent] = childKind
-    }
-
-    private fun addChild(parent: PhysicalAddress, child: PhysicalAddress, childKind: ChildKind, update: Boolean) {
-        if (child.obj?.javaClass?.notTracked == true)
-            return
-
-        if (parent != child) {
-            if (child.isNull && update) {
-                children[parent]?.remove(childKind)
-            } else if (!child.isNull) {
-                val childMap = children[parent]
-                if (childMap != null && update) {
-                    childMap[childKind] = Cell(child)
-                } else if (childMap != null) {
-                    val cell = childMap[childKind]
-                    if (cell != null) {
-                        val cellIsCorrect = !cell.isConcrete || cell.address == child
-                        if (!cellIsCorrect) {
-                            println("[WARNING] concreteness system is incorrect")
-                            childMap[childKind] = Cell(child)
-                        }
-                    } else {
-                        childMap[childKind] = Cell(child)
-                    }
-                } else {
-                    val newChildMap = hashMapOf<ChildKind, Cell>()
-                    newChildMap[childKind] = Cell(child)
-                    children[parent] = newChildMap
-                }
-
-                if (update && hasFullyConcreteParent(parent) && !checkConcreteness(child))
-                    removeFromFullyConcretesRec(parent)
-
-                addToParents(parent, child, childKind)
+        private fun checkConcreteness(obj: Any) {
+            if (transitiveSymbolics.contains(obj)) {
+                symbolicFound()
+                return
             }
-        }
-    }
 
-    private fun trackChild(parent: PhysicalAddress, child: PhysicalAddress, childKind: ChildKind) {
-        addChild(parent, child, childKind, false)
-    }
-
-    private fun trackChild(parent: Any?, child: Any?, childKind: ChildKind) {
-        check(parent !is PhysicalAddress && child !is PhysicalAddress)
-        trackChild(PhysicalAddress(parent), PhysicalAddress(child), childKind)
-    }
-
-    private fun setChild(parent: PhysicalAddress, child: PhysicalAddress, childKind: ChildKind) {
-        addChild(parent, child, childKind, true)
-    }
-
-    // TODO: make private
-    fun setChild(parent: Any?, child: Any?, childKind: ChildKind) {
-        check(parent !is PhysicalAddress && child !is PhysicalAddress)
-        setChild(PhysicalAddress(parent), PhysicalAddress(child), childKind)
-    }
-
-    private fun checkConcreteness(phys: PhysicalAddress): Boolean {
-        val tracked = mutableSetOf<PhysicalAddress>()
-        return checkConcretenessRec(phys, tracked)
-    }
-
-    private fun checkConcretenessRec(phys: PhysicalAddress, tracked: MutableSet<PhysicalAddress>): Boolean {
-        // TODO: cache not fully concrete objects #CM
-        if (fullyConcretes.contains(phys) || !tracked.add(phys))
-            return true
-
-        var allConcrete = true
-        children[phys]?.forEach {
-            if (allConcrete) {
-                val child = it.value.address
-                allConcrete = child != null && checkConcretenessRec(child, tracked)
-            }
+            if (!isConcrete(obj))
+                symbolicFound()
         }
 
-        if (allConcrete) fullyConcretes.add(phys)
-
-        return allConcrete
-    }
-
-    private inner class ConcretenessTraversal: ObjectTraversal(threadLocalHelper, false) {
-        override fun skip(phys: PhysicalAddress, type: Class<*>): Boolean {
-            return type.isSolid
+        override fun skip(obj: Any, type: Class<*>): Boolean {
+            return type.isSolid || transitiveConcretes.contains(obj)
         }
 
         override fun skipField(field: Field): Boolean {
@@ -231,157 +162,49 @@ internal class JcConcreteMemoryBindings private constructor(
             return elementType.notTrackedWithSubtypes
         }
 
-        override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
+        override fun handleArray(array: Any, type: Class<*>) {
+            checkConcreteness(array)
         }
 
-        override fun handleClass(phys: PhysicalAddress, type: Class<*>) {
+        override fun handleClass(obj: Any, type: Class<*>) {
+            checkConcreteness(obj)
         }
 
-        override fun handleThreadLocal(threadLocalPhys: PhysicalAddress, valuePhys: PhysicalAddress) {
-            setChild(threadLocalPhys, valuePhys, ThreadLocalValueChildKind())
+        override fun handleThreadLocal(threadLocal: Any, value: Any?) {
+            if (value != null)
+                checkConcreteness(value)
         }
 
-        override fun handleArrayIndex(arrayPhys: PhysicalAddress, index: Int, valuePhys: PhysicalAddress) {
-            setChild(arrayPhys, valuePhys, ArrayIndexChildKind(index))
-        }
-
-        override fun handleClassField(parentPhys: PhysicalAddress, field: Field, valuePhys: PhysicalAddress) {
-            setChild(parentPhys, valuePhys, FieldChildKind(field))
-        }
-
+        val isConcrete: Boolean
+            get() = isConcreteVar
     }
 
-    fun reTrackObject(obj: Any?) {
-        ConcretenessTraversal().traverse(obj)
-    }
-
-    private fun skipTrackCopy(dstArrayType: Class<*>): Boolean {
-        val elemType = dstArrayType.componentType
-        return elemType.notTrackedWithSubtypes
-    }
-
-    private fun trackCopy(updatedDstArray: Array<*>, dstArrayType: Class<*>, dstFromIdx: Int, dstToIdx: Int) {
-        check(dstArrayType.isArray)
-        check(dstFromIdx <= dstToIdx)
-
-        if (skipTrackCopy(dstArrayType)) return
-
-        for (i in dstFromIdx..<dstToIdx) {
-            setChild(updatedDstArray, updatedDstArray[i], ArrayIndexChildKind(i))
-        }
-    }
-
-    private fun removeFromFullyConcretesRec(phys: PhysicalAddress) {
-        val queue: Queue<PhysicalAddress> = LinkedList()
-        val removed = mutableSetOf<PhysicalAddress>()
-        var child: PhysicalAddress? = phys
-
-        while (child != null) {
-            if (removed.add(child)) {
-                fullyConcretes.remove(child)
-                parents[child]?.forEach {
-                    val parent = it.key
-                    queue.add(parent)
-                }
-            }
-            child = queue.poll()
-        }
-    }
-
-    private fun markSymbolic(phys: PhysicalAddress) {
-        parents[phys]?.forEach {
-            val parent = it.key
-            children[parent]!![it.value] = Cell()
-        }
-    }
-
-    fun symbolicMembers(address: UConcreteHeapAddress): List<ChildKind> {
-        check(virtToPhys.contains(address))
-        val phys = virtToPhys[address]!!
-        val symbolicMembers = mutableListOf<ChildKind>()
-        children[phys]?.forEach {
-            val child = it.value.address
-            if (child == null || !checkConcreteness(child))
-                symbolicMembers.add(it.key)
-        }
-
-        return symbolicMembers
-    }
-
-    private inner class IsActualTraversal: ObjectTraversal(threadLocalHelper, false) {
-        private var success = true
-        private var childMap: childMapType? = null
-
-        override fun skip(phys: PhysicalAddress, type: Class<*>): Boolean {
-            childMap = children[phys] ?: return true
-            return false
-        }
-
-        override fun skipField(field: Field): Boolean {
-            return !childMap!!.containsKey(FieldChildKind(field))
-        }
-
-        override fun skipArrayIndices(elementType: Class<*>): Boolean {
-            return childMap!!.isEmpty()
-        }
-
-        override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
-        }
-
-        override fun handleClass(phys: PhysicalAddress, type: Class<*>) {
-        }
-
-        override fun handleThreadLocal(threadLocalPhys: PhysicalAddress, valuePhys: PhysicalAddress) {
-            if (childMap!![ThreadLocalValueChildKind()]?.address?.obj !== valuePhys.obj)
-                success = false
-        }
-
-        override fun handleArrayIndex(arrayPhys: PhysicalAddress, index: Int, valuePhys: PhysicalAddress) {
-            if (childMap!![ArrayIndexChildKind(index)]?.address?.obj !== valuePhys.obj)
-                success = false
-        }
-
-        override fun handleClassField(parentPhys: PhysicalAddress, field: Field, valuePhys: PhysicalAddress) {
-            if (childMap!![FieldChildKind(field)]?.address?.obj !== valuePhys.obj)
-                success = false
-        }
-
-        val isActual: Boolean
-            get() = success
-    }
-
-    fun isActual(obj: Any?): Boolean {
-        obj ?: return true
-        val traverser = IsActualTraversal()
-        traverser.traverse(obj)
-        return traverser.isActual
-    }
-
-    // TODO: use it someday
-    @Suppress("unused")
-    fun checkIsCorrect(): Boolean {
-        for ((parentPhys, childMap) in children) {
-            val obj = parentPhys.obj ?: continue
-            for ((childKind, cell) in childMap) {
-                if (!cell.isConcrete)
-                    continue
-
-                val value = cell.address!!.obj
-                when (childKind) {
-                    is FieldChildKind -> {
-                        if (childKind.field.getFieldValue(obj) !== value)
-                            return false
-                    }
-                    is ArrayIndexChildKind -> {
-                        check(obj is Array<*>)
-                        if (obj[childKind.index] !== value)
-                            return false
-                    }
-                }
+    fun symbolicIndices(array: Array<*>): List<Int> {
+        val symbolicIndices = mutableListOf<Int>()
+        array.forEachIndexed { i, e ->
+            if (e != null && !checkConcreteness(e)) {
+                symbolicIndices.add(i)
             }
         }
 
-        return true
+        return symbolicIndices
+    }
+
+    fun symbolicFields(obj: Any): List<Field> {
+        val type = obj.javaClass
+        val symbolicFields = mutableListOf<Field>()
+        for (field in type.allInstanceFields) {
+            val value = try {
+                field.getFieldValue(obj)
+            } catch (e: Throwable) {
+                println("[WARNING] symbolicFields: ${type.name} failed on field ${field.name}, cause: ${e.message}")
+                continue
+            }
+            if (value != null && !checkConcreteness(value))
+                symbolicFields.add(field)
+        }
+
+        return symbolicFields
     }
 
     //endregion
@@ -411,9 +234,8 @@ internal class JcConcreteMemoryBindings private constructor(
     fun allocate(address: UConcreteHeapAddress, obj: Any, type: JcType) {
         check(address != NULL_ADDRESS)
         check(!virtToPhys.containsKey(address))
-        val physicalAddress = PhysicalAddress(obj)
-        virtToPhys[address] = physicalAddress
-        physToVirt[physicalAddress] = address
+        virtToPhys[address] = obj
+        physToVirt[obj] = address
         typeConstraints.allocate(address, type)
     }
 
@@ -546,9 +368,7 @@ internal class JcConcreteMemoryBindings private constructor(
         if (!field.declaringClass.isAssignableFrom(obj.javaClass))
             return false to null
 
-        val value = field.getFieldValue(obj)
-        trackChild(obj, value, FieldChildKind(field))
-        return true to value
+        return true to field.getFieldValue(obj)
     }
 
     private fun indexIsValid(obj: Any, index: Int): Boolean {
@@ -571,6 +391,7 @@ internal class JcConcreteMemoryBindings private constructor(
         val obj = virtToPhys(address)
         if (!indexIsValid(obj, index))
             return false to null
+
         val value =
             when (obj) {
                 is IntArray -> obj[index]
@@ -585,8 +406,6 @@ internal class JcConcreteMemoryBindings private constructor(
                 is String -> obj[index]
                 else -> error("JcConcreteMemoryBindings.readArrayIndex: unexpected array $obj")
             }
-
-        trackChild(obj, value, ArrayIndexChildKind(index))
 
         return true to value
     }
@@ -653,7 +472,7 @@ internal class JcConcreteMemoryBindings private constructor(
             return false
         }
 
-        setChild(obj, value, FieldChildKind(field))
+        concreteChange()
         return true
     }
 
@@ -666,8 +485,8 @@ internal class JcConcreteMemoryBindings private constructor(
             effectStorage.addObjectToEffect(obj)
 
         obj.setArrayValue(index, value)
-        setChild(obj, value, ArrayIndexChildKind(index))
 
+        concreteChange()
         return true
     }
 
@@ -741,12 +560,12 @@ internal class JcConcreteMemoryBindings private constructor(
                 obj as Array<Value>
                 for ((index, value) in contents) {
                     obj[index] = value
-                    setChild(obj, value, ArrayIndexChildKind(index))
                 }
             }
 
             else -> error("JcConcreteMemoryBindings.initializeArray: unexpected array $obj")
         }
+        concreteChange()
     }
 
     fun writeArrayLength(address: UConcreteHeapAddress, length: Int) {
@@ -767,6 +586,7 @@ internal class JcConcreteMemoryBindings private constructor(
 
         obj as HashMap<Any?, Any?>
         obj[key] = value
+        concreteChange()
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -787,6 +607,8 @@ internal class JcConcreteMemoryBindings private constructor(
             obj.add(element)
         else
             obj.remove(element)
+
+        concreteChange()
     }
 
     //endregion
@@ -853,11 +675,12 @@ internal class JcConcreteMemoryBindings private constructor(
             srcArray is Array<*> && dstArray is Array<*> -> {
                 dstArray as Array<Any?>
                 srcArray.copyInto(dstArray, fromDstIdx, fromSrcIdx, toSrcIdx)
-                trackCopy(dstArray, dstArrayType, fromDstIdx, toDstIdx)
             }
 
             else -> error("JcConcreteMemoryBindings.arrayCopy: unexpected arrays $srcArray, $dstArray")
         }
+
+        concreteChange()
     }
 
     //endregion
@@ -872,6 +695,7 @@ internal class JcConcreteMemoryBindings private constructor(
             effectStorage.addObjectToEffect(dstMap)
 
         dstMap.putAll(srcMap)
+        concreteChange()
     }
 
     //endregion
@@ -886,52 +710,47 @@ internal class JcConcreteMemoryBindings private constructor(
             effectStorage.addObjectToEffect(dstSet)
 
         dstSet.addAll(srcSet)
+        concreteChange()
     }
 
     //endregion
 
+    private fun symbolicChange(obj: Any, isNew: Boolean) {
+        if (isNew)
+            transitiveConcretes.remove(obj)
+        else
+            transitiveConcretes.clear()
+    }
+
+    private fun concreteChange() {
+        transitiveSymbolics.clear()
+    }
+
     //region Removing
 
-    fun remove(address: UConcreteHeapAddress) {
-        val phys = virtToPhys.remove(address)!!
-        removeFromFullyConcretesRec(phys)
-        markSymbolic(phys)
+    fun remove(
+        address: UConcreteHeapAddress,
+        isSymbolic: Boolean = true,
+        isNew: Boolean = false
+    ) {
+        val obj = virtToPhys.remove(address) ?: return
+        if (isSymbolic && !obj.javaClass.isInternalType)
+            symbolicChange(obj, isNew)
     }
 
     //endregion
 
     //region Copy
 
-    private fun copyChildren(): childrenType {
-        val newChildren = hashMapOf<PhysicalAddress, childMapType>()
-        for ((parent, childMap) in children) {
-            val newChildMap = HashMap(childMap)
-            newChildren[parent] = newChildMap
-        }
-
-        return newChildren
-    }
-
-    private fun copyParents(): parentsType {
-        val newParents = hashMapOf<PhysicalAddress, parentMapType>()
-        for ((child, parentMap) in parents) {
-            val newParentMap = HashMap(parentMap)
-            newParents[child] = newParentMap
-        }
-
-        return newParents
-    }
-
     fun copy(typeConstraints: UTypeConstraints<JcType>): JcConcreteMemoryBindings {
         val newBindings = JcConcreteMemoryBindings(
             ctx,
             typeConstraints,
-            HashMap(physToVirt),
-            HashMap(virtToPhys),
+            IdentityHashMap(physToVirt),
+            virtToPhys.clone(),
             state,
-            copyChildren(),
-            copyParents(),
-            fullyConcretes.toMutableSet(),
+            IdentityHashMap(transitiveConcretes),
+            IdentityHashMap(transitiveSymbolics),
             effectStorage.copy(),
             threadLocalHelper,
         )

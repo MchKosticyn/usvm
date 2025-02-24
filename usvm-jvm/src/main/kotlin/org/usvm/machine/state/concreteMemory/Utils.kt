@@ -119,7 +119,6 @@ class ForbiddenModificationException(msg: String) : Exception(msg)
 
 internal fun Field.setFieldValue(obj: Any, value: Any?) {
     check(!isStatic)
-    check(value !is PhysicalAddress)
     check(this.declaringClass.isAssignableFrom(obj.javaClass)) {
         "field $this cannot be written to object of ${obj.javaClass}"
     }
@@ -147,7 +146,6 @@ internal fun Field.getStaticFieldValue(): Any? {
 
 internal fun Field.setStaticFieldValue(value: Any?) {
     check(isStatic)
-    check(value !is PhysicalAddress)
     try {
         isAccessible = true
         set(null, value)
@@ -183,7 +181,6 @@ internal fun <Value> Any.getArrayValue(index: Int): Value {
 
 @Suppress("UNCHECKED_CAST")
 internal fun <Value> Any.setArrayValue(index: Int, value: Value) {
-    check(value !is PhysicalAddress)
     when (this) {
         is IntArray -> this[index] = value as Int
         is ByteArray -> this[index] = value as Byte

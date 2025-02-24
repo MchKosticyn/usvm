@@ -1,5 +1,6 @@
 package org.usvm.machine.state.concreteMemory
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.impl.features.classpaths.JcUnknownType
@@ -7,6 +8,7 @@ import org.usvm.api.util.JcConcreteMemoryClassLoader
 import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.machine.JcContext
 import java.lang.reflect.Field
+import java.util.IdentityHashMap
 import kotlin.math.min
 
 internal interface ThreadLocalHelper {
@@ -19,10 +21,10 @@ private class JcConcreteSnapshot(
     private val ctx: JcContext,
     val threadLocalHelper: ThreadLocalHelper,
 ) {
-    private val objects: HashMap<PhysicalAddress, PhysicalAddress> = hashMapOf()
-    private val addedRec: HashSet<PhysicalAddress> = hashSetOf()
-    private val newObjects: HashSet<PhysicalAddress> = hashSetOf()
-    private val statics: HashMap<Field, PhysicalAddress> = hashMapOf()
+    private val objects: IdentityHashMap<Any, Any?> = IdentityHashMap()
+    private val addedRec: IdentityHashMap<Any, Unit> = IdentityHashMap()
+    private val newObjects: IdentityHashMap<Any, Unit> = IdentityHashMap()
+    private val statics: Object2ObjectOpenHashMap<Field, Any?> = Object2ObjectOpenHashMap()
     private var staticsCache: HashSet<Class<*>> = hashSetOf()
 
     constructor(
@@ -30,18 +32,18 @@ private class JcConcreteSnapshot(
         threadLocalHelper: ThreadLocalHelper,
         other: JcConcreteSnapshot
     ) : this(ctx, threadLocalHelper) {
-        for ((phys, _) in other.objects) {
-            addObjectToSnapshot(phys)
+        for ((obj, _) in other.objects) {
+            addObjectToSnapshot(obj)
         }
 
-        for ((field, phys) in other.statics) {
-            addStaticFieldToSnapshot(field, phys)
+        for ((field, obj) in other.statics) {
+            addStaticFieldToSnapshot(field, obj)
         }
     }
 
-    fun getObjects(): Map<PhysicalAddress, PhysicalAddress> = objects
+    fun getObjects(): IdentityHashMap<Any, Any?> = objects
 
-    fun getStatics(): Map<Field, PhysicalAddress> = statics
+    fun getStatics(): Object2ObjectOpenHashMap<Field, Any?> = statics
 
     private fun cloneObject(obj: Any): Any? {
         val type = obj.javaClass
@@ -83,31 +85,30 @@ private class JcConcreteSnapshot(
         }
     }
 
-    fun addObjectToSnapshot(oldPhys: PhysicalAddress) {
-        if (objects.containsKey(oldPhys) || newObjects.contains(oldPhys))
+    fun addObjectToSnapshot(oldObj: Any) {
+        if (objects.containsKey(oldObj) || newObjects.contains(oldObj))
             return
 
-        val obj = oldPhys.obj!!
-        val type = obj.javaClass
+        val type = oldObj.javaClass
         if (!type.isThreadLocal && (type.isImmutable || !type.isArray && type.allInstanceFieldsAreFinal)) {
             return
         }
 
         val clonedObj = if (type.isThreadLocal) {
-            if (!threadLocalHelper.checkIsPresent(obj))
+            if (!threadLocalHelper.checkIsPresent(oldObj))
                 return
 
-            threadLocalHelper.getThreadLocalValue(obj)
+            threadLocalHelper.getThreadLocalValue(oldObj)
         } else {
-            cloneObject(obj) ?: return
+            cloneObject(oldObj) ?: return
         }
-        val clonedPhys = PhysicalAddress(clonedObj)
-        objects[oldPhys] = clonedPhys
+
+        objects[oldObj] = clonedObj
     }
 
     private inner class EffectTraversal: ObjectTraversal(threadLocalHelper, false) {
-        override fun skip(phys: PhysicalAddress, type: Class<*>): Boolean {
-            return type.notTracked || addedRec.contains(phys) || newObjects.contains(phys)
+        override fun skip(obj: Any, type: Class<*>): Boolean {
+            return type.notTracked || addedRec.contains(obj)
         }
 
         override fun skipField(field: Field): Boolean {
@@ -118,41 +119,29 @@ private class JcConcreteSnapshot(
             return elementType.notTrackedWithSubtypes
         }
 
-        override fun handleArray(phys: PhysicalAddress, type: Class<*>) {
-            addObjectToSnapshot(phys)
-            addedRec.add(phys)
+        override fun handleArray(array: Any, type: Class<*>) {
+            addObjectToSnapshot(array)
+            addedRec[array] = Unit
         }
 
-        override fun handleClass(phys: PhysicalAddress, type: Class<*>) {
-            addObjectToSnapshot(phys)
-            addedRec.add(phys)
+        override fun handleClass(obj: Any, type: Class<*>) {
+            addObjectToSnapshot(obj)
+            addedRec[obj] = Unit
         }
 
-        override fun handleThreadLocal(threadLocalPhys: PhysicalAddress, valuePhys: PhysicalAddress) {
-            objects[threadLocalPhys] = valuePhys
-            addedRec.add(threadLocalPhys)
+        override fun handleThreadLocal(threadLocal: Any, value: Any?) {
+            objects[threadLocal] = value
+            addedRec[threadLocal] = Unit
         }
-
-        override fun handleArrayIndex(arrayPhys: PhysicalAddress, index: Int, valuePhys: PhysicalAddress) {
-        }
-
-        override fun handleClassField(parentPhys: PhysicalAddress, field: Field, valuePhys: PhysicalAddress) {
-        }
-
     }
 
-    fun addObjectToSnapshotRec(obj: Any?) {
+    fun addObjectToSnapshotRec(obj: Any) {
         EffectTraversal().traverse(obj)
     }
 
-    fun addStaticFieldToSnapshot(field: Field, phys: PhysicalAddress) {
-        if (!field.isFinal)
-            statics[field] = phys
-    }
-
     fun addStaticFieldToSnapshot(field: Field, value: Any?) {
-        check(value !is PhysicalAddress)
-        addStaticFieldToSnapshot(field, PhysicalAddress(value))
+        if (!field.isFinal)
+            statics[field] = value
     }
 
     fun addStaticFields(type: Class<*>) {
@@ -164,14 +153,14 @@ private class JcConcreteSnapshot(
         for (field in type.staticFields) {
             val value = field.getStaticFieldValue()
             addStaticFieldToSnapshot(field, value)
+            value ?: continue
             addObjectToSnapshotRec(value)
         }
         staticsCache.add(type)
     }
 
     fun addNewObject(obj: Any) {
-        check(obj !is PhysicalAddress)
-        newObjects.add(PhysicalAddress(obj))
+        newObjects[obj] = Unit
     }
 
     fun ensureStatics() {
@@ -187,8 +176,8 @@ private class JcConcreteSnapshot(
 private class JcConcreteSnapshotSequence(
     snapshots: List<JcConcreteSnapshot>
 ) {
-    private val objects: Map<PhysicalAddress, PhysicalAddress>
-    private val statics: Map<Field, PhysicalAddress>
+    private val objects: IdentityHashMap<Any, Any?>
+    private val statics: Object2ObjectOpenHashMap<Field, Any?>
     private val threadLocalHelper: ThreadLocalHelper
 
     init {
@@ -200,8 +189,8 @@ private class JcConcreteSnapshotSequence(
             threadLocalHelper = snapshot.threadLocalHelper
         } else {
             threadLocalHelper = snapshots[0].threadLocalHelper
-            val resultObjects = hashMapOf<PhysicalAddress, PhysicalAddress>()
-            val resultStatics = hashMapOf<Field, PhysicalAddress>()
+            val resultObjects = IdentityHashMap<Any, Any?>()
+            val resultStatics = Object2ObjectOpenHashMap<Field, Any?>()
             for (snapshot in snapshots) {
                 check(snapshot.threadLocalHelper === threadLocalHelper)
                 resultObjects.putAll(snapshot.getObjects())
@@ -213,78 +202,76 @@ private class JcConcreteSnapshotSequence(
     }
 
     fun resetStatics() {
-        for ((field, phys) in statics) {
-            val value = phys.obj
+        for ((field, value) in statics) {
             field.setStaticFieldValue(value)
         }
     }
 
     @Suppress("UNCHECKED_CAST")
     fun resetObjects() {
-        for ((oldPhys, clonedPhys) in objects) {
-            val oldObj = oldPhys.obj ?: continue
-            val obj = clonedPhys.obj ?: continue
+        for ((oldObj, clonedObj) in objects) {
             val type = oldObj.javaClass
-            check(type == obj.javaClass || type.isThreadLocal)
+            check(clonedObj != null && type == clonedObj.javaClass || type.isThreadLocal)
             check(!type.notTracked)
             when {
-                type.isThreadLocal -> threadLocalHelper.setThreadLocalValue(oldObj, obj)
+                type.isThreadLocal -> threadLocalHelper.setThreadLocalValue(oldObj, clonedObj)
                 type.isArray -> {
                     when {
-                        obj is IntArray && oldObj is IntArray -> {
-                            obj.forEachIndexed { i, v ->
+                        clonedObj is IntArray && oldObj is IntArray -> {
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        obj is ByteArray && oldObj is ByteArray -> {
-                            obj.forEachIndexed { i, v ->
+                        clonedObj is ByteArray && oldObj is ByteArray -> {
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        obj is CharArray && oldObj is CharArray -> {
-                            obj.forEachIndexed { i, v ->
+                        clonedObj is CharArray && oldObj is CharArray -> {
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        obj is LongArray && oldObj is LongArray -> {
-                            obj.forEachIndexed { i, v ->
+                        clonedObj is LongArray && oldObj is LongArray -> {
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        obj is FloatArray && oldObj is FloatArray -> {
-                            obj.forEachIndexed { i, v ->
+                        clonedObj is FloatArray && oldObj is FloatArray -> {
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        obj is ShortArray && oldObj is ShortArray -> {
-                            obj.forEachIndexed { i, v ->
+                        clonedObj is ShortArray && oldObj is ShortArray -> {
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        obj is DoubleArray && oldObj is DoubleArray -> {
-                            obj.forEachIndexed { i, v ->
+                        clonedObj is DoubleArray && oldObj is DoubleArray -> {
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        obj is BooleanArray && oldObj is BooleanArray -> {
-                            obj.forEachIndexed { i, v ->
+                        clonedObj is BooleanArray && oldObj is BooleanArray -> {
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        obj is Array<*> && oldObj is Array<*> -> {
+                        clonedObj is Array<*> && oldObj is Array<*> -> {
                             oldObj as Array<Any?>
-                            obj.forEachIndexed { i, v ->
+                            clonedObj.forEachIndexed { i, v ->
                                 oldObj[i] = v
                             }
                         }
-                        else -> error("applyBacktrack: unexpected array $obj")
+                        else -> error("applyBacktrack: unexpected array $clonedObj")
                     }
                 }
 
                 else -> {
+                    check(clonedObj != null)
                     for (field in type.allInstanceFields) {
                         try {
-                            val value = field.getFieldValue(obj)
+                            val value = field.getFieldValue(clonedObj)
                             field.setFieldValue(oldObj, value)
                         } catch (e: Throwable) {
                             error("applyBacktrack class ${type.name} failed on field ${field.name}, cause: ${e.message}")
@@ -324,18 +311,18 @@ private class JcConcreteEffect(
     }
 
     fun addObject(obj: Any?) {
-        check(obj !is PhysicalAddress)
         check(isAlive)
         check(afterIsEmpty)
         isActiveVar = true
-        before.addObjectToSnapshot(PhysicalAddress(obj))
+        obj ?: return
+        before.addObjectToSnapshot(obj)
     }
 
     fun addObjectRec(obj: Any?) {
-        check(obj !is PhysicalAddress)
         check(isAlive)
         check(afterIsEmpty)
         isActiveVar = true
+        obj ?: return
         before.addObjectToSnapshotRec(obj)
     }
 
@@ -444,8 +431,6 @@ private class JcConcreteEffectSequence private constructor(
     }
 }
 
-// TODO: do not store effects of new addresses! #CM
-//  Optimize: check if address is allocated during current effect: maybe instrumentation of Object<init>?
 internal class JcConcreteEffectStorage private constructor(
     private val ctx: JcContext,
     private val threadLocalHelper: ThreadLocalHelper,
