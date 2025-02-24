@@ -1,110 +1,82 @@
 package org.usvm.machine.state.concreteMemory
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue
 import java.lang.reflect.Field
-import java.util.LinkedList
-import java.util.Queue
+import java.util.IdentityHashMap
 
 internal abstract class ObjectTraversal(
     private val threadLocalHelper: ThreadLocalHelper,
     private val skipExceptions: Boolean = false,
 ) {
 
-    abstract fun skip(phys: PhysicalAddress, type: Class<*>): Boolean
+    private var stopped = false
 
-    abstract fun handleArray(phys: PhysicalAddress, type: Class<*>)
+    fun stop() {
+        stopped = true
+    }
 
-    abstract fun handleClass(phys: PhysicalAddress, type: Class<*>)
+    abstract fun skip(obj: Any, type: Class<*>): Boolean
 
-    abstract fun handleThreadLocal(
-        threadLocalPhys: PhysicalAddress,
-        valuePhys: PhysicalAddress
-    )
+    abstract fun handleArray(array: Any, type: Class<*>)
 
-    abstract fun handleArrayIndex(arrayPhys: PhysicalAddress, index: Int, valuePhys: PhysicalAddress)
+    abstract fun handleClass(obj: Any, type: Class<*>)
 
-    abstract fun handleClassField(parentPhys: PhysicalAddress, field: Field, valuePhys: PhysicalAddress)
+    abstract fun handleThreadLocal(threadLocal: Any, value: Any?)
 
     open fun skipField(field: Field): Boolean = false
 
     open fun skipArrayIndices(elementType: Class<*>): Boolean = false
 
-    private fun traverseArray(phys: PhysicalAddress, type: Class<*>, traverseQueue: Queue<PhysicalAddress>) {
-        handleArray(phys, type)
+    private fun traverseArray(array: Any, type: Class<*>, traverseQueue: ObjectArrayFIFOQueue<Any>) {
+        handleArray(array, type)
 
         if (skipArrayIndices(type.componentType))
             return
 
-        when (val obj = phys.obj!!) {
+        when (array) {
             is Array<*> -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    if (e != null)
+                        traverseQueue.enqueue(e)
             }
             is IntArray -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    traverseQueue.enqueue(e)
             }
             is ByteArray -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    traverseQueue.enqueue(e)
             }
             is CharArray -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    traverseQueue.enqueue(e)
             }
             is LongArray -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    traverseQueue.enqueue(e)
             }
             is FloatArray -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    traverseQueue.enqueue(e)
             }
             is ShortArray -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    traverseQueue.enqueue(e)
             }
             is DoubleArray -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    traverseQueue.enqueue(e)
             }
             is BooleanArray -> {
-                obj.forEachIndexed { i, v ->
-                    val child = PhysicalAddress(v)
-                    handleArrayIndex(phys, i, child)
-                    traverseQueue.add(child)
-                }
+                for (e in array)
+                    traverseQueue.enqueue(e)
             }
-            else -> error("ObjectTraversal.traverse: unexpected array $obj")
+            else -> error("ObjectTraversal.traverse: unexpected array $array")
         }
     }
 
-    private fun traverseClass(phys: PhysicalAddress, type: Class<*>, traverseQueue: Queue<PhysicalAddress>) {
-        handleClass(phys, type)
-        val obj = phys.obj!!
+    private fun traverseClass(obj: Any, type: Class<*>, traverseQueue: ObjectArrayFIFOQueue<Any>) {
+        handleClass(obj, type)
 
         for (field in type.allInstanceFields) {
             if (skipField(field))
@@ -118,43 +90,45 @@ internal abstract class ObjectTraversal(
                 }
                 error("ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
             }
-            val valuePhys = PhysicalAddress(value)
-            handleClassField(phys, field, valuePhys)
-            traverseQueue.add(valuePhys)
+            if (value != null)
+                traverseQueue.enqueue(value)
         }
     }
 
-    fun traverse(obj: Any?) {
-        obj ?: return
-        val handledObjects = mutableSetOf<PhysicalAddress>()
-        val queue: Queue<PhysicalAddress> = LinkedList()
-        queue.add(PhysicalAddress(obj))
-        while (queue.isNotEmpty()) {
-            val currentPhys = queue.poll()
-            val current = currentPhys.obj ?: continue
+    fun traverse(obj: Any?): IdentityHashMap<Any, Unit> {
+        val handledObjects = IdentityHashMap<Any, Unit>()
+        obj ?: return handledObjects
+
+        val queue: ObjectArrayFIFOQueue<Any> = ObjectArrayFIFOQueue()
+        queue.enqueue(obj)
+        while (!queue.isEmpty && !stopped) {
+            val current = queue.dequeue() ?: continue
             val type = current.javaClass
-            if (!handledObjects.add(currentPhys) || skip(currentPhys, type))
+            if (handledObjects.containsKey(current) || skip(current, type))
                 continue
 
+            handledObjects[current] = Unit
             when {
                 type.isThreadLocal -> {
                     if (!threadLocalHelper.checkIsPresent(current))
                         continue
 
-                    val valuePhys = PhysicalAddress(threadLocalHelper.getThreadLocalValue(current))
-                    queue.add(valuePhys)
-                    handleThreadLocal(currentPhys, valuePhys)
+                    val value = threadLocalHelper.getThreadLocalValue(current)
+                    handleThreadLocal(current, value)
+                    queue.enqueue(value)
                 }
                 type.isArray -> {
-                    traverseArray(currentPhys, type, queue)
+                    traverseArray(current, type, queue)
                 }
 
                 // TODO: add special traverse for standard collections (ArrayList, ...) #CM
                 //  care about not fully completed operations of those collections
                 else -> {
-                    traverseClass(currentPhys, type, queue)
+                    traverseClass(current, type, queue)
                 }
             }
         }
+
+        return handledObjects
     }
 }

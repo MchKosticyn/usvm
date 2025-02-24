@@ -140,6 +140,20 @@ public class StringConcat {
         return true;
     }
 
+    private void testConcretizeCall(RunnableContainer c) {}
+
+    public static class RunnableContainer {
+        public Runnable r;
+        public RunnableContainer() {}
+    }
+
+    public RunnableContainer runnableAsFieldTest(Object o) {
+        RunnableContainer c = new RunnableContainer();
+        c.r = () -> System.out.println(o);
+        testConcretizeCall(c);
+        return c;
+    }
+
     public static class Attr {
         public String name;
 
