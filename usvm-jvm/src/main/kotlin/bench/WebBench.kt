@@ -202,9 +202,7 @@ internal object JcInitFeature: JcInstExtFeature {
             return list
 
         val mutableList = list.toMutableList()
-        // TODO: use method.enclosingClass.name.typeName after jacodb fixes
-        // TODO: fix .typeName inside jacodb
-        val typeName = TypeNameImpl(method.enclosingClass.name)
+        val typeName = method.enclosingClass.name.typeName
         val callExpr = JcRawStaticCallExpr(
             declaringClass = InitHelper::class.java.name.typeName,
             methodName = InitHelper::afterInit.javaName,
@@ -315,7 +313,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             val rawInstList = startSpringMethod.rawInstList.toMutableList()
             val assign = rawInstList[3] as JcRawAssignInst
             val classConstant = assign.rhv as JcRawClassConstant
-            val newClassConstant = JcRawClassConstant(TypeNameImpl(testClassName), classConstant.typeName)
+            val newClassConstant = JcRawClassConstant(testClassName.typeName, classConstant.typeName)
             val newAssign = JcRawAssignInst(assign.owner, assign.lhv, newClassConstant)
             rawInstList.remove(rawInstList[3])
             rawInstList.insertAfter(rawInstList[2], newAssign)

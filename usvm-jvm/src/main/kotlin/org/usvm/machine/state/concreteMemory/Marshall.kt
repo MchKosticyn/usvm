@@ -58,6 +58,7 @@ import java.lang.reflect.InvocationTargetException
 internal class Marshall(
     private val ctx: JcContext,
     private val bindings: JcConcreteMemoryBindings,
+    private val threadLocalHelper: ThreadLocalHelper,
     var regionStorage: JcConcreteRegionStorage,
 ) {
 
@@ -450,8 +451,14 @@ internal class Marshall(
         }
         encoder ?: error("Failed to find encoder for type ${type.name}")
         val encodeMethod = encoder.javaClass.declaredMethods.find { it.name == "encode" }!!
+        val encoderArg = if (jcClass?.name == "java.lang.ThreadLocal") {
+            if (threadLocalHelper.checkIsPresent(obj)) threadLocalHelper.getThreadLocalValue(obj)
+            else null
+        } else {
+            obj
+        }
         val approximatedObj = try {
-            encodeMethod.invoke(encoder, obj)
+            encodeMethod.invoke(encoder, encoderArg)
         } catch (e: Throwable) {
             var exception = e
             if (e is InvocationTargetException)
@@ -480,7 +487,10 @@ internal class Marshall(
 
     //endregion
 
-    fun copy(bindings: JcConcreteMemoryBindings, regionStorage: JcConcreteRegionStorage): Marshall {
-        return Marshall(ctx, bindings, regionStorage)
+    fun copy(
+        bindings: JcConcreteMemoryBindings,
+        regionStorage: JcConcreteRegionStorage
+    ): Marshall {
+        return Marshall(ctx, bindings, threadLocalHelper, regionStorage)
     }
 }
