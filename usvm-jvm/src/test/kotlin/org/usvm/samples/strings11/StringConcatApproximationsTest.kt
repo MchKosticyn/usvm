@@ -42,6 +42,15 @@ class StringConcatApproximationsTest : ApproximationsTestRunner() {
     }
 
     @Test
+    fun runnableAsField() {
+        checkDiscoveredPropertiesWithExceptions(
+            StringConcat::runnableAsFieldTest,
+            ignoreNumberOfAnalysisResults,
+            { _, _, _ -> true },
+        )
+    }
+
+    @Test
     fun testConcatArguments4() {
         checkDiscoveredPropertiesWithExceptions(
             StringConcat::wip4,

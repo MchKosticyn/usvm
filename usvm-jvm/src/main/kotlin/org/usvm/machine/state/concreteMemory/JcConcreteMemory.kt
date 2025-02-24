@@ -377,25 +377,21 @@ class JcConcreteMemory private constructor(
 
         private fun resolveConcreteArray(ref: UConcreteHeapRef, type: JcArrayType): Any {
             val address = ref.address
-            val obj = bindings.virtToPhys(address)
-            saveResolvedRef(ref.address, obj)
+            val array = bindings.virtToPhys(address) as Array<*>
+            saveResolvedRef(ref.address, array)
             // TODO: optimize #CM
             if (bindings.isMutableWithEffect())
-                bindings.effectStorage.addObjectToEffectRec(obj)
+                bindings.effectStorage.addObjectToEffectRec(array)
             val elementType = type.elementType
             val elementSort = ctx.typeToSort(type.elementType)
             val arrayDescriptor = ctx.arrayDescriptorOf(type)
-            for (kind in bindings.symbolicMembers(address)) {
-                check(kind is ArrayIndexChildKind)
-                val index = kind.index
+            for (index in bindings.symbolicIndices(array)) {
                 val value = readArrayIndex(ref, ctx.mkSizeExpr(index), arrayDescriptor, elementSort)
                 val resolved = resolveExpr(value, elementType)
-                obj.setArrayValue(index, resolved)
-                // TODO: delete (not efficient)
-                bindings.setChild(obj, resolved, kind)
+                array.setArrayValue(index, resolved)
             }
 
-            return obj
+            return array
         }
 
         override fun resolveArray(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcArrayType): Any? {
@@ -407,7 +403,6 @@ class JcConcreteMemory private constructor(
             }
 
             val array = super.resolveArray(ref, heapRef, type)
-            // TODO: reTrack here?
             if (array != null && !bindings.contains(addressInModel)) {
                 bindings.allocate(addressInModel, array, type)
             }
@@ -418,13 +413,13 @@ class JcConcreteMemory private constructor(
         private fun resolveConcreteObject(ref: UConcreteHeapRef, type: JcClassType): Any {
             val address = ref.address
             val obj = bindings.virtToPhys(address)
+            if (obj.javaClass.isThreadLocal)
+                error("ThreadLocal concretization is not implemented!")
             saveResolvedRef(ref.address, obj)
             // TODO: optimize #CM
             if (bindings.isMutableWithEffect())
                 bindings.effectStorage.addObjectToEffectRec(obj)
-            for (kind in bindings.symbolicMembers(address)) {
-                check(kind is FieldChildKind)
-                val field = kind.field
+            for (field in bindings.symbolicFields(obj)) {
                 val jcField = type.allInstanceFields.find { it.name == field.name }
                     ?: error("resolveConcreteObject: can not find field $field")
                 val fieldType = jcField.type
@@ -432,8 +427,6 @@ class JcConcreteMemory private constructor(
                 val value = readField(ref, jcField.field, fieldSort)
                 val resolved = resolveExpr(value, fieldType)
                 field.setFieldValue(obj, resolved)
-                // TODO: delete (not efficient)
-                bindings.setChild(obj, resolved, kind)
             }
 
             return obj
@@ -448,7 +441,6 @@ class JcConcreteMemory private constructor(
             }
 
             val obj = super.resolveObject(ref, heapRef, type)
-            // TODO: reTrack here?
             if (obj != null && !bindings.contains(addressInModel)) {
                 bindings.allocate(addressInModel, obj, type)
             }
@@ -577,14 +569,6 @@ class JcConcreteMemory private constructor(
         thisObj: Any?,
         objParameters: List<Any?>
     ) {
-        // TODO: delete (not efficient)
-        if (objParameters.any { !bindings.isActual(it) } || !bindings.isActual(thisObj)) {
-            if (bindings.effectStorage.isEmpty)
-                println("[WARNING] incorrect concreteness tracking")
-            else
-                println("[WARNING] incorrect concreteness tracking or effect storage")
-        }
-
         if (bindings.isMutableWithEffect()) {
             // TODO: if method is not mutating (guess via IFDS), backtrack is useless #CM
             bindings.effectStorage.addObjectToEffectRec(thisObj)
@@ -592,59 +576,47 @@ class JcConcreteMemory private constructor(
                 bindings.effectStorage.addObjectToEffectRec(arg)
         }
 
-        var thisArg = thisObj
-        try {
-            var resultObj: Any? = null
-            var exception: Throwable? = null
-            executor.execute {
-                try {
-                    resultObj = method.invoke(JcConcreteMemoryClassLoader, thisObj, objParameters)
-                } catch (e: Throwable) {
-                    exception = unfoldException(e)
-                }
+        var resultObj: Any? = null
+        var exception: Throwable? = null
+        executor.execute {
+            try {
+                resultObj = method.invoke(JcConcreteMemoryClassLoader, thisObj, objParameters)
+            } catch (e: Throwable) {
+                exception = unfoldException(e)
+            }
+        }
+
+        if (exception == null) {
+            // No exception
+            try {
+                println("Result $resultObj")
+            } catch (e: Throwable) {
+                println("unable to print method invocation result")
+            }
+            if (method.isConstructor) {
+                check(thisObj != null && resultObj != null)
+                // TODO: think about this:
+                //  A <: B
+                //  A.ctor is called symbolically, but B.ctor called concretelly #CM
+                check(thisObj.javaClass == resultObj!!.javaClass)
+                val thisAddress = bindings.tryPhysToVirt(thisObj)
+                check(thisAddress != null)
+                val type = bindings.typeOf(thisAddress)
+                bindings.remove(thisAddress, isSymbolic = false)
+                bindings.allocate(thisAddress, resultObj!!, type)
             }
 
-            if (exception == null) {
-                // No exception
-                try {
-                    println("Result $resultObj")
-                } catch (e: Throwable) {
-                    println("unable to print method invocation result")
-                }
-                bindings.reTrackObject(resultObj)
-                if (method.isConstructor) {
-                    check(thisObj != null && resultObj != null)
-                    // TODO: think about this:
-                    //  A <: B
-                    //  A.ctor is called symbolically, but B.ctor called concretelly #CM
-                    check(thisObj.javaClass == resultObj!!.javaClass)
-                    val thisAddress = bindings.tryPhysToVirt(thisObj)
-                    check(thisAddress != null)
-                    thisArg = resultObj
-                    val type = bindings.typeOf(thisAddress)
-                    bindings.remove(thisAddress)
-                    bindings.allocate(thisAddress, resultObj!!, type)
-                }
-
-                val returnType = ctx.cp.findTypeOrNull(method.returnType)!!
-                val result: UExpr<USort> = marshall.objToExpr(resultObj, returnType)
-                exprResolver.ensureExprCorrectness(result, returnType)
-                state.newStmt(JcConcreteInvocationResult(result, stmt))
-            } else {
-                // Exception thrown
-                val e = exception!!
-                val jcType = ctx.jcTypeOf(e)
-                println("Exception ${e.javaClass} with message ${e.message}")
-                val exceptionObj = allocateObject(e, jcType)
-                state.throwExceptionWithoutStackFrameDrop(exceptionObj, jcType)
-            }
-        } finally {
-            // TODO: if method is not mutating (guess via IFDS), do not reTrack #CM
-            objParameters.forEach {
-                bindings.reTrackObject(it)
-            }
-            if (thisObj != null)
-                bindings.reTrackObject(thisArg)
+            val returnType = ctx.cp.findTypeOrNull(method.returnType)!!
+            val result: UExpr<USort> = marshall.objToExpr(resultObj, returnType)
+            exprResolver.ensureExprCorrectness(result, returnType)
+            state.newStmt(JcConcreteInvocationResult(result, stmt))
+        } else {
+            // Exception thrown
+            val e = exception!!
+            val jcType = ctx.jcTypeOf(e)
+            println("Exception ${e.javaClass} with message ${e.message}")
+            val exceptionObj = allocateObject(e, jcType)
+            state.throwExceptionWithoutStackFrameDrop(exceptionObj, jcType)
         }
     }
 
@@ -750,7 +722,7 @@ class JcConcreteMemory private constructor(
             // TODO: only if arguments are symbolic? #CM
             val thisArg = stmt.arguments[0]
             if (thisArg is UConcreteHeapRef && bindings.contains(thisArg.address) && types.typeOf(thisArg.address).isInstanceApproximation)
-                bindings.remove(thisArg.address)
+                bindings.remove(thisArg.address, isNew = true)
         }
 
         return success is TryConcreteInvokeSuccess
@@ -900,6 +872,8 @@ class JcConcreteMemory private constructor(
             "org.springframework.web.servlet.DispatcherServlet#processDispatchResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.HandlerExecutionChain,org.springframework.web.servlet.ModelAndView,java.lang.Exception):void",
             // TODO: need it? #CM
             "org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite#handleReturnValue(java.lang.Object,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void",
+            // TODO: delete #CM
+            "org.usvm.samples.strings11.StringConcat#testConcretizeCall(org.usvm.samples.strings11.StringConcat\$RunnableContainer):void"
         )
 
         //endregion
