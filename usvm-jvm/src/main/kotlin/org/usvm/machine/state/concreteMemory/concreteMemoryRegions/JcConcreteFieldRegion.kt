@@ -60,14 +60,13 @@ internal class JcConcreteFieldRegion<Sort : USort>(
                 val type = bindings.virtToPhys(address) as Class<*>
                 val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
                 jcType as JcRefType
-                val allocated = bindings.allocateDefaultConcrete(jcType)!!
+                val allocated = bindings.dummyAllocate(jcType)
                 return ctx.mkConcreteHeapRef(allocated) as UExpr<Sort>
             }
 
             if (!isApproximation) {
                 val (success, fieldObj) = bindings.readClassField(address, javaField!!)
                 if (success)
-                    // TODO: use reflect type? #CM
                     return marshall.objToExpr(fieldObj, fieldType)
             }
 

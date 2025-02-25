@@ -29,7 +29,6 @@ import org.jacodb.api.jvm.ext.double
 import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.findType
-import org.jacodb.api.jvm.ext.findTypeOrNull
 import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.ifArrayGetElementType
 import org.jacodb.api.jvm.ext.int
@@ -75,7 +74,6 @@ import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapRemove
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapSize
 import org.usvm.api.initializeArray
 import org.usvm.api.initializeArrayLength
-import org.usvm.api.makeNullableSymbolicRef
 import org.usvm.api.makeNullableSymbolicRefSubtype
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
@@ -816,17 +814,9 @@ class JcMethodApproximationResolver(
                 } else {
                     arguments = jcMethod.parameters.mapIndexed { index, jcParameter ->
                         val idx = memory.tryObjectToExpr(index, ctx.cp.int)!!
-                        val value = memory.readArrayIndex(args, idx, descriptor, ctx.sizeSort).asExpr(ctx.addressSort)
+                        val value = memory.readArrayIndex(args, idx, descriptor, ctx.addressSort).asExpr(ctx.addressSort)
                         val type = jcParameter.type
-                        val sort = ctx.typeToSort(type)
-                        if (type is JcPrimitiveType) {
-                            val boxedType = type.autoboxIfNeeded() as JcClassType
-                            val valueField = boxedType.declaredFields.find { it.name == "value" }
-                                ?: return@calcOnState false
-                            memory.readField(value, valueField.field, sort)
-                        } else {
-                            value
-                        }
+                        unboxIfNeeded(value, type) ?: return@calcOnState false
                     }
                 }
                 val parameters =
@@ -843,6 +833,17 @@ class JcMethodApproximationResolver(
         return false
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun JcState.unboxIfNeeded(value: UHeapRef, neededType: JcType): UExpr<USort>? {
+        if (neededType !is JcPrimitiveType)
+            return value as UExpr<USort>
+
+        val boxedType = neededType.autoboxIfNeeded() as JcClassType
+        val valueField = boxedType.declaredFields.find { it.name == "value" } ?: return null
+        val sort = ctx.typeToSort(neededType)
+        return memory.readField(value, valueField.field, sort)
+    }
+
     private fun approximateFieldMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         if (method.name == "get") {
             val fieldArg = arguments[0] as UConcreteHeapRef
@@ -854,9 +855,10 @@ class JcMethodApproximationResolver(
                 declaringClass as JcClassType
                 val fields = declaringClass.declaredFields + declaringClass.fields
                 val jcField = fields.find { it.name == field.name } ?: return@calcOnState false
-                val sort = ctx.typeToSort(jcField.type)
-                val value = memory.readField(thisArg, jcField.field, sort)
-                skipMethodInvocationWithValue(methodCall, value)
+                val fieldType = jcField.type
+                val sort = ctx.typeToSort(fieldType)
+                val fieldValue = memory.readField(thisArg, jcField.field, sort)
+                newStmt(JcBoxMethodCall(methodCall, fieldValue, fieldType))
 
                 return@calcOnState true
             }
@@ -874,8 +876,11 @@ class JcMethodApproximationResolver(
                 declaringClass as JcClassType
                 val fields = declaringClass.declaredFields + declaringClass.fields
                 val jcField = fields.find { it.name == field.name } ?: return@calcOnState false
-                val sort = ctx.typeToSort(jcField.type)
-                memory.writeField(thisArg, jcField.field, sort, arguments[2].asExpr(ctx.addressSort), ctx.trueExpr)
+                val fieldType = jcField.type
+                val sort = ctx.typeToSort(fieldType)
+                val value = arguments[2].asExpr(ctx.addressSort)
+                val unboxed = unboxIfNeeded(value, fieldType) ?: return@calcOnState false
+                memory.writeField(thisArg, jcField.field, sort, unboxed, ctx.trueExpr)
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
 
                 return@calcOnState true

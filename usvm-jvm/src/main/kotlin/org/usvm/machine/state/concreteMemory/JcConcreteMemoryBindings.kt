@@ -276,7 +276,7 @@ internal class JcConcreteMemoryBindings private constructor(
     private fun allocateIfShould(type: JcType, static: Boolean): UConcreteHeapAddress? {
         if (shouldAllocate(type)) {
             val obj = createDefault(type) ?: return null
-            // TODO: add to fullyConcrete?
+            transitiveConcretes[obj] = Unit
             return allocate(obj, type, static)
         }
         return null
@@ -296,6 +296,12 @@ internal class JcConcreteMemoryBindings private constructor(
 
     fun allocateDefaultStatic(type: JcType): UConcreteHeapAddress? {
         return allocateIfShould(type, true)
+    }
+
+    fun dummyAllocate(type: JcType): UConcreteHeapAddress {
+        val address = createNewAddress(type, false)
+        typeConstraints.allocate(address, type)
+        return address
     }
 
     //endregion
