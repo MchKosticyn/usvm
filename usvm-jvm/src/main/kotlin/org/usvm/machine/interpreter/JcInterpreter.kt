@@ -2,8 +2,6 @@ package org.usvm.machine.interpreter
 
 import io.ksmt.utils.asExpr
 import mu.KLogging
-import org.jacodb.api.jvm.JcArrayType
-import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
@@ -66,6 +64,7 @@ import org.usvm.machine.JcMethodCall
 import org.usvm.machine.JcMethodCallBaseInst
 import org.usvm.machine.JcMethodEntrypointInst
 import org.usvm.machine.JcReflectionInvokeResult
+import org.usvm.machine.JcBoxMethodCall
 import org.usvm.machine.JcVirtualMethodCallInst
 import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.JcMethodResult
@@ -283,9 +282,20 @@ class JcInterpreter(
 
             is JcReflectionInvokeResult -> {
                 scope.doWithState {
-                    val result = (methodResult as JcMethodResult.Success).value
                     when (val returnType = stmt.invokeMethod.returnType) {
                         ctx.cp.void -> skipMethodInvocationWithValue(stmt, ctx.nullRef)
+                        else -> {
+                            val returnValue = (methodResult as JcMethodResult.Success).value
+                            newStmt(JcBoxMethodCall(stmt, returnValue, returnType))
+                        }
+                    }
+                }
+            }
+
+            is JcBoxMethodCall -> {
+                scope.doWithState {
+                    val result = stmt.resultExpr
+                    when (val returnType = stmt.resultType) {
                         is JcPrimitiveType -> {
                             val boxedType = returnType.autoboxIfNeeded() as JcClassType
                             val boxMethod = boxedType.declaredMethods.find {

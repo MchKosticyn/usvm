@@ -539,8 +539,7 @@ internal class LambdaInvocationHandler : InvocationHandler {
     }
 }
 
-private fun createProxy(type: JcClassType): Any {
-    val jcClass = type.jcClass
+private fun createProxy(jcClass: JcClassOrInterface): Any {
     check(jcClass.isInterface)
     return Proxy.newProxyInstance(
         JcConcreteMemoryClassLoader,
@@ -554,8 +553,12 @@ internal fun createDefault(type: JcType): Any? {
         return when (type) {
             is JcArrayType -> type.allocateInstance(JcConcreteMemoryClassLoader, 1)
             is JcClassType -> {
-                if (type.jcClass.isInterface) createProxy(type)
-                else type.allocateInstance(JcConcreteMemoryClassLoader)
+                val jcClass = type.jcClass
+                when {
+                    jcClass.isInterface -> createProxy(jcClass)
+                    jcClass.isAbstract -> null
+                    else -> type.allocateInstance(JcConcreteMemoryClassLoader)
+                }
             }
             is JcPrimitiveType -> null
             else -> error("createDefault: unexpected type $type")
