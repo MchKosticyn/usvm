@@ -268,6 +268,11 @@ class JcMethodApproximationResolver(
             if (approximateArrayReflectionMethod(methodCall)) return true
         }
 
+        if (className == "org.usvm.api.internal.InitHelper") {
+            scope.doWithState { skipMethodInvocationWithValue(methodCall, ctx.voidValue) }
+            return true
+        }
+
         return approximateEmptyNativeMethod(methodCall)
     }
 
@@ -428,42 +433,6 @@ class JcMethodApproximationResolver(
                 val message = memory.tryHeapRefToObject(messageExpr) as String
                 println("\u001B[36m" + message + "\u001B[0m")
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
-            }
-
-            return true
-        }
-
-        if (method.name.equals("_initValueFieldsSymbolic")) {
-            scope.doWithState {
-                val objRef = methodCall.arguments[0].asExpr(ctx.addressSort) as UConcreteHeapRef
-                val objType = memory.types.typeOf(objRef.address) as JcClassType
-                val fields = objType.allInstanceFields.filter {
-                    it.field.annotations.any { it.name == "org.springframework.beans.factory.annotation.Value" }
-                }
-                for (field in fields) {
-                    val fieldType = field.type
-                    val fieldSort = ctx.typeToSort(fieldType)
-                    @Suppress("UNCHECKED_CAST")
-                    val symbolicValue = scope.makeSymbolicRefSubtype(fieldType)!! as UExpr<USort>
-                    memory.writeField(objRef, field.field, fieldSort, symbolicValue, ctx.trueExpr)
-                }
-                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
-            }
-
-            return true
-        }
-
-        if (method.name.equals("_classesWithFieldsValueAnnotation")) {
-            scope.doWithState {
-                val types = ctx.classesOfLocations(options.projectLocations!!).filter {
-                    !it.isAbstract && !it.isInterface && !it.isAnonymous && it.fields.any {
-                        it.annotations.any { it.name == "org.springframework.beans.factory.annotation.Value" }
-                    }
-                }
-                val classes = ArrayList(types.map { JcConcreteMemoryClassLoader.loadClass(it) }.toList())
-                val classesJcType = ctx.cp.findTypeOrNull(classes.javaClass.typeName)!!
-                val classesRef = memory.tryAllocateConcrete(classes, classesJcType)!!
-                skipMethodInvocationWithValue(methodCall, classesRef)
             }
 
             return true

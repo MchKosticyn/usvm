@@ -63,6 +63,7 @@ internal val Class<*>.safeDeclaredFields: List<Field>
         }
     }
 
+// TODO: cache?
 @Suppress("RecursivePropertyAccessor")
 internal val Class<*>.allFields: List<Field>
     get() = safeDeclaredFields + (superclass?.allFields ?: emptyList())
@@ -312,6 +313,7 @@ internal val JcMethod.isInstrumentedInit: Boolean
                 && it.callExpr.methodName == InitHelper::afterInit.javaName
     }
 
+// TODO: cache?
 internal val Class<*>.notTracked: Boolean
     get() = this.isPrimitive || this.isEnum || isImmutable
 
@@ -338,6 +340,7 @@ private val immutableTypes = setOf<Class<*>>(
     java.lang.reflect.Array::class.java,
     java.lang.Class::class.java,
     java.lang.Thread::class.java,
+    java.lang.Process::class.java,
     java.math.BigInteger::class.java,
     java.math.BigDecimal::class.java,
 
@@ -358,6 +361,7 @@ private val immutableTypes = setOf<Class<*>>(
     java.util.UUID::class.java,
     java.util.Collections::class.java,
     java.util.Arrays::class.java,
+    java.util.Timer::class.java,
 
     java.net.URL::class.java,
     java.net.URI::class.java,
@@ -370,6 +374,11 @@ private val immutableTypes = setOf<Class<*>>(
 private val packagesWithImmutableTypes = setOf(
     "java.lang.reflect",
     "java.lang.invoke",
+    "java.lang.ref",
+    "java.lang.annotation",
+    "java.lang.constant",
+    "java.lang.module",
+    "java.lang.runtime",
     "java.time",
     "sun.reflect",
     "sun.instrument",
@@ -406,6 +415,14 @@ private val Class<*>.isLogger: Boolean
 private val JcClassOrInterface.isLogger: Boolean
     get() = loggingPackages.any { packageName.startsWith(it) }
 
+private val String.inImmutableFromJavaLang: Boolean
+    get() = this.startsWith("java.lang")
+            && this != "java.lang.StringBuilder"
+            && this != "java.lang.StringBuffer"
+
+private val Class<*>.inImmutableWithSubtypesFromJavaLang: Boolean
+    get() = this.name.inImmutableFromJavaLang && (isFinal || !isPublic)
+
 internal val Class<*>.isImmutable: Boolean
     get() = !isArray &&
             (immutableTypes.any { it.isAssignableFrom(this) }
@@ -413,6 +430,7 @@ internal val Class<*>.isImmutable: Boolean
                     || isEnum
                     || isRecord
                     || packagesWithImmutableTypes.any { packageName.startsWith(it) }
+                    || this.name.inImmutableFromJavaLang
                     || isClassLoader
                     || isLogger
                     || isInternalType
@@ -425,6 +443,7 @@ internal val Class<*>.isImmutableWithSubtypes: Boolean
                     || isEnum
                     || isRecord
                     || packagesWithImmutableTypes.any { packageName.startsWith(it) }
+                    || inImmutableWithSubtypesFromJavaLang
                     || isClassLoader
                     || isLogger
                     || isInternalType
@@ -434,6 +453,7 @@ internal val JcClassOrInterface.isImmutable: Boolean
     get() = immutableTypes.any { this.allSuperHierarchyWithThis.any { cls -> cls.name == it.name } }
             || isEnum
             || packagesWithImmutableTypes.any { this.packageName.startsWith(it) }
+            || this.name.inImmutableFromJavaLang
             || isClassLoader
             || isLogger
             || isInternalType
@@ -444,6 +464,12 @@ internal val Class<*>.allInstanceFieldsAreFinal: Boolean
 
 internal val Class<*>.isFinal: Boolean
     get() = Modifier.isFinal(modifiers)
+
+internal val Class<*>.isPublic: Boolean
+    get() = Modifier.isPublic(modifiers)
+
+internal val Class<*>.isAbstract: Boolean
+    get() = Modifier.isAbstract(modifiers)
 
 private val JcClassOrInterface.allSuperHierarchyWithThis: Set<JcClassOrInterface>
     get() = allSuperHierarchy + this
