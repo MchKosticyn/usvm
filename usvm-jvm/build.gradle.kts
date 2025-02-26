@@ -48,6 +48,7 @@ dependencies {
     implementation(project("usvm-jvm-api"))
     implementation(project("usvm-jvm-test-api"))
     implementation(project(":usvm-jvm:usvm-jvm-util"))
+    implementation(project(":usvm-jvm:usvm-jvm-reproducer"))
 
     implementation(Libs.ksmt_runner)
     implementation(Libs.ksmt_yices)

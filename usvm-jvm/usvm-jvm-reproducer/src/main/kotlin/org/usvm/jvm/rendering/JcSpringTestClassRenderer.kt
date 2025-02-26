@@ -27,6 +27,7 @@ import com.github.javaparser.ast.stmt.TryStmt
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import com.github.javaparser.printer.DefaultPrettyPrinter
 import java.io.File
+import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.packageName
@@ -38,8 +39,8 @@ enum class JcSpringTestKind {
 }
 
 data class JcSpringTestMeta(
-    val filePath: String,
-    val targetMethod: JcMethod,
+    val classUnderTest: JcClassType,
+    val pathUnderTest: String,
     val testKind: JcSpringTestKind
 )
 
@@ -57,9 +58,9 @@ class JcSpringTestClassRenderer(
 
         fun loadFileOrCreateFor(meta: JcSpringTestMeta): JcSpringTestClassRenderer {
             val testFilePath = buildList {
-                add(meta.filePath)
-                addAll(meta.targetMethod.enclosingClass.packageName.split("."))
-                add(meta.targetMethod.enclosingClass.simpleName + CLASS_NAME_SUFFIX + ".java")
+                add(meta.classUnderTest.jcClass.declaration.location.path)
+                addAll(meta.classUnderTest.jcClass.packageName.split("."))
+                add(meta.classUnderTest.jcClass.simpleName + CLASS_NAME_SUFFIX + ".java")
             }.joinToString(File.separator)
 
             val testFile = File(testFilePath)
@@ -68,7 +69,7 @@ class JcSpringTestClassRenderer(
 
         private fun loadFileAndValidate(file: File, meta: JcSpringTestMeta): JcSpringTestClassRenderer {
             fun isValid(cu: CompilationUnit): Boolean =
-                cu.types.any { declaration -> declaration.name == SimpleName(meta.targetMethod.enclosingClass.simpleName + CLASS_NAME_SUFFIX) }
+                cu.types.any { declaration -> declaration.name == SimpleName(meta.classUnderTest.jcClass.simpleName + CLASS_NAME_SUFFIX) }
 
             val cu = StaticJavaParser.parse(file)
             return if (isValid(cu)) {
@@ -86,8 +87,8 @@ class JcSpringTestClassRenderer(
             file.createNewFile()
             val cu = CompilationUnit()
             val testClass = ClassOrInterfaceDeclaration()
-            cu.setPackageDeclaration(meta.targetMethod.enclosingClass.packageName)
-            testClass.name = SimpleName(meta.targetMethod.enclosingClass.simpleName + CLASS_NAME_SUFFIX)
+            cu.setPackageDeclaration(meta.classUnderTest.jcClass.packageName)
+            testClass.name = SimpleName(meta.classUnderTest.jcClass.simpleName + CLASS_NAME_SUFFIX)
             testClass.isPublic = true
             cu.addType(testClass)
             // TODO insert headers for tests of proper kind
@@ -105,7 +106,7 @@ class JcSpringTestClassRenderer(
         var staticInit: BlockStmt? = null
         tests.forEach { t ->
             val testClass = cu.types.single {
-                it.name == SimpleName(t.meta.targetMethod.enclosingClass.simpleName + CLASS_NAME_SUFFIX)
+                it.name == SimpleName(t.meta.classUnderTest.jcClass.simpleName + CLASS_NAME_SUFFIX)
             }
 
             if (testClass.methods.isNotEmpty()) {
@@ -200,7 +201,7 @@ class JcSpringTestClassRenderer(
     }
 
     private fun TypeDeclaration<*>.injectTestBy(meta: JcSpringTestMeta): MethodDeclaration {
-        val test = this.addMethod(meta.targetMethod.name + METHOD_NAME_PREFIX + methods.size, Modifier.Keyword.PUBLIC)
+        val test = this.addMethod(meta.pathUnderTest + METHOD_NAME_PREFIX + methods.size, Modifier.Keyword.PUBLIC)
         // TODO does not scale now
         test.addAnnotation(MarkerAnnotationExpr(Name(JUNIT5_ANNOTATION)))
         importManager.tryAdd(JUNIT5_ANNOTATION, simpleNameFromString(JUNIT5_ANNOTATION))

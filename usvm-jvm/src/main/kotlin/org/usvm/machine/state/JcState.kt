@@ -5,7 +5,6 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.PathNode
 import org.usvm.UCallStack
-import org.usvm.UConcreteHeapRef
 import org.usvm.UState
 import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
@@ -17,7 +16,7 @@ import org.usvm.merging.MutableMergeGuard
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
-class JcState(
+open class JcState(
     ctx: JcContext,
     ownership: MutabilityOwnership,
     override val entrypoint: JcMethod,

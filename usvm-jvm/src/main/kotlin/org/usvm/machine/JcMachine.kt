@@ -47,7 +47,7 @@ import org.usvm.util.originalInst
 
 val logger = object : KLogging() {}.logger
 
-class JcMachine(
+open class JcMachine(
     cp: JcClasspath,
     private val options: UMachineOptions,
     private val jcMachineOptions: JcMachineOptions = JcMachineOptions(),
@@ -63,11 +63,18 @@ class JcMachine(
 
     private val cfgStatistics = CfgStatisticsImpl(applicationGraph)
 
-    fun analyze(methods: List<JcMethod>, targets: List<JcTarget> = emptyList()): List<JcState> {
+    // TODO create JcSpringInterpreter
+    protected open fun JcState.toCorrespodingStateType(): JcState = this
+
+    protected open fun analyze(
+        methods: List<JcMethod>,
+        targets: List<JcTarget> = emptyList(),
+        extraMachineObservers: List<UMachineObserver<*>> = listOf()
+    ): List<JcState> {
         logger.debug("{}.analyze({})", this, methods)
         val initialStates = mutableMapOf<JcMethod, JcState>()
         methods.forEach {
-            initialStates[it] = interpreter.getInitialState(it, targets)
+            initialStates[it] = interpreter.getInitialState(it, targets).toCorrespodingStateType()
         }
 
         val methodsToTrackCoverage: Set<JcMethod> =
@@ -158,6 +165,10 @@ class JcMachine(
             observers.add(interpreterObserver as UMachineObserver<JcState>)
         }
 
+        // TODO review
+        @Suppress("UNCHECKED_CAST")
+        observers.addAll(extraMachineObservers.map { it as UMachineObserver<JcState> })
+
         if (options.coverageZone != CoverageZone.METHOD) {
             val ignoreMethod =
                 when (options.coverageZone) {
@@ -225,7 +236,7 @@ class JcMachine(
         return statesCollector.collectedStates
     }
 
-    fun analyze(method: JcMethod, targets: List<JcTarget> = emptyList()): List<JcState> =
+    open fun analyze(method: JcMethod, targets: List<JcTarget> = emptyList()): List<JcState> =
         analyze(listOf(method), targets)
 
     /**

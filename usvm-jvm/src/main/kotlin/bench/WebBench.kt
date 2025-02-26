@@ -45,7 +45,7 @@ import org.usvm.jvm.util.isSameSignature
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
 import org.usvm.logger
-import org.usvm.machine.JcMachine
+import org.usvm.machine.JcSpringMachine
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.SpringAnalysisMode
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
@@ -102,7 +102,7 @@ private fun loadKlawBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadKlawBench()
+        loadWebPetClinicBench()
     }
 
     logTime("Analysis ALL") {
@@ -379,7 +379,7 @@ private fun analyzeBench(benchmark: BenchCp) {
             springAnalysisMode = SpringAnalysisMode.WebMVCTest
         )
     val testResolver = JcTestInterpreter()
-    JcMachine(cp, options, jcMachineOptions).use { machine ->
+    JcSpringMachine(cp, options, jcMachineOptions).use { machine ->
         val states = machine.analyze(method.method)
         states.map { testResolver.resolve(method, it) }
     }
