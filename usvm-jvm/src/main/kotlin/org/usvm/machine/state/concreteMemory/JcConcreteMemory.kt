@@ -318,17 +318,13 @@ class JcConcreteMemory private constructor(
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
+        val enclosingClass = method.enclosingClass
         return !(
-                method.isConstructor && method.enclosingClass.isAbstract ||
-                        method.enclosingClass.isEnum && method.isConstructor ||
+                method.isConstructor && enclosingClass.isAbstract ||
+                        enclosingClass.isEnum && method.isConstructor ||
                         // Case for method, which exists only in approximations
                         method is JcEnrichedVirtualMethod && !method.isClassInitializer && method.toJavaMethod == null ||
-                        method.humanReadableSignature.let {
-                            it.startsWith("org.usvm.api.") ||
-                                    it.startsWith("runtime.LibSLRuntime") ||
-                                    it.startsWith("generated.") ||
-                                    it.startsWith("stub.")
-                        } ||
+                        enclosingClass.isInternalType && enclosingClass.name != "org.usvm.api.internal.InitHelper" ||
                         shouldNotInvoke(method)
                 )
     }

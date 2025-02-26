@@ -233,7 +233,7 @@ tasks.register<JavaExec>("runWebBench") {
     environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
     environment("usvm.jvm.approximations.jar.path", usvmApproximationJarPath.absolutePath)
 
-    jvmArgs = listOf("-Xmx10g") + mutableListOf<String>().apply {
+    jvmArgs = listOf("-Xmx12g") + mutableListOf<String>().apply {
         add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
         add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePathString()}")
         openPackage("java.base", "jdk.internal.misc")
