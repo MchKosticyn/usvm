@@ -1,0 +1,3 @@
+package concreteMemory.concreteMemoryRegions
+
+interface JcConcreteRegion

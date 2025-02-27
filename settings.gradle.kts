@@ -45,3 +45,10 @@ include("usvm-jvm:usvm-jvm-utils")
 findProject(":usvm-jvm:usvm-jvm-utils")?.name = "usvm-jvm-utils"
 include("usvm-jvm:usvm-jvm-utils")
 findProject(":usvm-jvm:usvm-jvm-utils")?.name = "usvm-jvm-utils"
+include("usvm-jvm-concrete")
+include("usvm-jvm-spring")
+include("usvm-jvm-spring-runner")
+include("usvm-jvm-concrete:usvm-jvm-concrete-api")
+findProject(":usvm-jvm-concrete:usvm-jvm-concrete-api")?.name = "usvm-jvm-concrete-api"
+include("usvm-jvm-concrete:usvm-jvm-concrete-api")
+findProject(":usvm-jvm-concrete:usvm-jvm-concrete-api")?.name = "usvm-jvm-concrete-api"

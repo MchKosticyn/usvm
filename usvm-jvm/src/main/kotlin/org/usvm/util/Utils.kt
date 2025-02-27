@@ -25,22 +25,6 @@ fun JcContext.extractJcRefType(clazz: KClass<*>): JcRefType = extractJcType(claz
 val JcClassOrInterface.enumValuesField: JcTypedField
     get() = toType().findFieldOrNull("\$VALUES") ?: error("No \$VALUES field found for the enum type $this")
 
-val JcField.typedField: JcTypedField
-    get() =
-        enclosingClass.toType().findFieldOrNull(name)
-            ?: error("Could not find field $this in type $enclosingClass")
-
-fun JcContext.jcTypeOf(obj: Any): JcType {
-    val type = cp.findType(obj.javaClass.typeName)
-    if (type !is JcClassTypeImpl) return type
-    val jcClass = type.jcClass
-    val approximateAnnotation =
-        jcClass.annotations.find { it.matches("org.jacodb.approximation.annotation.Approximate") }
-            ?: return type
-    val approximatedClass = approximateAnnotation.values["value"] as JcClassOrInterface
-    return approximatedClass.toType()
-}
-
 @Suppress("UNCHECKED_CAST")
 fun UWritableMemory<*>.write(ref: ULValue<*, *>, value: UExpr<*>) {
     write(ref as ULValue<*, USort>, value as UExpr<USort>, value.uctx.trueExpr)
@@ -56,6 +40,3 @@ val JcClassType.name: String
 
 val JcClassType.outerClassInstanceField: JcTypedField?
     get() = fields.singleOrNull { it.name == "this\$0" }
-
-val String.typeName: TypeName
-    get() = TypeNameImpl.fromTypeName(this)
