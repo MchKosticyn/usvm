@@ -30,7 +30,7 @@ import org.usvm.machine.interpreter.statics.JcStaticFieldReading
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.util.extractJcRefType
 
-internal typealias USizeSort = UBv32Sort
+typealias USizeSort = UBv32Sort
 
 class JcContext(
     val cp: JcClasspath,

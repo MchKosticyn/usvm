@@ -21,7 +21,7 @@ class JcLambdaCallSiteRegionId(private val ctx: JcContext) : UMemoryRegionId<Not
         JcLambdaCallSiteMemoryRegion(ctx)
 }
 
-internal open class JcLambdaCallSiteMemoryRegion(
+open class JcLambdaCallSiteMemoryRegion(
     private val ctx: JcContext,
     private val callSites: UPersistentHashMap<UConcreteHeapAddress, JcLambdaCallSite> = persistentHashMapOf(),
 ) : UMemoryRegion<Nothing, UAddressSort> {

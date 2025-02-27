@@ -47,8 +47,8 @@ dependencies {
 
     implementation(project("usvm-jvm-api"))
     implementation(project("usvm-jvm-test-api"))
-    implementation(project(":usvm-jvm:usvm-jvm-util"))
-    implementation(project(":usvm-jvm:usvm-jvm-reproducer"))
+    implementation(project("usvm-jvm-util"))
+    implementation(project("usvm-jvm-reproducer"))
 
     implementation(Libs.ksmt_runner)
     implementation(Libs.ksmt_yices)
@@ -60,8 +60,6 @@ dependencies {
     testImplementation(Libs.logback)
 
     testImplementation(samples.output)
-
-    implementation("it.unimi.dsi:fastutil-core:8.5.13")
 
     // https://mvnrepository.com/artifact/org.burningwave/core
     // Use it to export all modules to all
