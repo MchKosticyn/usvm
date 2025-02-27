@@ -1,6 +1,7 @@
-package concreteMemory
+package machine
 
 import features.JcLambdaFeature
+import machine.concreteMemory.JcConcreteEffectStorage
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
@@ -12,7 +13,7 @@ import org.jacodb.impl.features.JcFeaturesChain
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.types.MethodInfo
 import org.jacodb.impl.types.ParameterInfo
-import org.usvm.api.internal.InitHelper
+import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.toByteArray
 import java.io.File
 import java.net.URI
@@ -37,7 +38,6 @@ import utils.staticFields
 // TODO: make this 'class'
 internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
 
-    var webApplicationClass: JcClassOrInterface? = null
     lateinit var cp: JcClasspath
     private val loadedClasses = hashMapOf<String, Class<*>>()
     private val initializedStatics = hashSetOf<Class<*>>()

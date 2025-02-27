@@ -1,5 +1,13 @@
-package concreteMemory
+package machine.concreteMemory
 
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteFieldRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteMapLengthRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefMapRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefSetRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteStaticFieldsRegion
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
@@ -16,14 +24,7 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.USizeSort
 import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
-import concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteFieldRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteMapLengthRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteRefMapRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteRefSetRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteStaticFieldsRegion
+
 import org.usvm.sizeSort
 
 internal class JcConcreteRegionStorage(

@@ -9,7 +9,9 @@ import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.cfg.JcRawThis
+import org.usvm.concrete.api.internal.InitHelper
 import utils.isLambda
+import utils.javaName
 import utils.notTracked
 import utils.typeName
 

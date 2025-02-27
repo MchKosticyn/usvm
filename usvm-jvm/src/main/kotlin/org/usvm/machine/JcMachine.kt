@@ -6,23 +6,17 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.jacodb.api.jvm.ext.methods
-import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.jacodb.impl.features.classpaths.JcUnknownMethod
 import org.usvm.CoverageZone
 import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
 import org.usvm.UMachineOptions
+import org.usvm.UPathSelector
 import org.usvm.api.targets.JcTarget
 import org.usvm.forkblacklists.TargetsReachableForkBlackList
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
-import org.usvm.machine.state.concreteMemory.classesOfLocations
-import org.usvm.machine.state.concreteMemory.isSpringController
-import org.usvm.machine.state.concreteMemory.isSpringFilter
-import org.usvm.machine.state.concreteMemory.isSpringHandlerInterceptor
-import org.usvm.machine.state.concreteMemory.ps.JcConcreteMemoryPathSelector
 import org.usvm.machine.state.lastStmt
 import org.usvm.ps.createPathSelector
 import org.usvm.statistics.CompositeUMachineObserver
@@ -34,8 +28,10 @@ import org.usvm.statistics.TransitiveCoverageZoneObserver
 import org.usvm.statistics.UMachineObserver
 import org.usvm.statistics.collectors.AllStatesCollector
 import org.usvm.statistics.collectors.CoveredNewStatesCollector
+import org.usvm.statistics.collectors.StatesCollector
 import org.usvm.statistics.collectors.TargetsReachedStatesCollector
 import org.usvm.statistics.constraints.SoftConstraintsObserver
+import org.usvm.statistics.distances.CallGraphStatistics
 import org.usvm.statistics.distances.CfgStatistics
 import org.usvm.statistics.distances.CfgStatisticsImpl
 import org.usvm.statistics.distances.InterprocDistance
@@ -50,159 +46,76 @@ val logger = object : KLogging() {}.logger
 open class JcMachine(
     cp: JcClasspath,
     private val options: UMachineOptions,
-    private val jcMachineOptions: JcMachineOptions = JcMachineOptions(),
-    private val interpreterObserver: JcInterpreterObserver? = null,
+    protected val jcMachineOptions: JcMachineOptions = JcMachineOptions(),
+    protected val interpreterObserver: JcInterpreterObserver? = null,
 ) : UMachine<JcState>() {
-    private val applicationGraph = JcApplicationGraph(cp)
+    protected val applicationGraph = JcApplicationGraph(cp)
 
     private val typeSystem = JcTypeSystem(cp, options.typeOperationsTimeout)
     private val components = JcComponents(typeSystem, options)
-    private val ctx = JcContext(cp, components)
-
-    private val interpreter = JcInterpreter(ctx, applicationGraph, jcMachineOptions, interpreterObserver)
+    protected val ctx = JcContext(cp, components)
 
     private val cfgStatistics = CfgStatisticsImpl(applicationGraph)
 
-    // TODO create JcSpringInterpreter
-    protected open fun JcState.toCorrespodingStateType(): JcState = this
+    protected open fun createInterpreter(): JcInterpreter {
+        return JcInterpreter(ctx, applicationGraph, jcMachineOptions, interpreterObserver)
+    }
 
-    protected open fun analyze(
-        methods: List<JcMethod>,
-        targets: List<JcTarget> = emptyList(),
-        extraMachineObservers: List<UMachineObserver<*>> = listOf()
-    ): List<JcState> {
-        logger.debug("{}.analyze({})", this, methods)
-        val initialStates = mutableMapOf<JcMethod, JcState>()
-        methods.forEach {
-            initialStates[it] = interpreter.getInitialState(it, targets).toCorrespodingStateType()
-        }
-
-        val methodsToTrackCoverage: Set<JcMethod> =
-            when (options.coverageZone) {
-                CoverageZone.METHOD,
-                CoverageZone.TRANSITIVE -> methods.toSet()
-                // TODO: more adequate method filtering. !it.isConstructor is used to exclude default constructor which is often not covered
-                CoverageZone.CLASS -> methods.flatMap { method ->
-                    method.enclosingClass.methods.filter {
-                        it.enclosingClass == method.enclosingClass && !it.isConstructor
-                    }
-                }.toSet() + methods
-                CoverageZone.APPLICATION -> {
-                    ctx.classesOfLocations(jcMachineOptions.projectLocations!!)
-                        .flatMap { it.declaredMethods }
-                        .filterNot { it is JcUnknownMethod }
-                        .toSet()
-                }
-                CoverageZone.SPRING_APPLICATION -> {
-                    ctx.classesOfLocations(jcMachineOptions.projectLocations!!)
-                        .filter { it.isSpringController || it.isSpringFilter || it.isSpringHandlerInterceptor }
-                        .flatMap { it.declaredMethods }
-                        .filterNot { it is JcUnknownMethod || it.isConstructor }
-                        .toSet()
-                }
-            }
-
-        val coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState> = CoverageStatistics(
-            methodsToTrackCoverage,
-            applicationGraph
-        )
-
-        val callGraphStatistics =
-            when (options.targetSearchDepth) {
-                0u -> PlainCallGraphStatistics()
-                else -> JcCallGraphStatistics(
-                    options.targetSearchDepth,
-                    applicationGraph,
-                    typeSystem.topTypeStream(),
-                    subclassesToTake = 10
-                )
-            }
-
-        val transparentCfgStatistics = transparentCfgStatistics()
-
-        val timeStatistics = TimeStatistics<JcMethod, JcState>()
-        val loopTracker = JcLoopTracker()
-
-        var pathSelector = createPathSelector(
+    protected open fun createPathSelector(
+        initialStates: Map<JcMethod, JcState>,
+        timeStatistics: TimeStatistics<JcMethod, JcState>,
+        coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
+        callGraphStatistics: CallGraphStatistics<JcMethod>
+    ): UPathSelector<JcState> {
+        return createPathSelector(
             initialStates,
             options,
             applicationGraph,
             timeStatistics,
             { coverageStatistics },
-            { transparentCfgStatistics },
+            { transparentCfgStatistics() },
             { callGraphStatistics },
-            { loopTracker }
+            { JcLoopTracker() }
         )
-        pathSelector = JcConcreteMemoryPathSelector(pathSelector)
+    }
 
-        val statesCollector =
-            when (options.stateCollectionStrategy) {
-                StateCollectionStrategy.COVERED_NEW -> CoveredNewStatesCollector<JcState>(coverageStatistics) {
-                    it.methodResult is JcMethodResult.JcException
-                }
+    protected open fun ignoreMethod(methodsToTrackCoverage: Set<JcMethod>): (JcMethod) -> Boolean {
+        return when (options.coverageZone) {
+            CoverageZone.CLASS -> { m: JcMethod -> !methodsToTrackCoverage.contains(m) }
+            CoverageZone.TRANSITIVE -> { _ -> false }
+            CoverageZone.METHOD -> throw IllegalStateException()
+        }
+    }
 
-                StateCollectionStrategy.REACHED_TARGET -> TargetsReachedStatesCollector()
-                StateCollectionStrategy.ALL -> AllStatesCollector()
-            }
-
-        val stepsStatistics = StepsStatistics<JcMethod, JcState>()
-
-        val stopStrategy = createStopStrategy(
-            options,
-            targets,
-            timeStatisticsFactory = { timeStatistics },
-            stepsStatisticsFactory = { stepsStatistics },
-            coverageStatisticsFactory = { coverageStatistics },
-            getCollectedStatesCount = { statesCollector.collectedStates.size }
-        )
-
+    protected open fun createObservers(
+        coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
+        timeStatistics: TimeStatistics<JcMethod, JcState>,
+        stepsStatistics: StepsStatistics<JcMethod, JcState>,
+        methodsToTrackCoverage: Set<JcMethod>,
+        statesCollector: StatesCollector<JcState>,
+        methods: List<JcMethod>,
+        pathSelector: UPathSelector<JcState>
+    ): List<UMachineObserver<JcState>> {
         val observers = mutableListOf<UMachineObserver<JcState>>(coverageStatistics)
         observers.add(timeStatistics)
         observers.add(stepsStatistics)
-
         if (interpreterObserver is UMachineObserver<*>) {
             @Suppress("UNCHECKED_CAST")
             observers.add(interpreterObserver as UMachineObserver<JcState>)
         }
 
-        // TODO review
-        @Suppress("UNCHECKED_CAST")
-        observers.addAll(extraMachineObservers.map { it as UMachineObserver<JcState> })
-
         if (options.coverageZone != CoverageZone.METHOD) {
-            val ignoreMethod =
-                when (options.coverageZone) {
-                    CoverageZone.CLASS -> { m: JcMethod -> !methodsToTrackCoverage.contains(m) }
-                    CoverageZone.TRANSITIVE -> { _ -> false }
-                    CoverageZone.METHOD -> throw IllegalStateException()
-                    CoverageZone.APPLICATION -> { m -> !methodsToTrackCoverage.contains(m) }
-                    CoverageZone.SPRING_APPLICATION -> { m -> !methodsToTrackCoverage.contains(m) }
-                }
             observers.add(
                 TransitiveCoverageZoneObserver(
                     initialMethods = methodsToTrackCoverage,
                     methodExtractor = { state -> state.lastStmt.location.method },
                     addCoverageZone = { coverageStatistics.addCoverageZone(it) },
-                    ignoreMethod = ignoreMethod
+                    ignoreMethod = ignoreMethod(methodsToTrackCoverage)
                 )
             )
         }
+
         observers.add(statesCollector)
-        // TODO: use the same calculator which is used for path selector
-        if (targets.isNotEmpty()) {
-            val distanceCalculator = MultiTargetDistanceCalculator<JcMethod, JcInst, InterprocDistance> { stmt ->
-                InterprocDistanceCalculator(
-                    targetLocation = stmt,
-                    applicationGraph = applicationGraph,
-                    cfgStatistics = cfgStatistics,
-                    callGraphStatistics = callGraphStatistics
-                )
-            }
-            interpreter.forkBlackList =
-                TargetsReachableForkBlackList(distanceCalculator, shouldBlackList = { isInfinite })
-        } else {
-            interpreter.forkBlackList = UForkBlackList.createDefault()
-        }
 
         if (options.useSoftConstraints) {
             observers.add(SoftConstraintsObserver())
@@ -225,6 +138,102 @@ open class JcMachine(
             observers.add(JcDebugProfileObserver(pathSelector))
         }
 
+        return observers
+    }
+
+    protected open fun methodsToTrackCoverage(methods: List<JcMethod>): Set<JcMethod> {
+        return when (options.coverageZone) {
+            CoverageZone.METHOD,
+            CoverageZone.TRANSITIVE -> methods.toSet()
+            // TODO: more adequate method filtering. !it.isConstructor is used to exclude default constructor which is often not covered
+            CoverageZone.CLASS -> methods.flatMap { method ->
+                method.enclosingClass.methods.filter {
+                    it.enclosingClass == method.enclosingClass && !it.isConstructor
+                }
+            }.toSet() + methods
+        }
+    }
+
+    fun analyze(methods: List<JcMethod>, targets: List<JcTarget> = emptyList()): List<JcState> {
+        logger.debug("{}.analyze({})", this, methods)
+        val interpreter = createInterpreter()
+        val initialStates = mutableMapOf<JcMethod, JcState>()
+        methods.forEach { initialStates[it] = interpreter.getInitialState(it, targets) }
+
+        val methodsToTrackCoverage = methodsToTrackCoverage(methods)
+
+        val coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState> = CoverageStatistics(
+            methodsToTrackCoverage,
+            applicationGraph
+        )
+
+        val callGraphStatistics =
+            when (options.targetSearchDepth) {
+                0u -> PlainCallGraphStatistics()
+                else -> JcCallGraphStatistics(
+                    options.targetSearchDepth,
+                    applicationGraph,
+                    typeSystem.topTypeStream(),
+                    subclassesToTake = 10
+                )
+            }
+
+        val timeStatistics = TimeStatistics<JcMethod, JcState>()
+
+        val pathSelector = createPathSelector(
+            initialStates,
+            timeStatistics,
+            coverageStatistics,
+            callGraphStatistics
+        )
+
+        val statesCollector =
+            when (options.stateCollectionStrategy) {
+                StateCollectionStrategy.COVERED_NEW -> CoveredNewStatesCollector<JcState>(coverageStatistics) {
+                    it.methodResult is JcMethodResult.JcException
+                }
+
+                StateCollectionStrategy.REACHED_TARGET -> TargetsReachedStatesCollector()
+                StateCollectionStrategy.ALL -> AllStatesCollector()
+            }
+
+        val stepsStatistics = StepsStatistics<JcMethod, JcState>()
+
+        val stopStrategy = createStopStrategy(
+            options,
+            targets,
+            timeStatisticsFactory = { timeStatistics },
+            stepsStatisticsFactory = { stepsStatistics },
+            coverageStatisticsFactory = { coverageStatistics },
+            getCollectedStatesCount = { statesCollector.collectedStates.size }
+        )
+
+        val observers = createObservers(
+            coverageStatistics,
+            timeStatistics,
+            stepsStatistics,
+            methodsToTrackCoverage,
+            statesCollector,
+            methods,
+            pathSelector
+        )
+
+        // TODO: use the same calculator which is used for path selector
+        if (targets.isNotEmpty()) {
+            val distanceCalculator = MultiTargetDistanceCalculator<JcMethod, JcInst, InterprocDistance> { stmt ->
+                InterprocDistanceCalculator(
+                    targetLocation = stmt,
+                    applicationGraph = applicationGraph,
+                    cfgStatistics = cfgStatistics,
+                    callGraphStatistics = callGraphStatistics
+                )
+            }
+            interpreter.forkBlackList =
+                TargetsReachableForkBlackList(distanceCalculator, shouldBlackList = { isInfinite })
+        } else {
+            interpreter.forkBlackList = UForkBlackList.createDefault()
+        }
+
         run(
             interpreter,
             pathSelector,
@@ -236,7 +245,7 @@ open class JcMachine(
         return statesCollector.collectedStates
     }
 
-    open fun analyze(method: JcMethod, targets: List<JcTarget> = emptyList()): List<JcState> =
+    fun analyze(method: JcMethod, targets: List<JcTarget> = emptyList()): List<JcState> =
         analyze(listOf(method), targets)
 
     /**

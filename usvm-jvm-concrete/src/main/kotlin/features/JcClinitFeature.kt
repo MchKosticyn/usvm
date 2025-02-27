@@ -8,9 +8,12 @@ import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
-import org.usvm.util.typeName
+import org.jacodb.impl.cfg.JcRawString
+import org.usvm.concrete.api.internal.InitHelper
 import utils.isInternalType
 import utils.isLambda
+import utils.javaName
+import utils.typeName
 
 internal object JcClinitFeature: JcInstExtFeature {
 

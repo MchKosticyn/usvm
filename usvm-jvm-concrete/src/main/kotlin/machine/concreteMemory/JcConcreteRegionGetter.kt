@@ -1,7 +1,7 @@
-package concreteMemory
+package machine.concreteMemory
 
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteRegion
 import org.usvm.USort
-import concreteMemory.concreteMemoryRegions.JcConcreteRegion
 import org.usvm.memory.UMemoryRegionId
 
 internal interface JcConcreteRegionGetter {

@@ -1,6 +1,6 @@
-package concreteMemory.ps
+package machine.ps
 
-import concreteMemory.JcConcreteMemory
+import machine.concreteMemory.JcConcreteMemory
 import org.usvm.UPathSelector
 import org.usvm.machine.state.JcState
 
