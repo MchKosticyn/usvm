@@ -1,5 +1,7 @@
-package concreteMemory.concreteMemoryRegions
+package machine.concreteMemory.concreteMemoryRegions
 
+import machine.concreteMemory.JcConcreteMemoryBindings
+import machine.concreteMemory.Marshall
 import utils.allInstanceFields
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
@@ -17,8 +19,6 @@ import org.usvm.collection.field.UFieldsRegionId
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.isTrue
 import org.usvm.machine.JcContext
-import concreteMemory.JcConcreteMemoryBindings
-import concreteMemory.Marshall
 import utils.getFieldValue
 import utils.isInternalType
 import utils.toJavaField

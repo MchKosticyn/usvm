@@ -1,10 +1,9 @@
 package utils
 
-import concreteMemory.JcConcreteMemoryClassLoader
 import features.JcLambdaFeature
+import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.ClassSource
 import org.jacodb.api.jvm.JcArrayType
-import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
@@ -21,7 +20,6 @@ import org.jacodb.api.jvm.ext.allSuperHierarchy
 import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.isEnum
-import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.throwClassNotFound
@@ -29,14 +27,12 @@ import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
-import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.JcUnknownType
-import org.jacodb.impl.types.JcClassTypeImpl
 import org.jacodb.impl.types.TypeNameImpl
-import org.usvm.api.internal.InitHelper
 import org.usvm.api.util.Reflection.allocateInstance
 import org.usvm.api.util.Reflection.invoke
 import org.usvm.api.util.Reflection.toJavaExecutable
+import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.jvm.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.machine.JcContext
@@ -598,38 +594,6 @@ internal fun createDefault(type: JcType): Any? {
         println("[WARNING] failed to allocate ${type.internalName}")
         return null
     }
-}
-
-internal val JcClassOrInterface.isSpringFilter: Boolean
-    get() {
-        val filterType = classpath.findClassOrNull("jakarta.servlet.Filter") ?: return false
-        return isSubClassOf(filterType)
-    }
-
-internal val JcClassOrInterface.isSpringFilterChain: Boolean
-    get() {
-        val filterType = classpath.findClassOrNull("jakarta.servlet.FilterChain") ?: return false
-        return isSubClassOf(filterType)
-    }
-
-internal val JcClassOrInterface.isSpringHandlerInterceptor: Boolean
-    get() {
-        val filterType = classpath.findClassOrNull("org.springframework.web.servlet.HandlerInterceptor") ?: return false
-        return isSubClassOf(filterType)
-    }
-
-internal val JcClassOrInterface.isSpringController: Boolean
-    get() = annotations.any {
-        it.name == "org.springframework.stereotype.Controller"
-                || it.name == "org.springframework.web.bind.annotation.RestController"
-    }
-
-internal fun JcContext.classesOfLocations(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> {
-    return locations
-        .asSequence()
-        .flatMap { it.classNames ?: emptySet() }
-        .mapNotNull { cp.findClassOrNull(it) }
-        .filterNot { it is JcUnknownClass }
 }
 
 val String.typeName: TypeName

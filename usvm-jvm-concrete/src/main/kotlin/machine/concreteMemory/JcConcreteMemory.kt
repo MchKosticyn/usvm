@@ -1,6 +1,11 @@
-package concreteMemory
+package machine.concreteMemory
 
 import io.ksmt.utils.asExpr
+import machine.JcConcreteInvocationResult
+import machine.JcConcreteMemoryClassLoader
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -47,7 +52,6 @@ import org.usvm.collections.immutable.implementations.immutableMap.UPersistentHa
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.collections.immutable.persistentHashMapOf
 import org.usvm.constraints.UTypeConstraints
-import org.usvm.machine.JcConcreteInvocationResult
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.USizeSort
@@ -57,15 +61,12 @@ import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
 import org.usvm.machine.state.JcState
-import concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteFieldRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteMapLengthRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteRefMapRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteRefSetRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteRegion
-import concreteMemory.concreteMemoryRegions.JcConcreteStaticFieldsRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteFieldRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteMapLengthRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefMapRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefSetRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteRegion
+import machine.concreteMemory.concreteMemoryRegions.JcConcreteStaticFieldsRegion
 import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
@@ -75,11 +76,9 @@ import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.URegistersStack
 import org.usvm.mkSizeExpr
-import org.usvm.util.jcTypeOf
 import org.usvm.util.name
 import org.usvm.util.onNone
 import org.usvm.util.onSome
-import org.usvm.util.typedField
 import org.usvm.utils.applySoftConstraints
 import utils.LambdaInvocationHandler
 import utils.allInstanceFields
@@ -89,16 +88,16 @@ import utils.getStaticFieldValue
 import utils.isExceptionCtor
 import utils.isInstanceApproximation
 import utils.isInternalType
-import utils.isSpringFilter
-import utils.isSpringFilterChain
 import utils.isStaticApproximation
 import utils.isThreadLocal
+import utils.jcTypeOf
 import utils.setArrayValue
 import utils.setFieldValue
 import utils.setStaticFieldValue
 import utils.toJavaField
 import utils.toJavaMethod
 import utils.toTypedMethod
+import utils.typedField
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import java.util.concurrent.ExecutionException
@@ -145,7 +144,14 @@ class JcConcreteMemory private constructor(
             is UFieldsRegionId<*, *> -> {
                 baseRegion as UFieldsRegion<JcField, Sort>
                 regionId as UFieldsRegionId<JcField, Sort>
-                JcConcreteFieldRegion(regionId, ctx, bindings, baseRegion, marshall, ownership)
+                JcConcreteFieldRegion(
+                    regionId,
+                    ctx,
+                    bindings,
+                    baseRegion,
+                    marshall,
+                    ownership
+                )
             }
 
             is UArrayRegionId<*, *, *> -> {
@@ -256,21 +262,14 @@ class JcConcreteMemory private constructor(
         return super.allocStatic(type)
     }
 
-    override fun tryAllocateConcrete(obj: Any, type: JcType): UConcreteHeapRef? {
+    fun tryAllocateConcrete(obj: Any, type: JcType): UConcreteHeapRef? {
         val address = bindings.allocate(obj, type)
         if (address != null)
             return ctx.mkConcreteHeapRef(address)
         return null
     }
 
-    override fun forceAllocConcrete(type: JcType): UConcreteHeapRef {
-        val address = bindings.allocateDefaultConcrete(type)
-        if (address != null)
-            return ctx.mkConcreteHeapRef(address)
-        return super.allocConcrete(type)
-    }
-
-    override fun tryHeapRefToObject(heapRef: UConcreteHeapRef): Any? {
+    fun tryHeapRefToObject(heapRef: UConcreteHeapRef): Any? {
         val maybe = marshall.tryExprToFullyConcreteObj(heapRef, ctx.cp.objectType)
         check(!(maybe.isSome && maybe.getOrThrow() == null))
         maybe.onSome { return it }
@@ -278,7 +277,7 @@ class JcConcreteMemory private constructor(
         return null
     }
 
-    override fun <Sort : USort> tryExprToInt(expr: UExpr<Sort>): Int? {
+    fun <Sort : USort> tryExprToInt(expr: UExpr<Sort>): Int? {
         val maybe = marshall.tryExprToFullyConcreteObj(expr, ctx.cp.int)
         check(!(maybe.isSome && maybe.getOrThrow() == null))
         maybe.onSome { return it as Int }
@@ -286,7 +285,7 @@ class JcConcreteMemory private constructor(
         return null
     }
 
-    override fun tryObjectToExpr(obj: Any?, type: JcType): UExpr<USort> {
+    fun tryObjectToExpr(obj: Any?, type: JcType): UExpr<USort> {
         return marshall.objToExpr(obj, type)
     }
 
@@ -768,7 +767,7 @@ class JcConcreteMemory private constructor(
         return TryConcreteInvokeSuccess()
     }
 
-    override fun <Inst, State, Resolver> tryConcreteInvoke(stmt: Inst, state: State, exprResolver: Resolver): Boolean {
+    fun <Inst, State, Resolver> tryConcreteInvoke(stmt: Inst, state: State, exprResolver: Resolver): Boolean {
         stmt as JcMethodCall
         state as JcState
         exprResolver as JcExprResolver

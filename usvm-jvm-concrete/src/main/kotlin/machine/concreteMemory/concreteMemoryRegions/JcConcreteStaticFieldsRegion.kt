@@ -1,5 +1,7 @@
-package concreteMemory.concreteMemoryRegions
+package machine.concreteMemory.concreteMemoryRegions
 
+import machine.JcConcreteMemoryClassLoader
+import machine.concreteMemory.Marshall
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
 import org.usvm.UBoolExpr
@@ -9,8 +11,6 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.interpreter.statics.JcStaticFieldLValue
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
-import concreteMemory.Marshall
-import concreteMemory.JcConcreteMemoryClassLoader
 import utils.getStaticFieldValue
 import utils.toJavaField
 import utils.typedField

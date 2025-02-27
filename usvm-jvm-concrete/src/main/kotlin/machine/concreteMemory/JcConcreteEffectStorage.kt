@@ -1,6 +1,7 @@
-package concreteMemory
+package machine.concreteMemory
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.impl.features.classpaths.JcUnknownType

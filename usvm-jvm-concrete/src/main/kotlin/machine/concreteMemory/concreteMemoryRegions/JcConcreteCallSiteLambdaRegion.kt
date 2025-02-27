@@ -1,13 +1,13 @@
-package concreteMemory.concreteMemoryRegions
+package machine.concreteMemory.concreteMemoryRegions
 
+import machine.concreteMemory.JcConcreteMemoryBindings
+import machine.concreteMemory.Marshall
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.usvm.UConcreteHeapRef
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.JcContext
 import org.usvm.machine.interpreter.JcLambdaCallSite
 import org.usvm.machine.interpreter.JcLambdaCallSiteMemoryRegion
-import concreteMemory.JcConcreteMemoryBindings
-import concreteMemory.Marshall
 import utils.approximationMethod
 import org.usvm.util.onNone
 import org.usvm.util.onSome

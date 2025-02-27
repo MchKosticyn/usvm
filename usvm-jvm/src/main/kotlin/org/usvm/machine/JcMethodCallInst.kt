@@ -2,8 +2,6 @@ package org.usvm.machine
 
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcRefType
-import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.cfg.JcDynamicCallExpr
 import org.jacodb.api.jvm.cfg.JcExpr
 import org.jacodb.api.jvm.cfg.JcInst
@@ -24,7 +22,7 @@ interface JcTransparentInstruction : JcInst {
 /**
  * Auxiliary instruction to handle method calls.
  * */
-sealed interface JcMethodCallBaseInst : JcTransparentInstruction {
+interface JcMethodCallBaseInst : JcTransparentInstruction {
     override val method: JcMethod
 
     override val operands: List<JcExpr>
@@ -34,7 +32,6 @@ sealed interface JcMethodCallBaseInst : JcTransparentInstruction {
         error("Auxiliary instruction")
     }
 }
-
 
 /**
  * Entrypoint method call instruction.
@@ -51,7 +48,7 @@ data class JcMethodEntrypointInst(
     override val originalInst: JcInst = method.instList.first()
 }
 
-sealed interface JcMethodCall {
+interface JcMethodCall {
     val location: JcInstLocation
     val method: JcMethod
     val arguments: List<UExpr<out USort>>
@@ -69,40 +66,6 @@ data class JcConcreteMethodCallInst(
     override val arguments: List<UExpr<out USort>>,
     override val returnSite: JcInst,
 ) : JcMethodCallBaseInst, JcMethodCall {
-    override val originalInst: JcInst = returnSite
-}
-
-data class JcConcreteInvocationResult(
-    val returnExpr: UExpr<USort>,
-    private val methodCall: JcMethodCall
-) : JcMethodCallBaseInst, JcMethodCall {
-    override val location = methodCall.location
-    override val method = methodCall.method
-    override val arguments = methodCall.arguments
-    override val returnSite = methodCall.returnSite
-    override val originalInst: JcInst = returnSite
-}
-
-data class JcReflectionInvokeResult(
-    private val methodCall: JcMethodCall,
-    val invokeMethod: JcTypedMethod
-) : JcMethodCallBaseInst, JcMethodCall {
-    override val location = methodCall.location
-    override val method = methodCall.method
-    override val arguments = methodCall.arguments
-    override val returnSite = methodCall.returnSite
-    override val originalInst: JcInst = returnSite
-}
-
-data class JcBoxMethodCall(
-    private val methodCall: JcMethodCall,
-    val resultExpr: UExpr<out USort>,
-    val resultType: JcType,
-) : JcMethodCallBaseInst, JcMethodCall {
-    override val location = methodCall.location
-    override val method = methodCall.method
-    override val arguments = methodCall.arguments
-    override val returnSite = methodCall.returnSite
     override val originalInst: JcInst = returnSite
 }
 

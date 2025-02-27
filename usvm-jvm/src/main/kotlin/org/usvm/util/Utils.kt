@@ -6,6 +6,7 @@ import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.api.jvm.ext.toType
+import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.types.JcClassTypeImpl
 import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.UConcreteHeapRef
@@ -40,3 +41,11 @@ val JcClassType.name: String
 
 val JcClassType.outerClassInstanceField: JcTypedField?
     get() = fields.singleOrNull { it.name == "this\$0" }
+
+fun JcContext.classesOfLocations(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> {
+    return locations
+        .asSequence()
+        .flatMap { it.classNames ?: emptySet() }
+        .mapNotNull { cp.findClassOrNull(it) }
+        .filterNot { it is JcUnknownClass }
+}

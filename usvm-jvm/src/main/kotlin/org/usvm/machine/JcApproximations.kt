@@ -988,7 +988,7 @@ class JcMethodApproximationResolver(
             val elementArray = scope.calcOnState {
                 val arrayType = ctx.cp.arrayTypeOf(ctx.cp.objectType)
                 val descriptor = ctx.arrayDescriptorOf(arrayType)
-                val arrayHeapRef = memory.forceAllocConcrete(arrayType)
+                val arrayHeapRef = memory.allocConcrete(arrayType)
                 memory.initializeArray(
                     arrayHeapRef,
                     descriptor,

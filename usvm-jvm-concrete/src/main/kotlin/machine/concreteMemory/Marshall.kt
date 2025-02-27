@@ -1,4 +1,4 @@
-package concreteMemory
+package machine.concreteMemory
 
 import io.ksmt.expr.KBitVec16Value
 import io.ksmt.expr.KBitVec32Value
@@ -7,6 +7,7 @@ import io.ksmt.expr.KBitVec8Value
 import io.ksmt.expr.KFp32Value
 import io.ksmt.expr.KFp64Value
 import kotlinx.coroutines.runBlocking
+import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
@@ -43,8 +44,8 @@ import org.usvm.USymbol
 import org.usvm.api.SymbolicIdentityMap
 import org.usvm.api.SymbolicList
 import org.usvm.api.SymbolicMap
-import org.usvm.api.encoder.EncoderFor
-import org.usvm.api.encoder.ObjectEncoder
+import org.usvm.concrete.api.encoder.EncoderFor
+import org.usvm.concrete.api.encoder.ObjectEncoder
 import org.usvm.isFalse
 import org.usvm.isTrue
 import org.usvm.machine.JcContext
@@ -95,7 +96,7 @@ internal class Marshall(
     private val encoders by lazy { loadEncoders() }
 
     private fun loadEncoders(): Map<JcClassOrInterface, Any> {
-        val objectEncoderClass = ctx.cp.findClassOrNull(org.usvm.api.encoder.ObjectEncoder::class.java.name)!!
+        val objectEncoderClass = ctx.cp.findClassOrNull(ObjectEncoder::class.java.name)!!
         return runBlocking {
             ctx.cp.hierarchyExt()
                 .findSubClasses(objectEncoderClass, entireHierarchy = true, includeOwn = false)
@@ -105,7 +106,7 @@ internal class Marshall(
     }
 
     private fun loadEncoder(encoder: JcClassOrInterface): Pair<JcClassOrInterface, Any>? {
-        val target = encoder.annotation(org.usvm.api.encoder.EncoderFor::class.java.name)!!
+        val target = encoder.annotation(EncoderFor::class.java.name)!!
         val targetCls = target.values["value"] ?: return null
 
         targetCls as JcClassOrInterface

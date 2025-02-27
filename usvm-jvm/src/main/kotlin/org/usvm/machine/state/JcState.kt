@@ -10,7 +10,6 @@ import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.machine.JcContext
-import org.usvm.machine.state.concreteMemory.JcConcreteMemory
 import org.usvm.memory.UMemory
 import org.usvm.merging.MutableMergeGuard
 import org.usvm.model.UModelBase
@@ -22,7 +21,7 @@ open class JcState(
     override val entrypoint: JcMethod,
     callStack: UCallStack<JcMethod, JcInst> = UCallStack(),
     pathConstraints: UPathConstraints<JcType> = UPathConstraints(ctx, ownership),
-    memory: UMemory<JcType, JcMethod> = JcConcreteMemory(ctx, ownership, pathConstraints.typeConstraints),
+    memory: UMemory<JcType, JcMethod> = UMemory(ctx, ownership, pathConstraints.typeConstraints),
     models: List<UModelBase<JcType>> = listOf(),
     pathNode: PathNode<JcInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
@@ -40,6 +39,34 @@ open class JcState(
     targets
 ) {
 
+    protected open fun createNewState(
+        ctx: JcContext,
+        ownership: MutabilityOwnership,
+        entrypoint: JcMethod,
+        callStack: UCallStack<JcMethod, JcInst>,
+        pathConstraints: UPathConstraints<JcType>,
+        memory: UMemory<JcType, JcMethod>,
+        models: List<UModelBase<JcType>>,
+        pathNode: PathNode<JcInst>,
+        forkPoints: PathNode<PathNode<JcInst>>,
+        methodResult: JcMethodResult,
+        targets: UTargetsSet<JcTarget, JcInst>,
+    ): JcState {
+        return JcState(
+            ctx,
+            ownership,
+            entrypoint,
+            callStack,
+            pathConstraints,
+            memory,
+            models,
+            pathNode,
+            forkPoints,
+            methodResult,
+            targets
+        )
+    }
+
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcState {
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()
@@ -49,7 +76,7 @@ open class JcState(
         } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
         this.ownership = newThisOwnership
         println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
-        return JcState(
+        return createNewState(
             ctx,
             cloneOwnership,
             entrypoint,
@@ -100,7 +127,7 @@ open class JcState(
 
         this.ownership = newThisOwnership
         other.ownership = newOtherOwnership
-        return JcState(
+        return createNewState(
             ctx,
             mergedOwnership,
             entrypoint,

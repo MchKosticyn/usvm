@@ -4,7 +4,6 @@ import io.ksmt.utils.asExpr
 import mu.KLogging
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcArgument
@@ -25,14 +24,12 @@ import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcSwitchInst
 import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcThrowInst
-import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.cfg.callExpr
 import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.jacodb.api.jvm.ext.ifArrayGetElementType
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.toType
-import org.jacodb.api.jvm.ext.void
 import org.usvm.ForkCase
 import org.usvm.StepResult
 import org.usvm.StepScope
@@ -46,14 +43,11 @@ import org.usvm.api.allocateStaticRef
 import org.usvm.api.evalTypeEquals
 import org.usvm.api.mapTypeStream
 import org.usvm.api.targets.JcTarget
-import org.usvm.api.util.JcConcreteMemoryClassLoader
-import org.usvm.api.util.Reflection.toJavaClass
 import org.usvm.collection.array.UArrayIndexLValue
 import org.usvm.collection.field.UFieldLValue
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.JcApplicationGraph
-import org.usvm.machine.JcConcreteInvocationResult
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcDynamicMethodCallInst
@@ -63,8 +57,6 @@ import org.usvm.machine.JcMethodApproximationResolver
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.JcMethodCallBaseInst
 import org.usvm.machine.JcMethodEntrypointInst
-import org.usvm.machine.JcReflectionInvokeResult
-import org.usvm.machine.JcBoxMethodCall
 import org.usvm.machine.JcVirtualMethodCallInst
 import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.JcMethodResult
@@ -76,10 +68,10 @@ import org.usvm.machine.state.localsCount
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.parametersWithThisCount
 import org.usvm.machine.state.returnValue
-import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.machine.state.throwExceptionAndDropStackFrame
 import org.usvm.machine.state.throwExceptionWithoutStackFrameDrop
 import org.usvm.memory.ULValue
+import org.usvm.memory.UMemory
 import org.usvm.memory.URegisterStackLValue
 import org.usvm.targets.UTargetsSet
 import org.usvm.types.singleOrNull
@@ -95,8 +87,8 @@ typealias JcStepScope = StepScope<JcState, JcType, JcInst, JcContext>
 /**
  * A JacoDB interpreter.
  */
-class JcInterpreter(
-    private val ctx: JcContext,
+open class JcInterpreter(
+    protected val ctx: JcContext,
     private val applicationGraph: JcApplicationGraph,
     private val options: JcMachineOptions,
     private val observer: JcInterpreterObserver? = null,
@@ -107,9 +99,17 @@ class JcInterpreter(
         val logger = object : KLogging() {}.logger
     }
 
+    protected open fun createState(
+        initOwnership: MutabilityOwnership,
+        method: JcMethod,
+        targets: UTargetsSet<JcTarget, JcInst>
+    ): JcState {
+        return JcState(ctx, initOwnership, method, targets = targets)
+    }
+
     fun getInitialState(method: JcMethod, targets: List<JcTarget> = emptyList()): JcState {
         val initOwnership = MutabilityOwnership()
-        val state = JcState(ctx, initOwnership, method, targets = UTargetsSet.from(targets))
+        val state = createState(initOwnership, method, UTargetsSet.from(targets))
         val typedMethod = with(applicationGraph) { method.typed }
 
         val entrypointArguments = mutableListOf<Pair<JcRefType, UHeapRef>>()
@@ -240,10 +240,12 @@ class JcInterpreter(
 
     private val typeSelector = JcFixedInheritorsNumberTypeSelector()
 
-    private fun visitMethodCall(scope: JcStepScope, stmt: JcMethodCallBaseInst) {
-        val exprResolver = exprResolverWithScope(scope)
+    protected open fun callMethod(
+        scope: JcStepScope,
+        stmt: JcMethodCallBaseInst,
+        exprResolver: JcExprResolver
+    ) {
         val simpleValueResolver = exprResolver.simpleValueResolver
-
         val method = stmt.method
         when (stmt) {
             is JcMethodEntrypointInst -> {
@@ -276,45 +278,8 @@ class JcInterpreter(
                 }
             }
 
-            is JcConcreteInvocationResult -> {
-                scope.calcOnState { skipMethodInvocationWithValue(stmt, stmt.returnExpr) }
-            }
-
-            is JcReflectionInvokeResult -> {
-                scope.doWithState {
-                    when (val returnType = stmt.invokeMethod.returnType) {
-                        ctx.cp.void -> skipMethodInvocationWithValue(stmt, ctx.nullRef)
-                        else -> {
-                            val returnValue = (methodResult as JcMethodResult.Success).value
-                            newStmt(JcBoxMethodCall(stmt, returnValue, returnType))
-                        }
-                    }
-                }
-            }
-
-            is JcBoxMethodCall -> {
-                scope.doWithState {
-                    val result = stmt.resultExpr
-                    when (val returnType = stmt.resultType) {
-                        is JcPrimitiveType -> {
-                            val boxedType = returnType.autoboxIfNeeded() as JcClassType
-                            val boxMethod = boxedType.declaredMethods.find {
-                                it.name == "valueOf" && it.isStatic && it.parameters.singleOrNull() == returnType
-                            }!!
-                            newStmt(JcConcreteMethodCallInst(stmt.location, boxMethod.method, listOf(result), stmt.returnSite))
-                        }
-
-                        else -> skipMethodInvocationWithValue(stmt, result)
-                    }
-                }
-            }
-
             is JcConcreteMethodCallInst -> {
                 observer?.onMethodCallWithResolvedArguments(simpleValueResolver, stmt, scope)
-
-                if (scope.calcOnState { memory.tryConcreteInvoke(stmt, this, exprResolver) }) {
-                    return
-                }
 
                 if (approximateMethod(scope, stmt)) {
                     println("\u001B[31m" + "Approximated ${stmt.method.humanReadableSignature}" + "\u001B[0m")
@@ -352,20 +317,6 @@ class JcInterpreter(
             is JcVirtualMethodCallInst -> {
                 observer?.onMethodCallWithResolvedArguments(simpleValueResolver, stmt, scope)
 
-//                if (scope.calcOnState { memory.tryConcreteInvoke(stmt, this, exprResolver) }) {
-//                    val model = scope.calcOnState { models.first() }
-//                    val instance = stmt.arguments.first().asExpr(ctx.addressSort)
-//                    val concreteRef = model.eval(instance) as UConcreteHeapRef
-//                    val type = scope.calcOnState { memory.typeStreamOf(concreteRef) }.single() as JcRefType
-//                    val concreteMethod = type.findMethod(method)!!
-//                    val call = stmt.toConcreteMethodCall(concreteMethod.method)
-//                    if (stmt.method.humanReadableSignature != call.method.humanReadableSignature) {
-//                        println("\u001B[31m" + "[Virt] ${stmt.method.humanReadableSignature}" + "\u001B[0m")
-//                        println("\u001B[31m" + "[Virt] Add ${call.method.humanReadableSignature}" + "\u001B[0m")
-//                    }
-//                    return
-//                }
-
                 if (approximateMethod(scope, stmt)) {
                     println("\u001B[31m" + "Approximated ${stmt.method.humanReadableSignature}" + "\u001B[0m")
                     return
@@ -396,6 +347,10 @@ class JcInterpreter(
                 mockMethod(scope, stmt, stmt.dynamicCall.callSiteReturnType)
             }
         }
+    }
+
+    private fun visitMethodCall(scope: JcStepScope, stmt: JcMethodCallBaseInst) {
+        callMethod(scope, stmt, exprResolverWithScope(scope))
     }
 
     private inline fun handleInnerClassMethodCall(
@@ -734,29 +689,29 @@ class JcInterpreter(
     private val JcInst.nextStmt get() = location.method.instList[location.index + 1]
     private operator fun JcInstList<JcInst>.get(instRef: JcInstRef): JcInst = this[instRef.index]
 
+    protected open fun allocateString(memory: UMemory<JcType, JcMethod>, value: String): UConcreteHeapRef {
+        // Allocate globally unique ref with a negative address
+        return ctx.allocateStaticRef()
+    }
+
     // Equal string constants must have equal references
     private fun stringConstantAllocator(state: JcState, value: String): UConcreteHeapRef {
         val memory = state.memory
         val interningPool = memory.getRegion(JcStringInterningRegionId) as JcStringInterningRegion
-        val (address, region) = interningPool.getOrPut(value) {
-            // Tries to allocate string in concrete memory
-            memory.tryAllocateConcrete(value, ctx.stringType)
-            // Allocate globally unique ref with a negative address
-                ?: ctx.allocateStaticRef()
-        }
+        val (address, region) = interningPool.getOrPut(value) { allocateString(memory, value) }
         memory.setRegion(JcStringInterningRegionId, region)
         return address
+    }
+
+    protected open fun allocateTypeInstance(memory: UMemory<JcType, JcMethod>, type: JcType): UConcreteHeapRef {
+        // Allocate globally unique ref with a negative address
+        return ctx.allocateStaticRef()
     }
 
     private fun typeInstanceAllocator(state: JcState, type: JcType): UConcreteHeapRef {
         val memory = state.memory
         val interningPool = memory.getRegion(JcClassInterningRegionId) as JcClassInterningRegion
-        val (address, region) = interningPool.getOrPut(type) {
-            // Tries to allocate class in concrete memory
-            memory.tryAllocateConcrete(type.toJavaClass(JcConcreteMemoryClassLoader), ctx.classType)
-            // Allocate globally unique ref with a negative address
-                ?: ctx.allocateStaticRef()
-        }
+        val (address, region) = interningPool.getOrPut(type) { allocateTypeInstance(memory, type) }
         memory.setRegion(JcClassInterningRegionId, region)
         return address
     }

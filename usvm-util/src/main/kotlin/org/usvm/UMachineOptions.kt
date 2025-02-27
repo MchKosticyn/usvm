@@ -136,16 +136,6 @@ enum class CoverageZone {
      * Coverage of methods transitively reachable from a start method.
      */
     TRANSITIVE,
-
-    /**
-     * Coverage of entire application, but not it's dependencies.
-     */
-    APPLICATION,
-
-    /**
-     * Coverage of spring application.
-     */
-    SPRING_APPLICATION
 }
 
 enum class StateCollectionStrategy {

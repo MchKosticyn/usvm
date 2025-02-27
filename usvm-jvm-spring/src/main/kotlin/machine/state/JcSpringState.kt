@@ -1,3 +1,6 @@
+package machine.state
+
+import machine.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
@@ -7,7 +10,8 @@ import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.machine.JcContext
-import org.usvm.machine.state.concreteMemory.JcConcreteMemory
+import org.usvm.machine.state.JcMethodResult
+import org.usvm.machine.state.JcState
 import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
@@ -37,42 +41,36 @@ class JcSpringState(
     methodResult,
     targets
 ) {
-    companion object {
-        fun defaultFromJcState(state: JcState): JcSpringState = JcSpringState(
-            state.ctx,
-            state.ownership,
-            state.entrypoint,
-            state.callStack,
-            state.pathConstraints,
-            state.memory,
-            state.models,
-            state.pathNode,
-            state.forkPoints,
-            state.methodResult,
-            state.targets,
-        )
-    }
 
-    override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
-        val newThisOwnership = MutabilityOwnership()
-        val cloneOwnership = MutabilityOwnership()
-        val clonedConstraints = newConstraints?.also {
-            this.pathConstraints.changeOwnership(newThisOwnership)
-            it.changeOwnership(cloneOwnership)
-        } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
-        this.ownership = newThisOwnership
+    override fun createNewState(
+        ctx: JcContext,
+        ownership: MutabilityOwnership,
+        entrypoint: JcMethod,
+        callStack: UCallStack<JcMethod, JcInst>,
+        pathConstraints: UPathConstraints<JcType>,
+        memory: UMemory<JcType, JcMethod>,
+        models: List<UModelBase<JcType>>,
+        pathNode: PathNode<JcInst>,
+        forkPoints: PathNode<PathNode<JcInst>>,
+        methodResult: JcMethodResult,
+        targets: UTargetsSet<JcTarget, JcInst>,
+    ): JcState {
         return JcSpringState(
             ctx,
-            cloneOwnership,
+            ownership,
             entrypoint,
-            callStack.clone(),
-            clonedConstraints,
-            memory.clone(clonedConstraints.typeConstraints, newThisOwnership, cloneOwnership),
+            callStack,
+            pathConstraints,
+            memory,
             models,
             pathNode,
             forkPoints,
             methodResult,
-            targets.clone(),
+            targets
         )
+    }
+
+    override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
+        return super.clone(newConstraints) as JcSpringState
     }
 }

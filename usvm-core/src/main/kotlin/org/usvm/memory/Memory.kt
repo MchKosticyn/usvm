@@ -154,34 +154,6 @@ open class UMemory<Type, Method>(
         return staticHeapRef
     }
 
-    open fun tryAllocateConcrete(obj: Any, type: Type): UConcreteHeapRef? {
-        return null
-    }
-
-    open fun forceAllocConcrete(type: Type): UConcreteHeapRef {
-        return allocConcrete(type)
-    }
-
-    open fun tryHeapRefToObject(heapRef: UConcreteHeapRef): Any? {
-        return null
-    }
-
-    open fun <Sort: USort> tryExprToInt(expr: UExpr<Sort>): Int? {
-        return null
-    }
-
-    open fun tryObjectToExpr(obj: Any?, type: Type): UExpr<USort>? {
-        return null
-    }
-
-    open fun <Inst, State, Resolver> tryConcreteInvoke(
-        stmt: Inst,
-        state: State,
-        exprResolver: Resolver
-    ): Boolean {
-        return false
-    }
-
     override fun nullRef(): UHeapRef = ctx.nullRef
 
     open fun clone(
