@@ -10,12 +10,12 @@ import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.cfg.JcRawThis
 import org.usvm.concrete.api.internal.InitHelper
+import org.usvm.util.javaName
 import utils.isLambda
-import utils.javaName
 import utils.notTracked
 import utils.typeName
 
-internal object JcInitFeature: JcInstExtFeature {
+object JcInitFeature: JcInstExtFeature {
 
     private fun shouldNotTransform(method: JcMethod): Boolean {
         val type = method.enclosingClass

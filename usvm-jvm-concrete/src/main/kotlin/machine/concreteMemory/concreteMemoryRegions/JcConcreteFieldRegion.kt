@@ -39,7 +39,6 @@ internal class JcConcreteFieldRegion<Sort : USort>(
     private val jcField by lazy { regionId.field }
     private val javaField by lazy { jcField.toJavaField }
     private val isApproximation by lazy { javaField == null }
-    //    private val isPrimitiveApproximation by lazy { isApproximation && jcField.name == "value" }
     private val sort by lazy { regionId.sort }
     private val typedField: JcTypedField by lazy { jcField.typedField }
     private val fieldType: JcType by lazy { typedField.type }

@@ -36,7 +36,7 @@ private enum class State {
 
 //endregion
 
-internal class JcConcreteMemoryBindings private constructor(
+class JcConcreteMemoryBindings private constructor(
     private val ctx: JcContext,
     private val typeConstraints: UTypeConstraints<JcType>,
     private val physToVirt: IdentityHashMap<Any?, UConcreteHeapAddress>,
@@ -45,7 +45,7 @@ internal class JcConcreteMemoryBindings private constructor(
     private val transitiveConcretes: IdentityHashMap<Any, Unit>,
     private val transitiveSymbolics: IdentityHashMap<Any, Unit>,
     // TODO: make this private #CM
-    val effectStorage: JcConcreteEffectStorage,
+    internal val effectStorage: JcConcreteEffectStorage,
     private val threadLocalHelper: ThreadLocalHelper,
 ) {
     internal constructor(
@@ -397,7 +397,7 @@ internal class JcConcreteMemoryBindings private constructor(
         return obj.contains(element)
     }
 
-    fun readInvocationHandler(address: UConcreteHeapAddress): LambdaInvocationHandler {
+    internal fun readInvocationHandler(address: UConcreteHeapAddress): LambdaInvocationHandler {
         val obj = virtToPhys(address)
         check(Proxy.isProxyClass(obj.javaClass))
         return Proxy.getInvocationHandler(obj) as LambdaInvocationHandler

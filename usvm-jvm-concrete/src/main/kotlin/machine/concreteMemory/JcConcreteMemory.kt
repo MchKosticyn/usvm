@@ -2,14 +2,13 @@ package machine.concreteMemory
 
 import io.ksmt.utils.asExpr
 import machine.JcConcreteInvocationResult
+import machine.JcConcreteMachineOptions
 import machine.JcConcreteMemoryClassLoader
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
-import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
-import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
@@ -20,24 +19,17 @@ import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
-import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
-import org.usvm.UHeapRef
 import org.usvm.UIndexedMocker
 import org.usvm.USort
-import org.usvm.api.readArrayIndex
-import org.usvm.api.readField
-import org.usvm.api.util.JcTestInterpreterDecoderApi
-import org.usvm.api.util.JcTestStateResolver
 import org.usvm.api.util.JcTestStateResolver.ResolveMode
 import org.usvm.api.util.Reflection.invoke
 import org.usvm.collection.array.UArrayRegion
 import org.usvm.collection.array.UArrayRegionId
 import org.usvm.collection.array.length.UArrayLengthsRegion
 import org.usvm.collection.array.length.UArrayLengthsRegionId
-import org.usvm.collection.field.UFieldLValue
 import org.usvm.collection.field.UFieldsRegion
 import org.usvm.collection.field.UFieldsRegionId
 import org.usvm.collection.map.length.UMapLengthRegion
@@ -75,47 +67,71 @@ import org.usvm.memory.UMemory
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.URegistersStack
-import org.usvm.mkSizeExpr
 import org.usvm.util.name
 import org.usvm.util.onNone
 import org.usvm.util.onSome
 import org.usvm.utils.applySoftConstraints
-import utils.LambdaInvocationHandler
-import utils.allInstanceFields
-import utils.approximationMethod
-import utils.createDefault
 import utils.getStaticFieldValue
 import utils.isExceptionCtor
 import utils.isInstanceApproximation
 import utils.isInternalType
 import utils.isStaticApproximation
-import utils.isThreadLocal
 import utils.jcTypeOf
-import utils.setArrayValue
-import utils.setFieldValue
 import utils.setStaticFieldValue
 import utils.toJavaField
 import utils.toJavaMethod
-import utils.toTypedMethod
 import utils.typedField
 import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Proxy
 import java.util.concurrent.ExecutionException
 
 //region Concrete Memory
 
-class JcConcreteMemory private constructor(
-    private val ctx: JcContext,
-    ownership: MutabilityOwnership,
-    typeConstraints: UTypeConstraints<JcType>,
-    stack: URegistersStack,
-    mocks: UIndexedMocker<JcMethod>,
-    regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>>,
-    private val executor: JcConcreteExecutor,
-    private val bindings: JcConcreteMemoryBindings,
-    private var regionStorageVar: JcConcreteRegionStorage? = null,
-    private var marshallVar: Marshall? = null,
-) : UMemory<JcType, JcMethod>(ctx, ownership, typeConstraints, stack, mocks, regions), JcConcreteRegionGetter {
+open class JcConcreteMemory : UMemory<JcType, JcMethod>, JcConcreteRegionGetter {
+
+    private val ctx: JcContext
+    internal val executor: JcConcreteExecutor
+    private val bindings: JcConcreteMemoryBindings
+    internal var regionStorage: JcConcreteRegionStorage
+    private var marshall: Marshall
+    private val jcConcreteMachineOptions: JcConcreteMachineOptions
+
+    protected constructor(
+        ctx: JcContext,
+        ownership: MutabilityOwnership,
+        typeConstraints: UTypeConstraints<JcType>,
+        stack: URegistersStack,
+        mocks: UIndexedMocker<JcMethod>,
+        regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>>,
+        executor: JcConcreteExecutor,
+        bindings: JcConcreteMemoryBindings,
+        regionStorageVar: JcConcreteRegionStorage,
+        marshallVar: Marshall,
+        jcConcreteMachineOptions: JcConcreteMachineOptions
+    ) : super(ctx, ownership, typeConstraints, stack, mocks, regions) {
+        this.ctx = ctx
+        this.executor = executor
+        this.bindings = bindings
+        this.regionStorage = regionStorageVar
+        this.marshall = marshallVar
+        this.jcConcreteMachineOptions = jcConcreteMachineOptions
+    }
+
+    @Suppress("LeakingThis")
+    constructor(
+        ctx: JcContext,
+        ownership: MutabilityOwnership,
+        typeConstraints: UTypeConstraints<JcType>,
+        jcConcreteMachineOptions: JcConcreteMachineOptions
+    ) : super(ctx, ownership, typeConstraints, URegistersStack(), UIndexedMocker<JcMethod>(), persistentHashMapOf()) {
+        this.ctx = ctx
+        this.executor = JcConcreteExecutor()
+        this.bindings = JcConcreteMemoryBindings(ctx, typeConstraints, executor)
+        val storage = JcConcreteRegionStorage(ctx, this)
+        val marshall = Marshall(ctx, bindings, executor, storage)
+        this.regionStorage = storage
+        this.marshall = marshall
+        this.jcConcreteMachineOptions = jcConcreteMachineOptions
+    }
 
     private val ansiReset: String = "\u001B[0m"
     private val ansiBlack: String = "\u001B[30m"
@@ -126,12 +142,6 @@ class JcConcreteMemory private constructor(
     private val ansiWhite: String = "\u001B[37m"
     private val ansiPurple: String = "\u001B[35m"
     private val ansiCyan: String = "\u001B[36m"
-
-    private val regionStorage: JcConcreteRegionStorage
-        get() = regionStorageVar!!
-
-    private val marshall: Marshall
-        get() = marshallVar!!
 
     private var concretization = false
 
@@ -285,8 +295,35 @@ class JcConcreteMemory private constructor(
         return null
     }
 
-    fun tryObjectToExpr(obj: Any?, type: JcType): UExpr<USort> {
+    fun objectToExpr(obj: Any?, type: JcType): UExpr<USort> {
         return marshall.objToExpr(obj, type)
+    }
+
+    protected open fun createNewMemory(
+        ctx: JcContext,
+        ownership: MutabilityOwnership,
+        typeConstraints: UTypeConstraints<JcType>,
+        stack: URegistersStack,
+        mocks: UIndexedMocker<JcMethod>,
+        regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>>,
+        executor: JcConcreteExecutor,
+        bindings: JcConcreteMemoryBindings,
+        regionStorage: JcConcreteRegionStorage,
+        marshall: Marshall
+    ): JcConcreteMemory {
+        return JcConcreteMemory(
+            ctx,
+            ownership,
+            typeConstraints,
+            stack,
+            mocks,
+            regions,
+            executor,
+            bindings,
+            regionStorage,
+            marshall,
+            jcConcreteMachineOptions
+        )
     }
 
     override fun clone(
@@ -299,7 +336,7 @@ class JcConcreteMemory private constructor(
         val clonedStack = stack.clone()
         val clonedMocks = mocks.clone()
         val clonedBindings = bindings.copy(typeConstraints)
-        val clonedMemory = JcConcreteMemory(
+        val clonedMemory = createNewMemory(
             ctx,
             cloneOwnership,
             typeConstraints,
@@ -314,23 +351,21 @@ class JcConcreteMemory private constructor(
         val clonedMarshall = marshall.copy(clonedBindings, regionStorage)
         val clonedRegionStorage = regionStorage.copy(clonedBindings, clonedMemory, clonedMarshall, cloneOwnership)
         clonedMarshall.regionStorage = clonedRegionStorage
-        clonedMemory.regionStorageVar = clonedRegionStorage
-        clonedMemory.marshallVar = clonedMarshall
+        clonedMemory.regionStorage = clonedRegionStorage
+        clonedMemory.marshall = clonedMarshall
 
         this.ownership = thisOwnership
         val myRegionStorage = regionStorage.copy(bindings, this, marshall, thisOwnership)
         this.marshall.regionStorage = myRegionStorage
-        regionStorageVar = myRegionStorage
+        regionStorage = myRegionStorage
 
         return clonedMemory
     }
 
     //region Concrete Invoke
 
-    private fun shouldNotInvoke(method: JcMethod): Boolean {
-        return forbiddenInvocations.contains(method.humanReadableSignature) ||
-                method.enclosingClass.isSpringFilter && (method.name == "doFilter" || method.name == "doFilterInternal") ||
-                method.enclosingClass.isSpringFilterChain && (method.name == "doFilter" || method.name == "doFilterInternal")
+    protected open fun shouldNotInvoke(method: JcMethod): Boolean {
+        return forbiddenInvocations.contains(method.humanReadableSignature)
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
@@ -363,157 +398,7 @@ class JcConcreteMemory private constructor(
     }
 
     // TODO: move to bindings?
-    private inner class JcConcretizer(
-        state: JcState
-    ) : JcTestStateResolver<Any?>(state.ctx, state.models.first(), state.memory, state.callStack.lastMethod().toTypedMethod) {
-        override val decoderApi: JcTestInterpreterDecoderApi = JcTestInterpreterDecoderApi(ctx, JcConcreteMemoryClassLoader)
 
-        override fun tryCreateObjectInstance(ref: UConcreteHeapRef, heapRef: UHeapRef): Any? {
-            if (heapRef is UConcreteHeapRef) {
-                check(heapRef == ref)
-                return bindings.tryFullyConcrete(heapRef.address)
-            }
-
-            val addressInModel = ref.address
-            if (bindings.contains(addressInModel))
-                return bindings.tryFullyConcrete(addressInModel)
-
-            return null
-        }
-
-        private fun resolveConcreteArray(ref: UConcreteHeapRef, type: JcArrayType): Any {
-            val address = ref.address
-            val array = bindings.virtToPhys(address) as Array<*>
-            saveResolvedRef(ref.address, array)
-            // TODO: optimize #CM
-            if (bindings.isMutableWithEffect())
-                bindings.effectStorage.addObjectToEffectRec(array)
-            val elementType = type.elementType
-            val elementSort = ctx.typeToSort(type.elementType)
-            val arrayDescriptor = ctx.arrayDescriptorOf(type)
-            for (index in bindings.symbolicIndices(array)) {
-                val value = readArrayIndex(ref, ctx.mkSizeExpr(index), arrayDescriptor, elementSort)
-                val resolved = resolveExpr(value, elementType)
-                array.setArrayValue(index, resolved)
-            }
-
-            return array
-        }
-
-        override fun resolveArray(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcArrayType): Any? {
-            val addressInModel = ref.address
-            if (heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
-                val array = resolveConcreteArray(heapRef, type)
-                saveResolvedRef(addressInModel, array)
-                return array
-            }
-
-            val array = super.resolveArray(ref, heapRef, type)
-            if (array != null && !bindings.contains(addressInModel))
-                bindings.allocate(addressInModel, array, type)
-
-            return array
-        }
-
-        private fun initLambdaIfNeeded(heapRef: UConcreteHeapRef, obj: Any) {
-            val lambdaRegion = regionStorage.getLambdaCallSiteRegion(JcLambdaCallSiteRegionId(ctx))
-            val callSite = lambdaRegion.findCallSite(heapRef)
-            if (callSite != null) {
-                val args = callSite.callSiteArgs
-                val lambda = callSite.lambda
-                val argTypes = lambda.callSiteArgTypes
-                val callSiteArgs = mutableListOf<Any?>()
-                for ((arg, argType) in args.zip(argTypes)) {
-                    callSiteArgs.add(resolveExpr(arg, argType))
-                }
-                val invHandler = Proxy.getInvocationHandler(obj) as LambdaInvocationHandler
-                val method = lambda.actualMethod.method.method
-                val actualMethod =
-                    if (method is JcEnrichedVirtualMethod)
-                        method.approximationMethod ?: error("cannot find enriched method")
-                    else method
-                invHandler.init(actualMethod, lambda.callSiteMethodName, callSiteArgs)
-            }
-        }
-
-        private fun resolveConcreteObject(ref: UConcreteHeapRef, type: JcClassType): Any {
-            check(!type.jcClass.isInterface)
-            val address = ref.address
-            val obj = bindings.virtToPhys(address)
-            check(!obj.javaClass.isThreadLocal) { "ThreadLocal concretization not fully supported" }
-            saveResolvedRef(ref.address, obj)
-            // TODO: optimize #CM
-            if (bindings.isMutableWithEffect())
-                bindings.effectStorage.addObjectToEffectRec(obj)
-
-            if (Proxy.isProxyClass(obj.javaClass))
-                initLambdaIfNeeded(ref, obj)
-
-            for (field in bindings.symbolicFields(obj)) {
-                val jcField = type.allInstanceFields.find { it.name == field.name }
-                    ?: error("resolveConcreteObject: can not find field $field")
-                val fieldType = jcField.type
-                val fieldSort = ctx.typeToSort(fieldType)
-                val value = readField(ref, jcField.field, fieldSort)
-                val resolved = resolveExpr(value, fieldType)
-                field.setFieldValue(obj, resolved)
-            }
-
-            return obj
-        }
-
-        private fun resolveThreadLocal(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): Any {
-            val instance = allocateClassInstance(type)
-            saveResolvedRef(ref.address, instance)
-            for (field in type.allInstanceFields) {
-                val fieldType = field.type
-                val lvalue = UFieldLValue(ctx.typeToSort(fieldType), heapRef, field.field)
-                val fieldValue = resolveLValue(lvalue, fieldType)
-
-                if (field.enclosingType.jcClass.name == "java.lang.ThreadLocal" && field.name == "storage") {
-                    executor.setThreadLocalValue(instance, fieldValue)
-                    continue
-                }
-
-                check(field.field !is JcEnrichedVirtualField)
-                decoderApi.setField(field.field, instance, fieldValue)
-            }
-
-            return instance
-        }
-
-        override fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): Any? {
-            val addressInModel = ref.address
-            if (heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
-                val obj = resolveConcreteObject(heapRef, type)
-                saveResolvedRef(addressInModel, obj)
-                return obj
-            }
-
-            val obj = if (type.jcClass.isThreadLocal) {
-                resolveThreadLocal(ref, heapRef, type)
-            } else {
-                val resolved = super.resolveObject(ref, heapRef, type) ?: return null
-                if (Proxy.isProxyClass(resolved.javaClass) && heapRef is UConcreteHeapRef)
-                    initLambdaIfNeeded(heapRef, resolved)
-                resolved
-            }
-
-            if (!bindings.contains(addressInModel))
-                bindings.allocate(addressInModel, obj, type)
-
-            return obj
-        }
-
-        override fun allocateClassInstance(type: JcClassType): Any =
-            createDefault(type) ?: error("createDefault: can not create instance of ${type.jcClass.name}")
-
-        override fun allocateString(value: Any?): Any = when (value) {
-            is CharArray -> String(value)
-            is ByteArray -> String(value)
-            else -> String()
-        }
-    }
 
     private fun shouldNotConcretizeField(field: JcField): Boolean {
         return field.enclosingClass.name.startsWith("stub.")
@@ -553,7 +438,7 @@ class JcConcreteMemory private constructor(
             state.applySoftConstraints()
         }
 
-        val concretizer = JcConcretizer(state)
+        val concretizer = JcConcretizer(state, bindings)
 
         if (bindings.isMutableWithEffect())
             bindings.effectStorage.ensureStatics()
@@ -717,9 +602,9 @@ class JcConcreteMemory private constructor(
         }
 
         val methodLocation = method.declaration.location
-        val projectLocations = exprResolver.options.projectLocations
+        val projectLocations = jcConcreteMachineOptions.projectLocations
         // TODO: change on checking coverage zone #CM
-        val isProjectLocation = projectLocations != null && methodLocation.isProjectLocation(projectLocations)
+        val isProjectLocation = methodLocation.isProjectLocation(projectLocations)
         if (isProjectLocation)
             return TryConcreteInvokeFail(false)
 
@@ -797,125 +682,25 @@ class JcConcreteMemory private constructor(
 
     companion object {
 
-        operator fun invoke(
-            ctx: JcContext,
-            ownership: MutabilityOwnership,
-            typeConstraints: UTypeConstraints<JcType>,
-        ): JcConcreteMemory {
-            val executor = JcConcreteExecutor()
-            val bindings = JcConcreteMemoryBindings(ctx, typeConstraints, executor)
-            val stack = URegistersStack()
-            val mocks = UIndexedMocker<JcMethod>()
-            val regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentHashMapOf()
-            val memory = JcConcreteMemory(ctx, ownership, typeConstraints, stack, mocks, regions, executor, bindings)
-            val storage = JcConcreteRegionStorage(ctx, memory)
-            val marshall = Marshall(ctx, bindings, executor, storage)
-            memory.regionStorageVar = storage
-            memory.marshallVar = marshall
-            return memory
-        }
-
         //region Concrete Invocations
 
         private val forbiddenInvocations = setOf(
-            "org.springframework.test.context.TestContextManager#<init>(java.lang.Class):void",
-            "org.springframework.test.context.TestContextManager#<init>(org.springframework.test.context.TestContextBootstrapper):void",
-            "org.springframework.boot.test.context.SpringBootTestContextBootstrapper#buildTestContext():org.springframework.test.context.TestContext",
-            "org.springframework.test.context.support.AbstractTestContextBootstrapper#buildTestContext():org.springframework.test.context.TestContext",
-            "org.springframework.test.context.support.AbstractTestContextBootstrapper#buildMergedContextConfiguration():org.springframework.test.context.MergedContextConfiguration",
-            "org.springframework.test.context.support.AbstractTestContextBootstrapper#buildDefaultMergedContextConfiguration(java.lang.Class,org.springframework.test.context.CacheAwareContextLoaderDelegate):org.springframework.test.context.MergedContextConfiguration",
             "org.apache.commons.logging.Log#isFatalEnabled():boolean",
             "org.apache.commons.logging.Log#isErrorEnabled():boolean",
             "org.apache.commons.logging.Log#isWarnEnabled():boolean",
             "org.apache.commons.logging.Log#isInfoEnabled():boolean",
             "org.apache.commons.logging.Log#isDebugEnabled():boolean",
             "org.apache.commons.logging.Log#isTraceEnabled():boolean",
-            "org.springframework.test.context.support.AbstractTestContextBootstrapper#buildMergedContextConfiguration(java.lang.Class,java.util.List,org.springframework.test.context.MergedContextConfiguration,org.springframework.test.context.CacheAwareContextLoaderDelegate,boolean):org.springframework.test.context.MergedContextConfiguration",
-            "org.springframework.test.context.MergedContextConfiguration#<init>(java.lang.Class,java.lang.String[],java.lang.Class[],java.util.Set,java.lang.String[],java.util.List,java.lang.String[],java.util.Set,org.springframework.test.context.ContextLoader,org.springframework.test.context.CacheAwareContextLoaderDelegate,org.springframework.test.context.MergedContextConfiguration):void",
-            "org.springframework.test.context.MergedContextConfiguration#processContextCustomizers(java.util.Set):java.util.Set",
-            "org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTestContextBootstrapper#processMergedContextConfiguration(org.springframework.test.context.MergedContextConfiguration):org.springframework.test.context.MergedContextConfiguration",
-            "org.springframework.boot.test.context.SpringBootTestContextBootstrapper#processMergedContextConfiguration(org.springframework.test.context.MergedContextConfiguration):org.springframework.test.context.MergedContextConfiguration",
-            "org.springframework.boot.test.context.SpringBootTestContextBootstrapper#getOrFindConfigurationClasses(org.springframework.test.context.MergedContextConfiguration):java.lang.Class[]",
-            "org.springframework.boot.test.context.SpringBootTestContextBootstrapper#findConfigurationClass(java.lang.Class):java.lang.Class",
-            "org.springframework.boot.test.context.AnnotatedClassFinder#findFromClass(java.lang.Class):java.lang.Class",
-            "org.springframework.util.ClassUtils#getPackageName(java.lang.Class):java.lang.String",
-            "org.springframework.util.ClassUtils#getMainPackageName():java.lang.String",
-            "java.lang.invoke.StringConcatFactory#makeConcatWithConstants(java.lang.invoke.MethodHandles\$Lookup,java.lang.String,java.lang.invoke.MethodType,java.lang.String,java.lang.Object[]):java.lang.invoke.CallSite",
             "org.apache.commons.logging.Log#info(java.lang.Object):void",
-            "org.springframework.test.context.TestContextManager#getTestContext():org.springframework.test.context.TestContext",
-            "org.springframework.test.context.support.DefaultTestContext#getApplicationContext():org.springframework.context.ApplicationContext",
-            "org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate#loadContext(org.springframework.test.context.MergedContextConfiguration):org.springframework.context.ApplicationContext",
-            "org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate#loadContextInternal(org.springframework.test.context.MergedContextConfiguration):org.springframework.context.ApplicationContext",
-            "org.springframework.boot.test.context.SpringBootContextLoader#loadContext(org.springframework.test.context.MergedContextConfiguration):org.springframework.context.ApplicationContext",
-            "org.springframework.boot.test.context.SpringBootContextLoader#loadContext(org.springframework.test.context.MergedContextConfiguration,org.springframework.boot.test.context.SpringBootContextLoader\$Mode,org.springframework.context.ApplicationContextInitializer):org.springframework.context.ApplicationContext",
-            "org.springframework.boot.test.context.SpringBootContextLoader\$ContextLoaderHook#<init>(org.springframework.boot.test.context.SpringBootContextLoader\$Mode,org.springframework.context.ApplicationContextInitializer,java.util.function.Consumer):void",
-            "org.springframework.boot.test.context.SpringBootContextLoader\$ContextLoaderHook#run(org.springframework.util.function.ThrowingSupplier):org.springframework.context.ApplicationContext",
-            "org.springframework.boot.test.context.SpringBootContextLoader#getSpringApplication():org.springframework.boot.SpringApplication",
-            "org.springframework.boot.SpringApplication#withHook(org.springframework.boot.SpringApplicationHook,org.springframework.util.function.ThrowingSupplier):java.lang.Object",
-            "org.springframework.boot.test.context.SpringBootContextLoader#lambda\$loadContext\$3(org.springframework.boot.SpringApplication,java.lang.String[]):org.springframework.context.ConfigurableApplicationContext",
-            "org.springframework.boot.SpringApplication#run(java.lang.String[]):org.springframework.context.ConfigurableApplicationContext",
-            "org.springframework.boot.SpringApplication#printBanner(org.springframework.core.env.ConfigurableEnvironment):org.springframework.boot.Banner",
-            "org.springframework.boot.SpringApplication#afterRefresh(org.springframework.context.ConfigurableApplicationContext,org.springframework.boot.ApplicationArguments):void",
-            "org.springframework.test.web.servlet.MockMvc#perform(org.springframework.test.web.servlet.RequestBuilder):org.springframework.test.web.servlet.ResultActions",
-            "org.springframework.mock.web.MockFilterChain#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void",
-            "org.springframework.web.filter.RequestContextFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
-            "org.springframework.web.filter.FormContentFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
-            "org.springframework.web.filter.CharacterEncodingFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
-            "org.springframework.mock.web.MockFilterChain\$ServletFilterProxy#doFilter(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void",
-            "jakarta.servlet.http.HttpServlet#service(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void",
-            "org.springframework.test.web.servlet.TestDispatcherServlet#service(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.FrameworkServlet#service(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "jakarta.servlet.http.HttpServlet#service(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
 
-            "org.springframework.web.servlet.FrameworkServlet#doGet(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.FrameworkServlet#doPost(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.FrameworkServlet#doPut(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.FrameworkServlet#doDelete(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.FrameworkServlet#doOptions(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.FrameworkServlet#doTrace(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
+            "java.lang.invoke.StringConcatFactory#makeConcatWithConstants(java.lang.invoke.MethodHandles\$Lookup,java.lang.String,java.lang.invoke.MethodType,java.lang.String,java.lang.Object[]):java.lang.invoke.CallSite",
 
-            "org.springframework.web.servlet.FrameworkServlet#processRequest(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.DispatcherServlet#doService(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.DispatcherServlet#doDispatch(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse):void",
-            "org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter#handle(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,java.lang.Object):org.springframework.web.servlet.ModelAndView",
-            "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#handleInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.method.HandlerMethod):org.springframework.web.servlet.ModelAndView",
-            "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter#invokeHandlerMethod(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.method.HandlerMethod):org.springframework.web.servlet.ModelAndView",
-            "org.springframework.web.method.annotation.ModelFactory#initModel(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.method.HandlerMethod):void",
-            "org.springframework.web.method.annotation.ModelFactory#invokeModelAttributeMethods(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer):void",
-            "org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod#invokeAndHandle(org.springframework.web.context.request.ServletWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):void",
-            "org.springframework.web.method.support.InvocableHandlerMethod#invokeForRequest(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):java.lang.Object",
-            "org.springframework.web.method.support.InvocableHandlerMethod#getMethodArgumentValues(org.springframework.web.context.request.NativeWebRequest,org.springframework.web.method.support.ModelAndViewContainer,java.lang.Object[]):java.lang.Object[]",
-            "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
-            "org.springframework.web.servlet.mvc.method.annotation.PathVariableMethodArgumentResolver#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
-            "org.springframework.web.method.annotation.RequestParamMethodArgumentResolver#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
-            "org.springframework.web.method.annotation.ModelAttributeMethodProcessor#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
-            "org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor#resolveArgument(org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest,org.springframework.web.bind.support.WebDataBinderFactory):java.lang.Object",
-            "org.springframework.web.method.support.InvocableHandlerMethod#doInvoke(java.lang.Object[]):java.lang.Object",
             "java.lang.reflect.Method#invoke(java.lang.Object,java.lang.Object[]):java.lang.Object",
 
-            "org.springframework.web.servlet.mvc.method.annotation.ServletModelAttributeMethodProcessor#bindRequestParameters(org.springframework.web.bind.WebDataBinder,org.springframework.web.context.request.NativeWebRequest):void",
-            "org.springframework.web.bind.ServletRequestDataBinder#bind(jakarta.servlet.ServletRequest):void",
-            "org.springframework.web.bind.WebDataBinder#doBind(org.springframework.beans.MutablePropertyValues):void",
-            "org.springframework.validation.DataBinder#doBind(org.springframework.beans.MutablePropertyValues):void",
-            "org.springframework.validation.AbstractBindingResult#getModel():java.util.Map",
-
             "java.lang.Object#<init>():void",
-            "org.springframework.util.function.ThrowingSupplier#get():java.lang.Object",
-            "org.springframework.util.function.ThrowingSupplier#get(java.util.function.BiFunction):java.lang.Object",
-
-            "org.springframework.web.servlet.handler.HandlerMappingIntrospector#lambda\$createCacheFilter\$3(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void",
-            "org.springframework.security.web.FilterChainProxy#doFilterInternal(jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void",
-            "org.springframework.security.web.session.DisableEncodeUrlFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
-            "org.springframework.security.web.header.HeaderWriterFilter#doHeadersAfter(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
         )
 
-        private val concretizeInvocations = setOf(
-            "org.springframework.web.servlet.DispatcherServlet#processDispatchResult(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,org.springframework.web.servlet.HandlerExecutionChain,org.springframework.web.servlet.ModelAndView,java.lang.Exception):void",
-            // TODO: need it? #CM
-            "org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite#handleReturnValue(java.lang.Object,org.springframework.core.MethodParameter,org.springframework.web.method.support.ModelAndViewContainer,org.springframework.web.context.request.NativeWebRequest):void",
-            // TODO: delete #CM
-            "org.usvm.samples.strings11.StringConcat#concretize():void",
-        )
+        private val concretizeInvocations = emptySet<String>()
 
         //endregion
 

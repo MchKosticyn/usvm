@@ -18,6 +18,7 @@ import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachineOptions
+import org.usvm.machine.JcMethodApproximationResolver
 import org.usvm.machine.JcMethodCallBaseInst
 import org.usvm.machine.interpreter.JcExprResolver
 import org.usvm.machine.interpreter.JcInterpreter
@@ -33,8 +34,12 @@ open class JcConcreteInterpreter(
     ctx: JcContext,
     applicationGraph: JcApplicationGraph,
     options: JcMachineOptions,
+    private val jcConcreteMachineOptions: JcConcreteMachineOptions,
     observer: JcInterpreterObserver? = null,
 ): JcInterpreter(ctx, applicationGraph, options, observer) {
+
+    override val approximationResolver: JcMethodApproximationResolver =
+        JcConcreteMethodApproximationResolver(ctx, applicationGraph)
 
     override fun createState(
         initOwnership: MutabilityOwnership,
@@ -42,7 +47,7 @@ open class JcConcreteInterpreter(
         targets: UTargetsSet<JcTarget, JcInst>
     ): JcState {
         val pathConstraints = UPathConstraints<JcType>(ctx, initOwnership)
-        val memory = JcConcreteMemory(ctx, initOwnership, pathConstraints.typeConstraints)
+        val memory = JcConcreteMemory(ctx, initOwnership, pathConstraints.typeConstraints, jcConcreteMachineOptions)
         return JcState(
             ctx,
             initOwnership,
@@ -103,17 +108,23 @@ open class JcConcreteInterpreter(
         }
     }
 
-    override fun allocateString(memory: UMemory<JcType, JcMethod>, value: String): UConcreteHeapRef {
+    override fun allocateString(memory: UMemory<JcType, JcMethod>, value: String): Pair<UConcreteHeapRef, Boolean> {
         memory as JcConcreteMemory
         // Tries to allocate string in concrete memory
-        return memory.tryAllocateConcrete(value, ctx.stringType)
-            ?: super.allocateString(memory, value)
+        val address = memory.tryAllocateConcrete(value, ctx.stringType)
+        if (address != null)
+            return address to true
+
+        return super.allocateString(memory, value)
     }
 
-    override fun allocateTypeInstance(memory: UMemory<JcType, JcMethod>, type: JcType): UConcreteHeapRef {
+    override fun allocateTypeInstance(memory: UMemory<JcType, JcMethod>, type: JcType): Pair<UConcreteHeapRef, Boolean> {
         memory as JcConcreteMemory
         // Tries to allocate class in concrete memory
-        return memory.tryAllocateConcrete(type.toJavaClass(JcConcreteMemoryClassLoader), ctx.classType)
-            ?: super.allocateTypeInstance(memory, type)
+        val address = memory.tryAllocateConcrete(type.toJavaClass(JcConcreteMemoryClassLoader), ctx.classType)
+        if (address != null)
+            return address to true
+
+        return super.allocateTypeInstance(memory, type)
     }
 }

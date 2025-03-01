@@ -99,8 +99,8 @@ open class UMemory<Type, Method>(
     override var ownership: MutabilityOwnership,
     override val types: UTypeConstraints<Type>,
     override val stack: URegistersStack = URegistersStack(),
-    val mocks: UIndexedMocker<Method> = UIndexedMocker(),
-    var regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentHashMapOf(),
+    protected val mocks: UIndexedMocker<Method> = UIndexedMocker(),
+    protected var regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentHashMapOf(),
 ) : UWritableMemory<Type>, UOwnedMergeable<UMemory<Type, Method>, MergeGuard> {
 
     override val mocker: UMocker<Method>

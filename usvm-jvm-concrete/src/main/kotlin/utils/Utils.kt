@@ -30,30 +30,20 @@ import org.jacodb.approximation.OriginalClassName
 import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.api.util.Reflection.allocateInstance
-import org.usvm.api.util.Reflection.invoke
 import org.usvm.api.util.Reflection.toJavaExecutable
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.jvm.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.machine.JcContext
+import org.usvm.util.allFields
+import org.usvm.util.allInstanceFields
+import org.usvm.util.javaName
 import org.usvm.util.name
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
-import java.lang.reflect.InvocationHandler
-import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 import java.nio.ByteBuffer
-import kotlin.reflect.jvm.javaField
-import kotlin.reflect.jvm.javaMethod
-
-@Suppress("RecursivePropertyAccessor")
-internal val JcClassType.allFields: List<JcTypedField>
-    get() = declaredFields + (superType?.allFields ?: emptyList())
-
-@Suppress("RecursivePropertyAccessor")
-internal val JcClassOrInterface.allFields: List<JcField>
-    get() = declaredFields + (superClass?.allFields ?: emptyList())
 
 internal val Class<*>.safeDeclaredFields: List<Field>
     get() {
@@ -68,9 +58,6 @@ internal val Class<*>.safeDeclaredFields: List<Field>
 @Suppress("RecursivePropertyAccessor")
 internal val Class<*>.allFields: List<Field>
     get() = safeDeclaredFields + (superclass?.allFields ?: emptyList())
-
-internal val JcClassType.allInstanceFields: List<JcTypedField>
-    get() = allFields.filter { !it.isStatic }
 
 internal val JcClassType.declaredInstanceFields: List<JcTypedField>
     get() = declaredFields.filter { !it.isStatic }
@@ -162,12 +149,6 @@ internal fun Field.setStaticFieldValue(value: Any?) {
 
 internal val Field.isFinal: Boolean
     get() = Modifier.isFinal(modifiers)
-
-internal val kotlin.reflect.KProperty<*>.javaName: String
-    get() = this.javaField?.name ?: error("No java name for field $this")
-
-internal val kotlin.reflect.KFunction<*>.javaName: String
-    get() = this.javaMethod?.name ?: error("No java name for method $this")
 
 @Suppress("UNCHECKED_CAST")
 internal fun <Value> Any.getArrayValue(index: Int): Value {
@@ -533,38 +514,7 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
     }
 }
 
-internal class LambdaInvocationHandler : InvocationHandler {
 
-    private var methodName: String? = null
-    private var actualMethod: JcMethod? = null
-    private var closureArgs: List<Any?> = listOf()
-
-    fun init(actualMethod: JcMethod, methodName: String, args: List<Any?>) {
-        check(actualMethod !is JcEnrichedVirtualMethod)
-        this.methodName = methodName
-        this.actualMethod = actualMethod
-        closureArgs = args
-    }
-
-    override fun invoke(proxy: Any?, method: Method, args: Array<Any?>?): Any? {
-        if (methodName != null && methodName == method.name) {
-            var allArgs =
-                if (args == null) closureArgs
-                else closureArgs + args
-            var thisArg: Any? = null
-            val methodToInvoke = actualMethod!!
-            if (!methodToInvoke.isStatic) {
-                thisArg = allArgs[0]
-                allArgs = allArgs.drop(1)
-            }
-            return methodToInvoke.invoke(JcConcreteMemoryClassLoader, thisArg, allArgs)
-
-        }
-
-        val newArgs = args ?: arrayOf()
-        return InvocationHandler.invokeDefault(proxy, method, *newArgs)
-    }
-}
 
 private fun createProxy(jcClass: JcClassOrInterface): Any {
     check(jcClass.isInterface)

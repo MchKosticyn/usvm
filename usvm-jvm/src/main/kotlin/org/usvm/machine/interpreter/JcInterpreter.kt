@@ -659,8 +659,28 @@ open class JcInterpreter(
         }
     }
 
+    protected open fun createExprResolver(
+        ctx: JcContext,
+        scope: JcStepScope,
+        options: JcMachineOptions,
+        localToIdx: (JcMethod, JcImmediate) -> Int,
+        mkTypeRef: (JcState, JcType) -> Pair<UConcreteHeapRef, Boolean>,
+        mkStringConstRef: (JcState, String, Boolean) -> Pair<UConcreteHeapRef, Boolean>,
+        classInitializerAnalysisAlwaysRequiredForType: (JcRefType) -> Boolean,
+    ): JcExprResolver {
+        return JcExprResolver(
+            ctx,
+            scope,
+            options,
+            localToIdx,
+            mkTypeRef,
+            mkStringConstRef,
+            classInitializerAnalysisAlwaysRequiredForType
+        )
+    }
+
     private fun exprResolverWithScope(scope: JcStepScope) =
-        JcExprResolver(
+        createExprResolver(
             ctx,
             scope,
             options,
@@ -689,31 +709,69 @@ open class JcInterpreter(
     private val JcInst.nextStmt get() = location.method.instList[location.index + 1]
     private operator fun JcInstList<JcInst>.get(instRef: JcInstRef): JcInst = this[instRef.index]
 
-    protected open fun allocateString(memory: UMemory<JcType, JcMethod>, value: String): UConcreteHeapRef {
+    protected open fun allocateString(
+        memory: UMemory<JcType, JcMethod>,
+        value: String
+    ): Pair<UConcreteHeapRef, Boolean> {
         // Allocate globally unique ref with a negative address
-        return ctx.allocateStaticRef()
+        return ctx.allocateStaticRef() to false
     }
+
+    private val initializedRefs = hashSetOf<UConcreteHeapRef>()
 
     // Equal string constants must have equal references
-    private fun stringConstantAllocator(state: JcState, value: String): UConcreteHeapRef {
+    private fun stringConstantAllocator(
+        state: JcState,
+        value: String,
+        initialize: Boolean = true
+    ): Pair<UConcreteHeapRef, Boolean> {
         val memory = state.memory
         val interningPool = memory.getRegion(JcStringInterningRegionId) as JcStringInterningRegion
-        val (address, region) = interningPool.getOrPut(value) { allocateString(memory, value) }
+        var alreadyInitialized = false
+        val (address, region) = interningPool.getOrPut(value) {
+            val (ref, initialized) = allocateString(memory, value)
+            alreadyInitialized = initialized
+            ref
+        }
         memory.setRegion(JcStringInterningRegionId, region)
-        return address
+
+        alreadyInitialized = alreadyInitialized || initializedRefs.contains(address)
+
+        if (initialize)
+            initializedRefs.add(address)
+
+        return address to alreadyInitialized
     }
 
-    protected open fun allocateTypeInstance(memory: UMemory<JcType, JcMethod>, type: JcType): UConcreteHeapRef {
+    protected open fun allocateTypeInstance(
+        memory: UMemory<JcType, JcMethod>,
+        type: JcType
+    ): Pair<UConcreteHeapRef, Boolean> {
         // Allocate globally unique ref with a negative address
-        return ctx.allocateStaticRef()
+        return ctx.allocateStaticRef() to false
     }
 
-    private fun typeInstanceAllocator(state: JcState, type: JcType): UConcreteHeapRef {
+    private fun typeInstanceAllocator(
+        state: JcState,
+        type: JcType,
+        initialize: Boolean = true
+    ): Pair<UConcreteHeapRef, Boolean> {
         val memory = state.memory
         val interningPool = memory.getRegion(JcClassInterningRegionId) as JcClassInterningRegion
-        val (address, region) = interningPool.getOrPut(type) { allocateTypeInstance(memory, type) }
+        var alreadyInitialized = false
+        val (address, region) = interningPool.getOrPut(type) {
+            val (ref, initialized) = allocateTypeInstance(memory, type)
+            alreadyInitialized = initialized
+            ref
+        }
         memory.setRegion(JcClassInterningRegionId, region)
-        return address
+
+        alreadyInitialized = alreadyInitialized || initializedRefs.contains(address)
+
+        if (initialize)
+            initializedRefs.add(address)
+
+        return address to alreadyInitialized
     }
 
     private fun classInitializerAlwaysAnalysisRequiredForType(type: JcRefType): Boolean {
@@ -726,7 +784,8 @@ open class JcInterpreter(
         scope: JcStepScope,
     ): Unit = resolveVirtualInvoke(ctx, methodCall, scope, typeSelector, options.forkOnRemainingTypes)
 
-    private val approximationResolver = JcMethodApproximationResolver(ctx, applicationGraph, options)
+    protected open val approximationResolver: JcMethodApproximationResolver =
+        JcMethodApproximationResolver(ctx, applicationGraph)
 
     private fun approximateMethod(scope: JcStepScope, methodCall: JcMethodCall): Boolean {
         val exprResolver = exprResolverWithScope(scope)

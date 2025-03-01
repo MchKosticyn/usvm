@@ -25,10 +25,10 @@ import java.util.*
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
 import org.usvm.jvm.util.replace
+import org.usvm.util.javaName
 import utils.isInstrumentedClinit
 import utils.isInstrumentedInit
 import utils.isLambdaTypeName
-import utils.javaName
 import utils.setStaticFieldValue
 import utils.staticFields
 
@@ -36,7 +36,7 @@ import utils.staticFields
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
  */
 // TODO: make this 'class'
-internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
+object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
 
     lateinit var cp: JcClasspath
     private val loadedClasses = hashMapOf<String, Class<*>>()
@@ -145,7 +145,7 @@ internal object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getS
         return null
     }
 
-    fun setEffectStorage(effectStorage: JcConcreteEffectStorage) {
+    internal fun setEffectStorage(effectStorage: JcConcreteEffectStorage) {
         JcConcreteMemoryClassLoader.effectStorage = effectStorage
     }
 

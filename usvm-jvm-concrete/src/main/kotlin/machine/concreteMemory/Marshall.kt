@@ -50,6 +50,7 @@ import org.usvm.isFalse
 import org.usvm.isTrue
 import org.usvm.machine.JcContext
 import org.usvm.util.Maybe
+import org.usvm.util.allInstanceFields
 import org.usvm.util.name
 import org.usvm.util.onNone
 import org.usvm.util.onSome
@@ -59,7 +60,7 @@ import utils.isInstanceApproximation
 import utils.toJcType
 import java.lang.reflect.InvocationTargetException
 
-internal class Marshall(
+class Marshall internal constructor(
     private val ctx: JcContext,
     private val bindings: JcConcreteMemoryBindings,
     private val threadLocalHelper: ThreadLocalHelper,

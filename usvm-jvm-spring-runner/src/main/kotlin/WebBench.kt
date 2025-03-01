@@ -1,33 +1,23 @@
 package bench
 
+import features.JcClinitFeature
+import features.JcInitFeature
 import kotlinx.coroutines.runBlocking
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcClasspathExtFeature
-import org.jacodb.api.jvm.JcClasspathExtFeature.JcResolvedClassResult
 import org.jacodb.api.jvm.JcDatabase
-import org.jacodb.api.jvm.JcInstExtFeature
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.PredefinedPrimitives
-import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
-import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
-import org.jacodb.api.jvm.cfg.JcRawInst
-import org.jacodb.api.jvm.cfg.JcRawReturnInst
-import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
-import org.jacodb.api.jvm.cfg.JcRawThis
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcRamErsSettings
-import org.jacodb.impl.cfg.JcRawString
 import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages
-import org.jacodb.impl.features.classpaths.AbstractJcResolvedResult
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.UnknownClasses
 import org.jacodb.impl.features.hierarchyExt
@@ -35,27 +25,24 @@ import org.jacodb.impl.jacodb
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.FieldNode
-import org.usvm.CoverageZone
 import org.usvm.PathSelectionStrategy
 import org.usvm.SolverType
 import org.usvm.UMachineOptions
-import org.usvm.api.internal.InitHelper
 import org.usvm.api.util.JcTestInterpreter
 import org.usvm.jvm.util.isSameSignature
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
 import org.usvm.logger
-import org.usvm.machine.JcSpringMachine
 import org.usvm.machine.JcMachineOptions
-import org.usvm.machine.SpringAnalysisMode
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
-import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
-import org.usvm.machine.state.concreteMemory.isInternalType
-import org.usvm.machine.state.concreteMemory.isLambda
-import org.usvm.machine.state.concreteMemory.javaName
-import org.usvm.machine.state.concreteMemory.notTracked
 import org.usvm.util.classpathWithApproximations
-import org.usvm.util.typeName
+import features.JcLambdaFeature
+import machine.JcConcreteMachineOptions
+import machine.JcSpringMachine
+import machine.JcSpringMachineOptions
+import machine.SpringAnalysisMode
+import org.usvm.CoverageZone
+import utils.typeName
 import java.io.File
 import java.io.PrintStream
 import java.nio.file.Path
@@ -125,8 +112,6 @@ private class BenchCp(
         db.close()
     }
 }
-
-
 
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
     val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature, JcInitFeature)
@@ -270,7 +255,7 @@ private fun analyzeBench(benchmark: BenchCp) {
     System.setOut(fileStream)
     val options = UMachineOptions(
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
-        coverageZone = CoverageZone.SPRING_APPLICATION,
+        coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
         timeout = 3.minutes,
         solverType = SolverType.YICES,
@@ -278,16 +263,25 @@ private fun analyzeBench(benchmark: BenchCp) {
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
     )
-    val jcMachineOptions =
-        JcMachineOptions(
-            projectLocations = newBench.classLocations,
-            dependenciesLocations = newBench.depsLocations,
-//            forkOnImplicitExceptions = false,
-            arrayMaxSize = 10_000,
-            springAnalysisMode = SpringAnalysisMode.WebMVCTest
-        )
+    val jcMachineOptions = JcMachineOptions(
+        forkOnImplicitExceptions = false,
+        arrayMaxSize = 10_000,
+    )
+    val jcConcreteMachineOptions = JcConcreteMachineOptions(
+        projectLocations = newBench.classLocations,
+        dependenciesLocations = newBench.depsLocations,
+    )
+    val jcSpringMachineOptions = JcSpringMachineOptions(
+        springAnalysisMode = SpringAnalysisMode.WebMVCTest
+    )
     val testResolver = JcTestInterpreter()
-    JcSpringMachine(cp, options, jcMachineOptions).use { machine ->
+    JcSpringMachine(
+        cp,
+        options,
+        jcMachineOptions,
+        jcConcreteMachineOptions,
+        jcSpringMachineOptions
+    ).use { machine ->
         val states = machine.analyze(method.method)
         states.map { testResolver.resolve(method, it) }
     }
@@ -300,12 +294,6 @@ private fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>):
         .mapNotNull { findClassOrNull(it) }
         .filterNot { it is JcUnknownClass }
         .filterNot { it.isAbstract || it.isInterface || it.isAnonymous }
-        .sortedBy { it.name }
-
-private fun JcClassOrInterface.publicAndProtectedMethods(): Sequence<JcMethod> =
-    declaredMethods.asSequence()
-        .filter { it.instList.size > 0 }
-        .filter { it.isPublic || it.isProtected }
         .sortedBy { it.name }
 
 private fun <T> logTime(message: String, body: () -> T): T {
