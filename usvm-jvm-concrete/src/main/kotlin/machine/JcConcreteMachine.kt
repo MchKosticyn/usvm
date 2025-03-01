@@ -19,11 +19,18 @@ open class JcConcreteMachine(
     cp: JcClasspath,
     options: UMachineOptions,
     jcMachineOptions: JcMachineOptions = JcMachineOptions(),
+    protected val jcConcreteMachineOptions: JcConcreteMachineOptions,
     interpreterObserver: JcInterpreterObserver? = null,
 ) : JcMachine(cp, options, jcMachineOptions, interpreterObserver) {
 
     override fun createInterpreter(): JcInterpreter {
-        return JcConcreteInterpreter(ctx, applicationGraph, jcMachineOptions, interpreterObserver)
+        return JcConcreteInterpreter(
+            ctx,
+            applicationGraph,
+            jcMachineOptions,
+            jcConcreteMachineOptions,
+            interpreterObserver
+        )
     }
 
     override fun createPathSelector(

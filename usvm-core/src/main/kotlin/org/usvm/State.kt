@@ -9,7 +9,7 @@ import org.usvm.targets.UTarget
 import org.usvm.targets.UTargetsSet
 
 typealias StateId = UInt
-
+// TODO: inherit from Cloneable and implement clone java like
 abstract class UState<Type, Method, Statement, Context, Target, State>(
     // TODO: add interpreter-specific information
     val ctx: Context,

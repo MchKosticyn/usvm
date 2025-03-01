@@ -16,11 +16,20 @@ class JcSpringMachine(
     cp: JcClasspath,
     options: UMachineOptions,
     jcMachineOptions: JcMachineOptions = JcMachineOptions(),
+    jcConcreteMachineOptions: JcConcreteMachineOptions,
+    private val jcSpringMachineOptions: JcSpringMachineOptions,
     interpreterObserver: JcInterpreterObserver? = null,
-) : JcConcreteMachine(cp, options, jcMachineOptions, interpreterObserver) {
+) : JcConcreteMachine(cp, options, jcMachineOptions, jcConcreteMachineOptions, interpreterObserver) {
 
     override fun createInterpreter(): JcInterpreter {
-        return JcSpringInterpreter(ctx, applicationGraph, jcMachineOptions, interpreterObserver)
+        return JcSpringInterpreter(
+            ctx,
+            applicationGraph,
+            jcMachineOptions,
+            jcConcreteMachineOptions,
+            jcSpringMachineOptions,
+            interpreterObserver
+        )
     }
 
     override fun ignoreMethod(methodsToTrackCoverage: Set<JcMethod>): (JcMethod) -> Boolean {
@@ -28,7 +37,7 @@ class JcSpringMachine(
     }
 
     override fun methodsToTrackCoverage(methods: List<JcMethod>): Set<JcMethod> {
-        return ctx.classesOfLocations(jcMachineOptions.projectLocations!!)
+        return ctx.classesOfLocations(jcConcreteMachineOptions.projectLocations)
             .filter { it.isSpringController || it.isSpringFilter || it.isSpringHandlerInterceptor }
             .flatMap { it.declaredMethods }
             .filterNot { it is JcUnknownMethod || it.isConstructor }

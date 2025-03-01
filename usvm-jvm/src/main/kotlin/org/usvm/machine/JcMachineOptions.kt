@@ -1,14 +1,8 @@
 package org.usvm.machine
 
-import org.jacodb.api.jvm.JcByteCodeLocation
-
 /**
  * JcMachine specific options.
  * */
-enum class SpringAnalysisMode {
-    WebMVCTest,
-    SpringBootTest,
-}
 
 data class JcMachineOptions(
     /**
@@ -33,8 +27,4 @@ data class JcMachineOptions(
     val forceRelevantClassInitializers: Boolean = false,
     val skipIrrelevantClassInitializers: Boolean = false,
     val mockComplexMethods: Boolean = false,
-    val projectLocations: List<JcByteCodeLocation>? = null,
-    val dependenciesLocations: List<JcByteCodeLocation>? = null,
-
-    val springAnalysisMode: SpringAnalysisMode? = null,
 )

@@ -131,13 +131,13 @@ import org.usvm.utils.logAssertFailure
  * An expression resolver based on JacoDb 3-address code. A result of resolving is `null`, iff
  * the original state is dead, as stated in [JcStepScope].
  */
-class JcExprResolver(
+open class JcExprResolver(
     private val ctx: JcContext,
-    private val scope: JcStepScope,
-    val options: JcMachineOptions,
+    protected val scope: JcStepScope,
+    private val options: JcMachineOptions,
     localToIdx: (JcMethod, JcImmediate) -> Int,
-    mkTypeRef: (JcState, JcType) -> UConcreteHeapRef,
-    mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
+    mkTypeRef: (JcState, JcType) -> Pair<UConcreteHeapRef, Boolean>,
+    mkStringConstRef: (JcState, String, Boolean) -> Pair<UConcreteHeapRef, Boolean>,
     private val classInitializerAnalysisAlwaysRequiredForType: (JcRefType) -> Boolean,
 ) : JcExprVisitor<UExpr<out USort>?>, JcExprVisitor.Default<UExpr<out USort>?> {
     val simpleValueResolver: JcSimpleValueResolver = JcSimpleValueResolver(
@@ -530,7 +530,7 @@ class JcExprResolver(
         return null
     }
 
-    private fun assertIsSubtype(expr: KExpr<out USort>, type: JcType): Boolean {
+    protected fun assertIsSubtype(expr: KExpr<out USort>, type: JcType): Boolean {
         if (type is JcRefType) {
             val heapRef = expr.asExpr(ctx.addressSort)
             val isExpr = scope.calcOnState { memory.types.evalIsSubtype(heapRef, type) }
@@ -546,7 +546,7 @@ class JcExprResolver(
 
     // region lvalue resolving
 
-    private fun resolveFieldRef(instance: JcValue?, field: JcTypedField): ULValue<*, *>? {
+    protected fun resolveFieldRef(instance: JcValue?, field: JcTypedField): ULValue<*, *>? {
         with(ctx) {
             val instanceRef = if (instance != null) {
                 resolveJcExpr(instance)?.asExpr(addressSort) ?: return null
@@ -1043,8 +1043,8 @@ class JcSimpleValueResolver(
     private val ctx: JcContext,
     private val scope: JcStepScope,
     private val localToIdx: (JcMethod, JcImmediate) -> Int,
-    private val mkTypeRef: (JcState, JcType) -> UConcreteHeapRef,
-    private val mkStringConstRef: (JcState, String) -> UConcreteHeapRef,
+    private val mkTypeRef: (JcState, JcType) -> Pair<UConcreteHeapRef, Boolean>,
+    private val mkStringConstRef: (JcState, String, Boolean) -> Pair<UConcreteHeapRef, Boolean>,
 ) : JcValueVisitor<UExpr<out USort>>, JcExprVisitor.Default<UExpr<out USort>> {
     override fun visitJcArgument(value: JcArgument): UExpr<out USort> = with(ctx) {
         val ref = resolveLocal(value)
@@ -1090,8 +1090,8 @@ class JcSimpleValueResolver(
     override fun visitJcStringConstant(value: JcStringConstant): UExpr<out USort> = with(ctx) {
         scope.calcOnState {
             // Equal string constants always have equal references
-            val ref = resolveStringConstant(value.value)
-            if (memory.tryHeapRefToObject(ref) != null)
+            val (ref, initialized) = mkStringConstRef(this, value.value, true)
+            if (initialized)
                 return@calcOnState ref
 
             val stringValueLValue = UFieldLValue(addressSort, ref, stringValueField.field)
@@ -1163,8 +1163,8 @@ class JcSimpleValueResolver(
     }
 
     fun resolveClassRef(type: JcType): UConcreteHeapRef = scope.calcOnState {
-        val ref = mkTypeRef(this, type)
-        if (memory.tryHeapRefToObject(ref) != null)
+        val (ref, initialized) = mkTypeRef(this, type)
+        if (initialized)
             return@calcOnState ref
 
         val classRefTypeLValue = UFieldLValue(ctx.addressSort, ref, ctx.classTypeSyntheticField)
@@ -1182,6 +1182,6 @@ class JcSimpleValueResolver(
 
     fun resolveStringConstant(value: String): UConcreteHeapRef =
         scope.calcOnState {
-            mkStringConstRef(this, value)
+            mkStringConstRef(this, value, false).first
         }
 }

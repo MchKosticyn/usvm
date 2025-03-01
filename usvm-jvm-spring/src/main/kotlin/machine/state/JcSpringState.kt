@@ -1,6 +1,6 @@
 package machine.state
 
-import machine.concreteMemory.JcConcreteMemory
+import machine.state.memory.JcSpringMemory
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
@@ -22,7 +22,7 @@ class JcSpringState(
     entrypoint: JcMethod,
     callStack: UCallStack<JcMethod, JcInst> = UCallStack(),
     pathConstraints: UPathConstraints<JcType> = UPathConstraints(ctx, ownership),
-    memory: UMemory<JcType, JcMethod> = JcConcreteMemory(ctx, ownership, pathConstraints.typeConstraints),
+    memory: UMemory<JcType, JcMethod> = JcSpringMemory(ctx, ownership, pathConstraints.typeConstraints),
     models: List<UModelBase<JcType>> = listOf(),
     pathNode: PathNode<JcInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),

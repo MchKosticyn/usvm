@@ -7,7 +7,7 @@ import org.jacodb.api.jvm.JcClasspathExtFeature.JcResolvedClassResult
 import org.jacodb.impl.features.classpaths.AbstractJcResolvedResult
 import utils.getLambdaCanonicalTypeName
 
-internal object JcLambdaFeature: JcClasspathExtFeature {
+object JcLambdaFeature: JcClasspathExtFeature {
 
     private val lambdaJcClassesByName: MutableMap<String, JcClassOrInterface> = mutableMapOf()
     private val lambdaClassesByName: MutableMap<String, Class<*>> = mutableMapOf()

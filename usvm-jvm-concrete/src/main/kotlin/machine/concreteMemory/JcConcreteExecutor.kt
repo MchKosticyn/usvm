@@ -24,7 +24,7 @@ private class JcThreadFactory : ThreadFactory {
     }
 }
 
-internal class JcConcreteExecutor: ThreadLocalHelper {
+class JcConcreteExecutor: ThreadLocalHelper {
     private val threadFactory = JcThreadFactory()
     private val executor = Executors.newSingleThreadExecutor(threadFactory)
     private val threadLocalType by lazy { ThreadLocal::class.java }
