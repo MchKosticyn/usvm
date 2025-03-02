@@ -84,7 +84,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
-import org.usvm.api.allocateArray
+import org.usvm.api.initializeArrayLength
 import org.usvm.dataflow.ts.infer.tryGetKnownType
 import org.usvm.dataflow.ts.util.type
 import org.usvm.machine.TsConcreteMethodCallStmt
@@ -910,8 +910,8 @@ class TsExprResolver(
                 TODO("Multidimensional arrays are not supported yet, https://github.com/UnitTestBot/usvm/issues/287")
             }
 
-            val address = memory.allocateArray(arrayType, sizeSort, bvSize)
-
+            val address = memory.allocConcrete(arrayType)
+            memory.initializeArrayLength(address, arrayType, sizeSort, bvSize)
             address
         }
     }

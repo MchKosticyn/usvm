@@ -4,7 +4,7 @@ import machine.concreteMemory.JcConcreteMemory
 import org.usvm.UPathSelector
 import org.usvm.machine.state.JcState
 
-class JcConcreteMemoryPathSelector(
+internal class JcConcreteMemoryPathSelector(
     private val selector: UPathSelector<JcState>
 ) : UPathSelector<JcState> {
 

@@ -40,6 +40,11 @@ dependencies {
     usvmApiJarConfiguration(project(":usvm-jvm:usvm-jvm-api"))
 }
 
+val usvmConcreteApiJarConfiguration by configurations.creating
+dependencies {
+    usvmConcreteApiJarConfiguration(project(":usvm-jvm-concrete:usvm-jvm-concrete-api"))
+}
+
 val approximations by configurations.creating
 val approximationsRepo = "org.usvm.approximations.java.stdlib"
 val approximationsVersion = "0.0.0"
@@ -58,7 +63,7 @@ dependencies {
 }
 
 tasks.register<JavaExec>("runWebBench") {
-    mainClass.set("WebBenchKt")
+    mainClass.set("bench.WebBenchKt")
     classpath = sourceSets.test.get().runtimeClasspath
 
     systemProperty("jdk.util.jar.enableMultiRelease", false)
@@ -67,6 +72,9 @@ tasks.register<JavaExec>("runWebBench") {
     val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
     val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
     val absolutePaths = springApproximationDepsJarPath.joinToString(";") { it.absolutePath }
+
+    val usvmConcreteApiJarPath = usvmConcreteApiJarConfiguration.resolvedConfiguration.files.single()
+    environment("usvm.jvm.concrete.api.jar.path", usvmConcreteApiJarPath)
 
     // TODO: norm? #CM #Valya
     systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)

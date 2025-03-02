@@ -26,7 +26,7 @@ import utils.setFieldValue
 import utils.toTypedMethod
 import java.lang.reflect.Proxy
 
-class JcConcretizer(
+internal class JcConcretizer(
     state: JcState,
     private val bindings: JcConcreteMemoryBindings
 ) : JcTestStateResolver<Any?>(state.ctx, state.models.first(), state.memory, state.entrypoint.toTypedMethod) {

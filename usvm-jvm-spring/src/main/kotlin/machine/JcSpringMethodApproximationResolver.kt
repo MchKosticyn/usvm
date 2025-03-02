@@ -11,6 +11,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcFieldRef
+import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.isEnum
@@ -24,6 +25,7 @@ import org.usvm.api.makeSymbolicRefSubtype
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
+import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.util.classesOfLocations
 import java.util.ArrayList

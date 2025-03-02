@@ -32,8 +32,8 @@ import org.usvm.StepScope
 import org.usvm.UAddressSort
 import org.usvm.UExpr
 import org.usvm.UInterpreter
-import org.usvm.api.allocateArrayInitialized
 import org.usvm.api.evalTypeEquals
+import org.usvm.api.initializeArray
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRefUntyped
 import org.usvm.api.targets.TsTarget
@@ -282,12 +282,15 @@ class TsInterpreter(
                 val array = scope.calcOnState {
                     // In a common case we cannot determine the type of the array
                     val type = EtsArrayType(EtsUnknownType, dimensions = 1)
-                    memory.allocateArrayInitialized(
-                        type = ctx.arrayDescriptorOf(type),
-                        sort = ctx.addressSort,
-                        sizeSort = ctx.sizeSort,
-                        contents = content.asSequence(),
+                    val address = memory.allocConcrete(type)
+                    memory.initializeArray(
+                        address,
+                        ctx.arrayDescriptorOf(type),
+                        ctx.addressSort,
+                        ctx.sizeSort,
+                        content.asSequence()
                     )
+                    address
                 }
                 args += array
             } else {

@@ -2,90 +2,29 @@ package machine.state.memory
 
 import isSpringFilter
 import isSpringFilterChain
-import machine.concreteMemory.JcConcreteExecutor
 import machine.concreteMemory.JcConcreteMemory
-import machine.concreteMemory.JcConcreteMemoryBindings
-import machine.concreteMemory.JcConcreteRegionStorage
-import machine.concreteMemory.Marshall
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.humanReadableSignature
-import org.usvm.UIndexedMocker
-import org.usvm.collections.immutable.implementations.immutableMap.UPersistentHashMap
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UTypeConstraints
 import org.usvm.machine.JcContext
-import org.usvm.memory.UMemoryRegion
-import org.usvm.memory.UMemoryRegionId
-import org.usvm.memory.URegistersStack
 
-class JcSpringMemory: JcConcreteMemory {
-
-    constructor(
-        ctx: JcContext,
-        ownership: MutabilityOwnership,
-        typeConstraints: UTypeConstraints<JcType>,
-        stack: URegistersStack,
-        mocks: UIndexedMocker<JcMethod>,
-        regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>>,
-        executor: JcConcreteExecutor,
-        bindings: JcConcreteMemoryBindings,
-        regionStorage: JcConcreteRegionStorage,
-        marshall: Marshall
-    ): super(
-        ctx,
-        ownership,
-        typeConstraints,
-        stack,
-        mocks,
-        regions,
-        executor,
-        bindings,
-        regionStorage,
-        marshall
-    )
-
-    constructor(
-        ctx: JcContext,
-        ownership: MutabilityOwnership,
-        typeConstraints: UTypeConstraints<JcType>,
-    ): super(
-        ctx,
-        ownership,
-        typeConstraints
-    )
+class JcSpringMemory(
+    ctx: JcContext,
+    ownership: MutabilityOwnership,
+    typeConstraints: UTypeConstraints<JcType>,
+) : JcConcreteMemory(
+    ctx,
+    ownership,
+    typeConstraints,
+) {
 
     override fun shouldNotInvoke(method: JcMethod): Boolean {
         return super.shouldNotInvoke(method) ||
                 forbiddenInvocations.contains(method.humanReadableSignature) ||
                 method.enclosingClass.isSpringFilter && (method.name == "doFilter" || method.name == "doFilterInternal") ||
                 method.enclosingClass.isSpringFilterChain && (method.name == "doFilter" || method.name == "doFilterInternal")
-    }
-
-    override fun createNewMemory(
-        ctx: JcContext,
-        ownership: MutabilityOwnership,
-        typeConstraints: UTypeConstraints<JcType>,
-        stack: URegistersStack,
-        mocks: UIndexedMocker<JcMethod>,
-        regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>>,
-        executor: JcConcreteExecutor,
-        bindings: JcConcreteMemoryBindings,
-        regionStorage: JcConcreteRegionStorage,
-        marshall: Marshall
-    ): JcConcreteMemory {
-        return JcSpringMemory(
-            ctx,
-            ownership,
-            typeConstraints,
-            stack,
-            mocks,
-            regions,
-            executor,
-            bindings,
-            regionStorage,
-            marshall
-        )
     }
 
     companion object {

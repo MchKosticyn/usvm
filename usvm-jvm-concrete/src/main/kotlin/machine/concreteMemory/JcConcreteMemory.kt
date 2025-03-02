@@ -40,7 +40,6 @@ import org.usvm.collection.map.ref.URefMapRegionId
 import org.usvm.collection.set.primitive.USetRegionId
 import org.usvm.collection.set.ref.URefSetRegion
 import org.usvm.collection.set.ref.URefSetRegionId
-import org.usvm.collections.immutable.implementations.immutableMap.UPersistentHashMap
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.collections.immutable.persistentHashMapOf
 import org.usvm.constraints.UTypeConstraints
@@ -86,51 +85,29 @@ import java.util.concurrent.ExecutionException
 
 //region Concrete Memory
 
-open class JcConcreteMemory : UMemory<JcType, JcMethod>, JcConcreteRegionGetter {
+open class JcConcreteMemory(
+    private val ctx: JcContext,
+    ownership: MutabilityOwnership,
+    typeConstraints: UTypeConstraints<JcType>,
+) : UMemory<JcType, JcMethod>(
+    ctx,
+    ownership,
+    typeConstraints,
+    URegistersStack(),
+    UIndexedMocker(),
+    persistentHashMapOf()
+), JcConcreteRegionGetter {
 
-    private val ctx: JcContext
-    internal val executor: JcConcreteExecutor
-    private val bindings: JcConcreteMemoryBindings
+    internal val executor: JcConcreteExecutor = JcConcreteExecutor()
+    private var bindings: JcConcreteMemoryBindings = JcConcreteMemoryBindings(ctx, typeConstraints, executor)
     internal var regionStorage: JcConcreteRegionStorage
     private var marshall: Marshall
-    private val jcConcreteMachineOptions: JcConcreteMachineOptions
 
-    protected constructor(
-        ctx: JcContext,
-        ownership: MutabilityOwnership,
-        typeConstraints: UTypeConstraints<JcType>,
-        stack: URegistersStack,
-        mocks: UIndexedMocker<JcMethod>,
-        regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>>,
-        executor: JcConcreteExecutor,
-        bindings: JcConcreteMemoryBindings,
-        regionStorageVar: JcConcreteRegionStorage,
-        marshallVar: Marshall,
-        jcConcreteMachineOptions: JcConcreteMachineOptions
-    ) : super(ctx, ownership, typeConstraints, stack, mocks, regions) {
-        this.ctx = ctx
-        this.executor = executor
-        this.bindings = bindings
-        this.regionStorage = regionStorageVar
-        this.marshall = marshallVar
-        this.jcConcreteMachineOptions = jcConcreteMachineOptions
-    }
-
-    @Suppress("LeakingThis")
-    constructor(
-        ctx: JcContext,
-        ownership: MutabilityOwnership,
-        typeConstraints: UTypeConstraints<JcType>,
-        jcConcreteMachineOptions: JcConcreteMachineOptions
-    ) : super(ctx, ownership, typeConstraints, URegistersStack(), UIndexedMocker<JcMethod>(), persistentHashMapOf()) {
-        this.ctx = ctx
-        this.executor = JcConcreteExecutor()
-        this.bindings = JcConcreteMemoryBindings(ctx, typeConstraints, executor)
+    init {
         val storage = JcConcreteRegionStorage(ctx, this)
         val marshall = Marshall(ctx, bindings, executor, storage)
         this.regionStorage = storage
         this.marshall = marshall
-        this.jcConcreteMachineOptions = jcConcreteMachineOptions
     }
 
     private val ansiReset: String = "\u001B[0m"
@@ -299,33 +276,6 @@ open class JcConcreteMemory : UMemory<JcType, JcMethod>, JcConcreteRegionGetter 
         return marshall.objToExpr(obj, type)
     }
 
-    protected open fun createNewMemory(
-        ctx: JcContext,
-        ownership: MutabilityOwnership,
-        typeConstraints: UTypeConstraints<JcType>,
-        stack: URegistersStack,
-        mocks: UIndexedMocker<JcMethod>,
-        regions: UPersistentHashMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>>,
-        executor: JcConcreteExecutor,
-        bindings: JcConcreteMemoryBindings,
-        regionStorage: JcConcreteRegionStorage,
-        marshall: Marshall
-    ): JcConcreteMemory {
-        return JcConcreteMemory(
-            ctx,
-            ownership,
-            typeConstraints,
-            stack,
-            mocks,
-            regions,
-            executor,
-            bindings,
-            regionStorage,
-            marshall,
-            jcConcreteMachineOptions
-        )
-    }
-
     override fun clone(
         typeConstraints: UTypeConstraints<JcType>,
         thisOwnership: MutabilityOwnership,
@@ -333,24 +283,15 @@ open class JcConcreteMemory : UMemory<JcType, JcMethod>, JcConcreteRegionGetter 
     ): UMemory<JcType, JcMethod> {
         check(!concretization)
 
-        val clonedStack = stack.clone()
-        val clonedMocks = mocks.clone()
+        val clonedMemory = super.clone(typeConstraints, thisOwnership, cloneOwnership) as JcConcreteMemory
+
         val clonedBindings = bindings.copy(typeConstraints)
-        val clonedMemory = createNewMemory(
-            ctx,
-            cloneOwnership,
-            typeConstraints,
-            clonedStack,
-            clonedMocks,
-            regions,
-            executor,
-            clonedBindings,
-            regionStorage,
-            marshall
-        )
         val clonedMarshall = marshall.copy(clonedBindings, regionStorage)
         val clonedRegionStorage = regionStorage.copy(clonedBindings, clonedMemory, clonedMarshall, cloneOwnership)
         clonedMarshall.regionStorage = clonedRegionStorage
+
+        clonedMemory.ownership = cloneOwnership
+        clonedMemory.bindings = clonedBindings
         clonedMemory.regionStorage = clonedRegionStorage
         clonedMemory.marshall = clonedMarshall
 
@@ -572,10 +513,11 @@ open class JcConcreteMemory : UMemory<JcType, JcMethod>, JcConcreteRegionGetter 
         return projectLocations.any { it == jcLocation }
     }
 
-    private fun tryConcreteInvoke(
+    private fun tryConcreteInvokeInternal(
         stmt: JcMethodCall,
         state: JcState,
-        exprResolver: JcExprResolver
+        exprResolver: JcExprResolver,
+        jcConcreteMachineOptions: JcConcreteMachineOptions
     ): TryConcreteInvokeResult {
         val method = stmt.method
         val arguments = stmt.arguments
@@ -652,17 +594,19 @@ open class JcConcreteMemory : UMemory<JcType, JcMethod>, JcConcreteRegionGetter 
         return TryConcreteInvokeSuccess()
     }
 
-    fun <Inst, State, Resolver> tryConcreteInvoke(stmt: Inst, state: State, exprResolver: Resolver): Boolean {
-        stmt as JcMethodCall
-        state as JcState
-        exprResolver as JcExprResolver
-        val success = tryConcreteInvoke(stmt, state, exprResolver)
+    fun tryConcreteInvoke(
+        methodCall: JcMethodCall,
+        state: JcState,
+        exprResolver: JcExprResolver,
+        jcConcreteMachineOptions: JcConcreteMachineOptions
+    ): Boolean {
+        val success = tryConcreteInvokeInternal(methodCall, state, exprResolver, jcConcreteMachineOptions)
         // If constructor was not invoked and arguments were symbolic, deleting default 'this' from concrete memory:
         // + No need to encode objects in inconsistent state (created via allocConcrete -- objects with default fields)
         // - During symbolic execution, 'this' may stay concrete
-        if (success is TryConcreteInvokeFail && success.symbolicArguments && stmt.method.isConstructor) {
+        if (success is TryConcreteInvokeFail && success.symbolicArguments && methodCall.method.isConstructor) {
             // TODO: only if arguments are symbolic? #CM
-            val thisArg = stmt.arguments[0]
+            val thisArg = methodCall.arguments[0]
             if (thisArg is UConcreteHeapRef && bindings.contains(thisArg.address) && types.typeOf(thisArg.address).isInstanceApproximation)
                 bindings.remove(thisArg.address, isNew = true)
         }
