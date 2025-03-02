@@ -36,7 +36,7 @@ private enum class State {
 
 //endregion
 
-class JcConcreteMemoryBindings private constructor(
+internal class JcConcreteMemoryBindings private constructor(
     private val ctx: JcContext,
     private val typeConstraints: UTypeConstraints<JcType>,
     private val physToVirt: IdentityHashMap<Any?, UConcreteHeapAddress>,

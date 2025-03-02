@@ -81,7 +81,7 @@ import org.usvm.UBoolSort
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
-import org.usvm.api.allocateArray
+import org.usvm.api.initializeArrayLength
 import org.usvm.isTrue
 import org.usvm.machine.TsContext
 import org.usvm.machine.interpreter.TsStepScope
@@ -761,7 +761,8 @@ class TsExprResolver(
                 blockOnFalseState = allocateException(EtsStringType) // TODO incorrect exception type
             )
 
-            val address = memory.allocateArray(expr.type, sizeSort, bvSize)
+            val address = memory.allocConcrete(expr.type)
+            memory.initializeArrayLength(address, expr.type, sizeSort, bvSize)
             memory.types.allocate(address.address, expr.type)
 
             address

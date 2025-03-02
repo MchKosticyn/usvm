@@ -128,7 +128,10 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
             .split(";")
             .map { File(it) }
 
-    val cpFiles = classes + dependencies + springApproximationDeps
+    val usvmConcreteApiJarPath = File(System.getenv("usvm.jvm.concrete.api.jar.path"))
+    check(usvmConcreteApiJarPath.exists()) { "Concrete API jar does not exist" }
+
+    val cpFiles = classes + dependencies + springApproximationDeps + usvmConcreteApiJarPath
 
     val db = jacodb {
         useProcessJavaRuntime()

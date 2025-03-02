@@ -19,14 +19,14 @@ open class JcState(
     ctx: JcContext,
     ownership: MutabilityOwnership,
     override val entrypoint: JcMethod,
-    callStack: UCallStack<JcMethod, JcInst> = UCallStack(),
-    pathConstraints: UPathConstraints<JcType> = UPathConstraints(ctx, ownership),
-    memory: UMemory<JcType, JcMethod> = UMemory(ctx, ownership, pathConstraints.typeConstraints),
+    override var callStack: UCallStack<JcMethod, JcInst> = UCallStack(),
+    override var pathConstraints: UPathConstraints<JcType> = UPathConstraints(ctx, ownership),
+    override var memory: UMemory<JcType, JcMethod> = UMemory(ctx, ownership, pathConstraints.typeConstraints),
     models: List<UModelBase<JcType>> = listOf(),
     pathNode: PathNode<JcInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
     var methodResult: JcMethodResult = JcMethodResult.NoCall,
-    targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
+    override var targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
 ) : UState<JcType, JcMethod, JcInst, JcContext, JcTarget, JcState>(
     ctx,
     ownership,
@@ -37,37 +37,10 @@ open class JcState(
     pathNode,
     forkPoints,
     targets
-) {
-
-    protected open fun createNewState(
-        ctx: JcContext,
-        ownership: MutabilityOwnership,
-        entrypoint: JcMethod,
-        callStack: UCallStack<JcMethod, JcInst>,
-        pathConstraints: UPathConstraints<JcType>,
-        memory: UMemory<JcType, JcMethod>,
-        models: List<UModelBase<JcType>>,
-        pathNode: PathNode<JcInst>,
-        forkPoints: PathNode<PathNode<JcInst>>,
-        methodResult: JcMethodResult,
-        targets: UTargetsSet<JcTarget, JcInst>,
-    ): JcState {
-        return JcState(
-            ctx,
-            ownership,
-            entrypoint,
-            callStack,
-            pathConstraints,
-            memory,
-            models,
-            pathNode,
-            forkPoints,
-            methodResult,
-            targets
-        )
-    }
+), Cloneable {
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcState {
+        val clonedState = super.clone() as JcState
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()
         val clonedConstraints = newConstraints?.also {
@@ -75,20 +48,12 @@ open class JcState(
             it.changeOwnership(cloneOwnership)
         } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
         this.ownership = newThisOwnership
-        println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
-        return createNewState(
-            ctx,
-            cloneOwnership,
-            entrypoint,
-            callStack.clone(),
-            clonedConstraints,
-            memory.clone(clonedConstraints.typeConstraints, newThisOwnership, cloneOwnership),
-            models,
-            pathNode,
-            forkPoints,
-            methodResult,
-            targets.clone(),
-        )
+        clonedState.ownership = cloneOwnership
+        clonedState.callStack = callStack.clone()
+        clonedState.pathConstraints = clonedConstraints
+        clonedState.memory = memory.clone(clonedConstraints.typeConstraints, newThisOwnership, cloneOwnership)
+        clonedState.targets = targets.clone()
+        return clonedState
     }
 
     /**
@@ -97,6 +62,7 @@ open class JcState(
      * @return the merged state. TODO: Now it may reuse some of the internal components of the former states.
      */
     override fun mergeWith(other: JcState, by: Unit): JcState? {
+        check(this::class == other::class && this::class == JcState::class)
         val newThisOwnership = MutabilityOwnership()
         val newOtherOwnership = MutabilityOwnership()
         val mergedOwnership = MutabilityOwnership()
@@ -127,7 +93,7 @@ open class JcState(
 
         this.ownership = newThisOwnership
         other.ownership = newOtherOwnership
-        return createNewState(
+        return JcState(
             ctx,
             mergedOwnership,
             entrypoint,

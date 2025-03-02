@@ -42,35 +42,8 @@ class JcSpringState(
     targets
 ) {
 
-    override fun createNewState(
-        ctx: JcContext,
-        ownership: MutabilityOwnership,
-        entrypoint: JcMethod,
-        callStack: UCallStack<JcMethod, JcInst>,
-        pathConstraints: UPathConstraints<JcType>,
-        memory: UMemory<JcType, JcMethod>,
-        models: List<UModelBase<JcType>>,
-        pathNode: PathNode<JcInst>,
-        forkPoints: PathNode<PathNode<JcInst>>,
-        methodResult: JcMethodResult,
-        targets: UTargetsSet<JcTarget, JcInst>,
-    ): JcState {
-        return JcSpringState(
-            ctx,
-            ownership,
-            entrypoint,
-            callStack,
-            pathConstraints,
-            memory,
-            models,
-            pathNode,
-            forkPoints,
-            methodResult,
-            targets
-        )
-    }
-
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
+        println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
         return super.clone(newConstraints) as JcSpringState
     }
 }

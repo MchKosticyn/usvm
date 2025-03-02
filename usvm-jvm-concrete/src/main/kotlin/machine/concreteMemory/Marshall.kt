@@ -60,7 +60,7 @@ import utils.isInstanceApproximation
 import utils.toJcType
 import java.lang.reflect.InvocationTargetException
 
-class Marshall internal constructor(
+internal class Marshall internal constructor(
     private val ctx: JcContext,
     private val bindings: JcConcreteMemoryBindings,
     private val threadLocalHelper: ThreadLocalHelper,

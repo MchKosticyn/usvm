@@ -39,6 +39,8 @@ class UCallStack<Method, Statement> private constructor(
         for (i in 1..n) {
             stack.removeFirst()
         }
+        val last = stack.removeLast()
+        stack.addLast(UCallStackFrame(last.method, null))
     }
 
     fun clone(): UCallStack<Method, Statement> {

@@ -47,7 +47,7 @@ open class JcConcreteInterpreter(
         targets: UTargetsSet<JcTarget, JcInst>
     ): JcState {
         val pathConstraints = UPathConstraints<JcType>(ctx, initOwnership)
-        val memory = JcConcreteMemory(ctx, initOwnership, pathConstraints.typeConstraints, jcConcreteMachineOptions)
+        val memory = JcConcreteMemory(ctx, initOwnership, pathConstraints.typeConstraints)
         return JcState(
             ctx,
             initOwnership,
@@ -98,7 +98,12 @@ open class JcConcreteInterpreter(
             }
 
             is JcConcreteMethodCallInst -> {
-                if (scope.calcOnState { (memory as JcConcreteMemory).tryConcreteInvoke(stmt, this, exprResolver) })
+                val success = scope.calcOnState {
+                    val memory = memory as JcConcreteMemory
+                    memory.tryConcreteInvoke(stmt, this, exprResolver, jcConcreteMachineOptions)
+                }
+
+                if (success)
                     return
 
                 super.callMethod(scope, stmt, exprResolver)
