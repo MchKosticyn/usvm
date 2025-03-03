@@ -4,6 +4,7 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.PathNode
+import org.usvm.StateId
 import org.usvm.UCallStack
 import org.usvm.UState
 import org.usvm.api.targets.JcTarget
@@ -39,6 +40,8 @@ open class JcState(
     targets
 ), Cloneable {
 
+    override var id: StateId = ctx.getNextStateId()
+
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcState {
         val clonedState = super.clone() as JcState
         val newThisOwnership = MutabilityOwnership()
@@ -53,6 +56,7 @@ open class JcState(
         clonedState.pathConstraints = clonedConstraints
         clonedState.memory = memory.clone(clonedConstraints.typeConstraints, newThisOwnership, cloneOwnership)
         clonedState.targets = targets.clone()
+        clonedState.id = ctx.getNextStateId()
         return clonedState
     }
 

@@ -34,7 +34,7 @@ internal class JcConcreteMemoryPathSelector(
     }
 
     override fun remove(state: JcState) {
-        check(fixedState == state)
+        check(fixedState === state)
         fixedState = null
         selector.remove(state)
         (state.memory as JcConcreteMemory).kill()

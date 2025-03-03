@@ -33,7 +33,7 @@ abstract class UState<Type, Method, Statement, Context, Target, State>(
      * Deterministic state id.
      * TODO: Can be replaced with overridden hashCode
      */
-    val id: StateId = ctx.getNextStateId()
+    open val id: StateId = ctx.getNextStateId()
 
     open var ownership = initOwnership
         protected set
