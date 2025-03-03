@@ -4,7 +4,6 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.PathNode
-import org.usvm.StateId
 import org.usvm.UCallStack
 import org.usvm.UState
 import org.usvm.api.targets.JcTarget
@@ -38,28 +37,7 @@ open class JcState(
     pathNode,
     forkPoints,
     targets
-), Cloneable {
-
-    override var id: StateId = ctx.getNextStateId()
-
-    override fun clone(newConstraints: UPathConstraints<JcType>?): JcState {
-        val clonedState = super.clone() as JcState
-        val newThisOwnership = MutabilityOwnership()
-        val cloneOwnership = MutabilityOwnership()
-        val clonedConstraints = newConstraints?.also {
-            this.pathConstraints.changeOwnership(newThisOwnership)
-            it.changeOwnership(cloneOwnership)
-        } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
-        this.ownership = newThisOwnership
-        clonedState.ownership = cloneOwnership
-        clonedState.callStack = callStack.clone()
-        clonedState.pathConstraints = clonedConstraints
-        clonedState.memory = memory.clone(clonedConstraints.typeConstraints, newThisOwnership, cloneOwnership)
-        clonedState.targets = targets.clone()
-        clonedState.id = ctx.getNextStateId()
-        return clonedState
-    }
-
+) {
     /**
      * Check if this [JcState] can be merged with [other] state.
      *
