@@ -2,8 +2,8 @@ package org.usvm.instrumentation.util
 
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.*
-import org.usvm.instrumentation.testcase.UTest
-import org.usvm.instrumentation.testcase.api.*
+import org.usvm.test.api.*
+import org.usvm.jvm.util.stringType
 import java.lang.IllegalArgumentException
 import kotlin.random.Random
 

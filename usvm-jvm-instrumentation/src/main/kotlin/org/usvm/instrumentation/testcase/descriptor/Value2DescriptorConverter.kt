@@ -6,10 +6,16 @@ import org.jacodb.api.jvm.ext.*
 import org.usvm.instrumentation.classloader.WorkerClassLoader
 import org.usvm.instrumentation.mock.MockHelper
 import org.usvm.instrumentation.testcase.executor.UTestExpressionExecutor
-import org.usvm.instrumentation.testcase.api.UTestExpression
-import org.usvm.instrumentation.testcase.api.UTestInst
-import org.usvm.instrumentation.testcase.api.UTestMock
-import org.usvm.instrumentation.util.*
+import org.usvm.test.api.UTestExpression
+import org.usvm.test.api.UTestInst
+import org.usvm.test.api.UTestMock
+import org.usvm.jvm.util.allDeclaredFields
+import org.usvm.jvm.util.getFieldValue
+import org.usvm.jvm.util.stringType
+import org.usvm.jvm.util.toJavaField
+import org.usvm.jvm.util.toJcClass
+import org.usvm.jvm.util.toJcType
+import org.usvm.instrumentation.util.InstrumentationModuleConstants
 import java.util.*
 
 open class Value2DescriptorConverter(

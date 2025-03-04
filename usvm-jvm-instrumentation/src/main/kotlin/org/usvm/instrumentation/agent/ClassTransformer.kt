@@ -3,8 +3,8 @@ package org.usvm.instrumentation.agent
 import org.objectweb.asm.Opcodes
 import org.usvm.instrumentation.classloader.WorkerClassLoader
 import org.usvm.instrumentation.instrumentation.JcInstrumenterFactory
-import org.usvm.instrumentation.util.toByteArray
-import org.usvm.instrumentation.util.toClassNode
+import org.usvm.jvm.util.toByteArray
+import org.usvm.jvm.util.toClassNode
 import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
 import java.security.ProtectionDomain

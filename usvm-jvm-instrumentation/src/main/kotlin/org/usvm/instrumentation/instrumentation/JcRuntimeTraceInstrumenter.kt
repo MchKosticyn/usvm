@@ -9,8 +9,8 @@ import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.MethodNode
 import org.usvm.instrumentation.collector.trace.TraceCollector
 import org.usvm.instrumentation.instrumentation.JcInstructionTracer.StaticFieldAccessType
-import org.usvm.instrumentation.util.isSameSignature
-import org.usvm.instrumentation.util.replace
+import org.usvm.jvm.util.isSameSignature
+import org.usvm.jvm.util.replace
 
 /**
  * Class for runtime instrumentation for jcdb instructions

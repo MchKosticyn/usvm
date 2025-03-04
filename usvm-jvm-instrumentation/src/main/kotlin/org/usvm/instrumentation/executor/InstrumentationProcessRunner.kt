@@ -8,7 +8,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.instrumentation.instrumentation.JcInstrumenter
 import org.usvm.instrumentation.instrumentation.JcInstrumenterFactory
 import org.usvm.instrumentation.rd.InstrumentedProcess
-import org.usvm.instrumentation.testcase.UTest
+import org.usvm.test.api.UTest
 import org.usvm.instrumentation.testcase.api.UTestExecutionResult
 import org.usvm.instrumentation.util.InstrumentationModuleConstants
 import org.usvm.instrumentation.util.OpenModulesContainer

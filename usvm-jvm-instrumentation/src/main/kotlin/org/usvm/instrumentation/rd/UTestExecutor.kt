@@ -9,9 +9,12 @@ import org.usvm.instrumentation.collector.trace.MockCollector
 import org.usvm.instrumentation.collector.trace.TraceCollector
 import org.usvm.instrumentation.instrumentation.JcInstructionTracer
 import org.usvm.instrumentation.mock.MockHelper
-import org.usvm.instrumentation.testcase.UTest
+import org.usvm.test.api.UTest
+import org.usvm.test.api.UTestCall
 import org.usvm.instrumentation.testcase.api.*
-import org.usvm.instrumentation.testcase.descriptor.*
+import org.usvm.instrumentation.testcase.descriptor.Value2DescriptorConverter
+import org.usvm.instrumentation.testcase.descriptor.UTestExceptionDescriptor
+import org.usvm.instrumentation.testcase.descriptor.StaticDescriptorsBuilder
 import org.usvm.instrumentation.testcase.executor.UTestExpressionExecutor
 import org.usvm.instrumentation.util.InstrumentationModuleConstants
 import org.usvm.instrumentation.util.URLClassPathLoader

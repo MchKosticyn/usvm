@@ -21,7 +21,8 @@ import org.usvm.instrumentation.instrumentation.JcInstructionTracer
 import org.usvm.instrumentation.serializer.SerializationContext
 import org.usvm.instrumentation.serializer.UTestInstSerializer.Companion.registerUTestInstSerializer
 import org.usvm.instrumentation.serializer.UTestValueDescriptorSerializer.Companion.registerUTestValueDescriptorSerializer
-import org.usvm.instrumentation.testcase.UTest
+import org.usvm.test.api.UTest
+import org.usvm.test.api.UTestCall
 import org.usvm.instrumentation.testcase.api.*
 import org.usvm.instrumentation.util.*
 import java.io.File

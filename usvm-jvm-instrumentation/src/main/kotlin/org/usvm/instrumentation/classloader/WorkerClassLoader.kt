@@ -7,11 +7,16 @@ import org.jacodb.api.jvm.ext.findClass
 import org.objectweb.asm.tree.ClassNode
 import org.usvm.instrumentation.instrumentation.JcRuntimeTraceInstrumenter
 import org.usvm.instrumentation.testcase.descriptor.StaticDescriptorsBuilder
-import org.usvm.instrumentation.util.*
+import org.usvm.instrumentation.util.URLClassPathLoader
+import org.usvm.instrumentation.util.invokeWithAccessibility
 import java.lang.instrument.ClassDefinition
 import java.lang.instrument.Instrumentation
 import java.security.CodeSource
 import java.security.SecureClassLoader
+import org.usvm.jvm.util.isFinal
+import org.usvm.jvm.util.isStatic
+import org.usvm.jvm.util.setFieldValue
+import org.usvm.jvm.util.toByteArray
 
 /**
  * Worker classloader using as classloader in testing project

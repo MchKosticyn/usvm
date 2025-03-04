@@ -5,7 +5,7 @@ import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.findMethodOrNull
-import org.usvm.instrumentation.util.toStringType
+import org.usvm.jvm.util.toStringType
 
 fun AbstractBuffer.writeJcMethod(jcMethod: JcMethod) = with(jcMethod) {
     writeString(enclosingClass.name)

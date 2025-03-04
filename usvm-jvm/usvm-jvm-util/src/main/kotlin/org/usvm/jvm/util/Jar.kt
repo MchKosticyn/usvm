@@ -1,4 +1,4 @@
-package org.usvm.instrumentation.util
+package org.usvm.jvm.util
 
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.isSubClassOf
@@ -7,12 +7,19 @@ import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.Label
 import org.objectweb.asm.commons.JSRInlinerAdapter
-import org.objectweb.asm.tree.*
+import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.FrameNode
+import org.objectweb.asm.tree.LabelNode
+import org.objectweb.asm.tree.MethodNode
+import org.objectweb.asm.tree.TryCatchBlockNode
 import org.objectweb.asm.util.CheckClassAdapter
-import java.io.*
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
 import java.nio.file.Path
 import java.util.jar.JarEntry
-import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
 import java.util.jar.Manifest
 
@@ -59,12 +66,7 @@ internal fun ClassNode.inlineJsrs() {
     this.methods = methods.map { it.jsrInlined }
 }
 
-val JarEntry.isClass get() = this.name.endsWith(".class")
 val JarEntry.fullName get() = this.name.removeSuffix(".class")
-val JarEntry.pkg get() = Package(fullName.dropLastWhile { it != Package.SEPARATOR })
-val JarEntry.isManifest get() = this.name == "META-INF/MANIFEST.MF"
-
-val JarFile.classLoader get() = File(this.name).classLoader
 
 val ClassNode.hasFrameInfo: Boolean
     get() {
@@ -199,7 +201,7 @@ fun ClassNode.toByteArray(
     return cw.toByteArray()
 }
 
-internal fun ClassNode.write(
+fun ClassNode.write(
     jcClassPath: JcClasspath,
     path: Path,
     flags: Flags = Flags.writeComputeAll,
