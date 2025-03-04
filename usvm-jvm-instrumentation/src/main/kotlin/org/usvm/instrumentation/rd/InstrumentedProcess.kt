@@ -14,6 +14,7 @@ import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcClasspathFeature
+import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.jacodb
 import org.usvm.instrumentation.generated.models.*
@@ -22,9 +23,9 @@ import org.usvm.instrumentation.serializer.SerializationContext
 import org.usvm.instrumentation.serializer.UTestInstSerializer.Companion.registerUTestInstSerializer
 import org.usvm.instrumentation.serializer.UTestValueDescriptorSerializer.Companion.registerUTestValueDescriptorSerializer
 import org.usvm.test.api.UTest
-import org.usvm.test.api.*
 import org.usvm.instrumentation.testcase.api.*
 import org.usvm.instrumentation.util.*
+import org.usvm.test.api.UTestCall
 import java.io.File
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -104,6 +105,7 @@ class InstrumentedProcess private constructor() {
     private suspend fun initProcess(classpath: String, excludedClasses: List<String>, execMode: UTestExecMode) {
         fileClassPath = classpath.split(File.pathSeparatorChar).map { File(it) }
         val db = jacodb {
+            persistenceImpl(JcRamErsSettings)
             loadByteCode(fileClassPath)
             installFeatures(InMemoryHierarchy)
             jre = File(InstrumentationModuleConstants.pathToJava)

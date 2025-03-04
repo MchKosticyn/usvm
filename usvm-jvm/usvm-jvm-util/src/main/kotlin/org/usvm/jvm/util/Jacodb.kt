@@ -107,7 +107,7 @@ fun findClassInLoader(name: String, classLoader: ClassLoader): Class<*> =
     try {
         Class.forName(name, true, classLoader)
     } catch (e: Throwable) {
-        throw ClassNotLoadedException("Something gone wrong with $name loading. Exception: ${e::class.java.name}")
+        throw ClassNotFoundException("Something gone wrong with $name loading. Exception: ${e::class.java.name}")
     }
 
 fun JcField.toJavaField(classLoader: ClassLoader): Field? =

@@ -1,14 +1,5 @@
 package org.usvm.jvm.util
 
-import java.io.BufferedInputStream
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.InputStream
-import java.nio.file.Path
-import java.util.jar.JarEntry
-import java.util.jar.JarOutputStream
-import java.util.jar.Manifest
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.objectClass
@@ -22,6 +13,15 @@ import org.objectweb.asm.tree.LabelNode
 import org.objectweb.asm.tree.MethodNode
 import org.objectweb.asm.tree.TryCatchBlockNode
 import org.objectweb.asm.util.CheckClassAdapter
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.nio.file.Path
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
+import java.util.jar.Manifest
 
 
 data class Package(val components: List<String>, val isConcrete: Boolean) {
@@ -282,5 +282,3 @@ internal class LabelFilterer(private val mn: MethodNode) {
         return new
     }
 }
-
-

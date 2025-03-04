@@ -1,6 +1,5 @@
 package org.usvm.jvm.util
 
-
 fun <T> MutableList<T>.replace(replace: T, replacement: T): Boolean {
     val idx = indexOf(replace)
     return if (idx == -1) {

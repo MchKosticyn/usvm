@@ -2,11 +2,10 @@ package org.usvm.instrumentation.util
 
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.*
-import org.usvm.test.api.UTest
 import org.usvm.test.api.*
+import org.usvm.jvm.util.stringType
 import java.lang.IllegalArgumentException
 import kotlin.random.Random
-import org.usvm.jvm.util.stringType
 
 object UTestCreator {
 
@@ -516,7 +515,7 @@ object UTestCreator {
             return UTest(listOf(), UTestStaticMethodCall(jcMethod, listOf()))
         }
     }
-    
+
     object ParentStaticFieldUser {
         fun getParentStaticField(jcClasspath: JcClasspath): UTest {
             val jcClass = jcClasspath.findClass("example.ParentStaticFieldUser")

@@ -15,7 +15,6 @@ import java.io.File
 import kotlin.reflect.KClass
 import kotlin.time.Duration
 
-// TODO class identificaton in JcMachineOptions (use bytecode location on parent side)
 data class UTestExecutionOptions(
     val instrumentedClasses: List<String> = emptyList(),
     val execMode: InstrumentedProcess.UTestExecMode = InstrumentedProcess.UTestExecMode.STATE

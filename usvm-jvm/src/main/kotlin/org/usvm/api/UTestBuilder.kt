@@ -11,10 +11,10 @@ import org.usvm.memory.UReadOnlyMemory
 import org.usvm.model.UModelBase
 import org.usvm.test.api.JcTestExecutorDecoderApi
 import org.usvm.test.api.UTest
-import org.usvm.test.api.UTestExpression
-import org.usvm.test.api.UTestStaticMethodCall
-import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestAllocateMemoryCall
+import org.usvm.test.api.UTestExpression
+import org.usvm.test.api.UTestMethodCall
+import org.usvm.test.api.UTestStaticMethodCall
 
 fun createUTest(
     method: JcTypedMethod,

@@ -46,7 +46,9 @@ dependencies {
     implementation(Libs.ini4j)
     implementation(Libs.rd_core)
     implementation("commons-cli:commons-cli:1.5.0")
+
     rdgenModelsCompileClasspath(Libs.rd_gen)
+
     implementation(project(":usvm-jvm:usvm-jvm-test-api"))
     implementation(project(":usvm-jvm:usvm-jvm-util"))
 }

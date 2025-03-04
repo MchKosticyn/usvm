@@ -1,6 +1,5 @@
 package org.usvm.instrumentation.testcase.descriptor
 
-import java.util.*
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.byte
 import org.jacodb.api.jvm.ext.char
@@ -14,6 +13,7 @@ import org.usvm.jvm.util.allFields
 import org.usvm.jvm.util.setFieldValue
 import org.usvm.jvm.util.toJavaClass
 import org.usvm.jvm.util.toJavaField
+import java.util.*
 
 class Descriptor2ValueConverter(private val workerClassLoader: ClassLoader) {
 

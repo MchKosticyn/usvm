@@ -5,6 +5,7 @@ include("usvm-jvm")
 include("usvm-jvm:usvm-jvm-api")
 include("usvm-jvm:usvm-jvm-test-api")
 include("usvm-jvm:usvm-jvm-util")
+include("usvm-jvm-rendering")
 include("usvm-ts")
 include("usvm-util")
 include("usvm-jvm-instrumentation")
@@ -39,8 +40,6 @@ pluginManagement {
         }
     }
 }
-include("usvm-jvm:usvm-jvm-reproducer")
-findProject(":usvm-jvm:usvm-jvm-reproducer")?.name = "usvm-jvm-reproducer"
 include("usvm-jvm:usvm-jvm-utils")
 findProject(":usvm-jvm:usvm-jvm-utils")?.name = "usvm-jvm-utils"
 include("usvm-jvm:usvm-jvm-utils")
