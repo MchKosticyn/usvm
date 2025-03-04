@@ -1,4 +1,4 @@
-@file:Suppress("JAVA_MODULE_DOES_NOT_EXPORT_PACKAGE")
+@file:Suppress("JAVA_MODULE_DOES_NOT_EXPORT_PACKAGE", "DEPRECATION")
 package org.usvm.instrumentation.util
 import jdk.internal.loader.URLClassPath
 import jdk.internal.loader.Resource as InternalResource

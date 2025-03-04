@@ -18,7 +18,7 @@ import java.nio.file.Paths
 import kotlin.reflect.KClass
 import kotlin.time.Duration
 
-//Proccess runner wrapper
+//Process runner wrapper
 class InstrumentationProcessRunner(
     private val testingProjectClasspath: String,
     private val jcClasspath: JcClasspath,

@@ -2,7 +2,6 @@
 
 plugins {
     id("usvm.kotlin-conventions")
-    id("org.springframework.boot") version "3.2.0"
 }
 
 val samples by sourceSets.creating {
@@ -42,7 +41,6 @@ dependencies {
     implementation(project("usvm-jvm-api"))
     implementation(project("usvm-jvm-test-api"))
     implementation(project("usvm-jvm-util"))
-    implementation(project("usvm-jvm-reproducer"))
 
     implementation(Libs.ksmt_runner)
     implementation(Libs.ksmt_yices)

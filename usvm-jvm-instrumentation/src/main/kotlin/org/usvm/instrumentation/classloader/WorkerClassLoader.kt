@@ -7,7 +7,8 @@ import org.jacodb.api.jvm.ext.findClass
 import org.objectweb.asm.tree.ClassNode
 import org.usvm.instrumentation.instrumentation.JcRuntimeTraceInstrumenter
 import org.usvm.instrumentation.testcase.descriptor.StaticDescriptorsBuilder
-import org.usvm.instrumentation.util.*
+import org.usvm.instrumentation.util.URLClassPathLoader
+import org.usvm.instrumentation.util.invokeWithAccessibility
 import java.lang.instrument.ClassDefinition
 import java.lang.instrument.Instrumentation
 import java.security.CodeSource

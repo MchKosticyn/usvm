@@ -97,9 +97,11 @@ class JcRuntimeTraceInstrumenter(
             asmMethods.replace(asmMethod, tracedMethod)
         }
 
-        //Copy of clinit method to be able to rollback statics between executions!
-        //We are not able to call <clinit> method directly with reflection
-        if (InstrumentationModuleConstants.testExecutorStaticsRollbackStrategy != StaticsRollbackStrategy.REINIT) return classNode;
+        if (InstrumentationModuleConstants.testExecutorStaticsRollbackStrategy != StaticsRollbackStrategy.REINIT)
+            return classNode
+
+        // Copy of clinit method to be able to rollback statics between executions!
+        // We are not able to call <clinit> method directly with reflection
         asmMethods.find { it.name == "<clinit>" }?.let { clinitNode ->
             val clinitCopy = MethodNode(9, GENERATED_CLINIT_NAME, "()V", null, emptyArray())
             clinitNode.instructions.forEach { clinitCopy.instructions.add(it) }

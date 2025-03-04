@@ -108,7 +108,7 @@ abstract class UTestExecutor(
         )
     }
 
-    abstract protected fun buildExecutionState(
+    protected abstract fun buildExecutionState(
         callMethodExpr: UTestCall,
         executor: UTestExpressionExecutor,
         descriptorBuilder: Value2DescriptorConverter,

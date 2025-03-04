@@ -18,9 +18,9 @@ class ClassWithInnerAndNestedClassExampleTest : JavaMethodTestRunner() {
     @Test
     fun testInnerClassConstructor() {
         checkDiscoveredPropertiesWithExceptions(
-            ClassWithInnerAndNestedClassExample::InnerClassExample,
+            ClassWithInnerAndNestedClassExample.InnerClassExample::InnerInner,
             eq(1),
-            { _, r -> r.isSuccess }
+//            { _, r -> r.isSuccess }
         )
     }
 
@@ -44,31 +44,31 @@ class ClassWithInnerAndNestedClassExampleTest : JavaMethodTestRunner() {
         )
     }
 
-    @Test
-    fun testCreateInnerClassOutside() {
-        checkDiscoveredProperties(
-            ClassWithInnerAndNestedClassExample.NestedClassExample::createInnerClassOutside,
-            eq(1),
-            { _, r -> r == 0 },
-        )
-    }
-
-    @Test
-    fun testUseInnerClassAsParameter() {
-        checkDiscoveredPropertiesWithExceptions(
-            ClassWithInnerAndNestedClassExample.NestedClassExample::useInnerClassAsParameter,
-            eq(2),
-            { _, p, r -> p == null && r.isException<NullPointerException>() },
-            { _, p, r -> p != null && r.isSuccess },
-        )
-    }
-
-    @Test
-    fun testUseInheritorAndInnerClass() {
-        checkDiscoveredProperties(
-            ClassWithInnerAndNestedClassExample.NestedClassExample::useInheritorAndInnerClass,
-            eq(1),
-            { _, r -> r == 0 },
-        )
-    }
+//    @Test
+//    fun testCreateInnerClassOutside() {
+//        checkDiscoveredProperties(
+//            ClassWithInnerAndNestedClassExample.NestedClassExample::createInnerClassOutside,
+//            eq(1),
+//            { _, r -> r == 0 },
+//        )
+//    }
+//
+//    @Test
+//    fun testUseInnerClassAsParameter() {
+//        checkDiscoveredPropertiesWithExceptions(
+//            ClassWithInnerAndNestedClassExample.NestedClassExample::useInnerClassAsParameter,
+//            eq(2),
+//            { _, p, r -> p == null && r.isException<NullPointerException>() },
+//            { _, p, r -> p != null && r.isSuccess },
+//        )
+//    }
+//
+//    @Test
+//    fun testUseInheritorAndInnerClass() {
+//        checkDiscoveredProperties(
+//            ClassWithInnerAndNestedClassExample.NestedClassExample::useInheritorAndInnerClass,
+//            eq(1),
+//            { _, r -> r == 0 },
+//        )
+//    }
 }

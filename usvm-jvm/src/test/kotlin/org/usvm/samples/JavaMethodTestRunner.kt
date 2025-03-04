@@ -12,6 +12,7 @@ import org.usvm.api.JcTest
 import org.usvm.api.StaticFieldValue
 import org.usvm.api.targets.JcTarget
 import org.usvm.api.util.JcTestInterpreter
+import org.usvm.api.util.JcTestResolver
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
 import org.usvm.test.util.TestRunner
@@ -34,7 +35,6 @@ import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-
 
 @ExtendWith(UTestRunnerController::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -791,8 +791,8 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
 
     protected open val resolverType: JcTestResolverType = JcTestResolverType.INTERPRETER
 
-    private val testResolver =
-        when (resolverType) {
+    private val testResolver: JcTestResolver
+        get() = when (resolverType) {
             JcTestResolverType.INTERPRETER -> JcTestInterpreter()
             JcTestResolverType.CONCRETE_EXECUTOR -> JcTestExecutor(classpath = cp)
         }
@@ -838,8 +838,5 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
         }
     }
 }
-
-private val KFunction<*>.declaringClass: Class<*>?
-    get() = (javaMethod ?: javaConstructor)?.declaringClass
 
 private typealias StaticsType = Map<JcClassOrInterface, List<StaticFieldValue>>
