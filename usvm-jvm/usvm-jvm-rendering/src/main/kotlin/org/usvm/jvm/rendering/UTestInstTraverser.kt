@@ -4,8 +4,6 @@ import org.usvm.test.api.UTestArithmeticExpression
 import org.usvm.test.api.UTestArrayGetExpression
 import org.usvm.test.api.UTestArrayLengthExpression
 import org.usvm.test.api.UTestArraySetStatement
-import org.usvm.test.api.UTestAssertConditionExpression
-import org.usvm.test.api.UTestAssertThrowsExpression
 import org.usvm.test.api.UTestBinaryConditionExpression
 import org.usvm.test.api.UTestBinaryConditionStatement
 import org.usvm.test.api.UTestCastExpression
@@ -22,13 +20,13 @@ object UTestInstTraverser {
 
     fun traverseInst(inst: UTestInst, depth: Int = 0, block: (UTestInst, Int) -> Unit): Unit = block(inst, depth).also {
         when (inst) {
-            is UTestAssertConditionExpression -> {
-                traverseInst(inst.args.single(), depth + 1, block)
-            }
-
-            is UTestAssertThrowsExpression -> {
-                inst.args.forEach { arg -> traverseInst(arg, depth + 1, block) }
-            }
+//            is UTestAssertConditionExpression -> {
+//                traverseInst(inst.args.single(), depth + 1, block)
+//            }
+//
+//            is UTestAssertThrowsExpression -> {
+//                inst.args.forEach { arg -> traverseInst(arg, depth + 1, block) }
+//            }
 
             is UTestArithmeticExpression -> {
                 traverseInst(inst.lhv, depth + 1, block)

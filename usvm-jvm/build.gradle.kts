@@ -70,6 +70,8 @@ dependencies {
     samplesImplementation(project("usvm-jvm-api"))
 
     testImplementation(project(":usvm-jvm-instrumentation"))
+    // for test purposes only
+    testImplementation(project(":usvm-jvm:usvm-jvm-rendering"))
 }
 
 val `sample-approximationsCompileOnly`: Configuration by configurations.getting

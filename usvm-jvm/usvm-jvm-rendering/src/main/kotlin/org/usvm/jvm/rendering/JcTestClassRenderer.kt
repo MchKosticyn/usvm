@@ -17,9 +17,7 @@ import org.usvm.test.api.UTest
 
 abstract class JcTestClassRenderer(protected val cu: CompilationUnit, protected val testFile: File) {
     companion object {
-        val TEST_SUFFIX = "Test"
-        @JvmStatic
-        protected var methodIndexer = 0
+        const val TEST_SUFFIX = "Test"
         // TODO: used as full path now
         fun loadFileOrCreateFor(testClassName: String): JcTestClassRenderer = File(testClassName).let { file ->
             if (file.exists()) createRendererFromFile(file) else initFileAndRenderer(file)
@@ -34,7 +32,7 @@ abstract class JcTestClassRenderer(protected val cu: CompilationUnit, protected 
                     isPublic = true
                 }
                 cu.addType(tmp)
-                JcTestClassRendererImpl(cu, file, tmp)
+                return JcTestClassRendererImpl(cu, file, tmp)
             }
             return JcTestClassRendererImpl(cu, file, testClass.get())
         }

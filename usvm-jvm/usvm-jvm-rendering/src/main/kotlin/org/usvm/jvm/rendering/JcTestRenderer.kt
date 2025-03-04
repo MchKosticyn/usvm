@@ -38,43 +38,7 @@ import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.rendering.visitors.EmptyStmtVisitor
-import org.usvm.test.api.ArithmeticOperationType
-import org.usvm.test.api.UTest
-import org.usvm.test.api.UTestAllocateMemoryCall
-import org.usvm.test.api.UTestArithmeticExpression
-import org.usvm.test.api.UTestArrayGetExpression
-import org.usvm.test.api.UTestArrayLengthExpression
-import org.usvm.test.api.UTestArraySetStatement
-import org.usvm.test.api.UTestAssertConditionExpression
-import org.usvm.test.api.UTestAssertThrowsExpression
-import org.usvm.test.api.UTestBinaryConditionExpression
-import org.usvm.test.api.UTestBinaryConditionStatement
-import org.usvm.test.api.UTestBooleanExpression
-import org.usvm.test.api.UTestByteExpression
-import org.usvm.test.api.UTestCastExpression
-import org.usvm.test.api.UTestCharExpression
-import org.usvm.test.api.UTestClassExpression
-import org.usvm.test.api.UTestConstExpression
-import org.usvm.test.api.UTestConstructorCall
-import org.usvm.test.api.UTestCreateArrayExpression
-import org.usvm.test.api.UTestDoubleExpression
-import org.usvm.test.api.UTestExpression
-import org.usvm.test.api.UTestFloatExpression
-import org.usvm.test.api.UTestGetFieldExpression
-import org.usvm.test.api.UTestGetStaticFieldExpression
-import org.usvm.test.api.UTestGlobalMock
-import org.usvm.test.api.UTestInst
-import org.usvm.test.api.UTestIntExpression
-import org.usvm.test.api.UTestLongExpression
-import org.usvm.test.api.UTestMethodCall
-import org.usvm.test.api.UTestMockObject
-import org.usvm.test.api.UTestNullExpression
-import org.usvm.test.api.UTestSetFieldStatement
-import org.usvm.test.api.UTestSetStaticFieldStatement
-import org.usvm.test.api.UTestShortExpression
-import org.usvm.test.api.UTestStatement
-import org.usvm.test.api.UTestStaticMethodCall
-import org.usvm.test.api.UTestStringExpression
+import org.usvm.test.api.*
 
 object JcTestTypeRenderer {
     fun render(type: JcType, includeGenericArgs: Boolean = true): Type = when (type) {
@@ -158,8 +122,8 @@ abstract class JcTestRenderer(
         is UTestConstructorCall -> renderConstructorCall(expr)
         is UTestMethodCall -> renderMethodCall(expr)
         is UTestStaticMethodCall -> renderStaticMethodCall(expr)
-        is UTestAssertThrowsExpression -> renderAssertThrowsExpression(expr)
-        is UTestAssertConditionExpression -> renderAssertConditionExpression(expr)
+//        is UTestAssertThrowsExpression -> renderAssertThrowsExpression(expr)
+//        is UTestAssertConditionExpression -> renderAssertConditionExpression(expr)
         is UTestCastExpression -> renderCastExpression(expr)
         is UTestClassExpression -> renderClassExpression(expr)
         is UTestCreateArrayExpression -> renderCreateArrayExpression(expr)
@@ -191,13 +155,13 @@ abstract class JcTestRenderer(
         return ExpressionStmt(VariableDeclarationExpr(declarator))
     }
 
-    open fun renderAssertThrowsExpression(expr: UTestAssertThrowsExpression): Expression {
-        TODO()
-    }
-
-    open fun renderAssertConditionExpression(expr: UTestAssertConditionExpression): Expression {
-        TODO()
-    }
+//    open fun renderAssertThrowsExpression(expr: UTestAssertThrowsExpression): Expression {
+//        TODO()
+//    }
+//
+//    open fun renderAssertConditionExpression(expr: UTestAssertConditionExpression): Expression {
+//        TODO()
+//    }
 
     open fun renderArraySetStatement(stmt: UTestArraySetStatement): Statement = ExpressionStmt(
         AssignExpr(

@@ -34,6 +34,8 @@ import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaMethod
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import org.usvm.api.createUTest
+import org.usvm.jvm.rendering.JcTestClassRenderer
 
 
 @ExtendWith(UTestRunnerController::class)
@@ -817,6 +819,14 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
 
         JcMachine(cp, options, interpreterObserver = interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
+            val tempFile = File.createTempFile("TEMP", "FILE")
+            val classRenderer = JcTestClassRenderer.loadFileOrCreateFor(tempFile.path)
+            states.forEachIndexed { i, state ->
+                val test = createUTest(jcMethod, state)
+                classRenderer.renderTest("case$i", test)
+            }
+            tempFile.readText().split(System.lineSeparator()).forEach(::println)
+            tempFile.delete()
             states.map { testResolver.resolve(jcMethod, it) }
         }
     }
