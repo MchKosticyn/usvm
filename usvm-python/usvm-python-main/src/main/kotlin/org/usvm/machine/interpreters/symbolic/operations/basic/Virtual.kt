@@ -133,7 +133,7 @@ fun virtualCallSymbolKt(ctx: ConcolicRunContext): UninterpretedSymbolicPythonObj
     val result = internalVirtualCallKt(ctx).second
     if (!curOperation.method.isMethodWithNonVirtualReturn) {
         val softConstraint = ctx.ctx.mkHeapRefEq(result.address, ctx.ctx.nullRef)
-        val ps = ctx.extractCurState().pathConstraints
+        val ps = ctx.extractCurState().pyPathConstraints
         ps.pythonSoftConstraints = ps.pythonSoftConstraints.add(softConstraint)
     }
     return result
