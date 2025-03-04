@@ -14,29 +14,39 @@ abstract class UState<Type, Method, Statement, Context, Target, State>(
     // TODO: add interpreter-specific information
     val ctx: Context,
     initOwnership: MutabilityOwnership,
-    open var callStack: UCallStack<Method, Statement>,
-    open var pathConstraints: UPathConstraints<Type>,
-    open var memory: UMemory<Type, Method>,
+    callStack: UCallStack<Method, Statement>,
+    pathConstraints: UPathConstraints<Type>,
+    memory: UMemory<Type, Method>,
     /**
      * A list of [UModelBase]s that satisfy the [pathConstraints].
      * Could be empty (for example, if forking without a solver).
      */
-    open var models: List<UModelBase<Type>>,
-    open var pathNode: PathNode<Statement>,
-    open var forkPoints: PathNode<PathNode<Statement>>,
-    open var targets: UTargetsSet<Target, Statement>,
+    var models: List<UModelBase<Type>>,
+    var pathNode: PathNode<Statement>,
+    var forkPoints: PathNode<PathNode<Statement>>,
+    targets: UTargetsSet<Target, Statement>
 ) : UMergeable<State, Unit>, Cloneable
     where Context : UContext<*>,
           Target : UTarget<Statement, Target>,
           State : UState<Type, Method, Statement, Context, Target, State> {
+
+    var callStack: UCallStack<Method, Statement> = callStack
+        private set
+    var pathConstraints: UPathConstraints<Type> = pathConstraints
+        private set
+    var memory: UMemory<Type, Method> = memory
+        private set
+    var targets: UTargetsSet<Target, Statement> = targets
+        private set
+
     /**
      * Deterministic state id.
      * TODO: Can be replaced with overridden hashCode
      */
     var id: StateId = ctx.getNextStateId()
-        protected set
+        private set
 
-    open var ownership = initOwnership
+    var ownership: MutabilityOwnership = initOwnership
         protected set
 
     /**
@@ -44,9 +54,7 @@ abstract class UState<Type, Method, Statement, Context, Target, State>(
      * If [newConstraints] is null, clones [pathConstraints]. Otherwise, uses [newConstraints] in cloned state.
      */
     @Suppress("UNCHECKED_CAST")
-    open fun clone(
-        newConstraints: UPathConstraints<Type>? = null
-    ): State {
+    open fun clone(newConstraints: UPathConstraints<Type>? = null): State {
         val clonedState = super.clone() as State
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()

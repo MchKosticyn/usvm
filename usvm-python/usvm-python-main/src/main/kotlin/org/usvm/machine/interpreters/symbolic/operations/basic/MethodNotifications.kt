@@ -142,7 +142,7 @@ fun tpGetattroKt(
     pyAssert(ctx, name.evalIsSoft(ctx, ctx.typeSystem.pythonStr))
     val field = on.getFieldValue(ctx, name)
     val softConstraint = field.evalIsSoft(ctx, MockType)
-    val ps = ctx.extractCurState().pathConstraints
+    val ps = ctx.extractCurState().pyPathConstraints
     ps.pythonSoftConstraints = ps.pythonSoftConstraints.add(softConstraint)
 }
 

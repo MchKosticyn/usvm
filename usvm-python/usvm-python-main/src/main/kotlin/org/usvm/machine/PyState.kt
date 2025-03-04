@@ -36,7 +36,7 @@ class PyState(
     ownership: MutabilityOwnership,
     private val pythonCallable: PyUnpinnedCallable,
     val inputSymbols: List<UninterpretedSymbolicPythonObject>,
-    override val pathConstraints: PyPathConstraints,
+    pathConstraints: PyPathConstraints,
     memory: UMemory<PythonType, PyCallable>,
     uModel: UModelBase<PythonType>,
     val typeSystem: PythonTypeSystem,
@@ -62,14 +62,18 @@ class PyState(
     forkPoints,
     targets,
 ) {
+
+    internal val pyPathConstraints: PyPathConstraints
+        get() = this.pathConstraints as PyPathConstraints
+
     override fun clone(newConstraints: UPathConstraints<PythonType>?): PyState {
         require(newConstraints is PyPathConstraints?)
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()
         val newPathConstraints = newConstraints?.also {
-            this.pathConstraints.changeOwnership(newThisOwnership)
+            this.pyPathConstraints.changeOwnership(newThisOwnership)
             it.changeOwnership(cloneOwnership)
-        } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
+        } ?: pyPathConstraints.clone(newThisOwnership, cloneOwnership)
         val newMemory = memory.clone(newPathConstraints.typeConstraints, newThisOwnership, cloneOwnership)
         return PyState(
             ctx,
