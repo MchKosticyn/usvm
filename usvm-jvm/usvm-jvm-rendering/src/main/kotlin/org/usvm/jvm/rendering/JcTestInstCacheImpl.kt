@@ -55,7 +55,7 @@ class JcTestInstCacheImpl(
             exprCounter.filter { (k, v) -> !wrappersMapping.contains(k) && (v > 1 || renderer.requireDeclarationOf(k))}.keys
         val exprCache: MutableMap<UTestExpression, String> = mutableMapOf()
         val declared = mutableSetOf<UTestExpression>()
-        val declMapping = filteredInitStatements.associateWith { inst ->
+        val declMapping = (filteredInitStatements + test.callMethodExpression).associateWith { inst ->
             val requireDecl = declCollector[inst]!!.entries.filter { (k, _) ->
                 exprNonDeclared.contains(k) && !declared.contains(k) && k !is UTestConstExpression<*>
             }.sortedByDescending { e -> e.value }

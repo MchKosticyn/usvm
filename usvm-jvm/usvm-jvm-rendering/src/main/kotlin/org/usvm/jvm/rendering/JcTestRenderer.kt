@@ -81,11 +81,7 @@ abstract class JcTestRenderer(
     fun render(test: UTest): BlockStmt {
         val cachedTest = instCache.initialize(test)
         val statementsToRender = (cachedTest.initStatements + cachedTest.callMethodExpression)
-            .flatMap { inst ->
-                val a = instCache.getRequiredDeclarations(inst)
-                val b = renderInst(inst)
-                a + b
-            }
+            .flatMap { inst -> instCache.getRequiredDeclarations(inst) + renderInst(inst) }
         return BlockStmt(NodeList(statementsToRender)).accept(EmptyStmtVisitor(), Unit) as BlockStmt
     }
 

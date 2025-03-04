@@ -23,12 +23,12 @@ import org.usvm.test.api.UTestSetStaticFieldStatement
 
 class JcTestRendererImpl(cu: CompilationUnit, importManager: JcTestImportManager) : JcTestRenderer(importManager) {
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
-        return MethodCallExpr(
-            TypeExpr(parseClassOrInterface("org.usvm.jvm.rendering.ReflectionUtils")),
-            "allocateInstance"
-        ).apply {
-            this.arguments = NodeList(renderExpression(UTestClassExpression(expr.clazz.toType())))
-        }
+        return CastExpr(
+            parseClassOrInterface(expr.clazz.toType().typeName),
+            MethodCallExpr(
+                TypeExpr(parseClassOrInterface("org.usvm.jvm.rendering.ReflectionUtils")), "allocateInstance"
+            ).apply { arguments = NodeList(renderExpression(UTestClassExpression(expr.clazz.toType()))) }
+        )
     }
 
     override fun requireDeclarationOf(expr: UTestExpression): Boolean {
