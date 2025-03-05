@@ -37,6 +37,7 @@ import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.toType
+import org.usvm.jvm.rendering.Utils.parseClassOrInterface
 import org.usvm.jvm.rendering.visitors.EmptyStmtVisitor
 import org.usvm.test.api.*
 
@@ -77,9 +78,11 @@ abstract class JcTestRenderer(
     }
 
     open fun requireDeclarationOf(expr: UTestExpression): Boolean = false
+    open fun beforeRendering(test: UTest): UTest = test
 
     fun render(test: UTest): BlockStmt {
-        val cachedTest = instCache.initialize(test)
+        val preprocessed = beforeRendering(test)
+        val cachedTest = instCache.initialize(preprocessed)
         val statementsToRender = (cachedTest.initStatements + cachedTest.callMethodExpression)
             .flatMap { inst -> instCache.getRequiredDeclarations(inst) + renderInst(inst) }
         return BlockStmt(NodeList(statementsToRender)).accept(EmptyStmtVisitor(), Unit) as BlockStmt
@@ -213,13 +216,19 @@ abstract class JcTestRenderer(
 
     open fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression = error("cannot use unsafe")
 
-    open fun renderConstructorCall(expr: UTestConstructorCall): Expression = ObjectCreationExpr(
-        null,
-        JcTestTypeRenderer.render(
-            expr.type
-        ) as ClassOrInterfaceType,
-        NodeList(expr.args.map { renderExpression(it) })
-    )
+    open fun renderConstructorCall(expr: UTestConstructorCall): Expression {
+        val type = JcTestTypeRenderer.render(expr.type) as ClassOrInterfaceType
+        val scope = renderConstructorScope(expr)
+        val renderedType = if (scope != null) parseClassOrInterface(type.name.asString()) else type
+        val firstArgIsInScope = if ((scope != null) && !(expr.type as JcClassType).isStatic) 1 else 0
+        return ObjectCreationExpr(scope, renderedType, NodeList(expr.args.drop(firstArgIsInScope).map { renderExpression(it) }))
+    }
+
+    private fun renderConstructorScope(expr: UTestConstructorCall): Expression? {
+        val type = expr.type
+        if (type !is JcClassType || type.outerType == null) return null
+        return if (type.isStatic) TypeExpr(JcTestTypeRenderer.render(type.outerType!!)) else renderExpression(expr.args.first())
+    }
 
     open fun renderMethodCall(expr: UTestMethodCall): Expression = MethodCallExpr(
         renderExpression(expr.instance),

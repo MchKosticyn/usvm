@@ -13,15 +13,28 @@ import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.ast.stmt.Statement
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.rendering.Utils.parseClassOrInterface
-import org.usvm.test.api.UTestAllocateMemoryCall
-import org.usvm.test.api.UTestClassExpression
-import org.usvm.test.api.UTestExpression
-import org.usvm.test.api.UTestGetFieldExpression
-import org.usvm.test.api.UTestGetStaticFieldExpression
-import org.usvm.test.api.UTestSetFieldStatement
-import org.usvm.test.api.UTestSetStaticFieldStatement
+import org.usvm.test.api.*
 
 class JcTestRendererImpl(cu: CompilationUnit, importManager: JcTestImportManager) : JcTestRenderer(importManager) {
+    override fun beforeRendering(test: UTest): UTest {
+        val testInst = test.initStatements + test.callMethodExpression
+        val forcedCtorCalls = mutableMapOf<UTestMethodCall, Int>()
+        testInst.forEachIndexed { index, inst ->
+            UTestInstTraverser.traverseInst(inst) { e, _ ->
+                if (e is UTestMethodCall && e.method.isConstructor) forcedCtorCalls.put(
+                    e,
+                    index
+                )
+            }
+        }
+        val filteredInst = test.initStatements.filterIndexed { index, inst ->
+            when (inst) {
+                is UTestSetFieldStatement -> (forcedCtorCalls[inst.instance] ?: 0) > index
+                else -> true
+            }
+        }
+        return UTest(filteredInst, test.callMethodExpression)
+    }
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
         return CastExpr(
             parseClassOrInterface(expr.clazz.toType().typeName),
@@ -29,6 +42,13 @@ class JcTestRendererImpl(cu: CompilationUnit, importManager: JcTestImportManager
                 TypeExpr(parseClassOrInterface("org.usvm.jvm.rendering.ReflectionUtils")), "allocateInstance"
             ).apply { arguments = NodeList(renderExpression(UTestClassExpression(expr.clazz.toType()))) }
         )
+    }
+
+    override fun renderMethodCall(expr: UTestMethodCall): Expression {
+        if (expr.method.isConstructor) {
+            return super.renderConstructorCall(UTestConstructorCall(expr.method, expr.args))
+        }
+        return super.renderMethodCall(expr)
     }
 
     override fun requireDeclarationOf(expr: UTestExpression): Boolean {

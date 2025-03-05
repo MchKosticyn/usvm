@@ -823,7 +823,7 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
             val classRenderer = JcTestClassRenderer.loadFileOrCreateFor(tempFile.path)
             states.forEachIndexed { i, state ->
                 val test = createUTest(jcMethod, state)
-                classRenderer.renderTest("case$i", test)
+                classRenderer.renderTest("${jcMethod.name}$i", test)
             }
             tempFile.readText().split(System.lineSeparator()).forEach(::println)
             tempFile.delete()
