@@ -2,6 +2,7 @@ package org.usvm.jvm.rendering
 
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.NodeList
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.expr.CastExpr
 import com.github.javaparser.ast.expr.Expression
@@ -11,11 +12,15 @@ import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.ast.stmt.Statement
+import java.util.IdentityHashMap
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.rendering.Utils.parseClassOrInterface
+import org.usvm.jvm.rendering.Utils.qualifiedName
+import org.usvm.jvm.rendering.Utils.tryAddThrownException
 import org.usvm.test.api.*
 
-class JcTestRendererImpl(cu: CompilationUnit, importManager: JcTestImportManager) : JcTestRenderer(importManager) {
+class JcTestRendererImpl(classDeclaration: ClassOrInterfaceDeclaration, methodDeclaration: MethodDeclaration, importManager: JcTestImportManager) : JcTestRenderer(classDeclaration, methodDeclaration, importManager) {
+    private val noRenderPool = mutableListOf<UTestInst>()
     override fun beforeRendering(test: UTest): UTest {
         val testInst = test.initStatements + test.callMethodExpression
         val forcedCtorCalls = mutableMapOf<UTestMethodCall, Int>()
@@ -27,17 +32,21 @@ class JcTestRendererImpl(cu: CompilationUnit, importManager: JcTestImportManager
                 )
             }
         }
+        noRenderPool.addAll(forcedCtorCalls.keys.map { it.instance })
         val filteredInst = test.initStatements.filterIndexed { index, inst ->
-            when (inst) {
-                is UTestSetFieldStatement -> (forcedCtorCalls[inst.instance] ?: 0) > index
-                else -> true
-            }
+            var shouldBeRemoved = false
+            UTestInstTraverser.traverseInst(inst) { e, i -> if ((forcedCtorCalls[e] ?: 0) > index) {
+                shouldBeRemoved = true
+                return@traverseInst
+            } }
+            shouldBeRemoved
         }
         return UTest(filteredInst, test.callMethodExpression)
     }
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
+        methodDeclaration.tryAddThrownException(parseClassOrInterface("java.lang.InstantiationException"))
         return CastExpr(
-            parseClassOrInterface(expr.clazz.toType().typeName),
+            parseClassOrInterface(qualifiedName(expr.clazz)),
             MethodCallExpr(
                 TypeExpr(parseClassOrInterface("org.usvm.jvm.rendering.ReflectionUtils")), "allocateInstance"
             ).apply { arguments = NodeList(renderExpression(UTestClassExpression(expr.clazz.toType()))) }
@@ -52,15 +61,16 @@ class JcTestRendererImpl(cu: CompilationUnit, importManager: JcTestImportManager
     }
 
     override fun requireDeclarationOf(expr: UTestExpression): Boolean {
-        return expr is UTestAllocateMemoryCall
+        return expr is UTestAllocateMemoryCall && expr !in noRenderPool
     }
 }
 
 class JcSpringTestRendererImpl(
-    private val methodDeclaration: MethodDeclaration,
     cu: CompilationUnit,
+    classDeclaration: ClassOrInterfaceDeclaration,
+    methodDeclaration: MethodDeclaration,
     importManager: JcTestImportManager
-) : JcTestRenderer(importManager) {
+) : JcTestRenderer(classDeclaration, methodDeclaration, importManager) {
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
         if (expr.clazz.isStatic) return TypeExpr(parseClassOrInterface(expr.clazz.toType().typeName))
         importManager.tryAdd("org.usvm.jvm.rendering.ReflectionUtils")

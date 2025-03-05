@@ -67,7 +67,6 @@ class JcTestImportManagerImpl(private val cu: CompilationUnit) : JcTestImportMan
             else -> {}
         }
     }
-
     private fun JcClassOrInterface.outerTransitive(): JcClassOrInterface = this.outerClass?.outerTransitive() ?: this
     private fun JcClassType.outerTransitive(): JcClassType = this.outerType?.outerTransitive() ?: this
 

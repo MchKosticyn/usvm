@@ -3,6 +3,8 @@ package org.usvm.jvm.rendering
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.ArrayCreationLevel
 import com.github.javaparser.ast.NodeList
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
+import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayCreationExpr
@@ -38,6 +40,8 @@ import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.rendering.Utils.parseClassOrInterface
+import org.usvm.jvm.rendering.Utils.qualifiedName
+import org.usvm.jvm.rendering.Utils.tryAddThrownException
 import org.usvm.jvm.rendering.visitors.EmptyStmtVisitor
 import org.usvm.test.api.*
 
@@ -50,7 +54,7 @@ object JcTestTypeRenderer {
     }
 
     fun render(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType =
-        StaticJavaParser.parseClassOrInterfaceType(type.typeName)
+        StaticJavaParser.parseClassOrInterfaceType(qualifiedName(type))
             .apply {
                 if (!includeGenericArgs) {
                     this.removeTypeArguments()
@@ -68,6 +72,8 @@ internal class IndexingNameManager : JcTestRenderer.VarNameManager {
 }
 
 abstract class JcTestRenderer(
+    protected val classDeclaration: ClassOrInterfaceDeclaration,
+    protected val methodDeclaration: MethodDeclaration,
     protected val importManager: JcTestImportManager,
     val varNameManager: VarNameManager = IndexingNameManager()
 ) {
@@ -107,7 +113,7 @@ abstract class JcTestRenderer(
             is UTestSetStaticFieldStatement -> renderSetStaticFieldStatement(stmt)
         }
 
-    fun renderExpression(expr: UTestExpression): Expression = when {
+    protected fun renderExpression(expr: UTestExpression): Expression = when {
         requireDeclarationOf(expr) -> instCache.put(expr)
         else -> instCache.getOrElse(expr) { renderExpressionNoCaching(expr) }
     }
@@ -131,8 +137,10 @@ abstract class JcTestRenderer(
         is UTestGlobalMock -> renderGlobalMock(expr)
         is UTestMockObject -> renderMockObject(expr)
         is UTestConstExpression<*> -> renderConstExpression(expr)
-    }.also { importManager.on(expr) }
-
+    }.also { importManager.on(expr); if (expr is UTestCall) collectCallExceptions(expr) }
+    private fun collectCallExceptions(expr: UTestCall) {
+        expr.method?.exceptions?.forEach { exc -> methodDeclaration.tryAddThrownException(parseClassOrInterface(exc.typeName.replace("$", "."))) }
+    }
     fun renderConstExpression(expr: UTestConstExpression<*>): Expression = when (expr) {
         is UTestBooleanExpression -> renderBooleanExpression(expr)
         is UTestByteExpression -> renderByteExpression(expr)

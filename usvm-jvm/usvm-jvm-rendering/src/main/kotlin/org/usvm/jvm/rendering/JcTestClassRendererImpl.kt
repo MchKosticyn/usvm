@@ -17,8 +17,8 @@ class JcTestClassRendererImpl(
     JcTestClassRenderer(cu, testClassFile) {
     private val importManager = JcTestImportManagerImpl(cu)
     override fun renderTest(testName: String, test: UTest) {
-        val renderer = JcTestRendererImpl(cu, importManager)
         val testMethod = testClass.addMethod(testName)
+        val renderer = JcTestRendererImpl(testClass, testMethod, importManager)
         testMethod.setBody(renderer.render(test))
         cu.accept(FullNameToSimpleVisitor(cu), Unit)
         val writer = PrintWriter(testFile)
