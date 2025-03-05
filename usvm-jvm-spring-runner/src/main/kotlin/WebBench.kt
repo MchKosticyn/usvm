@@ -123,6 +123,7 @@ private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, 
 }
 
 private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
+    // TODO: remove this!!!!
     val springApproximationDeps =
         System.getProperty("usvm.jvm.springApproximationsDeps.paths")
             .split(";")
@@ -260,7 +261,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 3.minutes,
+        timeout = 1.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
