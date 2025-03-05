@@ -12,10 +12,8 @@ import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.ast.stmt.Statement
-import java.util.IdentityHashMap
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.rendering.Utils.parseClassOrInterface
-import org.usvm.jvm.rendering.Utils.qualifiedName
 import org.usvm.jvm.rendering.Utils.tryAddThrownException
 import org.usvm.test.api.*
 
