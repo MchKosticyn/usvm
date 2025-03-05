@@ -141,7 +141,7 @@ internal class JcConcreteFieldRegion<Sort : USort>(
             if (type.isInternalType)
                 obj.javaClass.allInstanceFields.find { it.name == jcField.name }
                     ?: error("Could not find field '${jcField.name}'")
-            else javaField!!
+            else javaField ?: return
         val lvalue = UFieldLValue(sort, ref, jcField)
         val fieldObj = field.getFieldValue(obj)
         val rvalue = marshall.objToExpr<USort>(fieldObj, fieldType) as UExpr<Sort>

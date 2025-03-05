@@ -76,7 +76,7 @@ tasks.register<JavaExec>("runWebBench") {
     val usvmConcreteApiJarPath = usvmConcreteApiJarConfiguration.resolvedConfiguration.files.single()
     environment("usvm.jvm.concrete.api.jar.path", usvmConcreteApiJarPath)
 
-    // TODO: norm? #CM #Valya
+    // TODO: remove this!!!!
     systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)
     val currentDir = Path(System.getProperty("user.dir"))
     val generatedDir = currentDir.resolve("generated")
