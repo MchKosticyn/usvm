@@ -46,7 +46,7 @@ class JcTestRendererImpl(classDeclaration: ClassOrInterfaceDeclaration, methodDe
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
         methodDeclaration.tryAddThrownException(parseClassOrInterface("java.lang.InstantiationException"))
         return CastExpr(
-            parseClassOrInterface(qualifiedName(expr.clazz)),
+            JcTestTypeRenderer.render(expr.clazz.toType()),
             MethodCallExpr(
                 TypeExpr(parseClassOrInterface("org.usvm.jvm.rendering.ReflectionUtils")), "allocateInstance"
             ).apply { arguments = NodeList(renderExpression(UTestClassExpression(expr.clazz.toType()))) }

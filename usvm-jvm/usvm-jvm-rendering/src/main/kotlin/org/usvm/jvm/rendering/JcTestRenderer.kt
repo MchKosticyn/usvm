@@ -59,9 +59,9 @@ object JcTestTypeRenderer {
                 if (!includeGenericArgs) {
                     this.removeTypeArguments()
                 } else {
-                    typeArguments.ifPresent { args ->
-                        setTypeArguments(NodeList(args.map { arg -> StaticJavaParser.parseClassOrInterfaceType("java.lang.Object") }))
-                    }
+                    if (type.typeArguments.isNotEmpty())
+                        setTypeArguments(NodeList(type.typeArguments.indices.map { _ -> StaticJavaParser.parseClassOrInterfaceType("java.lang.Object") }))
+
                 }
             }
 }
