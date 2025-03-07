@@ -18,8 +18,22 @@ public class ReflectionUtils {
         }
     }
 
+    private static Field getField(Class<?> type, String fieldName) {
+        Class<?> currentClass = type;
+        while (currentClass != Object.class && currentClass != null) {
+            Field[] fields = currentClass.getDeclaredFields();
+            for (Field field : fields) {
+                if (field.getName().equals(fieldName))
+                    return field;
+            }
+            currentClass = currentClass.getSuperclass();
+        }
+
+        throw new IllegalArgumentException("Could not find field " + fieldName + " in " + type);
+    }
+
     public static Object getFieldValue(Object instance, String fieldName) throws NoSuchFieldException {
-        Field field = instance.getClass().getDeclaredField(fieldName);
+        Field field = getField(instance.getClass(), fieldName);
         Object fixedInstance = getInstanceOf(field, instance);
         long fieldOffset = getOffsetOf(field);
 
@@ -44,12 +58,12 @@ public class ReflectionUtils {
         } else if (field.getType() == Double.class) {
             return UNSAFE.getDouble(fixedInstance, fieldOffset);
         }
-        // TODO: ask about exception in util code
+
         throw new IllegalStateException("unexpected primitive type");
     }
 
     public static void setFieldValue(Object instance, String fieldName, Object value) throws NoSuchFieldException {
-        Field field = instance.getClass().getDeclaredField(fieldName);
+        Field field = getField(instance.getClass(), fieldName);
         Object fixedInstance = getInstanceOf(field, instance);
         long fieldOffset = getOffsetOf(field);
 

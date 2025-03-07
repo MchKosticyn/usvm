@@ -17,17 +17,19 @@ import org.usvm.jvm.rendering.Utils.parseClassOrInterface
 import org.usvm.jvm.rendering.Utils.tryAddThrownException
 import org.usvm.test.api.*
 
-class JcTestRendererImpl(classDeclaration: ClassOrInterfaceDeclaration, methodDeclaration: MethodDeclaration, importManager: JcTestImportManager) : JcTestRenderer(classDeclaration, methodDeclaration, importManager) {
+class JcTestRendererImpl(
+    classDeclaration: ClassOrInterfaceDeclaration,
+    methodDeclaration: MethodDeclaration,
+    importManager: JcTestImportManager
+) : JcTestRendererOld(classDeclaration, methodDeclaration, importManager) {
     private val noRenderPool = mutableListOf<UTestInst>()
     override fun beforeRendering(test: UTest): UTest {
         val testInst = test.initStatements + test.callMethodExpression
         val forcedCtorCalls = mutableMapOf<UTestMethodCall, Int>()
         testInst.forEachIndexed { index, inst ->
             UTestInstTraverser.traverseInst(inst) { e, _ ->
-                if (e is UTestMethodCall && e.method.isConstructor) forcedCtorCalls.put(
-                    e,
-                    index
-                )
+                if (e is UTestMethodCall && e.method.isConstructor)
+                    forcedCtorCalls[e] = index
             }
         }
         noRenderPool.addAll(forcedCtorCalls.keys.map { it.instance })
@@ -43,6 +45,7 @@ class JcTestRendererImpl(classDeclaration: ClassOrInterfaceDeclaration, methodDe
     }
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
         methodDeclaration.tryAddThrownException(parseClassOrInterface("java.lang.InstantiationException"))
+//        importManager.tryAdd("org.usvm.jvm.rendering.ReflectionUtils")
         return CastExpr(
             JcTestTypeRenderer.render(expr.clazz.toType()),
             MethodCallExpr(
@@ -68,7 +71,7 @@ class JcSpringTestRendererImpl(
     classDeclaration: ClassOrInterfaceDeclaration,
     methodDeclaration: MethodDeclaration,
     importManager: JcTestImportManager
-) : JcTestRenderer(classDeclaration, methodDeclaration, importManager) {
+) : JcTestRendererOld(classDeclaration, methodDeclaration, importManager) {
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
         if (expr.clazz.isStatic) return TypeExpr(parseClassOrInterface(expr.clazz.toType().typeName))
         importManager.tryAdd("org.usvm.jvm.rendering.ReflectionUtils")

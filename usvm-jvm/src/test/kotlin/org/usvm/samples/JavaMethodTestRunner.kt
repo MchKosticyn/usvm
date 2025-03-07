@@ -36,7 +36,7 @@ import kotlin.reflect.jvm.javaMethod
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import org.usvm.api.createUTest
-import org.usvm.jvm.rendering.JcTestClassRenderer
+import org.usvm.jvm.rendering.JcTestClassRendererOld
 
 
 @ExtendWith(UTestRunnerController::class)
@@ -820,8 +820,8 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
 
         JcMachine(cp, options, interpreterObserver = interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
-            val tempFilePath = Paths.get("/Users/petrukhinandrew/IdeaProjects/usvm-main/usvm-jvm/src/test/java/org/usvm/generated/RenderResult.java")
-            val classRenderer = JcTestClassRenderer.loadFileOrCreateFor(tempFilePath)
+            val tempFilePath = Paths.get("/Users/michael/Documents/Work/usvm/usvm-jvm/src/test/java/org/usvm/generated/RenderingResults.java")
+            val classRenderer = JcTestClassRendererOld.loadFileOrCreateFor(tempFilePath)
             states.forEachIndexed { i, state ->
                 val test = createUTest(jcMethod, state)
                 classRenderer.renderTest("${jcMethod.name}$i", test)

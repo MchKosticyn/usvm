@@ -3,8 +3,9 @@ package org.usvm.jvm.rendering
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.ArrayCreationLevel
 import com.github.javaparser.ast.NodeList
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
+import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.body.VariableDeclarator
-import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayCreationExpr
 import com.github.javaparser.ast.expr.AssignExpr
@@ -28,64 +29,58 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr
 import com.github.javaparser.ast.stmt.BlockStmt
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.ast.stmt.Statement
+import com.github.javaparser.ast.type.ArrayType
 import com.github.javaparser.ast.type.ClassOrInterfaceType
+import com.github.javaparser.ast.type.PrimitiveType
+import com.github.javaparser.ast.type.PrimitiveType.Primitive
+import com.github.javaparser.ast.type.Type
+import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.rendering.Utils.parseClassOrInterface
+import org.usvm.jvm.rendering.Utils.qualifiedName
 import org.usvm.jvm.rendering.Utils.tryAddThrownException
 import org.usvm.jvm.rendering.visitors.EmptyStmtVisitor
-import org.usvm.test.api.ArithmeticOperationType
-import org.usvm.test.api.UTest
-import org.usvm.test.api.UTestAllocateMemoryCall
-import org.usvm.test.api.UTestArithmeticExpression
-import org.usvm.test.api.UTestArrayGetExpression
-import org.usvm.test.api.UTestArrayLengthExpression
-import org.usvm.test.api.UTestArraySetStatement
-import org.usvm.test.api.UTestBinaryConditionExpression
-import org.usvm.test.api.UTestBinaryConditionStatement
-import org.usvm.test.api.UTestBooleanExpression
-import org.usvm.test.api.UTestByteExpression
-import org.usvm.test.api.UTestCall
-import org.usvm.test.api.UTestCastExpression
-import org.usvm.test.api.UTestCharExpression
-import org.usvm.test.api.UTestClassExpression
-import org.usvm.test.api.UTestConstExpression
-import org.usvm.test.api.UTestConstructorCall
-import org.usvm.test.api.UTestCreateArrayExpression
-import org.usvm.test.api.UTestDoubleExpression
-import org.usvm.test.api.UTestExpression
-import org.usvm.test.api.UTestFloatExpression
-import org.usvm.test.api.UTestGetFieldExpression
-import org.usvm.test.api.UTestGetStaticFieldExpression
-import org.usvm.test.api.UTestGlobalMock
-import org.usvm.test.api.UTestInst
-import org.usvm.test.api.UTestIntExpression
-import org.usvm.test.api.UTestLongExpression
-import org.usvm.test.api.UTestMethodCall
-import org.usvm.test.api.UTestMockObject
-import org.usvm.test.api.UTestNullExpression
-import org.usvm.test.api.UTestSetFieldStatement
-import org.usvm.test.api.UTestSetStaticFieldStatement
-import org.usvm.test.api.UTestShortExpression
-import org.usvm.test.api.UTestStatement
-import org.usvm.test.api.UTestStaticMethodCall
-import org.usvm.test.api.UTestStringExpression
+import org.usvm.test.api.*
 
-class JcTestRenderer(
-    importManager: JcImportManager,
-    name: SimpleName,
-    testAnnotation: AnnotationExpr,
-): JcMethodRenderer(
-    importManager,
-    name,
-    NodeList(),
-    NodeList(testAnnotation),
-    NodeList(),
-    voidType
+object JcTestTypeRenderer {
+    fun render(type: JcType, includeGenericArgs: Boolean = true): Type = when (type) {
+        is JcPrimitiveType -> PrimitiveType(Primitive.byTypeName(type.typeName).get())
+        is JcArrayType -> ArrayType(render(type.elementType, includeGenericArgs))
+        is JcClassType -> render(type, includeGenericArgs)
+        else -> error("unexpected type ${type.typeName}")
+    }
+
+    fun render(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType =
+        StaticJavaParser.parseClassOrInterfaceType(qualifiedName(type))
+            .apply {
+                if (!includeGenericArgs) {
+                    this.removeTypeArguments()
+                } else {
+                    if (type.typeArguments.isNotEmpty())
+                        setTypeArguments(NodeList(type.typeArguments.indices.map { _ -> StaticJavaParser.parseClassOrInterfaceType("java.lang.Object") }))
+
+                }
+            }
+}
+
+internal class IndexingNameManager : JcTestRendererOld.VarNameManager {
+    private var cnt = 0;
+    override fun chooseNameFor(expr: UTestExpression): String = "v${cnt++}"
+}
+
+abstract class JcTestRendererOld(
+    protected val classDeclaration: ClassOrInterfaceDeclaration,
+    protected val methodDeclaration: MethodDeclaration,
+    protected val importManager: JcTestImportManager,
+    val varNameManager: VarNameManager = IndexingNameManager()
 ) {
-    fun initialize(test: UTest) {
-        TODO()
+    private val instCache: JcTestInstCache = JcTestInstCacheImpl(this)
+
+    interface VarNameManager {
+        fun chooseNameFor(expr: UTestExpression): String
     }
 
     open fun requireDeclarationOf(expr: UTestExpression): Boolean = false
@@ -101,8 +96,13 @@ class JcTestRenderer(
 
     protected fun renderInst(inst: UTestInst): Statement =
         when (inst) {
-            is UTestStatement -> renderStatement(inst)
-            is UTestExpression -> ExpressionStmt(renderExpression(inst))
+            is UTestStatement -> {
+                renderStatement(inst)
+            }
+
+            is UTestExpression -> {
+                ExpressionStmt(renderExpression(inst))
+            }
         }
 
     protected fun renderStatement(stmt: UTestStatement): Statement =

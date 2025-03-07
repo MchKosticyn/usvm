@@ -15,8 +15,7 @@ class JcTestClassRendererImpl(
     cu: CompilationUnit,
     testClassPath: Path,
     private val testClass: ClassOrInterfaceDeclaration
-) :
-    JcTestClassRenderer(cu, testClassPath) {
+) : JcTestClassRendererOld(cu, testClassPath) {
     private val importManager = JcTestImportManagerImpl(cu)
     override fun renderTest(testName: String, test: UTest) {
         val testMethod = testClass.addMethod(testName)

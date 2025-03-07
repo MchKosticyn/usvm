@@ -16,9 +16,8 @@ import org.usvm.test.api.UTestNullExpression
 import org.usvm.test.api.UTestSetFieldStatement
 
 class JcTestInstCacheImpl(
-    override val renderer: JcTestRenderer,
-) :
-    JcTestInstCache {
+    override val renderer: JcTestRendererOld,
+) : JcTestInstCache {
     private val cache: IdentityHashMap<UTestExpression, Expression> = IdentityHashMap()
     private val instToRequiredDeclarations: IdentityHashMap<UTestInst, List<Statement>> = IdentityHashMap()
 
@@ -80,19 +79,19 @@ class JcTestInstCacheImpl(
         instToRequiredDeclarations.putAll(declMapping)
         return UTest(filteredInitStatements, test.callMethodExpression)
     }
-    private fun JcClassOrInterface.isPrimitiveWrapper(): Boolean =
-        listOf(
-            "java.lang.Void",
-            "java.lang.Object",
-            "java.lang.Boolean",
-            "java.lang.Short",
-            "java.lang.Integer",
-            "java.lang.Long",
-            "java.lang.Float",
-            "java.lang.Double",
-            "java.lang.Byte",
-            "java.lang.Character"
-        ).contains(name)
+
+    private val wrappers = setOf(
+        "java.lang.Boolean",
+        "java.lang.Short",
+        "java.lang.Integer",
+        "java.lang.Long",
+        "java.lang.Float",
+        "java.lang.Double",
+        "java.lang.Byte",
+        "java.lang.Character"
+    )
+
+    private fun JcClassOrInterface.isPrimitiveWrapper(): Boolean = wrappers.contains(name)
 
     override fun getRequiredDeclarations(inst: UTestInst): List<Statement> =
         instToRequiredDeclarations[inst] ?: emptyList()

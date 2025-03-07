@@ -7,7 +7,7 @@ import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 
 interface JcTestInstCache {
-    val renderer: JcTestRenderer
+    val renderer: JcTestRendererOld
     fun initialize(test: UTest): UTest
     fun put(expr: UTestExpression): Expression
     fun getOrElse(expr: UTestExpression, block: () -> Expression): Expression
