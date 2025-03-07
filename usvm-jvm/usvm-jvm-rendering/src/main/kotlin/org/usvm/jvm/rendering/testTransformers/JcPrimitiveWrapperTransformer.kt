@@ -1,7 +1,6 @@
 package org.usvm.jvm.rendering.testTransformers
 
 import org.jacodb.api.jvm.JcField
-import org.usvm.test.api.UTestConstExpression
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestSetFieldStatement
 import org.usvm.test.api.UTestStatement
@@ -9,7 +8,7 @@ import java.util.IdentityHashMap
 
 class JcPrimitiveWrapperTransformer: JcTestTransformer() {
 
-    private val toReplace = IdentityHashMap<UTestExpression, UTestConstExpression<*>>()
+    private val toReplace = IdentityHashMap<UTestExpression, UTestExpression>()
 
     private val primitiveWrappers = setOf(
         "java.lang.Boolean",
@@ -26,10 +25,15 @@ class JcPrimitiveWrapperTransformer: JcTestTransformer() {
         get() = name == "value" && primitiveWrappers.contains(enclosingClass.name)
 
     override fun transform(stmt: UTestSetFieldStatement): UTestStatement? {
-        if (stmt.field.isWrapperValueField) {
-            toReplace.put(stmt.instance, stmt.value)
-        }
+        if (!stmt.field.isWrapperValueField)
+            return super.transform(stmt)
 
-        return super.transform(stmt)
+        val oldValue = toReplace.put(stmt.instance, transformExpr(stmt.value))
+        check(oldValue == null)
+        return null
+    }
+
+    override fun transform(expr: UTestExpression): UTestExpression? {
+        return toReplace[expr] ?: return super.transform(expr)
     }
 }

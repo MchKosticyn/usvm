@@ -67,12 +67,7 @@ abstract class JcTestTransformer {
     }
 
     protected fun transformStmt(stmt: UTestStatement): UTestStatement? {
-        return when (stmt) {
-            is UTestArraySetStatement -> transform(stmt)
-            is UTestBinaryConditionStatement -> transform(stmt)
-            is UTestSetFieldStatement -> transform(stmt)
-            is UTestSetStaticFieldStatement -> transform(stmt)
-        }
+        return transform(stmt)
     }
 
     //region Expression transformers
@@ -195,6 +190,15 @@ abstract class JcTestTransformer {
     //endregion
 
     //region Statement transformers
+
+    open fun transform(stmt: UTestStatement): UTestStatement? {
+        return when (stmt) {
+            is UTestArraySetStatement -> transform(stmt)
+            is UTestBinaryConditionStatement -> transform(stmt)
+            is UTestSetFieldStatement -> transform(stmt)
+            is UTestSetStaticFieldStatement -> transform(stmt)
+        }
+    }
 
     open fun transform(stmt: UTestArraySetStatement): UTestStatement? {
         val array = transformExpr(stmt.arrayInstance) ?: return null
