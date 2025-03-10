@@ -3,7 +3,6 @@ package org.usvm.jvm.rendering
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.ArrayCreationLevel
 import com.github.javaparser.ast.NodeList
-import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayCreationExpr
@@ -24,17 +23,13 @@ import com.github.javaparser.ast.expr.ObjectCreationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
-import com.github.javaparser.ast.expr.VariableDeclarationExpr
-import com.github.javaparser.ast.stmt.BlockStmt
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.ast.stmt.Statement
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import org.jacodb.api.jvm.JcClassType
-import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.rendering.Utils.parseClassOrInterface
 import org.usvm.jvm.rendering.Utils.tryAddThrownException
-import org.usvm.jvm.rendering.visitors.EmptyStmtVisitor
 import org.usvm.test.api.ArithmeticOperationType
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestAllocateMemoryCall
@@ -71,71 +66,98 @@ import org.usvm.test.api.UTestShortExpression
 import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
+import java.util.IdentityHashMap
 
-class JcTestRenderer(
+open class JcTestRenderer(
     importManager: JcImportManager,
+    override val classRenderer: JcTestClassRenderer,
     name: SimpleName,
+    private val test: UTest,
     testAnnotation: AnnotationExpr,
 ): JcMethodRenderer(
     importManager,
+    classRenderer,
     name,
     NodeList(),
     NodeList(testAnnotation),
     NodeList(),
     voidType
 ) {
-    fun initialize(test: UTest) {
-        TODO()
+
+    open fun requireVarDeclarationOf(expr: UTestExpression): Boolean = false
+
+    private val shouldDeclareVar: IdentityHashMap<UTestExpression, Unit> = IdentityHashMap()
+
+    inner class JcExprUsageVisitor: JcTestVisitor() {
+
+        private val exprCache = IdentityHashMap<UTestExpression, Unit>()
+
+        override fun visitExpr(expr: UTestExpression) {
+            if (expr !is UTestConstExpression<*> && exprCache.put(expr, Unit) != null || requireVarDeclarationOf(expr))
+                // Multiple usage of expression
+                shouldDeclareVar[expr] = Unit
+
+            super.visitExpr(expr)
+        }
     }
 
-    open fun requireDeclarationOf(expr: UTestExpression): Boolean = false
-    open fun beforeRendering(test: UTest): UTest = test
+    private val exprCache: IdentityHashMap<UTestExpression, Expression> = IdentityHashMap()
 
-    fun render(test: UTest): BlockStmt {
-        val preprocessed = beforeRendering(test)
-        val cachedTest = instCache.initialize(preprocessed)
-        val statementsToRender = (cachedTest.initStatements + cachedTest.callMethodExpression)
-            .flatMap { inst -> instCache.getRequiredDeclarations(inst) + renderInst(inst) }
-        return BlockStmt(NodeList(statementsToRender)).accept(EmptyStmtVisitor(), Unit) as BlockStmt
+    fun render(test: UTest) {
+        JcExprUsageVisitor().visitTest(test)
+
+        for (inst in test.initStatements)
+            renderInst(inst)
+
+        renderInst(test.callMethodExpression)
     }
 
-    protected fun renderInst(inst: UTestInst): Statement =
+    protected fun renderInst(inst: UTestInst) =
         when (inst) {
             is UTestStatement -> renderStatement(inst)
-            is UTestExpression -> ExpressionStmt(renderExpression(inst))
+            is UTestExpression -> body.addExpression(renderExpression(inst))
         }
 
-    protected fun renderStatement(stmt: UTestStatement): Statement =
+    protected fun renderStatement(stmt: UTestStatement) {
         when (stmt) {
             is UTestArraySetStatement -> renderArraySetStatement(stmt)
             is UTestBinaryConditionStatement -> renderBinaryConditionStatement(stmt)
             is UTestSetFieldStatement -> renderSetFieldStatement(stmt)
             is UTestSetStaticFieldStatement -> renderSetStaticFieldStatement(stmt)
         }
+    }
 
     protected fun renderExpression(expr: UTestExpression): Expression =
-        instCache.getOrElse(expr) { renderExpressionNoCaching(expr) }
+        exprCache.getOrPut(expr) {
+            val rendered = doRenderExpression(expr)
+            if (shouldDeclareVar.containsKey(expr))
+                body.renderVarDeclaration(expr.type!!, rendered)
+            else
+                rendered
+        }
 
-    protected fun renderExpressionNoCaching(expr: UTestExpression): Expression = when (expr) {
-        is UTestArithmeticExpression -> renderArithmeticExpression(expr)
-        is UTestArrayGetExpression -> renderArrayGetExpression(expr)
-        is UTestArrayLengthExpression -> renderArrayLengthExpression(expr)
-        is UTestBinaryConditionExpression -> renderBinaryConditionExpression(expr)
-        is UTestAllocateMemoryCall -> renderAllocateMemoryCall(expr)
-        is UTestConstructorCall -> renderConstructorCall(expr)
-        is UTestMethodCall -> renderMethodCall(expr)
-        is UTestStaticMethodCall -> renderStaticMethodCall(expr)
-//        is UTestAssertThrowsExpression -> renderAssertThrowsExpression(expr)
-//        is UTestAssertConditionExpression -> renderAssertConditionExpression(expr)
-        is UTestCastExpression -> renderCastExpression(expr)
-        is UTestClassExpression -> renderClassExpression(expr)
-        is UTestCreateArrayExpression -> renderCreateArrayExpression(expr)
-        is UTestGetFieldExpression -> renderGetFieldExpression(expr)
-        is UTestGetStaticFieldExpression -> renderGetStaticFieldExpression(expr)
-        is UTestGlobalMock -> renderGlobalMock(expr)
-        is UTestMockObject -> renderMockObject(expr)
-        is UTestConstExpression<*> -> renderConstExpression(expr)
-    }.also { importManager.on(expr); if (expr is UTestCall) collectCallExceptions(expr) }
+    private fun doRenderExpression(expr: UTestExpression): Expression {
+        return when (expr) {
+            is UTestArithmeticExpression -> renderArithmeticExpression(expr)
+            is UTestArrayGetExpression -> renderArrayGetExpression(expr)
+            is UTestArrayLengthExpression -> renderArrayLengthExpression(expr)
+            is UTestBinaryConditionExpression -> renderBinaryConditionExpression(expr)
+            is UTestAllocateMemoryCall -> renderAllocateMemoryCall(expr)
+            is UTestConstructorCall -> renderConstructorCall(expr)
+            is UTestMethodCall -> renderMethodCall(expr)
+            is UTestStaticMethodCall -> renderStaticMethodCall(expr)
+//            is UTestAssertThrowsExpression -> renderAssertThrowsExpression(expr)
+//            is UTestAssertConditionExpression -> renderAssertConditionExpression(expr)
+            is UTestCastExpression -> renderCastExpression(expr)
+            is UTestClassExpression -> renderClassExpression(expr)
+            is UTestCreateArrayExpression -> renderCreateArrayExpression(expr)
+            is UTestGetFieldExpression -> renderGetFieldExpression(expr)
+            is UTestGetStaticFieldExpression -> renderGetStaticFieldExpression(expr)
+            is UTestGlobalMock -> renderGlobalMock(expr)
+            is UTestMockObject -> renderMockObject(expr)
+            is UTestConstExpression<*> -> renderConstExpression(expr)
+        }
+    }
 
     private fun collectCallExceptions(expr: UTestCall) {
         expr.method?.exceptions?.forEach { exc -> methodDeclaration.tryAddThrownException(parseClassOrInterface(exc.typeName.replace("$", "."))) }
@@ -152,14 +174,6 @@ class JcTestRenderer(
         is UTestNullExpression -> renderNullExpression(expr)
         is UTestShortExpression -> renderShortExpression(expr)
         is UTestStringExpression -> renderStringExpression(expr)
-    }
-
-    open fun renderVarDeclaration(type: JcType, name: String, initializer: UTestExpression): Statement {
-        val declarator = VariableDeclarator()
-        declarator.type = JcTestTypeRenderer.render(type)
-        declarator.name = SimpleName(name)
-        declarator.setInitializer(renderExpressionNoCaching(initializer))
-        return ExpressionStmt(VariableDeclarationExpr(declarator))
     }
 
 //    open fun renderAssertThrowsExpression(expr: UTestAssertThrowsExpression): Expression {

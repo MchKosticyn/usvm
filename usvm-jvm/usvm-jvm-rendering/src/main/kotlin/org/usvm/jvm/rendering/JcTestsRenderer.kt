@@ -30,7 +30,7 @@ class JcTestsRenderer {
             for ((method, test) in testsToRender) {
                 val name = SimpleName(method.name + "Test")
                 val testRenderer = testClassRenderer.addTest(name)
-                testRenderer.initialize(test)
+                testRenderer.render(test)
             }
             val renderedTestClass = testClassRenderer.render()
             val imports = testClassRenderer.importManager.render()

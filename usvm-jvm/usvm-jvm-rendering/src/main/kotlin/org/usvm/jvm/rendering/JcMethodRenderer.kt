@@ -11,6 +11,7 @@ import com.github.javaparser.ast.type.Type
 
 open class JcMethodRenderer(
     importManager: JcImportManager,
+    protected open val classRenderer: JcClassRenderer,
     private val name: SimpleName,
     private val modifiers: NodeList<Modifier>,
     private val annotations: NodeList<AnnotationExpr>,
@@ -28,7 +29,8 @@ open class JcMethodRenderer(
             annotations,
             NodeList(),
             returnType,
-            name, parameters,
+            name,
+            parameters,
             thrownExceptions,
             body.render()
         )

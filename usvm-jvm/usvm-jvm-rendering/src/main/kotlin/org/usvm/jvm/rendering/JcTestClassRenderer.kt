@@ -18,7 +18,7 @@ class JcTestClassRenderer : JcClassRenderer {
     private val testAnnotation: AnnotationExpr = testAnnotationJUnit
 
     fun addTest(name: SimpleName): JcTestRenderer {
-        val renderer = JcTestRenderer(importManager, name, testAnnotation)
+        val renderer = JcTestRenderer(importManager, this, name, testAnnotation)
         addRenderingMethod(renderer)
         return renderer
     }
