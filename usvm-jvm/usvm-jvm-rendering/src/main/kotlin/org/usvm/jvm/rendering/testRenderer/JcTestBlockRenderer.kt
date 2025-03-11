@@ -21,6 +21,7 @@ import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.PredefinedPrimitives
 import org.usvm.jvm.rendering.baseRenderer.JcBlockRenderer
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
+import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.test.api.ArithmeticOperationType
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestArithmeticExpression
@@ -59,19 +60,22 @@ import java.util.IdentityHashMap
 
 open class JcTestBlockRenderer private constructor(
     importManager: JcImportManager,
+    identifiersManager: JcIdentifiersManager,
     private val shouldDeclareVar: IdentityHashMap<UTestExpression, Unit>,
     private val exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcBlockRenderer(importManager, thrownExceptions) {
+) : JcBlockRenderer(importManager, identifiersManager, thrownExceptions) {
 
     constructor(
         importManager: JcImportManager,
+        identifiersManager: JcIdentifiersManager,
         shouldDeclareVar: IdentityHashMap<UTestExpression, Unit>
-    ) : this(importManager, shouldDeclareVar, IdentityHashMap(), HashSet())
+    ) : this(importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcTestBlockRenderer {
         return JcTestBlockRenderer(
             importManager,
+            JcIdentifiersManager(identifiersManager),
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions

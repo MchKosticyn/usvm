@@ -30,7 +30,8 @@ import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 
 abstract class JcCodeRenderer<T: Node>(
-    val importManager: JcImportManager
+    val importManager: JcImportManager,
+    val identifiersManager: JcIdentifiersManager
 ) {
 
     private var rendered: T? = null
@@ -66,7 +67,6 @@ abstract class JcCodeRenderer<T: Node>(
             importManager.add(type.jcClass.packageName, type.jcClass.simpleName) -> type.jcClass.simpleName
             else -> type.typeName
         }
-//        referenceType(type.jcClass)
 
         val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(renderName))
         // TODO: does not remove outer class arguments?

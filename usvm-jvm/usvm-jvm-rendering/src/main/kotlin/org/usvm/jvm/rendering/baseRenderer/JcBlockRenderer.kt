@@ -17,10 +17,11 @@ import org.jacodb.api.jvm.JcType
 
 open class JcBlockRenderer protected constructor(
     importManager: JcImportManager,
+    identifiersManager: JcIdentifiersManager,
     protected val thrownExceptions: HashSet<ReferenceType>
-) : JcCodeRenderer<BlockStmt>(importManager) {
+) : JcCodeRenderer<BlockStmt>(importManager, identifiersManager) {
 
-    constructor(importManager: JcImportManager): this(importManager, HashSet())
+    constructor(importManager: JcImportManager, identifiersManager: JcIdentifiersManager,): this(importManager, identifiersManager, HashSet())
 
     private val statements = NodeList<Statement>()
 
@@ -33,17 +34,16 @@ open class JcBlockRenderer protected constructor(
     }
 
     open fun newInnerBlock(): JcBlockRenderer {
-        return JcBlockRenderer(importManager, thrownExceptions)
+        return JcBlockRenderer(importManager, JcIdentifiersManager(identifiersManager), thrownExceptions)
     }
 
     fun addExpression(expr: Expression) {
         statements.add(ExpressionStmt(expr))
     }
 
-    fun renderVarDeclaration(type: JcType, expr: Expression, name: String? = null): NameExpr {
+    fun renderVarDeclaration(type: JcType, expr: Expression, namePrefix: String? = null): NameExpr {
         val renderedType = renderType(type)
-        // TODO
-        val name = "keke"
+        val name = identifiersManager[namePrefix ?: "v"]
         val declarator = VariableDeclarator(renderedType, name, expr)
         addExpression(VariableDeclarationExpr(declarator))
         return NameExpr(name)
