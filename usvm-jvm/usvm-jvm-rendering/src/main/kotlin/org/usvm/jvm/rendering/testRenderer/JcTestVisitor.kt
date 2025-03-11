@@ -10,6 +10,7 @@ import org.usvm.test.api.UTestBinaryConditionExpression
 import org.usvm.test.api.UTestBinaryConditionStatement
 import org.usvm.test.api.UTestBooleanExpression
 import org.usvm.test.api.UTestByteExpression
+import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestCastExpression
 import org.usvm.test.api.UTestCharExpression
 import org.usvm.test.api.UTestClassExpression
@@ -36,21 +37,21 @@ import org.usvm.test.api.UTestStringExpression
 
 open class JcTestVisitor {
 
-    fun visitTest(test: UTest) {
+    fun visit(test: UTest) {
         for (inst in test.initStatements)
-            visitInst(inst)
+            visit(inst)
 
-        visitInst(test.callMethodExpression)
+        visit(test.callMethodExpression)
     }
 
-    protected open fun visitInst(inst: UTestInst) {
+    open fun visit(inst: UTestInst) {
         when (inst) {
-            is UTestExpression -> visitExpr(inst)
-            is UTestStatement -> visitStmt(inst)
+            is UTestExpression -> visit(inst)
+            is UTestStatement -> visit(inst)
         }
     }
 
-    protected open fun visitExpr(expr: UTestExpression) {
+    open fun visit(expr: UTestExpression) {
         when (expr) {
             is UTestArithmeticExpression -> visit(expr)
             is UTestArrayGetExpression -> visit(expr)
@@ -59,10 +60,7 @@ open class JcTestVisitor {
             is UTestCastExpression -> visit(expr)
             is UTestCreateArrayExpression -> visit(expr)
             is UTestGetFieldExpression -> visit(expr)
-            is UTestConstructorCall -> visit(expr)
-            is UTestStaticMethodCall -> visit(expr)
-            is UTestMethodCall -> visit(expr)
-            is UTestAllocateMemoryCall -> visit(expr)
+            is UTestCall -> visit(expr)
             is UTestClassExpression -> visit(expr)
             is UTestBooleanExpression -> visit(expr)
             is UTestByteExpression -> visit(expr)
@@ -80,7 +78,7 @@ open class JcTestVisitor {
         }
     }
 
-    protected open fun visitStmt(stmt: UTestStatement) {
+    open fun visit(stmt: UTestStatement) {
         when (stmt) {
             is UTestArraySetStatement -> visit(stmt)
             is UTestBinaryConditionStatement -> visit(stmt)
@@ -92,36 +90,36 @@ open class JcTestVisitor {
     //region Expressions
 
     open fun visit(expr: UTestArithmeticExpression) {
-        visitExpr(expr.lhv)
-        visitExpr(expr.rhv)
+        visit(expr.lhv)
+        visit(expr.rhv)
     }
 
     open fun visit(expr: UTestArrayGetExpression) {
-        visitExpr(expr.arrayInstance)
-        visitExpr(expr.index)
+        visit(expr.arrayInstance)
+        visit(expr.index)
     }
 
     open fun visit(expr: UTestArrayLengthExpression) {
-        visitExpr(expr.arrayInstance)
+        visit(expr.arrayInstance)
     }
 
     open fun visit(expr: UTestBinaryConditionExpression) {
-        visitExpr(expr.lhv)
-        visitExpr(expr.rhv)
-        visitExpr(expr.trueBranch)
-        visitExpr(expr.elseBranch)
+        visit(expr.lhv)
+        visit(expr.rhv)
+        visit(expr.trueBranch)
+        visit(expr.elseBranch)
     }
 
     open fun visit(expr: UTestCastExpression) {
-        visitExpr(expr.expr)
+        visit(expr.expr)
     }
 
     open fun visit(expr: UTestCreateArrayExpression) {
-        visitExpr(expr.size)
+        visit(expr.size)
     }
 
     open fun visit(expr: UTestGetFieldExpression) {
-        visitExpr(expr.instance)
+        visit(expr.instance)
     }
 
     open fun visit(expr: UTestGetStaticFieldExpression) { }
@@ -145,20 +143,29 @@ open class JcTestVisitor {
 
     //region Calls
 
+    open fun visit(call: UTestCall) {
+        when (call) {
+            is UTestConstructorCall -> visit(call)
+            is UTestStaticMethodCall -> visit(call)
+            is UTestMethodCall -> visit(call)
+            is UTestAllocateMemoryCall -> visit(call)
+        }
+    }
+
     open fun visit(call: UTestConstructorCall) {
         for (arg in call.args)
-            visitExpr(arg)
+            visit(arg)
     }
 
     open fun visit(call: UTestStaticMethodCall) {
         for (arg in call.args)
-            visitExpr(arg)
+            visit(arg)
     }
 
     open fun visit(call: UTestMethodCall) {
-        visitExpr(call.instance)
+        visit(call.instance)
         for (arg in call.args)
-            visitExpr(arg)
+            visit(arg)
     }
 
     open fun visit(call: UTestAllocateMemoryCall) { }
@@ -168,29 +175,29 @@ open class JcTestVisitor {
     //region Statements
 
     open fun visit(stmt: UTestArraySetStatement) {
-        visitExpr(stmt.arrayInstance)
-        visitExpr(stmt.index)
-        visitExpr(stmt.setValueExpression)
+        visit(stmt.arrayInstance)
+        visit(stmt.index)
+        visit(stmt.setValueExpression)
     }
 
     open fun visit(stmt: UTestBinaryConditionStatement) {
-        visitExpr(stmt.lhv)
-        visitExpr(stmt.rhv)
+        visit(stmt.lhv)
+        visit(stmt.rhv)
 
         for (thenStatement in stmt.trueBranch)
-            visitStmt(thenStatement)
+            visit(thenStatement)
 
         for (elseStatement in stmt.elseBranch)
-            visitStmt(elseStatement)
+            visit(elseStatement)
     }
 
     open fun visit(stmt: UTestSetFieldStatement) {
-        visitExpr(stmt.instance)
-        visitExpr(stmt.value)
+        visit(stmt.instance)
+        visit(stmt.value)
     }
 
     open fun visit(stmt: UTestSetStaticFieldStatement) {
-        visitExpr(stmt.value)
+        visit(stmt.value)
     }
 
     //endregion

@@ -37,17 +37,17 @@ open class JcTestRenderer(
 
         private val exprCache = IdentityHashMap<UTestExpression, Unit>()
 
-        override fun visitExpr(expr: UTestExpression) {
+        override fun visit(expr: UTestExpression) {
             if (expr !is UTestConstExpression<*> && exprCache.put(expr, Unit) != null || requireVarDeclarationOf(expr))
                 // Multiple usage of expression
                 shouldDeclareVar[expr] = Unit
 
-            super.visitExpr(expr)
+            super.visit(expr)
         }
     }
 
     init {
-        JcExprUsageVisitor().visitTest(test)
+        JcExprUsageVisitor().visit(test)
     }
 
     override fun renderInternal(): MethodDeclaration {
