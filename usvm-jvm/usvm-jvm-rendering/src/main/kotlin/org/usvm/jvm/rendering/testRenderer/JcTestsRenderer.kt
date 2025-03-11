@@ -1,4 +1,4 @@
-package org.usvm.jvm.rendering
+package org.usvm.jvm.rendering.testRenderer
 
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.NodeList
@@ -8,7 +8,7 @@ import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.printer.DefaultPrettyPrinter
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcMethod
-import org.usvm.jvm.rendering.testTransformers.JcTestTransformer
+import org.usvm.jvm.rendering.testRenderer.testTransformers.JcTestTransformer
 import org.usvm.test.api.UTest
 import java.io.File
 import java.io.PrintWriter
@@ -30,7 +30,7 @@ class JcTestsRenderer {
             for ((method, test) in testsToRender) {
                 val name = SimpleName(method.name + "Test")
                 val testRenderer = testClassRenderer.addTest(name)
-                testRenderer.render(test)
+                testRenderer.render()
             }
             val renderedTestClass = testClassRenderer.render()
             val imports = testClassRenderer.importManager.render()

@@ -1,8 +1,11 @@
-package org.usvm.jvm.rendering
+package org.usvm.jvm.rendering.testRenderer
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
+import org.usvm.jvm.rendering.baseRenderer.JcClassRenderer
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
+import org.usvm.test.api.UTest
 
 class JcTestClassRenderer : JcClassRenderer {
 
@@ -17,8 +20,8 @@ class JcTestClassRenderer : JcClassRenderer {
 
     private val testAnnotation: AnnotationExpr = testAnnotationJUnit
 
-    fun addTest(name: SimpleName): JcTestRenderer {
-        val renderer = JcTestRenderer(importManager, this, name, testAnnotation)
+    fun addTest(test: UTest, name: SimpleName): JcTestRenderer {
+        val renderer = JcTestRenderer(test, this, importManager, name, testAnnotation)
         addRenderingMethod(renderer)
         return renderer
     }

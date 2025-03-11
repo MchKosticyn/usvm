@@ -1,4 +1,4 @@
-package org.usvm.jvm.rendering.testTransformers
+package org.usvm.jvm.rendering.testRenderer.testTransformers
 
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestAllocateMemoryCall

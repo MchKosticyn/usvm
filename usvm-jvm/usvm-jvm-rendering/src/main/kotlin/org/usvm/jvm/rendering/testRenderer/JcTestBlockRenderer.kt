@@ -1,37 +1,27 @@
-package org.usvm.jvm.rendering
+package org.usvm.jvm.rendering.testRenderer
 
-import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.ArrayCreationLevel
 import com.github.javaparser.ast.NodeList
-import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayCreationExpr
-import com.github.javaparser.ast.expr.AssignExpr
 import com.github.javaparser.ast.expr.BinaryExpr
 import com.github.javaparser.ast.expr.BooleanLiteralExpr
 import com.github.javaparser.ast.expr.CastExpr
 import com.github.javaparser.ast.expr.CharLiteralExpr
-import com.github.javaparser.ast.expr.ClassExpr
 import com.github.javaparser.ast.expr.DoubleLiteralExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.FieldAccessExpr
 import com.github.javaparser.ast.expr.IntegerLiteralExpr
 import com.github.javaparser.ast.expr.LongLiteralExpr
-import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.ObjectCreationExpr
-import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
-import com.github.javaparser.ast.stmt.ExpressionStmt
-import com.github.javaparser.ast.stmt.Statement
-import com.github.javaparser.ast.type.ClassOrInterfaceType
+import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
-import org.jacodb.api.jvm.ext.toType
-import org.usvm.jvm.rendering.Utils.parseClassOrInterface
-import org.usvm.jvm.rendering.Utils.tryAddThrownException
+import org.usvm.jvm.rendering.baseRenderer.JcBlockRenderer
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.test.api.ArithmeticOperationType
-import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestArithmeticExpression
 import org.usvm.test.api.UTestArrayGetExpression
@@ -41,7 +31,6 @@ import org.usvm.test.api.UTestBinaryConditionExpression
 import org.usvm.test.api.UTestBinaryConditionStatement
 import org.usvm.test.api.UTestBooleanExpression
 import org.usvm.test.api.UTestByteExpression
-import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestCastExpression
 import org.usvm.test.api.UTestCharExpression
 import org.usvm.test.api.UTestClassExpression
@@ -68,55 +57,31 @@ import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
 
-open class JcTestRenderer(
+open class JcTestBlockRenderer private constructor(
     importManager: JcImportManager,
-    override val classRenderer: JcTestClassRenderer,
-    name: SimpleName,
-    private val test: UTest,
-    testAnnotation: AnnotationExpr,
-): JcMethodRenderer(
-    importManager,
-    classRenderer,
-    name,
-    NodeList(),
-    NodeList(testAnnotation),
-    NodeList(),
-    voidType
-) {
+    private val shouldDeclareVar: IdentityHashMap<UTestExpression, Unit>,
+    private val exprCache: IdentityHashMap<UTestExpression, Expression>,
+    thrownExceptions: HashSet<ReferenceType>
+) : JcBlockRenderer(importManager, thrownExceptions) {
 
-    open fun requireVarDeclarationOf(expr: UTestExpression): Boolean = false
+    constructor(
+        importManager: JcImportManager,
+        shouldDeclareVar: IdentityHashMap<UTestExpression, Unit>
+    ) : this(importManager, shouldDeclareVar, IdentityHashMap(), HashSet())
 
-    private val shouldDeclareVar: IdentityHashMap<UTestExpression, Unit> = IdentityHashMap()
-
-    inner class JcExprUsageVisitor: JcTestVisitor() {
-
-        private val exprCache = IdentityHashMap<UTestExpression, Unit>()
-
-        override fun visitExpr(expr: UTestExpression) {
-            if (expr !is UTestConstExpression<*> && exprCache.put(expr, Unit) != null || requireVarDeclarationOf(expr))
-                // Multiple usage of expression
-                shouldDeclareVar[expr] = Unit
-
-            super.visitExpr(expr)
-        }
+    override fun newInnerBlock(): JcTestBlockRenderer {
+        return JcTestBlockRenderer(
+            importManager,
+            shouldDeclareVar,
+            IdentityHashMap(exprCache),
+            thrownExceptions
+        )
     }
 
-    private val exprCache: IdentityHashMap<UTestExpression, Expression> = IdentityHashMap()
-
-    fun render(test: UTest) {
-        JcExprUsageVisitor().visitTest(test)
-
-        for (inst in test.initStatements)
-            renderInst(inst)
-
-        renderInst(test.callMethodExpression)
+    fun renderInst(inst: UTestInst) = when (inst) {
+        is UTestStatement -> renderStatement(inst)
+        is UTestExpression -> addExpression(renderExpression(inst))
     }
-
-    protected fun renderInst(inst: UTestInst) =
-        when (inst) {
-            is UTestStatement -> renderStatement(inst)
-            is UTestExpression -> body.addExpression(renderExpression(inst))
-        }
 
     protected fun renderStatement(stmt: UTestStatement) {
         when (stmt) {
@@ -131,7 +96,7 @@ open class JcTestRenderer(
         exprCache.getOrPut(expr) {
             val rendered = doRenderExpression(expr)
             if (shouldDeclareVar.containsKey(expr))
-                body.renderVarDeclaration(expr.type!!, rendered)
+                renderVarDeclaration(expr.type!!, rendered)
             else
                 rendered
         }
@@ -159,10 +124,6 @@ open class JcTestRenderer(
         }
     }
 
-    private fun collectCallExceptions(expr: UTestCall) {
-        expr.method?.exceptions?.forEach { exc -> methodDeclaration.tryAddThrownException(parseClassOrInterface(exc.typeName.replace("$", "."))) }
-    }
-
     fun renderConstExpression(expr: UTestConstExpression<*>): Expression = when (expr) {
         is UTestBooleanExpression -> renderBooleanExpression(expr)
         is UTestByteExpression -> renderByteExpression(expr)
@@ -176,41 +137,36 @@ open class JcTestRenderer(
         is UTestStringExpression -> renderStringExpression(expr)
     }
 
-//    open fun renderAssertThrowsExpression(expr: UTestAssertThrowsExpression): Expression {
-//        TODO()
-//    }
-//
-//    open fun renderAssertConditionExpression(expr: UTestAssertConditionExpression): Expression {
-//        TODO()
-//    }
-
-    open fun renderArraySetStatement(stmt: UTestArraySetStatement): Statement = ExpressionStmt(
-        AssignExpr(
-            ArrayAccessExpr(renderExpression(stmt.arrayInstance), renderExpression(stmt.index)),
-            renderExpression(stmt.setValueExpression),
-            AssignExpr.Operator.ASSIGN
+    open fun renderArraySetStatement(stmt: UTestArraySetStatement) {
+        renderArraySetStatement(
+            renderExpression(stmt.arrayInstance),
+            renderExpression(stmt.index),
+            renderExpression(stmt.setValueExpression)
         )
-    )
+    }
 
-    open fun renderBinaryConditionStatement(stmt: UTestBinaryConditionStatement): Statement = TODO()
-    open fun renderSetFieldStatement(stmt: UTestSetFieldStatement): Statement = ExpressionStmt(
-        AssignExpr(
-            FieldAccessExpr(renderExpression(stmt.instance), stmt.field.name),
-            renderExpression(stmt.value),
-            AssignExpr.Operator.ASSIGN
+    open fun renderBinaryConditionStatement(stmt: UTestBinaryConditionStatement) {
+        TODO()
+    }
+
+    open fun renderSetFieldStatement(stmt: UTestSetFieldStatement) {
+        renderSetFieldStatement(
+            renderExpression(stmt.instance),
+            stmt.field.name,
+            renderExpression(stmt.value)
         )
-    )
+    }
 
-    open fun renderSetStaticFieldStatement(stmt: UTestSetStaticFieldStatement): Statement = ExpressionStmt(
-        AssignExpr(
-            FieldAccessExpr(TypeExpr(JcTestTypeRenderer.render(stmt.field.enclosingClass.toType())), stmt.field.name),
-            renderExpression(stmt.value),
-            AssignExpr.Operator.ASSIGN
+    open fun renderSetStaticFieldStatement(stmt: UTestSetStaticFieldStatement) {
+        renderSetStaticFieldStatement(
+            renderClass(stmt.field.enclosingClass),
+            stmt.field.name,
+            renderExpression(stmt.value)
         )
-    )
+    }
 
-    open fun renderArithmeticExpression(expr: UTestArithmeticExpression): Expression = BinaryExpr(
-        renderExpression(expr.lhv), renderExpression(expr.rhv), when (expr.operationType) {
+    open fun renderArithmeticExpression(expr: UTestArithmeticExpression): Expression {
+        val operation = when (expr.operationType) {
             ArithmeticOperationType.AND -> BinaryExpr.Operator.AND
             ArithmeticOperationType.PLUS -> BinaryExpr.Operator.PLUS
             ArithmeticOperationType.SUB -> BinaryExpr.Operator.MINUS
@@ -226,7 +182,13 @@ open class JcTestRenderer(
             ArithmeticOperationType.OR -> BinaryExpr.Operator.OR
             ArithmeticOperationType.XOR -> BinaryExpr.Operator.XOR
         }
-    )
+
+        return BinaryExpr(
+            renderExpression(expr.lhv),
+            renderExpression(expr.rhv),
+            operation
+        )
+    }
 
     open fun renderArrayGetExpression(expr: UTestArrayGetExpression): Expression =
         ArrayAccessExpr(renderExpression(expr.arrayInstance), renderExpression(expr.index))
@@ -239,54 +201,66 @@ open class JcTestRenderer(
     open fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression = error("cannot use unsafe")
 
     open fun renderConstructorCall(expr: UTestConstructorCall): Expression {
-        val type = JcTestTypeRenderer.render(expr.type) as ClassOrInterfaceType
-        val scope = renderConstructorScope(expr)
-        val renderedType = if (scope != null) parseClassOrInterface(type.name.asString()) else type
-        val firstArgIsInScope = if ((scope != null) && !(expr.type as JcClassType).isStatic) 1 else 0
-        return ObjectCreationExpr(scope, renderedType, NodeList(expr.args.drop(firstArgIsInScope).map { renderExpression(it) }))
+        val type = expr.type as JcClassType
+        val renderedClass = renderClass(type)
+        var args = expr.args.map { renderExpression(it) }
+        val scope: Expression?
+        when {
+            type.outerType == null -> scope = null
+            type.isStatic -> scope = TypeExpr(renderClass(type.outerType!!))
+            else -> {
+                scope = args.first()
+                args = args.drop(1)
+            }
+        }
+
+        return ObjectCreationExpr(scope, renderedClass, NodeList(args))
     }
 
-    private fun renderConstructorScope(expr: UTestConstructorCall): Expression? {
-        val type = expr.type
-        if (type !is JcClassType || type.outerType == null) return null
-        return if (type.isStatic) TypeExpr(JcTestTypeRenderer.render(type.outerType!!)) else renderExpression(expr.args.first())
+    open fun renderMethodCall(expr: UTestMethodCall): Expression {
+        return renderMethodCall(
+            expr.method,
+            renderExpression(expr.instance),
+            expr.args.map { renderExpression(it) }
+        )
     }
 
-    open fun renderMethodCall(expr: UTestMethodCall): Expression = MethodCallExpr(
-        renderExpression(expr.instance),
-        expr.method.name,
-        NodeList(expr.args.map { renderExpression(it) })
-    )
-
-    open fun renderStaticMethodCall(expr: UTestStaticMethodCall): Expression = MethodCallExpr(
-        TypeExpr(JcTestTypeRenderer.render(expr.method.enclosingClass.toType())),
-        expr.method.name,
-        NodeList(expr.args.map { renderExpression(it) })
-    )
+    open fun renderStaticMethodCall(expr: UTestStaticMethodCall): Expression {
+        return renderStaticMethodCall(expr.method, expr.args.map { renderExpression(it) })
+    }
 
     open fun renderCastExpression(expr: UTestCastExpression): Expression = CastExpr(
-        JcTestTypeRenderer.render(expr.type),
+        renderType(expr.type),
         renderExpression(expr.expr)
     )
 
     open fun renderClassExpression(expr: UTestClassExpression): Expression =
-        ClassExpr(JcTestTypeRenderer.render(expr.type, false))
+        renderClassExpression(expr.type as JcClassType)
 
     open fun renderBooleanExpression(expr: UTestBooleanExpression): Expression = BooleanLiteralExpr(expr.value)
+
     open fun renderByteExpression(expr: UTestByteExpression): Expression = IntegerLiteralExpr(expr.value.toString())
+
     open fun renderCharExpression(expr: UTestCharExpression): Expression = CharLiteralExpr(expr.value)
+
     open fun renderDoubleExpression(expr: UTestDoubleExpression): Expression = DoubleLiteralExpr(expr.value)
+
     open fun renderFloatExpression(expr: UTestFloatExpression): Expression =
         DoubleLiteralExpr(expr.value.toDouble().toString() + "f")
 
     open fun renderIntExpression(expr: UTestIntExpression): Expression = IntegerLiteralExpr(expr.value.toString())
+
     open fun renderLongExpression(expr: UTestLongExpression): Expression = LongLiteralExpr(expr.value.toString())
+
     open fun renderNullExpression(expr: UTestNullExpression): Expression = NullLiteralExpr()
+
     open fun renderShortExpression(expr: UTestShortExpression): Expression = IntegerLiteralExpr(expr.value.toString())
+
     open fun renderStringExpression(expr: UTestStringExpression): Expression = StringLiteralExpr(expr.value)
+
     open fun renderCreateArrayExpression(expr: UTestCreateArrayExpression): Expression =
         ArrayCreationExpr(
-            JcTestTypeRenderer.render(expr.elementType),
+            renderType(expr.elementType),
             NodeList(ArrayCreationLevel(renderExpression(expr.size))),
             null
         )
@@ -297,22 +271,15 @@ open class JcTestRenderer(
     )
 
     open fun renderGetStaticFieldExpression(expr: UTestGetStaticFieldExpression): Expression = FieldAccessExpr(
-        TypeExpr(JcTestTypeRenderer.render(expr.field.enclosingClass.toType())),
+        TypeExpr(renderClass(expr.field.enclosingClass)),
         expr.field.name
     )
 
     open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO()
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
-        importManager.tryAdd("org.mockito.Mockito")
-        val className = JcTestTypeRenderer.render(expr.type, false)
-        val classExpr = ClassExpr(className)
-        val mockitoClass = StaticJavaParser.parseClassOrInterfaceType("Mockito")
-        val spyCreationExpression = MethodCallExpr(
-            TypeExpr(mockitoClass),
-            "spy",
-            NodeList(listOf(classExpr))
-        )
+        val type = expr.type as JcClassType
+        val spyCreationExpression = mockitoSpyMethodCall(type)
         val emptyFields = expr.fields.isEmpty()
         val emptyMethods = expr.methods.isEmpty()
         if (emptyFields && emptyMethods)

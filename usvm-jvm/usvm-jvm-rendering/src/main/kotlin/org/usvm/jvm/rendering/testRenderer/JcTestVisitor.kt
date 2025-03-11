@@ -1,4 +1,4 @@
-package org.usvm.jvm.rendering
+package org.usvm.jvm.rendering.testRenderer
 
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestAllocateMemoryCall
@@ -10,7 +10,6 @@ import org.usvm.test.api.UTestBinaryConditionExpression
 import org.usvm.test.api.UTestBinaryConditionStatement
 import org.usvm.test.api.UTestBooleanExpression
 import org.usvm.test.api.UTestByteExpression
-import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestCastExpression
 import org.usvm.test.api.UTestCharExpression
 import org.usvm.test.api.UTestClassExpression
