@@ -14,7 +14,6 @@ import com.github.javaparser.ast.expr.FieldAccessExpr
 import com.github.javaparser.ast.expr.IntegerLiteralExpr
 import com.github.javaparser.ast.expr.LongLiteralExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
-import com.github.javaparser.ast.expr.ObjectCreationExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.type.ReferenceType
@@ -150,15 +149,14 @@ open class JcTestBlockRenderer private constructor(
     open fun renderSetFieldStatement(stmt: UTestSetFieldStatement) {
         renderSetFieldStatement(
             renderExpression(stmt.instance),
-            stmt.field.name,
+            stmt.field,
             renderExpression(stmt.value)
         )
     }
 
     open fun renderSetStaticFieldStatement(stmt: UTestSetStaticFieldStatement) {
         renderSetStaticFieldStatement(
-            renderClass(stmt.field.enclosingClass),
-            stmt.field.name,
+            stmt.field,
             renderExpression(stmt.value)
         )
     }
@@ -196,23 +194,11 @@ open class JcTestBlockRenderer private constructor(
 
     open fun renderBinaryConditionExpression(expr: UTestBinaryConditionExpression): Expression = TODO()
 
-    open fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression = error("cannot use unsafe")
+    open fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression = error("Unsafe is not supported")
 
     open fun renderConstructorCall(expr: UTestConstructorCall): Expression {
         val type = expr.type as JcClassType
-        val renderedClass = renderClass(type)
-        var args = expr.args.map { renderExpression(it) }
-        val scope: Expression?
-        when {
-            type.outerType == null -> scope = null
-            type.isStatic -> scope = TypeExpr(renderClass(type.outerType!!))
-            else -> {
-                scope = args.first()
-                args = args.drop(1)
-            }
-        }
-
-        return ObjectCreationExpr(scope, renderedClass, NodeList(args))
+        return renderConstructorCall(expr.method, type, expr.args.map { renderExpression(it) })
     }
 
     open fun renderMethodCall(expr: UTestMethodCall): Expression {
@@ -283,9 +269,26 @@ open class JcTestBlockRenderer private constructor(
         if (emptyFields && emptyMethods)
             return spyCreationExpression
 
-        if (!emptyFields) {
+        val varExpr = renderVarDeclaration(type, spyCreationExpression)
+
+        for ((field, fieldValue) in expr.fields) {
+            val renderedFieldValue = renderExpression(fieldValue)
+            renderSetFieldStatement(varExpr, field, renderedFieldValue)
+        }
+
+        for ((method, mockValues) in expr.methods) {
+            if (mockValues.isEmpty())
+                continue
+
+//            val
+//            for ()
+//            val renderedMockValues = renderExpression(mockValue)
 
         }
-        TODO()
+        if (!emptyMethods) {
+            // TODO: ...
+        }
+
+        return varExpr
     }
 }

@@ -3,21 +3,17 @@ package org.usvm.jvm.rendering.baseRenderer
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.VariableDeclarator
-import com.github.javaparser.ast.expr.ArrayAccessExpr
-import com.github.javaparser.ast.expr.AssignExpr
 import com.github.javaparser.ast.expr.Expression
-import com.github.javaparser.ast.expr.FieldAccessExpr
-import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.NameExpr
-import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.expr.VariableDeclarationExpr
 import com.github.javaparser.ast.stmt.BlockStmt
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.ast.stmt.Statement
 import com.github.javaparser.ast.type.ReferenceType
-import org.jacodb.api.jvm.JcType
-import com.github.javaparser.ast.type.Type
+import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.JcType
 
 open class JcBlockRenderer protected constructor(
     importManager: JcImportManager,
@@ -54,33 +50,15 @@ open class JcBlockRenderer protected constructor(
     }
 
     fun renderArraySetStatement(array: Expression, index: Expression, value: Expression) {
-        addExpression(
-            AssignExpr(
-                ArrayAccessExpr(array, index),
-                value,
-                AssignExpr.Operator.ASSIGN
-            )
-        )
+        addExpression(renderArraySet(array, index, value))
     }
 
-    fun renderSetFieldStatement(instance: Expression, fieldName: String, value: Expression) {
-        addExpression(
-            AssignExpr(
-                FieldAccessExpr(instance, fieldName),
-                value,
-                AssignExpr.Operator.ASSIGN
-            )
-        )
+    fun renderSetFieldStatement(instance: Expression, field: JcField, value: Expression) {
+        addExpression(renderSetField(instance, field, value))
     }
 
-    fun renderSetStaticFieldStatement(type: Type, fieldName: String, value: Expression) {
-        addExpression(
-            AssignExpr(
-                FieldAccessExpr(TypeExpr(type), fieldName),
-                value,
-                AssignExpr.Operator.ASSIGN
-            )
-        )
+    fun renderSetStaticFieldStatement(field: JcField, value: Expression) {
+        addExpression(renderSetStaticField(field, value))
     }
 
     protected fun addThrownExceptions(method: JcMethod) {
@@ -91,23 +69,18 @@ open class JcBlockRenderer protected constructor(
         )
     }
 
-    fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): MethodCallExpr {
-        addThrownExceptions(method)
-
-        return MethodCallExpr(
-            instance,
-            method.name,
-            NodeList(args)
-        )
+    override fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
+        addThrownExceptions(ctor)
+        return super.renderConstructorCall(ctor, type, args)
     }
 
-    fun renderStaticMethodCall(method: JcMethod, args: List<Expression>): MethodCallExpr {
+    override fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
         addThrownExceptions(method)
+        return super.renderMethodCall(method, instance, args)
+    }
 
-        return MethodCallExpr(
-            TypeExpr(renderClass(method.enclosingClass)),
-            method.name,
-            NodeList(args)
-        )
+    override fun renderStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
+        addThrownExceptions(method)
+        return super.renderStaticMethodCall(method, args)
     }
 }
