@@ -21,7 +21,7 @@ import org.jacodb.api.jvm.JcMethod
 
 open class JcBlockRenderer protected constructor(
     importManager: JcImportManager,
-    val thrownExceptions: HashSet<ReferenceType>
+    protected val thrownExceptions: HashSet<ReferenceType>
 ) : JcCodeRenderer<BlockStmt>(importManager) {
 
     constructor(importManager: JcImportManager): this(importManager, HashSet())
@@ -30,6 +30,10 @@ open class JcBlockRenderer protected constructor(
 
     override fun renderInternal(): BlockStmt {
         return BlockStmt(statements)
+    }
+
+    fun getThrownExceptions(): NodeList<ReferenceType> {
+        return NodeList(thrownExceptions)
     }
 
     open fun newInnerBlock(): JcBlockRenderer {

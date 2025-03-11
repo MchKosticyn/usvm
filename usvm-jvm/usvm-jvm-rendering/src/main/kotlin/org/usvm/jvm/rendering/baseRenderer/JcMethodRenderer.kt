@@ -28,7 +28,7 @@ open class JcMethodRenderer(
             returnType,
             name,
             parameters,
-            thrownExceptions,
+            body.getThrownExceptions(),
             body.render()
         )
     }

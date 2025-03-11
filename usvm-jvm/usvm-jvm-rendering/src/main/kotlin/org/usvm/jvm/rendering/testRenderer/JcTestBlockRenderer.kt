@@ -273,7 +273,7 @@ open class JcTestBlockRenderer private constructor(
         expr.field.name
     )
 
-    open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO()
+    open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mock is not implemented")
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
         val type = expr.type as JcClassType
