@@ -111,8 +111,6 @@ open class JcTestBlockRenderer private constructor(
             is UTestConstructorCall -> renderConstructorCall(expr)
             is UTestMethodCall -> renderMethodCall(expr)
             is UTestStaticMethodCall -> renderStaticMethodCall(expr)
-//            is UTestAssertThrowsExpression -> renderAssertThrowsExpression(expr)
-//            is UTestAssertConditionExpression -> renderAssertConditionExpression(expr)
             is UTestCastExpression -> renderCastExpression(expr)
             is UTestClassExpression -> renderClassExpression(expr)
             is UTestCreateArrayExpression -> renderCreateArrayExpression(expr)
