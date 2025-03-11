@@ -64,7 +64,7 @@ open class JcBlockRenderer protected constructor(
     protected fun addThrownExceptions(method: JcMethod) {
         thrownExceptions.addAll(
             method.exceptions.map {
-                StaticJavaParser.parseClassOrInterfaceType(qualifiedName(it))
+                StaticJavaParser.parseClassOrInterfaceType(qualifiedName(it.typeName))
             }
         )
     }

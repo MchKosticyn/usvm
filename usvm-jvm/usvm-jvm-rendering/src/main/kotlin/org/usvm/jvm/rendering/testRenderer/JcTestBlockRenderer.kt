@@ -55,6 +55,7 @@ import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
+import org.jacodb.api.jvm.ext.toType
 
 open class JcTestBlockRenderer private constructor(
     importManager: JcImportManager,
@@ -255,7 +256,7 @@ open class JcTestBlockRenderer private constructor(
     )
 
     open fun renderGetStaticFieldExpression(expr: UTestGetStaticFieldExpression): Expression = FieldAccessExpr(
-        TypeExpr(renderClass(expr.field.enclosingClass)),
+        TypeExpr(renderClass(expr.field.enclosingClass.toType())),
         expr.field.name
     )
 

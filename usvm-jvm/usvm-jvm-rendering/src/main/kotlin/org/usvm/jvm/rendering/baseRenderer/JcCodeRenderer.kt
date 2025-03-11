@@ -26,7 +26,6 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 
@@ -52,15 +51,7 @@ abstract class JcCodeRenderer<T: Node>(
 
     //region Types
 
-    fun qualifiedName(type: JcClassType): String = qualifiedName(type.jcClass)
-    fun qualifiedName(clazz: JcClassOrInterface): String = clazz.name.replace("$", ".")
-    fun qualifiedName(typeName: TypeName): String = qualifiedName(typeName.typeName)
-    private fun qualifiedName(typeName: String): String = typeName.replace("$", ".")
-
-    private fun referenceType(jcClass: JcClassOrInterface) {
-        // TODO
-        importManager.add(jcClass.packageName)
-    }
+    protected fun qualifiedName(typeName: String): String = typeName.replace("$", ".")
 
     fun renderType(type: JcType, includeGenericArgs: Boolean = true): Type = when (type) {
         is JcPrimitiveType -> PrimitiveType(Primitive.byTypeName(type.typeName).get())
@@ -71,10 +62,14 @@ abstract class JcCodeRenderer<T: Node>(
 
     fun renderClass(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
         check(!type.isPrivate) { "Rendering private classes is not supported" }
+        val renderName = when {
+            importManager.add(type.jcClass.packageName, type.jcClass.simpleName) -> type.jcClass.simpleName
+            else -> type.typeName
+        }
+//        referenceType(type.jcClass)
 
-        referenceType(type.jcClass)
-
-        val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(type))
+        val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(renderName))
+        // TODO: does not remove outer class arguments?
         if (!includeGenericArgs)
             return renderedType.removeTypeArguments()
 
@@ -171,11 +166,18 @@ abstract class JcCodeRenderer<T: Node>(
             return renderPrivateStaticMethodCall(method, args)
 
         return MethodCallExpr(
-            TypeExpr(renderClass(method.enclosingClass)),
+            renderStaticMethodCallScope(method, false),
             method.name,
             NodeList(args)
         )
     }
+
+    private fun renderStaticMethodCallScope(method: JcMethod, allowStaticImport: Boolean): TypeExpr? {
+        val callType = method.enclosingClass.toType()
+        val useClassName = !allowStaticImport || !importManager.addStatic(callType.jcClass.name, method.name)
+        return if (useClassName) TypeExpr(renderClass(callType)) else null
+    }
+
 
     //endregion
 
