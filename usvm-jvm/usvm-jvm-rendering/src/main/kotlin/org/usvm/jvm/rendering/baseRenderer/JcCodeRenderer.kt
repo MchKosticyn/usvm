@@ -101,18 +101,110 @@ abstract class JcCodeRenderer<T: Node>(
 
     //region Methods
 
+    //region Mockito methods
+
     val mockitoClass: ClassOrInterfaceType by lazy {
         importManager.add("org.mockito.Mockito")
         StaticJavaParser.parseClassOrInterfaceType("Mockito")
     }
 
-    fun mockitoSpyMethodCall(classToSpy: JcClassType): MethodCallExpr {
+    fun mockitoMockMethodCall(classToSpy: JcClassType): MethodCallExpr {
         return MethodCallExpr(
             TypeExpr(mockitoClass),
-            "spy",
+            "mock",
             NodeList(renderClassExpression(classToSpy))
         )
     }
+
+    fun mockitoWhenMethodCall(methodCall: Expression): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "when",
+            NodeList(methodCall)
+        )
+    }
+
+    fun mockitoThenReturnMethodCall(methodMock: Expression, methodValue: Expression): MethodCallExpr {
+        return MethodCallExpr(
+            methodMock,
+            "thenReturn",
+            NodeList(methodValue)
+        )
+    }
+
+    fun mockitoAnyBooleanMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "anyBoolean",
+            NodeList()
+        )
+    }
+
+    fun mockitoAnyByteMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "anyByte",
+            NodeList()
+        )
+    }
+
+    fun mockitoAnyCharMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "anyChar",
+            NodeList()
+        )
+    }
+
+    fun mockitoAnyIntMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "anyInt",
+            NodeList()
+        )
+    }
+
+    fun mockitoAnyLongMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "anyLong",
+            NodeList()
+        )
+    }
+
+    fun mockitoAnyFloatMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "anyFloat",
+            NodeList()
+        )
+    }
+
+    fun mockitoAnyDoubleMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "anyDouble",
+            NodeList()
+        )
+    }
+
+    fun mockitoAnyShortMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "anyShort",
+            NodeList()
+        )
+    }
+
+    fun mockitoAnyMethodCall(): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "any",
+            NodeList()
+        )
+    }
+
+    //endregion
 
     open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
         error("Rendering private methods is not supported")

@@ -18,6 +18,7 @@ import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.PredefinedPrimitives
 import org.usvm.jvm.rendering.baseRenderer.JcBlockRenderer
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.test.api.ArithmeticOperationType
@@ -55,7 +56,6 @@ import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
-import org.jacodb.api.jvm.ext.toType
 
 open class JcTestBlockRenderer private constructor(
     importManager: JcImportManager,
@@ -256,7 +256,7 @@ open class JcTestBlockRenderer private constructor(
     )
 
     open fun renderGetStaticFieldExpression(expr: UTestGetStaticFieldExpression): Expression = FieldAccessExpr(
-        TypeExpr(renderClass(expr.field.enclosingClass.toType())),
+        TypeExpr(renderClass(expr.field.enclosingClass)),
         expr.field.name
     )
 
@@ -264,13 +264,13 @@ open class JcTestBlockRenderer private constructor(
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
         val type = expr.type as JcClassType
-        val spyCreationExpression = mockitoSpyMethodCall(type)
+        val mockCreationExpression = mockitoMockMethodCall(type)
         val emptyFields = expr.fields.isEmpty()
         val emptyMethods = expr.methods.isEmpty()
         if (emptyFields && emptyMethods)
-            return spyCreationExpression
+            return mockCreationExpression
 
-        val varExpr = renderVarDeclaration(type, spyCreationExpression)
+        val varExpr = renderVarDeclaration(type, mockCreationExpression, "mocked")
 
         for ((field, fieldValue) in expr.fields) {
             val renderedFieldValue = renderExpression(fieldValue)
@@ -281,13 +281,30 @@ open class JcTestBlockRenderer private constructor(
             if (mockValues.isEmpty())
                 continue
 
-//            val
-//            for ()
-//            val renderedMockValues = renderExpression(mockValue)
+            check(method.returnType.typeName != PredefinedPrimitives.Void)
+            check(!method.isStatic)
 
-        }
-        if (!emptyMethods) {
-            // TODO: ...
+            val args = method.parameters.map {
+                when (it.type.typeName) {
+                    PredefinedPrimitives.Boolean -> mockitoAnyBooleanMethodCall()
+                    PredefinedPrimitives.Byte -> mockitoAnyByteMethodCall()
+                    PredefinedPrimitives.Char -> mockitoAnyCharMethodCall()
+                    PredefinedPrimitives.Short -> mockitoAnyShortMethodCall()
+                    PredefinedPrimitives.Int -> mockitoAnyIntMethodCall()
+                    PredefinedPrimitives.Long -> mockitoAnyLongMethodCall()
+                    PredefinedPrimitives.Float -> mockitoAnyFloatMethodCall()
+                    PredefinedPrimitives.Double -> mockitoAnyDoubleMethodCall()
+                    else -> mockitoAnyMethodCall()
+                }
+            }
+            val methodCall = renderMethodCall(method, varExpr, args)
+            var mockInitialization = mockitoWhenMethodCall(methodCall)
+            for (mockValue in mockValues) {
+                val renderedMockValue = renderExpression(mockValue)
+                mockInitialization = mockitoThenReturnMethodCall(mockInitialization, renderedMockValue)
+            }
+
+            addExpression(mockInitialization)
         }
 
         return varExpr
