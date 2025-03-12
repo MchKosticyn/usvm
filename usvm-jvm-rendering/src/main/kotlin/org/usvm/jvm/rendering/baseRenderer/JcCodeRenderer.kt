@@ -62,7 +62,7 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     fun renderClass(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
-        check(!type.isPrivate) { "Rendering private classes is not supported" }
+        check(type.isPublic) { "Rendering private classes is not supported" }
         check(!type.jcClass.isAnonymous) { "Rendering anonymous classes is not supported" }
 
         val renderName = when {
@@ -203,7 +203,7 @@ abstract class JcCodeRenderer<T: Node>(
     //endregion
 
     fun shouldRenderMethodCallAsPrivate(method: JcMethod): Boolean {
-        return method.isPrivate || method.isPackagePrivate
+        return !method.isPublic
     }
 
     open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
@@ -275,11 +275,11 @@ abstract class JcCodeRenderer<T: Node>(
     //region Fields
 
     protected open fun shouldRenderGetFieldAsPrivate(field: JcField): Boolean {
-        return field.isPrivate || field.isPackagePrivate
+        return !field.isPublic
     }
 
     protected open fun shouldRenderSetFieldAsPrivate(field: JcField): Boolean {
-        return field.isPrivate || field.isPackagePrivate || field.isFinal
+        return !field.isPublic || field.isFinal
     }
 
     open fun renderGetPrivateStaticField(field: JcField): Expression {

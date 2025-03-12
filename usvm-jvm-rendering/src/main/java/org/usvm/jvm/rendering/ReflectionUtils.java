@@ -258,7 +258,7 @@ public class ReflectionUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T callConstructor(Class<T> type, String ctorSig, Object... args) throws Throwable {
+    public static <T> T callConstructor(Class<?> type, String ctorSig, Object... args) throws Throwable {
         Constructor<?> ctor = getConstructor(type, ctorSig);
         try {
             return (T) ctor.newInstance(args);
