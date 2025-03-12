@@ -58,18 +58,18 @@ import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
 
-open class JcTestBlockRenderer private constructor(
+open class JcTestBlockRenderer protected constructor(
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
-    private val shouldDeclareVar: IdentityHashMap<UTestExpression, Unit>,
-    private val exprCache: IdentityHashMap<UTestExpression, Expression>,
+    protected val shouldDeclareVar: Set<UTestExpression>,
+    protected val exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
 ) : JcBlockRenderer(importManager, identifiersManager, thrownExceptions) {
 
     constructor(
         importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
-        shouldDeclareVar: IdentityHashMap<UTestExpression, Unit>
+        shouldDeclareVar: Set<UTestExpression>
     ) : this(importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcTestBlockRenderer {
@@ -99,7 +99,7 @@ open class JcTestBlockRenderer private constructor(
     protected fun renderExpression(expr: UTestExpression): Expression =
         exprCache.getOrPut(expr) {
             val rendered = doRenderExpression(expr)
-            if (shouldDeclareVar.containsKey(expr))
+            if (shouldDeclareVar.contains(expr))
                 renderVarDeclaration(expr.type!!, rendered)
             else
                 rendered
@@ -199,7 +199,8 @@ open class JcTestBlockRenderer private constructor(
 
     open fun renderBinaryConditionExpression(expr: UTestBinaryConditionExpression): Expression = TODO()
 
-    open fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression = error("Unsafe is not supported")
+    open fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression =
+        error("Unsafe is not supported")
 
     open fun renderConstructorCall(expr: UTestConstructorCall): Expression {
         val type = expr.type as JcClassType
@@ -254,15 +255,13 @@ open class JcTestBlockRenderer private constructor(
             null
         )
 
-    open fun renderGetFieldExpression(expr: UTestGetFieldExpression): Expression = FieldAccessExpr(
-        renderExpression(expr.instance),
-        expr.field.name
-    )
+    open fun renderGetFieldExpression(expr: UTestGetFieldExpression): Expression {
+        return renderGetField(renderExpression(expr.instance), expr.field)
+    }
 
-    open fun renderGetStaticFieldExpression(expr: UTestGetStaticFieldExpression): Expression = FieldAccessExpr(
-        TypeExpr(renderClass(expr.field.enclosingClass)),
-        expr.field.name
-    )
+    open fun renderGetStaticFieldExpression(expr: UTestGetStaticFieldExpression): Expression {
+        return renderGetStaticField(expr.field)
+    }
 
     open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mock is not implemented")
 

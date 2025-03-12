@@ -1,4 +1,4 @@
-package org.usvm.jvm.rendering.testRenderer.testTransformers
+package org.usvm.jvm.rendering.testTransformers
 
 import org.jacodb.api.jvm.JcField
 import org.usvm.test.api.UTestExpression

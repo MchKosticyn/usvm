@@ -4,6 +4,8 @@ import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ReflectionUtils {
     private static final Unsafe UNSAFE;
@@ -18,11 +20,31 @@ public class ReflectionUtils {
         }
     }
 
-    private static Field getField(Class<?> type, String fieldName) {
+    private static List<Field> getInstanceFields(Class<?> type) {
+        ArrayList<Field> fields = new ArrayList<>();
+        for (Field field : type.getDeclaredFields()) {
+            if (!Modifier.isStatic(field.getModifiers()))
+                fields.add(field);
+        }
+
+        return fields;
+    }
+
+    private static List<Field> getStaticFields(Class<?> type) {
+        ArrayList<Field> fields = new ArrayList<>();
+        for (Field field : type.getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers()))
+                fields.add(field);
+        }
+
+        return fields;
+    }
+
+    private static Field getField(Object instance, String fieldName) {
+        Class<?> type = instance.getClass();
         Class<?> currentClass = type;
         while (currentClass != Object.class && currentClass != null) {
-            Field[] fields = currentClass.getDeclaredFields();
-            for (Field field : fields) {
+            for (Field field : getInstanceFields(currentClass)) {
                 if (field.getName().equals(fieldName))
                     return field;
             }
@@ -32,9 +54,16 @@ public class ReflectionUtils {
         throw new IllegalArgumentException("Could not find field " + fieldName + " in " + type);
     }
 
-    public static Object getFieldValue(Object instance, String fieldName) throws NoSuchFieldException {
-        Field field = getField(instance.getClass(), fieldName);
-        Object fixedInstance = getInstanceOf(field, instance);
+    private static Field getStaticField(Class<?> type, String fieldName) {
+        for (Field field : getStaticFields(type)) {
+            if (field.getName().equals(fieldName))
+                return field;
+        }
+
+        throw new IllegalArgumentException("Could not find static field " + fieldName + " in " + type);
+    }
+
+    private static Object getFieldValue(Object fixedInstance, Field field) {
         long fieldOffset = getOffsetOf(field);
 
         if (!field.getType().isPrimitive()) {
@@ -62,9 +91,17 @@ public class ReflectionUtils {
         throw new IllegalStateException("unexpected primitive type");
     }
 
-    public static void setFieldValue(Object instance, String fieldName, Object value) throws NoSuchFieldException {
-        Field field = getField(instance.getClass(), fieldName);
-        Object fixedInstance = getInstanceOf(field, instance);
+    public static Object getFieldValue(Object instance, String fieldName) {
+        Field field = getField(instance, fieldName);
+        return getFieldValue(instance, field);
+    }
+
+    public static Object getStaticFieldValue(Class<?> type, String fieldName) {
+        Field field = getStaticField(type, fieldName);
+        return getFieldValue(UNSAFE.staticFieldBase(field), field);
+    }
+
+    private static void setFieldValue(Object fixedInstance, Field field, Object value) {
         long fieldOffset = getOffsetOf(field);
 
         if (!field.getType().isPrimitive()) {
@@ -91,12 +128,19 @@ public class ReflectionUtils {
         }
     }
 
-    public static Object allocateInstance(Class<?> clazz) throws InstantiationException {
-        return UNSAFE.allocateInstance(clazz);
+    public static void setFieldValue(Object instance, String fieldName, Object value) {
+        Field field = getField(instance, fieldName);
+        setFieldValue(instance, field, value);
     }
 
-    private static Object getInstanceOf(Field field, Object instance) {
-        return isStatic(field) ? UNSAFE.staticFieldBase(field) : instance;
+    public static void setStaticFieldValue(Class<?> type, String fieldName, Object value) {
+        Field field = getStaticField(type, fieldName);
+        setFieldValue(UNSAFE.staticFieldBase(field), field, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T allocateInstance(Class<T> clazz) throws InstantiationException {
+        return (T) UNSAFE.allocateInstance(clazz);
     }
 
     private static long getOffsetOf(Field field) {

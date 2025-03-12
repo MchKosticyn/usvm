@@ -21,7 +21,10 @@ open class JcBlockRenderer protected constructor(
     protected val thrownExceptions: HashSet<ReferenceType>
 ) : JcCodeRenderer<BlockStmt>(importManager, identifiersManager) {
 
-    constructor(importManager: JcImportManager, identifiersManager: JcIdentifiersManager,): this(importManager, identifiersManager, HashSet())
+    constructor(
+        importManager: JcImportManager,
+        identifiersManager: JcIdentifiersManager
+    ): this(importManager, identifiersManager, HashSet())
 
     private val statements = NodeList<Statement>()
 

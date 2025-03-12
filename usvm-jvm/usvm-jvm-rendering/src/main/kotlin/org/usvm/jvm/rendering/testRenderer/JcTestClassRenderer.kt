@@ -2,34 +2,62 @@ package org.usvm.jvm.rendering.testRenderer
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
+import com.github.javaparser.ast.expr.MarkerAnnotationExpr
+import com.github.javaparser.ast.expr.SimpleName
 import org.usvm.jvm.rendering.baseRenderer.JcClassRenderer
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.test.api.UTest
 
-class JcTestClassRenderer : JcClassRenderer {
+open class JcTestClassRenderer : JcClassRenderer {
+
+    protected constructor(
+        importManager: JcImportManager,
+        name: String
+    ) : super(importManager, name)
 
     constructor(
         name: String
     ) : super(name)
 
-    constructor(
+    protected constructor(
         importManager: JcImportManager,
-        identifiersManager: JcIdentifiersManager,
         decl: ClassOrInterfaceDeclaration
-    ) : super(importManager, identifiersManager, decl)
+    ): super(importManager, decl)
 
-    private val testAnnotation: AnnotationExpr = testAnnotationJUnit
+    constructor(
+        decl: ClassOrInterfaceDeclaration
+    ) : super(decl)
 
-    fun addTest(test: UTest, namePrefix: String? = null): JcTestRenderer {
-        val renderer = JcTestRenderer(
+    protected val testAnnotationJUnit: AnnotationExpr by lazy {
+        importManager.add("org.junit.jupiter.api.Test")
+        MarkerAnnotationExpr("Test")
+    }
+
+    protected open fun createTestRenderer(
+        test: UTest,
+        identifiersManager: JcIdentifiersManager,
+        name: SimpleName,
+        testAnnotation: AnnotationExpr,
+    ): JcTestRenderer {
+        return JcTestRenderer(
             test,
             this,
             importManager,
-            JcIdentifiersManager(identifiersManager),
-            identifiersManager[namePrefix ?: "test"],
+            identifiersManager,
+            name,
             testAnnotation
         )
+    }
+
+    fun addTest(test: UTest, namePrefix: String? = null): JcTestRenderer {
+        val renderer = createTestRenderer(
+            test,
+            JcIdentifiersManager(identifiersManager),
+            identifiersManager[namePrefix ?: "test"],
+            testAnnotationJUnit
+        )
+
         addRenderingMethod(renderer)
         return renderer
     }

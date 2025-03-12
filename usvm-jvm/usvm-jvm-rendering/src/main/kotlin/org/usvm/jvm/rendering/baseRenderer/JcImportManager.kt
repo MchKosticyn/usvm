@@ -4,7 +4,7 @@ import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.ImportDeclaration
 import com.github.javaparser.ast.NodeList
 
-class JcImportManager(cu: CompilationUnit? = null) {
+open class JcImportManager(cu: CompilationUnit? = null) {
     private val names: MutableSet<String>
     private val staticNames: MutableSet<String>
     private val packages: MutableSet<String>
@@ -29,18 +29,30 @@ class JcImportManager(cu: CompilationUnit? = null) {
         }
     }
 
+    private fun add(
+        packageName: String,
+        simpleName: String,
+        packages: MutableSet<String>,
+        names: MutableSet<String>
+    ): Boolean {
+        if (packageName in packages) return true
+        val fullName = "$packageName.$simpleName"
+        if (fullName in names) return true
+        if (simpleToPackage.putIfAbsent(simpleName, fullName) != null)
+            return false
+
+        names.add(fullName)
+
+        return true
+    }
+
     fun add(import: String): Boolean {
         val tokens = import.split(".")
         return add(tokens.dropLast(1).joinToString("."), tokens.last())
     }
 
     fun add(packageName: String, simpleName: String): Boolean {
-        if (packageName in packages) return true
-        val fullName = "$packageName.$simpleName"
-        if (fullName in names) return true
-        if (simpleToPackage.putIfAbsent(simpleName, fullName) != null) return false
-        names.add(fullName)
-        return true
+        return add(packageName, simpleName, packages, names)
     }
 
     fun addStatic(import: String): Boolean {
@@ -49,12 +61,7 @@ class JcImportManager(cu: CompilationUnit? = null) {
     }
 
     fun addStatic(packageName: String, simpleName: String): Boolean {
-        if (packageName in staticPackages) return true
-        val fullName = "$packageName.$simpleName"
-        if (fullName in staticNames) return true
-        if (simpleToPackage.putIfAbsent(simpleName, fullName) != null) return false
-        staticNames.add(fullName)
-        return true
+        return add(packageName, simpleName, staticPackages, staticNames)
     }
 
     fun render(): NodeList<ImportDeclaration> {

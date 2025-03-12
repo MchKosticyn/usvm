@@ -31,9 +31,13 @@ open class JcTestRenderer(
     voidType
 ) {
 
-    private val shouldDeclareVar: IdentityHashMap<UTestExpression, Unit> = IdentityHashMap()
+    protected val shouldDeclareVar: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
 
-    override val body: JcTestBlockRenderer = JcTestBlockRenderer(importManager, JcIdentifiersManager(identifiersManager), shouldDeclareVar)
+    override val body: JcTestBlockRenderer = JcTestBlockRenderer(
+        importManager,
+        JcIdentifiersManager(identifiersManager),
+        shouldDeclareVar
+    )
 
     open fun requireVarDeclarationOf(expr: UTestExpression): Boolean = false
 
@@ -44,7 +48,7 @@ open class JcTestRenderer(
         override fun visit(expr: UTestExpression) {
             if (expr !is UTestConstExpression<*> && !exprCache.add(expr) || requireVarDeclarationOf(expr))
                 // Multiple usage of expression
-                shouldDeclareVar[expr] = Unit
+                shouldDeclareVar.add(expr)
 
             super.visit(expr)
         }

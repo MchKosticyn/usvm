@@ -3,13 +3,11 @@ package org.usvm.jvm.rendering.baseRenderer
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.Node
 import com.github.javaparser.ast.NodeList
-import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.AssignExpr
 import com.github.javaparser.ast.expr.ClassExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.FieldAccessExpr
-import com.github.javaparser.ast.expr.MarkerAnnotationExpr
 import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.ObjectCreationExpr
 import com.github.javaparser.ast.expr.TypeExpr
@@ -30,8 +28,8 @@ import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 
 abstract class JcCodeRenderer<T: Node>(
-    val importManager: JcImportManager,
-    val identifiersManager: JcIdentifiersManager
+    open val importManager: JcImportManager,
+    protected val identifiersManager: JcIdentifiersManager
 ) {
 
     private var rendered: T? = null
@@ -81,21 +79,15 @@ abstract class JcCodeRenderer<T: Node>(
         return renderedType.setTypeArguments(NodeList(renderedTypeArguments))
     }
 
-    fun renderClass(jcClass: JcClassOrInterface): ClassOrInterfaceType {
-        return renderClass(jcClass.toType())
+    fun renderClass(jcClass: JcClassOrInterface, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
+        return renderClass(jcClass.toType(), includeGenericArgs)
     }
+
+    fun renderClassExpression(type: JcClassOrInterface): Expression =
+        ClassExpr(renderClass(type, false))
 
     fun renderClassExpression(type: JcClassType): Expression =
         ClassExpr(renderClass(type, false))
-
-    //endregion
-
-    //region Annotations
-
-    val testAnnotationJUnit: AnnotationExpr by lazy {
-        importManager.add("org.junit.Test")
-        MarkerAnnotationExpr("Test")
-    }
 
     //endregion
 
@@ -274,6 +266,37 @@ abstract class JcCodeRenderer<T: Node>(
     //endregion
 
     //region Fields
+
+    open fun renderGetPrivateStaticField(field: JcField): Expression {
+        error("Rendering private fields is not supported")
+    }
+
+    open fun renderGetStaticField(field: JcField): Expression {
+        check(field.isStatic)
+
+        if (field.isPrivate)
+            return renderGetPrivateStaticField(field)
+
+        return FieldAccessExpr(
+            TypeExpr(renderClass(field.enclosingClass)),
+            field.name
+        )
+    }
+
+    open fun renderGetPrivateField(instance: Expression, field: JcField): Expression {
+        error("Rendering private fields is not supported")
+    }
+
+    open fun renderGetField(instance: Expression, field: JcField): Expression {
+        check(!field.isStatic)
+        if (field.isPrivate)
+            return renderGetPrivateField(instance, field)
+
+        return FieldAccessExpr(
+            instance,
+            field.name
+        )
+    }
 
     open fun renderSetPrivateStaticField(field: JcField, value: Expression): Expression {
         error("Rendering private fields is not supported")

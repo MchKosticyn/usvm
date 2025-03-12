@@ -23,7 +23,6 @@ import org.usvm.util.UTestRunnerController
 import org.usvm.util.getJcMethodByName
 import org.usvm.util.loadClasspathFromEnv
 import java.io.File
-import java.nio.file.Paths
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KFunction1
@@ -36,7 +35,8 @@ import kotlin.reflect.jvm.javaMethod
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import org.usvm.api.createUTest
-import org.usvm.jvm.rendering.JcTestClassRendererOld
+import org.usvm.jvm.rendering.JcTestsRenderer
+import org.usvm.jvm.rendering.testRenderer.JcUnitTestInfo
 
 
 @ExtendWith(UTestRunnerController::class)
@@ -820,12 +820,9 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
 
         JcMachine(cp, options, interpreterObserver = interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
-            val tempFilePath = Paths.get("/Users/michael/Documents/Work/usvm/usvm-jvm/src/test/java/org/usvm/generated/RenderingResults.java")
-            val classRenderer = JcTestClassRendererOld.loadFileOrCreateFor(tempFilePath)
-            states.forEachIndexed { i, state ->
-                val test = createUTest(jcMethod, state)
-                classRenderer.renderTest("${jcMethod.name}$i", test)
-            }
+            val renderer = JcTestsRenderer()
+            val tests = states.map { state -> createUTest(jcMethod, state) to JcUnitTestInfo(jcMethod.method) }
+            renderer.renderTests(tests)
             states.map { testResolver.resolve(jcMethod, it) }
         }
     }
