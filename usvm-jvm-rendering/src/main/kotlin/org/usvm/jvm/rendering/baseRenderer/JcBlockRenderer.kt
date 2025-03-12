@@ -8,6 +8,7 @@ import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.VariableDeclarationExpr
 import com.github.javaparser.ast.stmt.BlockStmt
 import com.github.javaparser.ast.stmt.ExpressionStmt
+import com.github.javaparser.ast.stmt.IfStmt
 import com.github.javaparser.ast.stmt.Statement
 import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
@@ -44,12 +45,28 @@ open class JcBlockRenderer protected constructor(
         statements.add(ExpressionStmt(expr))
     }
 
-    fun renderVarDeclaration(type: JcType, expr: Expression, namePrefix: String? = null): NameExpr {
+    fun renderVarDeclaration(type: JcType, expr: Expression? = null, namePrefix: String? = null): NameExpr {
         val renderedType = renderType(type)
         val name = identifiersManager[namePrefix ?: "v"]
         val declarator = VariableDeclarator(renderedType, name, expr)
         addExpression(VariableDeclarationExpr(declarator))
         return NameExpr(name)
+    }
+
+    fun renderIfStatement(
+        condition: Expression,
+        initThenBody: (JcBlockRenderer) -> Unit,
+        initElseBody: (JcBlockRenderer) -> Unit
+    ) {
+        val thenBlockRenderer = newInnerBlock()
+        initThenBody(thenBlockRenderer)
+        val elseBlockRenderer = newInnerBlock()
+        initElseBody(elseBlockRenderer)
+        val thenBlock = thenBlockRenderer.render()
+        val thenStmt = thenBlock.statements.singleOrNull() ?: thenBlock
+        val elseBlock = elseBlockRenderer.render()
+        val elseStmt = elseBlock.statements.singleOrNull() ?: elseBlock
+        statements.add(IfStmt(condition, thenStmt, elseStmt))
     }
 
     fun renderArraySetStatement(array: Expression, index: Expression, value: Expression) {

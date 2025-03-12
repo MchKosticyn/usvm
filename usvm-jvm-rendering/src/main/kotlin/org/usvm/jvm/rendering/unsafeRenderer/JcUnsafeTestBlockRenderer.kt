@@ -10,7 +10,6 @@ import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.jcdbSignature
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestBlockRenderer
@@ -56,13 +55,9 @@ open class JcUnsafeTestBlockRenderer private constructor(
     }
 
     override fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
-        val enclosingClass = method.enclosingClass
-        val returnType = enclosingClass.classpath.findType(method.returnType.typeName) as JcClassType
-        val renderedReturnType = renderClass(returnType)
         val allArgs = listOf(instance, StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
-            NodeList(renderedReturnType),
             "callMethod",
             NodeList(allArgs),
         )
@@ -70,12 +65,9 @@ open class JcUnsafeTestBlockRenderer private constructor(
 
     override fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
         val enclosingClass = method.enclosingClass
-        val returnType = enclosingClass.classpath.findType(method.returnType.typeName) as JcClassType
-        val renderedReturnType = renderClass(returnType)
         val allArgs = listOf(renderClassExpression(enclosingClass), StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
-            NodeList(renderedReturnType),
             "callStaticMethod",
             NodeList(allArgs),
         )

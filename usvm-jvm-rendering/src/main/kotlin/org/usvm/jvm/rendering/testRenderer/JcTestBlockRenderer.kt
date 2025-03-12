@@ -4,6 +4,7 @@ import com.github.javaparser.ast.ArrayCreationLevel
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayCreationExpr
+import com.github.javaparser.ast.expr.AssignExpr
 import com.github.javaparser.ast.expr.BinaryExpr
 import com.github.javaparser.ast.expr.BooleanLiteralExpr
 import com.github.javaparser.ast.expr.CastExpr
@@ -22,6 +23,7 @@ import org.usvm.jvm.rendering.baseRenderer.JcBlockRenderer
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.test.api.ArithmeticOperationType
+import org.usvm.test.api.ConditionType
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestArithmeticExpression
 import org.usvm.test.api.UTestArrayGetExpression
@@ -147,7 +149,22 @@ open class JcTestBlockRenderer protected constructor(
     }
 
     open fun renderBinaryConditionStatement(stmt: UTestBinaryConditionStatement) {
-        TODO()
+        val condition = renderBinaryCondition(stmt.conditionType, stmt.lhv, stmt.rhv)
+        renderIfStatement(
+            condition = condition,
+            initThenBody = {
+                it as JcTestBlockRenderer
+                for (thenStmt in stmt.trueBranch) {
+                    it.renderInst(thenStmt)
+                }
+            },
+            initElseBody = {
+                it as JcTestBlockRenderer
+                for (thenStmt in stmt.trueBranch) {
+                    it.renderInst(thenStmt)
+                }
+            }
+        )
     }
 
     open fun renderSetFieldStatement(stmt: UTestSetFieldStatement) {
@@ -196,7 +213,41 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderArrayLengthExpression(expr: UTestArrayLengthExpression): Expression =
         FieldAccessExpr(renderExpression(expr.arrayInstance), "length")
 
-    open fun renderBinaryConditionExpression(expr: UTestBinaryConditionExpression): Expression = TODO()
+    protected fun renderBinaryCondition(
+        conditionType: ConditionType,
+        lhv: UTestExpression,
+        rhv: UTestExpression
+    ): Expression {
+
+        val operation = when (conditionType) {
+            ConditionType.EQ -> BinaryExpr.Operator.EQUALS
+            ConditionType.NEQ -> BinaryExpr.Operator.NOT_EQUALS
+            ConditionType.GEQ -> BinaryExpr.Operator.GREATER_EQUALS
+            ConditionType.GT -> BinaryExpr.Operator.GREATER
+        }
+
+        return BinaryExpr(
+            renderExpression(lhv),
+            renderExpression(rhv),
+            operation
+        )
+    }
+
+    open fun renderBinaryConditionExpression(expr: UTestBinaryConditionExpression): Expression {
+        val varExpr = renderVarDeclaration(expr.type!!)
+        val condition = renderBinaryCondition(expr.conditionType, expr.lhv, expr.rhv)
+        renderIfStatement(
+            condition = condition,
+            initThenBody = {
+                it.addExpression(renderAssign(varExpr, renderExpression(expr.trueBranch)))
+            },
+            initElseBody = {
+                it.addExpression(renderAssign(varExpr, renderExpression(expr.elseBranch)))
+            }
+        )
+
+        return varExpr
+    }
 
     open fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression =
         error("Unsafe is not supported")

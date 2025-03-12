@@ -302,16 +302,19 @@ abstract class JcCodeRenderer<T: Node>(
         error("Rendering private fields is not supported")
     }
 
+    fun renderAssign(lhv: Expression, rhv: Expression): Expression {
+        return AssignExpr(lhv, rhv, AssignExpr.Operator.ASSIGN)
+    }
+
     fun renderSetStaticField(field: JcField, value: Expression): Expression {
         check(field.isStatic)
 
         if (field.isPrivate)
             return renderSetPrivateStaticField(field, value)
 
-        return AssignExpr(
+        return renderAssign(
             FieldAccessExpr(TypeExpr(renderClass(field.enclosingClass)), field.name),
-            value,
-            AssignExpr.Operator.ASSIGN
+            value
         )
     }
 
@@ -325,10 +328,9 @@ abstract class JcCodeRenderer<T: Node>(
         if (field.isPrivate)
             renderSetPrivateField(instance, field, value)
 
-        return AssignExpr(
+        return renderAssign(
             FieldAccessExpr(instance, field.name),
-            value,
-            AssignExpr.Operator.ASSIGN
+            value
         )
     }
 
@@ -337,10 +339,9 @@ abstract class JcCodeRenderer<T: Node>(
     //region Arrays
 
     fun renderArraySet(array: Expression, index: Expression, value: Expression): Expression {
-        return AssignExpr(
+        return renderAssign(
             ArrayAccessExpr(array, index),
-            value,
-            AssignExpr.Operator.ASSIGN
+            value
         )
     }
 

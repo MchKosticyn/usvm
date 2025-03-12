@@ -100,14 +100,16 @@ public class ReflectionUtils {
         throw new IllegalStateException("unexpected primitive type");
     }
 
-    public static Object getFieldValue(Object instance, String fieldName) {
+    @SuppressWarnings("unchecked")
+    public static <T> T getFieldValue(Object instance, String fieldName) {
         Field field = getField(instance, fieldName);
-        return getFieldValue(instance, field);
+        return (T) getFieldValue(instance, field);
     }
 
-    public static Object getStaticFieldValue(Class<?> type, String fieldName) {
+    @SuppressWarnings("unchecked")
+    public static <T> T getStaticFieldValue(Class<?> type, String fieldName) {
         Field field = getStaticField(type, fieldName);
-        return getFieldValue(UNSAFE.staticFieldBase(field), field);
+        return (T) getFieldValue(UNSAFE.staticFieldBase(field), field);
     }
 
     private static void setFieldValue(Object fixedInstance, Field field, Object value) {
