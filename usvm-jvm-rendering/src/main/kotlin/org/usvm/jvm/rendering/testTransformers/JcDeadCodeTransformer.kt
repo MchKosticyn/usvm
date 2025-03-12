@@ -1,7 +1,6 @@
 package org.usvm.jvm.rendering.testTransformers
 
 import org.usvm.jvm.rendering.testRenderer.JcTestVisitor
-import org.usvm.jvm.rendering.testTransformers.JcTestTransformer
 import java.util.*
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestArraySetStatement

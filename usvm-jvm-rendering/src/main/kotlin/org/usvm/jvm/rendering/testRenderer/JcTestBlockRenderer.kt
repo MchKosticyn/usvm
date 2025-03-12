@@ -15,7 +15,6 @@ import com.github.javaparser.ast.expr.IntegerLiteralExpr
 import com.github.javaparser.ast.expr.LongLiteralExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
-import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.PredefinedPrimitives

@@ -10,6 +10,8 @@ import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.ext.findType
+import org.jacodb.api.jvm.ext.jcdbSignature
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestBlockRenderer
 import org.usvm.test.api.UTestAllocateMemoryCall
@@ -45,15 +47,38 @@ open class JcUnsafeTestBlockRenderer private constructor(
     }
 
     override fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
-        TODO()
+        val allArgs = listOf(renderClassExpression(type), StringLiteralExpr(ctor.jcdbSignature)) + args
+        return MethodCallExpr(
+            utilsName,
+            "callConstructor",
+            NodeList(allArgs),
+        )
     }
 
     override fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
-        TODO()
+        val enclosingClass = method.enclosingClass
+        val returnType = enclosingClass.classpath.findType(method.returnType.typeName) as JcClassType
+        val renderedReturnType = renderClass(returnType)
+        val allArgs = listOf(instance, StringLiteralExpr(method.jcdbSignature)) + args
+        return MethodCallExpr(
+            utilsName,
+            NodeList(renderedReturnType),
+            "callMethod",
+            NodeList(allArgs),
+        )
     }
 
     override fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
-        TODO()
+        val enclosingClass = method.enclosingClass
+        val returnType = enclosingClass.classpath.findType(method.returnType.typeName) as JcClassType
+        val renderedReturnType = renderClass(returnType)
+        val allArgs = listOf(renderClassExpression(enclosingClass), StringLiteralExpr(method.jcdbSignature)) + args
+        return MethodCallExpr(
+            utilsName,
+            NodeList(renderedReturnType),
+            "callStaticMethod",
+            NodeList(allArgs),
+        )
     }
 
     override fun renderGetPrivateStaticField(field: JcField): Expression {

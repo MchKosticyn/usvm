@@ -2,8 +2,7 @@ package org.usvm.jvm.rendering;
 
 import sun.misc.Unsafe;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +17,16 @@ public class ReflectionUtils {
         } catch (Throwable e) {
             throw new RuntimeException();
         }
+    }
+
+    //region Fields Interaction
+
+    private static long getOffsetOf(Field field) {
+        return isStatic(field) ? UNSAFE.staticFieldOffset(field) : UNSAFE.objectFieldOffset(field);
+    }
+
+    private static boolean isStatic(Field field) {
+        return (field.getModifiers() & Modifier.STATIC) > 0;
     }
 
     private static List<Field> getInstanceFields(Class<?> type) {
@@ -138,16 +147,123 @@ public class ReflectionUtils {
         setFieldValue(UNSAFE.staticFieldBase(field), field, value);
     }
 
+    //endregion
+
+    //region Allocation
+
     @SuppressWarnings("unchecked")
     public static <T> T allocateInstance(Class<T> clazz) throws InstantiationException {
         return (T) UNSAFE.allocateInstance(clazz);
     }
 
-    private static long getOffsetOf(Field field) {
-        return isStatic(field) ? UNSAFE.staticFieldOffset(field) : UNSAFE.objectFieldOffset(field);
+    //endregion
+
+    //region Methods Interaction
+
+    private static String parameterTypesSignature(Class<?>[] types) {
+        if (types.length == 0)
+            return "";
+
+        StringBuilder sb = new StringBuilder();
+        for (Class<?> type : types) {
+            sb.append(type.getTypeName());
+            sb.append(";");
+        }
+
+        return sb.toString();
     }
 
-    private static boolean isStatic(Field field) {
-        return (field.getModifiers() & Modifier.STATIC) > 0;
+    private static String methodSignature(Method method) {
+        String parametersSig = parameterTypesSignature(method.getParameterTypes());
+        String returnTypeSig = method.getReturnType().getTypeName();
+        return method.getName() + "(" + parametersSig + ")" + returnTypeSig + ";";
     }
+
+    private static String methodSignature(Constructor<?> method) {
+        String parametersSig = parameterTypesSignature(method.getParameterTypes());
+        return "<init>" + "(" + parametersSig + ")" + "void" + ";";
+    }
+
+    private static List<Method> getInstanceMethods(Class<?> type) {
+        ArrayList<Method> methods = new ArrayList<>();
+        for (Method method : type.getDeclaredMethods()) {
+            if (!Modifier.isStatic(method.getModifiers()))
+                methods.add(method);
+        }
+
+        return methods;
+    }
+
+    private static List<Method> getStaticMethods(Class<?> type) {
+        ArrayList<Method> methods = new ArrayList<>();
+        for (Method method : type.getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers()))
+                methods.add(method);
+        }
+
+        return methods;
+    }
+
+    private static Method getMethod(Object instance, String methodSig) {
+        Class<?> type = instance.getClass();
+        Class<?> currentClass = type;
+        while (currentClass != Object.class && currentClass != null) {
+            for (Method method : getInstanceMethods(currentClass)) {
+                if (methodSignature(method).equals(methodSig))
+                    return method;
+            }
+            currentClass = currentClass.getSuperclass();
+        }
+
+        throw new IllegalArgumentException("Could not find method " + methodSig + " in " + type);
+    }
+
+    private static Method getStaticMethod(Class<?> type, String methodSig) {
+        for (Method method : getStaticMethods(type)) {
+            if (methodSignature(method).equals(methodSig))
+                return method;
+        }
+
+        throw new IllegalArgumentException("Could not find static method " + methodSig + " in " + type);
+    }
+
+    private static Constructor<?> getConstructor(Class<?> type, String ctorSig) {
+        for (Constructor<?> ctor : type.getDeclaredConstructors()) {
+            if (methodSignature(ctor).equals(ctorSig))
+                return ctor;
+        }
+
+        throw new IllegalArgumentException("Could not find constructor " + ctorSig + " in " + type);
+    }
+
+    private static Object callMethod(Object instance, Method method, Object... args) throws Throwable {
+        try {
+            method.setAccessible(true);
+            return method.invoke(instance, args);
+        } catch (InvocationTargetException e) {
+            throw e.getTargetException();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T callMethod(Object instance, String methodSig, Object... args) throws Throwable {
+        return (T) callMethod(instance, getMethod(instance, methodSig), args);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T callStaticMethod(Class<?> type, String methodSig, Object... args) throws Throwable {
+        return (T) callMethod(null, getStaticMethod(type, methodSig), args);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T callConstructor(Class<T> type, String ctorSig, Object... args) throws Throwable {
+        Constructor<?> ctor = getConstructor(type, ctorSig);
+        try {
+            return (T) ctor.newInstance(args);
+        } catch (InvocationTargetException e) {
+            throw e.getTargetException();
+        }
+    }
+
+    //endregion
 }
