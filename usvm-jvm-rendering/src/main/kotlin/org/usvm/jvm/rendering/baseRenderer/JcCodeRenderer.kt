@@ -63,9 +63,11 @@ abstract class JcCodeRenderer<T: Node>(
 
     fun renderClass(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
         check(!type.isPrivate) { "Rendering private classes is not supported" }
+        check(!type.jcClass.isAnonymous) { "Rendering anonymous classes is not supported" }
+
         val renderName = when {
-            importManager.add(type.jcClass.packageName, type.jcClass.simpleName) -> type.jcClass.simpleName
-            else -> type.typeName
+            importManager.add(type.jcClass.packageName, type.jcClass.simpleName) -> qualifiedName(type.jcClass.simpleName)
+            else -> qualifiedName(type.jcClass.name)
         }
 
         val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(renderName))
@@ -213,7 +215,6 @@ abstract class JcCodeRenderer<T: Node>(
         if (shouldRenderMethodCallAsPrivate(ctor))
             return renderPrivateCtorCall(ctor, type, args)
 
-        val renderedClass = renderClass(type)
         var ctorArgs: List<Expression> = args
         val scope: Expression?
         when {
@@ -225,7 +226,7 @@ abstract class JcCodeRenderer<T: Node>(
             }
         }
 
-        return ObjectCreationExpr(scope, renderedClass, NodeList(ctorArgs))
+        return ObjectCreationExpr(scope, renderClass(type), NodeList(ctorArgs))
     }
 
     open fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
@@ -265,7 +266,7 @@ abstract class JcCodeRenderer<T: Node>(
     private fun renderStaticMethodCallScope(method: JcMethod, allowStaticImport: Boolean): TypeExpr? {
         val callType = method.enclosingClass.toType()
         val useClassName = !allowStaticImport || !importManager.addStatic(callType.jcClass.name, method.name)
-        return if (useClassName) TypeExpr(renderClass(callType)) else null
+        return if (useClassName) TypeExpr(renderClass(callType, includeGenericArgs = false)) else null
     }
 
 
