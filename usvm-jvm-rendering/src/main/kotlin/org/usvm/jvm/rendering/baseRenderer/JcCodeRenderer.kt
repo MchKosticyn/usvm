@@ -65,6 +65,44 @@ abstract class JcCodeRenderer<T: Node>(
         check(type.isPublic) { "Rendering private classes is not supported" }
         check(!type.jcClass.isAnonymous) { "Rendering anonymous classes is not supported" }
 
+        return when {
+            type.outerType == null -> renderClassOuter(type, includeGenericArgs)
+            type.isStatic -> renderClassInnerStatic(type, includeGenericArgs)
+            else -> renderClassInner(type, includeGenericArgs)
+        }
+    }
+
+    private fun renderClassInnerStatic(type: JcClassType, includeGenericArgs: Boolean): ClassOrInterfaceType {
+        val simpleNameParts = qualifiedName(type.jcClass.simpleName).split(".")
+        val renderName = qualifiedName(type.jcClass.name)
+        val importPackage = type.jcClass.packageName + "." + simpleNameParts.dropLast(1).joinToString(".")
+        val importName = simpleNameParts.last()
+        if (importManager.addStatic(importPackage, importName)) {
+            return StaticJavaParser.parseClassOrInterfaceType(simpleNameParts.last())
+                .setTypeArgsIfNeeded(includeGenericArgs, type)
+        }
+        return ClassOrInterfaceType(renderClass(type.outerType!!, false), renderName)
+            .setTypeArgsIfNeeded(includeGenericArgs, type)
+    }
+
+    private fun ClassOrInterfaceType.setTypeArgsIfNeeded(
+        includeGenericArgs: Boolean,
+        type: JcClassType
+    ): ClassOrInterfaceType {
+        if (includeGenericArgs && type.typeArguments.isNotEmpty())
+            return setTypeArguments(NodeList(type.typeArguments.map { renderType(it) }))
+
+        return this
+    }
+
+    private fun renderClassInner(type: JcClassType, includeGenericArgs: Boolean): ClassOrInterfaceType {
+        return ClassOrInterfaceType(
+            renderClass(type.outerType!!, includeGenericArgs),
+            qualifiedName(type.jcClass.simpleName).split(".").last()
+        ).setTypeArgsIfNeeded(includeGenericArgs, type)
+    }
+
+    private fun renderClassOuter(type: JcClassType, includeGenericArgs: Boolean): ClassOrInterfaceType {
         val renderName = when {
             importManager.add(type.jcClass.packageName, type.jcClass.simpleName) -> qualifiedName(type.jcClass.simpleName)
             else -> qualifiedName(type.jcClass.name)

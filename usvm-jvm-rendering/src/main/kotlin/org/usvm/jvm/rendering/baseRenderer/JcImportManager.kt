@@ -27,6 +27,8 @@ open class JcImportManager(cu: CompilationUnit? = null) {
             packages = mutableSetOf()
             staticPackages = mutableSetOf()
         }
+
+        packages.add("java.lang")
     }
 
     private fun add(
