@@ -24,6 +24,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.JcTypeVariable
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 
@@ -56,6 +57,7 @@ abstract class JcCodeRenderer<T: Node>(
         is JcPrimitiveType -> PrimitiveType(Primitive.byTypeName(type.typeName).get())
         is JcArrayType -> ArrayType(renderType(type.elementType, includeGenericArgs))
         is JcClassType -> renderClass(type, includeGenericArgs)
+        is JcTypeVariable -> renderClass(type.jcClass, includeGenericArgs)
         else -> error("unexpected type ${type.typeName}")
     }
 
@@ -198,13 +200,17 @@ abstract class JcCodeRenderer<T: Node>(
 
     //endregion
 
+    fun shouldRenderMethodCallAsPrivate(method: JcMethod): Boolean {
+        return method.isPrivate || method.isPackagePrivate
+    }
+
     open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
         error("Rendering private methods is not supported")
     }
 
     open fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
         check(ctor.isConstructor)
-        if (ctor.isPrivate)
+        if (shouldRenderMethodCallAsPrivate(ctor))
             return renderPrivateCtorCall(ctor, type, args)
 
         val renderedClass = renderClass(type)
@@ -229,7 +235,7 @@ abstract class JcCodeRenderer<T: Node>(
     open fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
         check(!method.isStatic)
 
-        if (method.isPrivate)
+        if (shouldRenderMethodCallAsPrivate(method))
             return renderPrivateMethodCall(method, instance, args)
 
         return MethodCallExpr(
@@ -246,7 +252,7 @@ abstract class JcCodeRenderer<T: Node>(
     open fun renderStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
         check(method.isStatic)
 
-        if (method.isPrivate)
+        if (shouldRenderMethodCallAsPrivate(method))
             return renderPrivateStaticMethodCall(method, args)
 
         return MethodCallExpr(
@@ -267,6 +273,14 @@ abstract class JcCodeRenderer<T: Node>(
 
     //region Fields
 
+    protected open fun shouldRenderGetFieldAsPrivate(field: JcField): Boolean {
+        return field.isPrivate || field.isPackagePrivate
+    }
+
+    protected open fun shouldRenderSetFieldAsPrivate(field: JcField): Boolean {
+        return field.isPrivate || field.isPackagePrivate || field.isFinal
+    }
+
     open fun renderGetPrivateStaticField(field: JcField): Expression {
         error("Rendering private fields is not supported")
     }
@@ -274,7 +288,7 @@ abstract class JcCodeRenderer<T: Node>(
     open fun renderGetStaticField(field: JcField): Expression {
         check(field.isStatic)
 
-        if (field.isPrivate)
+        if (shouldRenderGetFieldAsPrivate(field))
             return renderGetPrivateStaticField(field)
 
         return FieldAccessExpr(
@@ -289,7 +303,8 @@ abstract class JcCodeRenderer<T: Node>(
 
     open fun renderGetField(instance: Expression, field: JcField): Expression {
         check(!field.isStatic)
-        if (field.isPrivate)
+
+        if (shouldRenderGetFieldAsPrivate(field))
             return renderGetPrivateField(instance, field)
 
         return FieldAccessExpr(
@@ -309,7 +324,7 @@ abstract class JcCodeRenderer<T: Node>(
     fun renderSetStaticField(field: JcField, value: Expression): Expression {
         check(field.isStatic)
 
-        if (field.isPrivate)
+        if (shouldRenderSetFieldAsPrivate(field))
             return renderSetPrivateStaticField(field, value)
 
         return renderAssign(
@@ -325,8 +340,8 @@ abstract class JcCodeRenderer<T: Node>(
     fun renderSetField(instance: Expression, field: JcField, value: Expression): Expression {
         check(!field.isStatic)
 
-        if (field.isPrivate)
-            renderSetPrivateField(instance, field, value)
+        if (shouldRenderSetFieldAsPrivate(field))
+            return renderSetPrivateField(instance, field, value)
 
         return renderAssign(
             FieldAccessExpr(instance, field.name),

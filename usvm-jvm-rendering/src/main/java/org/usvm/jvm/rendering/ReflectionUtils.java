@@ -154,7 +154,7 @@ public class ReflectionUtils {
     //region Allocation
 
     @SuppressWarnings("unchecked")
-    public static <T> T allocateInstance(Class<T> clazz) throws InstantiationException {
+    public static <T> T allocateInstance(Class<?> clazz) throws InstantiationException {
         return (T) UNSAFE.allocateInstance(clazz);
     }
 

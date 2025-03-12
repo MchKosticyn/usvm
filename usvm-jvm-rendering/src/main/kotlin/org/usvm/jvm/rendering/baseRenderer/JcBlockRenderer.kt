@@ -89,6 +89,10 @@ open class JcBlockRenderer protected constructor(
         )
     }
 
+    protected fun addThrownException(name: String) {
+        thrownExceptions.add(StaticJavaParser.parseClassOrInterfaceType(name))
+    }
+
     override fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
         addThrownExceptions(ctor)
         return super.renderConstructorCall(ctor, type, args)

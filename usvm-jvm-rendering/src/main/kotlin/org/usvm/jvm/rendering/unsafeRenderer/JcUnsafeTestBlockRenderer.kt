@@ -1,6 +1,5 @@
 package org.usvm.jvm.rendering.unsafeRenderer
 
-import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.MethodCallExpr
@@ -46,6 +45,7 @@ open class JcUnsafeTestBlockRenderer private constructor(
     }
 
     override fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
+        addThrownException("Throwable")
         val allArgs = listOf(renderClassExpression(type), StringLiteralExpr(ctor.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
@@ -55,6 +55,7 @@ open class JcUnsafeTestBlockRenderer private constructor(
     }
 
     override fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
+        addThrownException("Throwable")
         val allArgs = listOf(instance, StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
@@ -64,6 +65,7 @@ open class JcUnsafeTestBlockRenderer private constructor(
     }
 
     override fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
+        addThrownException("Throwable")
         val enclosingClass = method.enclosingClass
         val allArgs = listOf(renderClassExpression(enclosingClass), StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
@@ -106,7 +108,7 @@ open class JcUnsafeTestBlockRenderer private constructor(
     }
 
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
-        thrownExceptions.add(StaticJavaParser.parseClassOrInterfaceType("InstantiationException"))
+        addThrownException("InstantiationException")
         return MethodCallExpr(
             utilsName,
             "allocateInstance",
