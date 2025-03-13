@@ -110,9 +110,10 @@ class SpringMockBeanBuilder(
         if (current != null)
             return current
 
-        val mockBean =
-            if (reproducing) findReproducingMockBean(type)
-            else findRenderingMockBean(type)
+        val mockBean = when {
+            reproducing -> findReproducingMockBean(type)
+            else -> findRenderingMockBean(type)
+        }
         mockBeanCache[type] = mockBean
 
         return mockBean

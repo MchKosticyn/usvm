@@ -381,7 +381,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
         )
 
     private fun AbstractBuffer.deserializeUTestStringExpression() =
-        UTestStringExpression(readString(), jcClasspath.stringType())
+        UTestStringExpression(readString(), jcClasspath.stringType)
 
     private fun AbstractBuffer.serialize(uTestGetFieldExpression: UTestGetFieldExpression) =
         serialize(

@@ -17,8 +17,6 @@ import org.usvm.test.api.spring.JcSpringRequest
 import org.usvm.test.api.spring.JcSpringResponse
 import org.usvm.test.api.spring.JcSpringTestBuilder
 import org.usvm.test.api.spring.SpringException
-import utils.toTypedMethod
-
 
 fun JcSpringState.canGenerateTest(): Boolean {
     return pinnedValues.getValue(JcPinnedKey.requestPath()) != null

@@ -12,6 +12,7 @@ import org.usvm.api.readField
 import org.usvm.api.util.JcTestInterpreterDecoderApi
 import org.usvm.api.util.JcTestStateResolver
 import org.usvm.collection.field.UFieldLValue
+import org.usvm.jvm.util.toTypedMethod
 import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.state.JcState
 import org.usvm.mkSizeExpr
@@ -22,7 +23,6 @@ import utils.createDefault
 import utils.isThreadLocal
 import utils.setArrayValue
 import utils.setFieldValue
-import utils.toTypedMethod
 import java.lang.reflect.Proxy
 
 internal class JcConcretizer(
