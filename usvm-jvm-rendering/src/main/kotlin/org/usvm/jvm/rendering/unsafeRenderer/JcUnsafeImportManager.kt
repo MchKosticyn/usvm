@@ -16,6 +16,7 @@ class JcUnsafeImportManager(
     private var reflectionUtilsImported = false
 
     val reflectionUtilsName: SimpleName by lazy {
+        reflectionUtilsImported = true
         if (add(reflectionUtilsFullName))
             SimpleName("ReflectionUtils")
         else SimpleName(reflectionUtilsFullName)

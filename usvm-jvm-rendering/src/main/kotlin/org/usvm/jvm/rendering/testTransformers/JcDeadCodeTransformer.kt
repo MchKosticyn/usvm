@@ -63,6 +63,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
     }
 
     private fun transformArraySet(stmt: UTestArraySetStatement): List<UTestInst?> {
+        // TODO: unify with `transformFieldSet`
         if (stmt.arrayInstance in reachable) {
             return listOf(withReachable { super.transform(stmt) })
         }

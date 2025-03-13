@@ -23,7 +23,7 @@ import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
 
-open class JcUnsafeTestBlockRenderer private constructor(
+open class JcUnsafeTestBlockRenderer protected constructor(
     override val importManager: JcUnsafeImportManager,
     identifiersManager: JcIdentifiersManager,
     shouldDeclareVar: Set<UTestExpression>,
@@ -47,7 +47,7 @@ open class JcUnsafeTestBlockRenderer private constructor(
         )
     }
 
-    private val utilsName: NameExpr by lazy {
+    protected val utilsName: NameExpr by lazy {
         NameExpr(importManager.reflectionUtilsName)
     }
 

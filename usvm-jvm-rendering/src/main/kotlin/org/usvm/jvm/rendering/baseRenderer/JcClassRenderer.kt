@@ -12,7 +12,7 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
     private val name: SimpleName
     private val modifiers: NodeList<Modifier>
     private val annotations: NodeList<AnnotationExpr>
-    private val existingMembers: NodeList<BodyDeclaration<*>>
+    private val members: NodeList<BodyDeclaration<*>>
 
     private constructor(
         importManager: JcImportManager,
@@ -25,7 +25,7 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         this.name = name
         this.modifiers = modifiers
         this.annotations = annotations
-        this.existingMembers = existingMembers
+        this.members = existingMembers
     }
 
     private val renderingMethods: MutableList<JcMethodRenderer> = mutableListOf()
@@ -46,7 +46,7 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         this.name = identifiersManager.generateIdentifier(name)
         this.modifiers = NodeList()
         this.annotations = NodeList()
-        this.existingMembers = NodeList()
+        this.members = NodeList()
     }
 
     constructor(
@@ -55,6 +55,10 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
 
     protected fun addRenderingMethod(render: JcMethodRenderer) {
         renderingMethods.add(render)
+    }
+
+    fun addField(name: String) {
+
     }
 
     override fun renderInternal(): ClassOrInterfaceDeclaration {
@@ -66,8 +70,8 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
                 println("Renderer failed to render method: ${e.message}")
             }
         }
-        val members = NodeList(renderedMembers)
-        members.addAll(existingMembers)
+        val allMembers = NodeList(renderedMembers)
+        allMembers.addAll(members)
         return ClassOrInterfaceDeclaration(
             modifiers,
             annotations,
@@ -77,7 +81,7 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
             NodeList(),
             NodeList(),
             NodeList(),
-            members
+            allMembers
         )
     }
 }

@@ -1,28 +1,24 @@
-package org.usvm.jvm.rendering.unsafeRenderer
+package org.usvm.jvm.rendering.spring.webMvcTestRenderer
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
-import kotlin.jvm.optionals.getOrNull
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.testRenderer.JcTestClassRenderer
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.test.api.UTest
 
-open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
-
-    override val importManager: JcUnsafeImportManager
-        get() = super.importManager as JcUnsafeImportManager
+class JcSpringMvcTestClassRenderer : JcUnsafeTestClassRenderer {
 
     constructor(
         name: String,
         reflectionUtilsFullName: String
-    ) : super(JcUnsafeImportManager(reflectionUtilsFullName), name)
+    ) : super(name, reflectionUtilsFullName)
 
     constructor(
         decl: ClassOrInterfaceDeclaration,
         reflectionUtilsFullName: String
-    ) : super(JcUnsafeImportManager(reflectionUtilsFullName, decl.findCompilationUnit().getOrNull()), decl)
+    ) : super(decl, reflectionUtilsFullName)
 
     override fun createTestRenderer(
         test: UTest,
@@ -30,7 +26,7 @@ open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
         name: SimpleName,
         testAnnotation: AnnotationExpr,
     ): JcTestRenderer {
-        return JcUnsafeTestRenderer(
+        return JcSpringMvcTestRenderer(
             test,
             this,
             importManager,
