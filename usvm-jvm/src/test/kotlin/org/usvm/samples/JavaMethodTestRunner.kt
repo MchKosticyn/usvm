@@ -821,7 +821,7 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
         JcMachine(cp, options, interpreterObserver = interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
             val renderer = JcTestsRenderer()
-            val tests = states.map { state -> createUTest(jcMethod, state) to JcUnitTestInfo(jcMethod.method) }
+            val tests = states.map { state -> createUTest(jcMethod, state) to JcUnitTestInfo(jcMethod.method, state.isExceptional) }
             renderer.renderTests(tests)
             states.map { testResolver.resolve(jcMethod, it) }
         }

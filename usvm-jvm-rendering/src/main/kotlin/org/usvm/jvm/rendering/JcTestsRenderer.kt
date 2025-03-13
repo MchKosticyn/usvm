@@ -1,7 +1,6 @@
 package org.usvm.jvm.rendering
 
 import com.github.javaparser.StaticJavaParser
-import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.PackageDeclaration
 import com.github.javaparser.printer.DefaultPrettyPrinter
@@ -18,6 +17,8 @@ import java.io.PrintWriter
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.io.path.createDirectories
+import kotlin.jvm.optionals.getOrNull
+import org.usvm.jvm.rendering.testRenderer.JcUnitTestInfo
 
 class JcTestsRenderer {
     private val transformers: List<JcTestTransformer> = listOf(
@@ -31,32 +32,42 @@ class JcTestsRenderer {
 
     // TODO: check rendering in existing file
     fun renderTests(tests: List<Pair<UTest, JcTestInfo>>) {
-        println("Test File Path: $testFilePath")
+        System.err.println("Test File Path: $testFilePath")
 
         val testClasses = tests.groupBy { (_, info) -> info.method.enclosingClass }
 
         for ((declType, testsToRender) in testClasses) {
-            val testClassName = declType.simpleName + "Tests"
-            val testClassRenderer = JcUnsafeTestClassRenderer(testClassName, "org.usvm.jvm.rendering.ReflectionUtils")
+            System.err.println("Generating code for ${declType.name}")
+            val path = testFilePath.resolve("Tests.java")
+            if (!Files.exists(path)) Files.createFile(path)
+            val outputFile = path.toFile()
+            var cu = StaticJavaParser.parse(path)
+            val testClassName = normalizePrefix(declType.simpleName + "Tests")
+            val testClass = cu.getClassByName(testClassName).getOrNull() ?: cu.addClass(testClassName).setModifiers(
+                NodeList())
+            val testClassRenderer = JcUnsafeTestClassRenderer(testClass, "org.usvm.jvm.rendering.ReflectionUtils")
 
             for ((test, testInfo) in testsToRender) {
                 val transformedTest = transformers.fold(test) { currentTest, transformer ->
                     transformer.transform(currentTest)
                 }
-                testClassRenderer.addTest(transformedTest, "${testInfo.method.name}Test")
+                val throwsSuffix = if ((testInfo as JcUnitTestInfo).throws) "Throws" else ""
+                val testNamePrefix = normalizePrefix("${testInfo.method.name}${throwsSuffix}Test")
+                testClassRenderer.addTest(transformedTest, testNamePrefix)
             }
 
             val renderedTestClass = testClassRenderer.render()
             val imports = testClassRenderer.importManager.render()
 //            (testClassRenderer.importManager as JcUnsafeImportManager).needReflectionUtils
             val packageDecl = PackageDeclaration(StaticJavaParser.parseName("org.usvm.generated"))
-            val cu = CompilationUnit(packageDecl, imports, NodeList(renderedTestClass), null)
-            val path = testFilePath.resolve("Tests.java")
-            Files.deleteIfExists(path)
-            val file = Files.createFile(path).toFile()
-            val writer = PrintWriter(file)
+            cu = cu.setPackageDeclaration(packageDecl).setImports(imports)
+            cu.replace(testClass, renderedTestClass)
+            val writer = PrintWriter(outputFile)
             writer.print(DefaultPrettyPrinter().print(cu))
             writer.close()
         }
     }
+
+    private fun normalizePrefix(prefix: String): String =
+        prefix.replace("<", "").replace(">", "").replace("$", "")
 }

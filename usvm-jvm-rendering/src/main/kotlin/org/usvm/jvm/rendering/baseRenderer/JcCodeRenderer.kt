@@ -253,18 +253,18 @@ abstract class JcCodeRenderer<T: Node>(
         if (shouldRenderMethodCallAsPrivate(ctor))
             return renderPrivateCtorCall(ctor, type, args)
 
-        var ctorArgs: List<Expression> = args
-        val scope: Expression?
-        when {
-            type.outerType == null -> scope = null
-            type.isStatic -> scope = TypeExpr(renderClass(type.outerType!!))
+        return when {
+            type.outerType == null || type.isStatic -> {
+                ObjectCreationExpr(null, renderClass(type), NodeList(args))
+            }
+
             else -> {
-                scope = args.first()
-                ctorArgs = args.drop(1)
+                val ctorTypeName = qualifiedName(type.jcClass.name).split(".").last()
+                val ctorType = StaticJavaParser.parseClassOrInterfaceType(ctorTypeName)
+                    .setTypeArgsIfNeeded(true, type)
+                ObjectCreationExpr(args.first(), ctorType, NodeList(args.drop(1)))
             }
         }
-
-        return ObjectCreationExpr(scope, renderClass(type), NodeList(ctorArgs))
     }
 
     open fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {

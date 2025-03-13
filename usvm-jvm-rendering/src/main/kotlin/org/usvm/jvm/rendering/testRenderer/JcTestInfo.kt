@@ -6,6 +6,6 @@ interface JcTestInfo {
     val method: JcMethod
 }
 
-data class JcUnitTestInfo(override val method: JcMethod) : JcTestInfo
+data class JcUnitTestInfo(override val method: JcMethod, val throws: Boolean) : JcTestInfo
 
 data class JcSpringTestInfo(override val method: JcMethod) : JcTestInfo
