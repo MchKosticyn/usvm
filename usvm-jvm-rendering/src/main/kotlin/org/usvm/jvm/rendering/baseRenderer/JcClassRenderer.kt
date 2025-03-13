@@ -1,11 +1,15 @@
 package org.usvm.jvm.rendering.baseRenderer
 
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
-import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.BodyDeclaration
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
+import com.github.javaparser.ast.body.FieldDeclaration
+import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.AnnotationExpr
+import com.github.javaparser.ast.expr.Expression
+import com.github.javaparser.ast.expr.SimpleName
+import com.github.javaparser.ast.type.Type
 
 open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
 
@@ -57,8 +61,19 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         renderingMethods.add(render)
     }
 
-    fun addField(name: String) {
+    fun addField(
+        type: Type,
+        name: String,
+        modifiers: NodeList<Modifier> = NodeList(),
+        annotations: NodeList<AnnotationExpr> = NodeList(),
+        initializer: Expression? = null
+    ): SimpleName {
+        val fieldName = identifiersManager.generateIdentifier(name)
+        val declarator = VariableDeclarator(type, fieldName, initializer)
+        val decl = FieldDeclaration(modifiers, annotations, NodeList(declarator))
+        members.add(decl)
 
+        return fieldName
     }
 
     override fun renderInternal(): ClassOrInterfaceDeclaration {
