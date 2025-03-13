@@ -239,9 +239,10 @@ public class ReflectionUtils {
     }
 
     private static Object callMethod(Object instance, Method method, Object... args) throws Throwable {
+        Object[] checkedArgs = (args == null) ? new Object[] { null } : args;
         try {
             method.setAccessible(true);
-            return method.invoke(instance, args);
+            return method.invoke(instance, checkedArgs);
         } catch (InvocationTargetException e) {
             throw e.getTargetException();
         }
