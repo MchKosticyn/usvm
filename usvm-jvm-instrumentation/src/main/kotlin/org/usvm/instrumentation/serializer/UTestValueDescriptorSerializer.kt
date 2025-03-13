@@ -220,7 +220,7 @@ class UTestValueDescriptorSerializer(private val ctx: SerializationContext) {
         )
 
     private fun AbstractBuffer.deserializeString(): UTestValueDescriptor {
-        return UTestConstantDescriptor.String(readString(), jcClasspath.stringType())
+        return UTestConstantDescriptor.String(readString(), jcClasspath.stringType)
     }
 
     private fun AbstractBuffer.serialize(uTestValueDescriptor: UTestConstantDescriptor.Null) =

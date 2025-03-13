@@ -1,13 +1,12 @@
 ﻿package utils
 
 import machine.concreteMemory.JcConcreteMemory
-import machine.concreteMemory.JcConcreteMemoryBindings
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.ext.findType
 import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
-import org.usvm.api.decoder.DecoderApi
 import org.usvm.api.util.JcTestStateResolver
+import org.usvm.jvm.util.toTypedMethod
 import org.usvm.machine.state.JcState
 
 abstract class JcConcreteStateResolver<T>(

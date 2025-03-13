@@ -1,6 +1,7 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
+import org.usvm.jvm.util.stringType
 import org.usvm.test.api.UTestCreateArrayExpression
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestStringExpression

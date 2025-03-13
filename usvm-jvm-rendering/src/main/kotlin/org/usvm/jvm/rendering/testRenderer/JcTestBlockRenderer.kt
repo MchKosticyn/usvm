@@ -4,7 +4,6 @@ import com.github.javaparser.ast.ArrayCreationLevel
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayCreationExpr
-import com.github.javaparser.ast.expr.AssignExpr
 import com.github.javaparser.ast.expr.BinaryExpr
 import com.github.javaparser.ast.expr.BooleanLiteralExpr
 import com.github.javaparser.ast.expr.CastExpr
@@ -13,9 +12,13 @@ import com.github.javaparser.ast.expr.DoubleLiteralExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.FieldAccessExpr
 import com.github.javaparser.ast.expr.IntegerLiteralExpr
+import com.github.javaparser.ast.expr.LambdaExpr
 import com.github.javaparser.ast.expr.LongLiteralExpr
+import com.github.javaparser.ast.expr.MethodCallExpr
+import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.type.PrimitiveType
 import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.PredefinedPrimitives
@@ -58,25 +61,35 @@ import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
+import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcMethod
+import org.usvm.jvm.util.toTypedMethod
 
 open class JcTestBlockRenderer protected constructor(
+    override val methodRenderer: JcTestRenderer,
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
+    cp: JcClasspath,
     protected val shouldDeclareVar: Set<UTestExpression>,
     protected val exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcBlockRenderer(importManager, identifiersManager, thrownExceptions) {
+) : JcBlockRenderer(methodRenderer, importManager, identifiersManager, cp, thrownExceptions) {
 
     constructor(
+        methodRenderer: JcTestRenderer,
         importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>
-    ) : this(importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
+    ) : this(methodRenderer, importManager, identifiersManager, cp, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcTestBlockRenderer {
         return JcTestBlockRenderer(
+            methodRenderer,
             importManager,
             JcIdentifiersManager(identifiersManager),
+            cp,
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions
@@ -279,7 +292,8 @@ open class JcTestBlockRenderer protected constructor(
 
     open fun renderBooleanExpression(expr: UTestBooleanExpression): Expression = BooleanLiteralExpr(expr.value)
 
-    open fun renderByteExpression(expr: UTestByteExpression): Expression = IntegerLiteralExpr(expr.value.toString())
+    open fun renderByteExpression(expr: UTestByteExpression): Expression =
+        CastExpr(PrimitiveType.byteType(), IntegerLiteralExpr(expr.value.toString()))
 
     open fun renderCharExpression(expr: UTestCharExpression): Expression = CharLiteralExpr(expr.value)
 
@@ -290,11 +304,12 @@ open class JcTestBlockRenderer protected constructor(
 
     open fun renderIntExpression(expr: UTestIntExpression): Expression = IntegerLiteralExpr(expr.value.toString())
 
-    open fun renderLongExpression(expr: UTestLongExpression): Expression = LongLiteralExpr(expr.value.toString())
+    open fun renderLongExpression(expr: UTestLongExpression): Expression = LongLiteralExpr(expr.value.toString() + 'L')
 
     open fun renderNullExpression(expr: UTestNullExpression): Expression = NullLiteralExpr()
 
-    open fun renderShortExpression(expr: UTestShortExpression): Expression = IntegerLiteralExpr(expr.value.toString())
+    open fun renderShortExpression(expr: UTestShortExpression): Expression =
+        CastExpr(PrimitiveType.shortType(), IntegerLiteralExpr(expr.value.toString()))
 
     open fun renderStringExpression(expr: UTestStringExpression): Expression {
         val literal = StringLiteralExpr()
@@ -303,7 +318,7 @@ open class JcTestBlockRenderer protected constructor(
 
     open fun renderCreateArrayExpression(expr: UTestCreateArrayExpression): Expression =
         ArrayCreationExpr(
-            renderType(expr.elementType),
+            renderType(expr.elementType, false),
             NodeList(ArrayCreationLevel(renderExpression(expr.size))),
             null
         )
@@ -316,7 +331,7 @@ open class JcTestBlockRenderer protected constructor(
         return renderGetStaticField(expr.field)
     }
 
-    open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mock is not implemented")
+    open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mocks not yet supported")
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
         val type = expr.type as JcClassType
@@ -337,32 +352,85 @@ open class JcTestBlockRenderer protected constructor(
             if (mockValues.isEmpty())
                 continue
 
-            check(method.returnType.typeName != PredefinedPrimitives.Void)
-            check(!method.isStatic)
+            if (method.returnType.typeName == PredefinedPrimitives.Void)
+                continue
 
-            val args = method.parameters.map {
-                when (it.type.typeName) {
-                    PredefinedPrimitives.Boolean -> mockitoAnyBooleanMethodCall()
-                    PredefinedPrimitives.Byte -> mockitoAnyByteMethodCall()
-                    PredefinedPrimitives.Char -> mockitoAnyCharMethodCall()
-                    PredefinedPrimitives.Short -> mockitoAnyShortMethodCall()
-                    PredefinedPrimitives.Int -> mockitoAnyIntMethodCall()
-                    PredefinedPrimitives.Long -> mockitoAnyLongMethodCall()
-                    PredefinedPrimitives.Float -> mockitoAnyFloatMethodCall()
-                    PredefinedPrimitives.Double -> mockitoAnyDoubleMethodCall()
-                    else -> mockitoAnyMethodCall()
-                }
-            }
-            val methodCall = renderMethodCall(method, varExpr, args)
-            var mockInitialization = mockitoWhenMethodCall(methodCall)
-            for (mockValue in mockValues) {
-                val renderedMockValue = renderExpression(mockValue)
-                mockInitialization = mockitoThenReturnMethodCall(mockInitialization, renderedMockValue)
-            }
+            val mockInitialization = renderMockObjectMethod(varExpr, method, mockValues)
 
             addExpression(mockInitialization)
         }
 
         return varExpr
+    }
+
+    private fun renderMockObjectMethod(
+        mockVar: NameExpr,
+        method: JcMethod,
+        mockValues: List<UTestExpression>
+    ): Expression {
+        val typedMethod = method.toTypedMethod
+
+        val args = typedMethod.parameters.map { param ->
+            when (param.type.typeName) {
+                PredefinedPrimitives.Boolean -> mockitoAnyBooleanMethodCall()
+                PredefinedPrimitives.Byte -> mockitoAnyByteMethodCall()
+                PredefinedPrimitives.Char -> mockitoAnyCharMethodCall()
+                PredefinedPrimitives.Short -> mockitoAnyShortMethodCall()
+                PredefinedPrimitives.Int -> mockitoAnyIntMethodCall()
+                PredefinedPrimitives.Long -> mockitoAnyLongMethodCall()
+                PredefinedPrimitives.Float -> mockitoAnyFloatMethodCall()
+                PredefinedPrimitives.Double -> mockitoAnyDoubleMethodCall()
+                else -> mockitoAnyMethodCall(param.type)
+            }
+        }
+
+        val mockWhenCall =
+            if (method.isStatic)
+                renderMockObjectStaticMethodWhenCall(method, args)
+            else
+                renderMockObjectInstanceMethodWhenCall(mockVar, method, args)
+
+        val methodReturnType = typedMethod.returnType
+
+        val mockedMethod = mockValues.fold(mockWhenCall) { mock, nextReturnValue ->
+            val renderedMockValue = renderExpression(nextReturnValue)
+            val mockValueWithTypeChecked = exprWithGenericsCasted(methodReturnType, renderedMockValue)
+            if (nextReturnValue is UTestClassExpression)
+                mockitoThenThrowMethodCall(mock, renderedMockValue)
+            else
+                mockitoThenReturnMethodCall(mock, mockValueWithTypeChecked)
+        }
+
+        return mockedMethod
+    }
+
+    private fun renderMockObjectInstanceMethodWhenCall(
+        mockVar: NameExpr,
+        method: JcMethod,
+        args: List<Expression>
+    ): Expression {
+        val methodCall = renderMethodCall(method, mockVar, args)
+        return mockitoWhenMethodCall(methodCall)
+    }
+
+    private fun renderMockObjectStaticMethodWhenCall(method: JcMethod, args: List<Expression>): Expression {
+        val mockStaticUtil = renderMockedStaticVarDeclaration(method.enclosingClass)
+        val mockedMethodRef = LambdaExpr(NodeList(), renderStaticMethodCall(method, args))
+
+        return mockitoWhenMethodCall(mockedMethodRef, mockStaticUtil)
+    }
+
+    private fun renderMockedStaticVarDeclaration(mockedClass: JcClassOrInterface): NameExpr {
+        val mockMethodDeclType = renderClass(mockedClass)
+
+        val mockedStaticType = renderClass("org.mockito.MockedStatic").setTypeArguments(mockMethodDeclType)
+
+        val mockStaticCall = mockitoMockStaticMethodCall(mockedClass)
+
+        val mockStaticUtil = renderVarDeclaration(mockedStaticType, mockStaticCall, "staticMockUtil")
+
+        val mockStaticDefferedClose = MethodCallExpr(mockStaticUtil, "close")
+        methodRenderer.trailingExpressions.add(mockStaticDefferedClose)
+        return mockStaticUtil
     }
 }

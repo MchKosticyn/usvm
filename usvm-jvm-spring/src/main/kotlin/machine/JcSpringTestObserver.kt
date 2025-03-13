@@ -1,9 +1,7 @@
 package machine
 
 import machine.state.JcSpringState
-import org.jacodb.api.jvm.JcClasspath
 import org.usvm.statistics.UMachineObserver
-import org.usvm.test.api.spring.JcSpringTest
 import org.usvm.test.api.UTest
 import testGeneration.canGenerateTest
 import testGeneration.generateTest
@@ -33,7 +31,4 @@ class JcSpringTestObserver(
     override fun onMachineStopped() {
        testReproducer.kill()
     }
-
-    // TODO: reproduction
-    private fun testIsValidAndMayBeRendered(test: JcSpringTest): Boolean = true
 }

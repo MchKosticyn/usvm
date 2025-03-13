@@ -3,6 +3,7 @@ package org.usvm.test.api.spring
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.int
+import org.usvm.jvm.util.stringType
 import org.usvm.test.api.UTestArraySetStatement
 import org.usvm.test.api.UTestCreateArrayExpression
 import org.usvm.test.api.UTestExpression
@@ -11,7 +12,6 @@ import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
-import org.usvm.test.internal.findJcMethod
 
 class SpringRequestBuilder private constructor(
     private val initStatements: MutableList<UTestInst>,

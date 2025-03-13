@@ -1,6 +1,5 @@
 package org.usvm.jvm.util
 
-import com.sun.jdi.ClassNotLoadedException
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.*
@@ -10,9 +9,8 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
-fun JcClasspath.stringType(): JcType {
-    return findClassOrNull("java.lang.String")!!.toType()
-}
+val JcClasspath.stringType: JcType
+    get() = findClassOrNull("java.lang.String")!!.toType()
 
 fun JcClasspath.findFieldByFullNameOrNull(fieldFullName: String): JcField? {
     val className = fieldFullName.substringBeforeLast('.')
@@ -165,3 +163,6 @@ fun Method.isSameSignatures(jcMethod: JcMethod) =
 
 fun JcMethod.isSameSignature(mn: MethodNode): Boolean =
     withAsmNode { it.isSameSignature(mn) }
+
+val JcMethod.toTypedMethod: JcTypedMethod
+    get() = this.enclosingClass.toType().declaredMethods.first { typed -> typed.method == this }

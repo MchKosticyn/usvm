@@ -51,7 +51,7 @@ class WorkerClassLoader(
     }
 
     //Invoking clinit method for loaded classes for statics reset between executions
-    fun reset(accessedStatics: List<JcField>, taskExecutor: JcExecutor) {
+    fun reset(accessedStatics: List<JcField>, executor: JcExecutor) {
         val jcClassesToReinit = accessedStatics.map { it.enclosingClass }.toSet()
         val classesToReinit = foundClasses.values
             .filter { it.second in jcClassesToReinit }
@@ -72,7 +72,7 @@ class WorkerClassLoader(
             try {
                 cl.declaredMethods
                     .find { it.name == JcRuntimeTraceInstrumenter.GENERATED_CLINIT_NAME }
-                    ?.invokeWithAccessibility(null, listOf(), taskExecutor)
+                    ?.invokeWithAccessibility(null, listOf(), executor)
             } catch (e: Throwable) {
                 //cannot access some classes, for example, enums
             }

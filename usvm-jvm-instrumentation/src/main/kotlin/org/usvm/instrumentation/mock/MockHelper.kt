@@ -128,7 +128,7 @@ class MockHelper(val jcClasspath: JcClasspath, val classLoader: WorkerClassLoade
         val specialCall = JcRawSpecialCallExpr(
             jcExceptionClass.typename,
             "<init>",
-            listOf(jcClasspath.stringType().getTypename()),
+            listOf(jcClasspath.stringType.getTypename()),
             jcClasspath.void.getTypename(),
             localVar,
             listOf(JcRawString("Method should be mocked!!"))

@@ -107,7 +107,7 @@ open class Value2DescriptorConverter(
 
     private fun const(value: String, depth: Int) =
         try {
-            UTestConstantDescriptor.String(value, jcClasspath.stringType()).also { value.length }
+            UTestConstantDescriptor.String(value, jcClasspath.stringType).also { value.length }
         } catch (e: Throwable) {
             `object`(value, depth)
         }
