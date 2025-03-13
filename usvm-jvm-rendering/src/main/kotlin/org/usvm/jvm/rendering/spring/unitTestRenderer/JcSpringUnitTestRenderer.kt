@@ -1,20 +1,20 @@
-package org.usvm.jvm.rendering.spring.webMvcTestRenderer
+package org.usvm.jvm.rendering.spring.unitTestRenderer
 
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
-import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestRenderer
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestRenderer
 import org.usvm.test.api.UTest
 
-open class JcSpringMvcTestRenderer(
+open class JcSpringUnitTestRenderer(
     test: UTest,
-    override val classRenderer: JcSpringMvcTestClassRenderer,
+    classRenderer: JcSpringUnitTestClassRenderer,
     importManager: JcUnsafeImportManager,
     identifiersManager: JcIdentifiersManager,
     name: SimpleName,
     testAnnotation: AnnotationExpr,
-): JcSpringUnitTestRenderer(
+): JcUnsafeTestRenderer(
     test,
     classRenderer,
     importManager,
@@ -23,7 +23,7 @@ open class JcSpringMvcTestRenderer(
     testAnnotation,
 ) {
 
-    override val body: JcSpringMvcTestBlockRenderer = JcSpringMvcTestBlockRenderer(
+    override val body: JcSpringUnitTestBlockRenderer = JcSpringUnitTestBlockRenderer(
         importManager,
         JcIdentifiersManager(identifiersManager),
         shouldDeclareVar

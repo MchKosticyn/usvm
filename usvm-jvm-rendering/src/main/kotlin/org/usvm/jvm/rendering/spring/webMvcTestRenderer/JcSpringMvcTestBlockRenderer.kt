@@ -4,7 +4,7 @@ import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.type.ReferenceType
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestBlockRenderer
+import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestBlockRenderer
 import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
 
@@ -14,7 +14,7 @@ open class JcSpringMvcTestBlockRenderer private constructor(
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcUnsafeTestBlockRenderer(importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
+) : JcSpringUnitTestBlockRenderer(importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
 
     constructor(
         importManager: JcUnsafeImportManager,
@@ -22,7 +22,7 @@ open class JcSpringMvcTestBlockRenderer private constructor(
         shouldDeclareVar: Set<UTestExpression>
     ) : this(importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
 
-    override fun newInnerBlock(): JcUnsafeTestBlockRenderer {
+    override fun newInnerBlock(): JcSpringMvcTestBlockRenderer {
         return JcSpringMvcTestBlockRenderer(
             importManager,
             JcIdentifiersManager(identifiersManager),

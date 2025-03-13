@@ -10,8 +10,6 @@ import org.usvm.jvm.rendering.testTransformers.JcPrimitiveWrapperTransformer
 import org.usvm.jvm.rendering.testTransformers.JcTestTransformer
 import org.usvm.jvm.rendering.testTransformers.JcDeadCodeTransformer
 import org.usvm.jvm.rendering.testTransformers.JcOuterThisTransformer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.test.api.UTest
 import java.io.PrintWriter
 import java.nio.file.Files
@@ -19,6 +17,8 @@ import java.nio.file.Paths
 import kotlin.io.path.createDirectories
 import kotlin.jvm.optionals.getOrNull
 import org.usvm.jvm.rendering.testRenderer.JcUnitTestInfo
+import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
+import org.usvm.jvm.rendering.unsafeRenderer.ReflectionUtilNames
 
 class JcTestsRenderer {
     private val transformers: List<JcTestTransformer> = listOf(
@@ -45,7 +45,7 @@ class JcTestsRenderer {
             val testClassName = normalizePrefix(declType.simpleName + "Tests")
             val testClass = cu.getClassByName(testClassName).getOrNull() ?: cu.addClass(testClassName).setModifiers(
                 NodeList())
-            val testClassRenderer = JcUnsafeTestClassRenderer(testClass, "org.usvm.jvm.rendering.ReflectionUtils")
+            val testClassRenderer = JcSpringUnitTestClassRenderer(testClass, ReflectionUtilNames.SPRING.fullName)
 
             for ((test, testInfo) in testsToRender) {
                 val transformedTest = transformers.fold(test) { currentTest, transformer ->
@@ -58,7 +58,6 @@ class JcTestsRenderer {
 
             val renderedTestClass = testClassRenderer.render()
             val imports = testClassRenderer.importManager.render()
-//            (testClassRenderer.importManager as JcUnsafeImportManager).needReflectionUtils
             val packageDecl = PackageDeclaration(StaticJavaParser.parseName("org.usvm.generated"))
             cu = cu.setPackageDeclaration(packageDecl).setImports(imports)
             cu.replace(testClass, renderedTestClass)

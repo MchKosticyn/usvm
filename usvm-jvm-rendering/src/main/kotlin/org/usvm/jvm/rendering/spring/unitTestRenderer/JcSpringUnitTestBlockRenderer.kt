@@ -1,35 +1,29 @@
-package org.usvm.jvm.rendering.unsafeRenderer
+package org.usvm.jvm.rendering.spring.unitTestRenderer
 
 import com.github.javaparser.ast.NodeList
+import com.github.javaparser.ast.expr.CastExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.MethodCallExpr
-import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.type.ReferenceType
-import com.github.javaparser.ast.type.Type
+import java.util.*
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcRefType
-import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.ext.autoboxIfNeeded
-import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.jcdbSignature
-import org.jacodb.api.jvm.ext.nullType
-import org.jacodb.api.jvm.ext.void
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.testRenderer.JcTestBlockRenderer
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestBlockRenderer
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
-import java.util.IdentityHashMap
 
-open class JcUnsafeTestBlockRenderer protected constructor(
+open class JcSpringUnitTestBlockRenderer protected constructor(
     override val importManager: JcUnsafeImportManager,
     identifiersManager: JcIdentifiersManager,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcTestBlockRenderer(importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
+) : JcUnsafeTestBlockRenderer(importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
 
     constructor(
         importManager: JcUnsafeImportManager,
@@ -37,27 +31,14 @@ open class JcUnsafeTestBlockRenderer protected constructor(
         shouldDeclareVar: Set<UTestExpression>
     ) : this(importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
 
-    override fun newInnerBlock(): JcUnsafeTestBlockRenderer {
-        return JcUnsafeTestBlockRenderer(
+    override fun newInnerBlock(): JcSpringUnitTestBlockRenderer {
+        return JcSpringUnitTestBlockRenderer(
             importManager,
             JcIdentifiersManager(identifiersManager),
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions
         )
-    }
-
-    protected val utilsName: NameExpr by lazy {
-        NameExpr(importManager.reflectionUtilsName)
-    }
-
-    private fun typeArgsForType(type: JcType): NodeList<Type>? {
-        val cp = type.classpath
-        return when (type) {
-            is JcRefType -> NodeList(renderType(type))
-            cp.void, cp.nullType -> null
-            else -> NodeList(renderType(type.autoboxIfNeeded()))
-        }
     }
 
     //region Private Methods
@@ -73,20 +54,13 @@ open class JcUnsafeTestBlockRenderer protected constructor(
         )
     }
 
-    private val JcMethod.resultType: JcType
-        get() = enclosingClass.classpath.findType(returnType.typeName)
-
-    protected fun typeArgsForPrivateCall(method: JcMethod): NodeList<Type>? {
-        return typeArgsForType(method.resultType)
-    }
-
     override fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
         addThrownException("Throwable")
-        val allArgs = listOf(instance, StringLiteralExpr(method.jcdbSignature)) + args
+        val allArgs = listOf(instance, StringLiteralExpr(method.name)) + args
         return MethodCallExpr(
             utilsName,
             typeArgsForPrivateCall(method),
-            "callMethod",
+            "invokeMethod",
             NodeList(allArgs),
         )
     }
@@ -94,11 +68,11 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     override fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
         addThrownException("Throwable")
         val enclosingClass = method.enclosingClass
-        val allArgs = listOf(renderClassExpression(enclosingClass), StringLiteralExpr(method.jcdbSignature)) + args
+        val allArgs = listOf(renderClassExpression(enclosingClass), StringLiteralExpr(method.name)) + args
         return MethodCallExpr(
             utilsName,
             typeArgsForPrivateCall(method),
-            "callStaticMethod",
+            "invokeMethod",
             NodeList(allArgs),
         )
     }
@@ -107,35 +81,28 @@ open class JcUnsafeTestBlockRenderer protected constructor(
 
     //region Private Fields
 
-    protected val JcField.fieldType: JcType
-        get() = enclosingClass.classpath.findType(type.typeName)
-
-    protected fun typeArgsForPrivateFieldGet(field: JcField): NodeList<Type>? {
-        return typeArgsForType(field.fieldType)
-    }
-
     override fun renderGetPrivateStaticField(field: JcField): Expression {
-        return MethodCallExpr(
+        val call = MethodCallExpr(
             utilsName,
-            typeArgsForPrivateFieldGet(field),
-            "getStaticFieldValue",
+            "getField",
             NodeList(renderClassExpression(field.enclosingClass), StringLiteralExpr(field.name)),
         )
+        return CastExpr(renderType(field.fieldType), call)
     }
 
     override fun renderGetPrivateField(instance: Expression, field: JcField): Expression {
-        return MethodCallExpr(
+        val call = MethodCallExpr(
             utilsName,
-            typeArgsForPrivateFieldGet(field),
-            "getFieldValue",
-            NodeList(instance, StringLiteralExpr(field.name)),
+            "getField",
+            NodeList(instance, StringLiteralExpr(field.name))
         )
+        return CastExpr(renderType (field.fieldType), call)
     }
 
     override fun renderSetPrivateStaticField(field: JcField, value: Expression): Expression {
         return MethodCallExpr(
             utilsName,
-            "setStaticFieldValue",
+            "setField",
             NodeList(renderClassExpression(field.enclosingClass), StringLiteralExpr(field.name), value),
         )
     }
@@ -143,24 +110,18 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     override fun renderSetPrivateField(instance: Expression, field: JcField, value: Expression): Expression {
         return MethodCallExpr(
             utilsName,
-            "setFieldValue",
+            "setField",
             NodeList(instance, StringLiteralExpr(field.name), value),
         )
     }
 
     //endregion
-
-    //region Allocation
+    
+    //region Allocate Call
 
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
-        addThrownException("InstantiationException")
-        return MethodCallExpr(
-            utilsName,
-            NodeList(renderClass(expr.clazz)),
-            "allocateInstance",
-            NodeList(renderClassExpression(expr.clazz)),
-        )
+        error("allocateInstance not allowed in spring tests")
     }
-
+    
     //endregion
 }
