@@ -23,14 +23,14 @@ class SpringMatchersBuilder(
 
     private fun wrapStringList(list: List<Any>): UTestCreateArrayExpression {
         val listDsl = UTestCreateArrayExpression(cp.stringType, UTestIntExpression(list.size, cp.int))
-        val listInitializer = List(list.size) {
+        val listInitializer = List(list.size) { index ->
             UTestArraySetStatement(
                 listDsl,
-                UTestIntExpression(it, cp.int),
-                UTestStringExpression(list[it].toString(), cp.stringType)
+                UTestIntExpression(index, cp.int),
+                UTestStringExpression(list[index].toString(), cp.stringType)
             )
         }
-        initStatements.addAll(listOf(listDsl) + listInitializer)
+        initStatements.addAll(listInitializer)
         return listDsl
     }
 
@@ -55,7 +55,7 @@ class SpringMatchersBuilder(
         val matcherDsl = UTestStaticMethodCall(
             method = createMatcherMethod,
             args = matcherArguments.map { wrapArgument(it) }.toList()
-        ).also { initStatements.add(it) }
+        )
 
         return matcherDsl
     }
@@ -74,7 +74,8 @@ class SpringMatchersBuilder(
             instance = matcherSourceDsl,
             method = conditionMethod,
             args = conditionArguments.map { wrapArgument(it) }.toList()
-        ).also { matchers.add(it) }
+        )
+        matchers.add(conditionDsl)
 
         return conditionDsl
     }

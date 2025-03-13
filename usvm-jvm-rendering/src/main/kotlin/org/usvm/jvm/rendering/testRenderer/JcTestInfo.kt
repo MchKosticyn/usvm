@@ -1,11 +1,28 @@
 package org.usvm.jvm.rendering.testRenderer
 
+import java.nio.file.Path
 import org.jacodb.api.jvm.JcMethod
 
-interface JcTestInfo {
-    val method: JcMethod
+abstract class JcTestInfo(val method: JcMethod, val isExceptional: Boolean? = null, val  testFilePath: Path?, val testClassName: String?, val testName: String?) {
+    private val defaultNamePrefix: String get() = "${method.name}$isExceptionalSuffix".normalized()
+
+    val testNamePrefix: String get() = testName ?: defaultNamePrefix
+
+    private val isExceptionalSuffix: String
+        get() = when (isExceptional) {
+            true -> "Exceptional"
+            else -> ""
+        }
+
+    override fun hashCode(): Int {
+        return method.hashCode()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (other == null || other !is JcTestInfo) return false
+        return method == other.method && testFilePath == other.testFilePath && testClassName == other.testClassName
+    }
+
+    private fun String.normalized(): String =
+        this.replace("<", "").replace(">", "").replace("$", "")
 }
-
-data class JcUnitTestInfo(override val method: JcMethod, val throws: Boolean) : JcTestInfo
-
-data class JcSpringTestInfo(override val method: JcMethod) : JcTestInfo

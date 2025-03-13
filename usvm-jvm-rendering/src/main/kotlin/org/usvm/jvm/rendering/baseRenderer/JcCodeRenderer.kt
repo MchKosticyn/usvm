@@ -5,6 +5,7 @@ import com.github.javaparser.ast.Node
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.AssignExpr
+import com.github.javaparser.ast.expr.CastExpr
 import com.github.javaparser.ast.expr.ClassExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.FieldAccessExpr
@@ -15,22 +16,29 @@ import com.github.javaparser.ast.type.ArrayType
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import com.github.javaparser.ast.type.PrimitiveType
 import com.github.javaparser.ast.type.PrimitiveType.Primitive
+import com.github.javaparser.ast.type.ReferenceType
 import com.github.javaparser.ast.type.Type
 import com.github.javaparser.ast.type.VoidType
+import com.github.javaparser.ast.type.WildcardType
 import org.jacodb.api.jvm.JcArrayType
+import org.jacodb.api.jvm.JcBoundedWildcard
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypeVariable
+import org.jacodb.api.jvm.JcUnboundWildcard
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
+import org.usvm.test.internal.toTyped
 
 abstract class JcCodeRenderer<T: Node>(
     open val importManager: JcImportManager,
-    protected val identifiersManager: JcIdentifiersManager
+    internal val identifiersManager: JcIdentifiersManager,
+    protected val cp: JcClasspath
 ) {
 
     private var rendered: T? = null
@@ -49,6 +57,8 @@ abstract class JcCodeRenderer<T: Node>(
         val voidType by lazy { VoidType() }
     }
 
+    val objectType by lazy { renderClass("java.lang.Object") }
+
     //region Types
 
     protected fun qualifiedName(typeName: String): String = typeName.replace("$", ".")
@@ -58,7 +68,34 @@ abstract class JcCodeRenderer<T: Node>(
         is JcArrayType -> ArrayType(renderType(type.elementType, includeGenericArgs))
         is JcClassType -> renderClass(type, includeGenericArgs)
         is JcTypeVariable -> renderClass(type.jcClass, includeGenericArgs)
+        is JcBoundedWildcard -> renderBoundedWildcardType(type)
+        is JcUnboundWildcard -> WildcardType()
         else -> error("unexpected type ${type.typeName}")
+    }
+
+    private fun renderBoundedWildcardType(type: JcBoundedWildcard): Type {
+        var wc = WildcardType()
+
+        val ub = type.upperBounds.singleOrNull()
+        if (ub != null) wc = wc.setExtendedType(renderType(ub, false) as ReferenceType)
+
+        val lb = type.lowerBounds.singleOrNull()
+        if (lb != null) wc = wc.setSuperType(renderType(lb, false) as ReferenceType)
+
+        return wc
+    }
+
+    fun renderClass(typeName: String, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
+        check(!typeName.contains('<') && !typeName.contains('>')) {
+            "hardcoded generics not supported"
+        }
+        val type = cp.findTypeOrNull(typeName) as? JcClassType
+        if (type != null)
+            return renderClass(type, includeGenericArgs)
+        var classOrInterface = StaticJavaParser.parseClassOrInterfaceType(typeName)
+        if (importManager.add(classOrInterface.nameWithScope))
+            classOrInterface = classOrInterface.removeScope()
+        return classOrInterface
     }
 
     fun renderClass(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
@@ -109,7 +146,6 @@ abstract class JcCodeRenderer<T: Node>(
         }
 
         val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(renderName))
-        // TODO: does not remove outer class arguments?
         if (!includeGenericArgs)
             return renderedType.removeTypeArguments()
 
@@ -137,10 +173,7 @@ abstract class JcCodeRenderer<T: Node>(
 
     //region Mockito methods
 
-    val mockitoClass: ClassOrInterfaceType by lazy {
-        importManager.add("org.mockito.Mockito")
-        StaticJavaParser.parseClassOrInterfaceType("Mockito")
-    }
+    val mockitoClass: ClassOrInterfaceType by lazy { renderClass("org.mockito.Mockito") }
 
     fun mockitoMockMethodCall(classToSpy: JcClassType): MethodCallExpr {
         return MethodCallExpr(
@@ -150,11 +183,27 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    fun mockitoWhenMethodCall(methodCall: Expression): MethodCallExpr {
+    fun mockitoMockStaticMethodCall(mockedClass: JcClassOrInterface): MethodCallExpr {
         return MethodCallExpr(
             TypeExpr(mockitoClass),
+            "mockStatic",
+            NodeList(renderClassExpression(mockedClass))
+        )
+    }
+
+    fun mockitoWhenMethodCall(methodCall: Expression, mockStaticReceiver: Expression? = null): MethodCallExpr {
+        return MethodCallExpr(
+            mockStaticReceiver ?: TypeExpr(mockitoClass),
             "when",
             NodeList(methodCall)
+        )
+    }
+
+    fun mockitoThenThrowMethodCall(methodMock: Expression, exception: Expression): MethodCallExpr {
+        return MethodCallExpr(
+            methodMock,
+            "thenThrow",
+            NodeList(exception)
         )
     }
 
@@ -230,9 +279,10 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    fun mockitoAnyMethodCall(): MethodCallExpr {
+    fun mockitoAnyMethodCall(type: JcType): MethodCallExpr {
         return MethodCallExpr(
             TypeExpr(mockitoClass),
+            NodeList(renderType(type)),
             "any",
             NodeList()
         )
@@ -253,16 +303,17 @@ abstract class JcCodeRenderer<T: Node>(
         if (shouldRenderMethodCallAsPrivate(ctor))
             return renderPrivateCtorCall(ctor, type, args)
 
+        val castedArgs = callArgsWithGenericsCasted(ctor, args)
         return when {
             type.outerType == null || type.isStatic -> {
-                ObjectCreationExpr(null, renderClass(type), NodeList(args))
+                ObjectCreationExpr(null, renderClass(type), NodeList(castedArgs))
             }
 
             else -> {
                 val ctorTypeName = qualifiedName(type.jcClass.name).split(".").last()
                 val ctorType = StaticJavaParser.parseClassOrInterfaceType(ctorTypeName)
                     .setTypeArgsIfNeeded(true, type)
-                ObjectCreationExpr(args.first(), ctorType, NodeList(args.drop(1)))
+                ObjectCreationExpr(args.first(), ctorType, NodeList(castedArgs.drop(1)))
             }
         }
     }
@@ -277,10 +328,11 @@ abstract class JcCodeRenderer<T: Node>(
         if (shouldRenderMethodCallAsPrivate(method))
             return renderPrivateMethodCall(method, instance, args)
 
+        val castedArgs = callArgsWithGenericsCasted(method, args)
         return MethodCallExpr(
             instance,
             method.name,
-            NodeList(args)
+            NodeList(castedArgs)
         )
     }
 
@@ -294,11 +346,29 @@ abstract class JcCodeRenderer<T: Node>(
         if (shouldRenderMethodCallAsPrivate(method))
             return renderPrivateStaticMethodCall(method, args)
 
+        val castedArgs = callArgsWithGenericsCasted(method, args)
         return MethodCallExpr(
             renderStaticMethodCallScope(method, false),
             method.name,
-            NodeList(args)
+            NodeList(castedArgs)
         )
+    }
+
+    protected fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>): List<Expression> {
+        val typedParams = method.toTyped().parameters
+
+        check(args.size == typedParams.size)
+
+        return args.zip(typedParams).map { (arg, param) ->
+            exprWithGenericsCasted(param.type, arg)
+        }
+    }
+
+    protected fun exprWithGenericsCasted(type: JcType, expr: Expression): Expression {
+        if (type !is JcClassType || type.typeArguments.isEmpty()) return expr
+        val asObj = CastExpr(objectType, expr)
+        val asTargetType = CastExpr(renderType(type), asObj)
+        return asTargetType
     }
 
     private fun renderStaticMethodCallScope(method: JcMethod, allowStaticImport: Boolean): TypeExpr? {

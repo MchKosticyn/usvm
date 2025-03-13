@@ -10,58 +10,47 @@ import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.type.Type
+import org.jacodb.api.jvm.JcClasspath
 
 open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
 
-    private val name: SimpleName
+    internal val name: SimpleName
     private val modifiers: NodeList<Modifier>
     private val annotations: NodeList<AnnotationExpr>
     private val members: NodeList<BodyDeclaration<*>>
 
-    private constructor(
-        importManager: JcImportManager,
-        identifiersManager: JcIdentifiersManager,
-        name: SimpleName,
-        modifiers: NodeList<Modifier>,
-        annotations: NodeList<AnnotationExpr>,
-        existingMembers: NodeList<BodyDeclaration<*>>
-    ) : super(importManager, identifiersManager) {
-        this.name = name
-        this.modifiers = modifiers
-        this.annotations = annotations
-        this.members = existingMembers
-    }
-
     private val renderingMethods: MutableList<JcMethodRenderer> = mutableListOf()
 
-    protected constructor(
+    constructor(
+        decl: ClassOrInterfaceDeclaration,
         importManager: JcImportManager,
-        decl: ClassOrInterfaceDeclaration
-    ) : this(importManager, JcIdentifiersManager(), decl.name, decl.modifiers, decl.annotations, decl.members)
+        identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath
+    ) : super(importManager, identifiersManager.extendedWith(decl), cp)
+    {
+        this.name = decl.name
+        this.modifiers = decl.modifiers
+        this.annotations = decl.annotations
+        this.members = decl.members
+    }
 
     constructor(
-        decl: ClassOrInterfaceDeclaration
-    ): this(JcImportManager(), decl)
-
-    protected constructor(
+        name: String,
         importManager: JcImportManager,
-        name: String
-    ): super(importManager, JcIdentifiersManager()) {
+        identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath
+    ): super(importManager, identifiersManager, cp) {
         this.name = identifiersManager.generateIdentifier(name)
         this.modifiers = NodeList()
         this.annotations = NodeList()
         this.members = NodeList()
     }
 
-    constructor(
-        name: String
-    ): this(JcImportManager(), name)
-
     protected fun addRenderingMethod(render: JcMethodRenderer) {
         renderingMethods.add(render)
     }
 
-    fun addOrGetField(
+    fun getOrCreateField(
         type: Type,
         name: String,
         modifiers: NodeList<Modifier> = NodeList(),
@@ -91,6 +80,12 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         members.add(decl)
 
         return fieldName
+    }
+
+    fun addAnnotation(annotation: AnnotationExpr) {
+        if (!annotations.contains(annotation)) {
+            annotations.add(annotation)
+        }
     }
 
     override fun renderInternal(): ClassOrInterfaceDeclaration {

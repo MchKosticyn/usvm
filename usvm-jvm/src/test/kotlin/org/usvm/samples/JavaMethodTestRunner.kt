@@ -23,6 +23,11 @@ import org.usvm.util.UTestRunnerController
 import org.usvm.util.getJcMethodByName
 import org.usvm.util.loadClasspathFromEnv
 import java.io.File
+import java.io.FileWriter
+import java.nio.file.Paths
+import kotlin.io.path.createDirectories
+import kotlin.io.path.createFile
+import kotlin.io.path.notExists
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KFunction1
@@ -36,7 +41,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import org.usvm.api.createUTest
 import org.usvm.jvm.rendering.JcTestsRenderer
-import org.usvm.jvm.rendering.testRenderer.JcUnitTestInfo
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestInfo
 
 
 @ExtendWith(UTestRunnerController::class)
@@ -817,12 +822,17 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
 
     override val runner: (KFunction<*>, UMachineOptions) -> List<JcTest> = { method, options ->
         val jcMethod = cp.getJcMethodByName(method)
+        var defaultPath = Paths.get("src/test/java/org/usvm/generated").createDirectories().resolve("Tests.java")
+        if (defaultPath.notExists()) defaultPath = defaultPath.createFile()
 
         JcMachine(cp, options, interpreterObserver = interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
             val renderer = JcTestsRenderer()
-            val tests = states.map { state -> createUTest(jcMethod, state) to JcUnitTestInfo(jcMethod.method, state.isExceptional) }
-            renderer.renderTests(tests)
+            val tests = states.map { state -> createUTest(jcMethod, state) to JcUnsafeTestInfo(jcMethod.method, state.isExceptional, testFilePath = defaultPath) }
+            val renders = renderer.renderTests(cp, tests, true)
+            val printer = FileWriter(defaultPath.toFile())
+            printer.write(renders.values.joinToString("\n"))
+            printer.close()
             states.map { testResolver.resolve(jcMethod, it) }
         }
     }

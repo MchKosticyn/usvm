@@ -7,6 +7,7 @@ interface JcSpringRequest {
     fun getHeaders(): List<JcSpringHttpHeader>
     fun getMethod(): JcSpringRequestMethod
     fun getPath(): String
+    fun getEncoding(): String?
     fun getContentAsString(): String
     fun getParameters(): List<JcSpringHttpParameter>
     fun getUriVariables(): List<Any?>
@@ -35,12 +36,18 @@ class JcSpringRealRequest(private val request: Any) : JcSpringRequest {
 
     override fun getHeaders(): List<JcSpringHttpHeader> {
         val headersNames = getFromMethod("getHeaderNames") as Enumeration<String>
-        return headersNames.toList().map { JcSpringHttpHeader(it, getHeader(it).toList()) }
+        return headersNames.toList()
+            .filter { it != "Cookie" } // Cookies are in getCookies()
+            .map { JcSpringHttpHeader(it, getHeader(it).toList()) }
     }
 
     override fun getMethod(): JcSpringRequestMethod = JcSpringRequestMethod.valueOf(getFromMethod("getMethod"))
 
     override fun getPath(): String = getFromMethod("getPathInfo")
+
+    override fun getEncoding(): String? {
+        TODO("Not yet implemented")
+    }
 
     override fun getContentAsString(): String = getFromMethod("getContentAsString")
 

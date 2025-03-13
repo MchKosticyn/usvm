@@ -1,5 +1,7 @@
 package org.usvm.jvm.rendering.testTransformers
 
+import org.jacodb.api.jvm.JcField
+import org.jacodb.api.jvm.JcMethod
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestArithmeticExpression
@@ -26,6 +28,7 @@ import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestLongExpression
 import org.usvm.test.api.UTestMethodCall
+import org.usvm.test.api.UTestMock
 import org.usvm.test.api.UTestMockObject
 import org.usvm.test.api.UTestNullExpression
 import org.usvm.test.api.UTestSetFieldStatement
@@ -153,8 +156,36 @@ abstract class JcTestTransformer {
     open fun transform(expr: UTestNullExpression): UTestExpression? = expr
     open fun transform(expr: UTestShortExpression): UTestExpression? = expr
     open fun transform(expr: UTestStringExpression): UTestExpression? = expr
-    open fun transform(expr: UTestGlobalMock): UTestExpression? = expr
-    open fun transform(expr: UTestMockObject): UTestExpression? = expr
+
+    //region Mock transformers
+
+    private fun transformMockContents(
+        expr: UTestMock
+    ): Pair<Map<JcField, UTestExpression>, Map<JcMethod, List<UTestExpression>>> {
+        val transformedFields = expr.fields.mapNotNull { (field, fieldValue) ->
+            val value = transformExpr(fieldValue) ?: return@mapNotNull null
+            field to value
+        }.toMap()
+
+        val transformedMethods = expr.methods.mapNotNull { (method, values) ->
+            val transformedValues = values.mapNotNull { transformExpr(it) }
+            if (transformedValues.isEmpty())
+                return@mapNotNull null
+            method to transformedValues
+        }.toMap()
+
+        return transformedFields to transformedMethods
+    }
+
+    open fun transform(expr: UTestGlobalMock): UTestExpression? {
+        val (transformedFields, transformedMethods) = transformMockContents(expr)
+        return UTestGlobalMock(expr.type, transformedFields, transformedMethods)
+    }
+
+    open fun transform(expr: UTestMockObject): UTestExpression? {
+        val (transformedFields, transformedMethods) = transformMockContents(expr)
+        return UTestMockObject(expr.type, transformedFields, transformedMethods)
+    }
 
     //endregion
 
