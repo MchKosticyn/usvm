@@ -14,10 +14,10 @@ open class JcImportManager(cu: CompilationUnit? = null) {
 
     init {
         if (cu != null) {
-            names = cu.imports.filter { declaration -> !declaration.isAsterisk && !declaration.isStatic }.map { decl -> decl.nameAsString }.toMutableSet()
-            staticNames = cu.imports.filter { declaration -> !declaration.isAsterisk && declaration.isStatic }.map { decl -> decl.nameAsString }.toMutableSet()
-            packages = cu.imports.filter { declaration -> declaration.isAsterisk && !declaration.isStatic }.map { decl -> decl.nameAsString }.toMutableSet()
-            staticPackages = cu.imports.filter { declaration -> declaration.isAsterisk && declaration.isStatic }.map { decl -> decl.nameAsString }.toMutableSet()
+            names = cu.imports.filter { !it.isAsterisk && !it.isStatic }.map { it.nameAsString }.toMutableSet()
+            staticNames = cu.imports.filter { !it.isAsterisk && it.isStatic }.map { it.nameAsString }.toMutableSet()
+            packages = cu.imports.filter { it.isAsterisk && !it.isStatic }.map { it.nameAsString }.toMutableSet()
+            staticPackages = cu.imports.filter { it.isAsterisk && it.isStatic }.map { it.nameAsString }.toMutableSet()
 
             simpleToPackage = (names + staticNames).associateBy { it.split(".").last() }.toMutableMap()
         } else {

@@ -10,6 +10,8 @@ import org.usvm.jvm.rendering.testTransformers.JcCallCtorTransformer
 import org.usvm.jvm.rendering.testTransformers.JcPrimitiveWrapperTransformer
 import org.usvm.jvm.rendering.testTransformers.JcTestTransformer
 import org.usvm.jvm.rendering.testTransformers.JcDeadCodeTransformer
+import org.usvm.jvm.rendering.testTransformers.JcOuterThisTransformer
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.test.api.UTest
 import java.io.PrintWriter
@@ -19,6 +21,7 @@ import kotlin.io.path.createDirectories
 
 class JcTestsRenderer {
     private val transformers: List<JcTestTransformer> = listOf(
+        JcOuterThisTransformer(),
         JcCallCtorTransformer(),
         JcPrimitiveWrapperTransformer(),
         JcDeadCodeTransformer()
@@ -45,6 +48,7 @@ class JcTestsRenderer {
 
             val renderedTestClass = testClassRenderer.render()
             val imports = testClassRenderer.importManager.render()
+//            (testClassRenderer.importManager as JcUnsafeImportManager).needReflectionUtils
             val packageDecl = PackageDeclaration(StaticJavaParser.parseName("org.usvm.generated"))
             val cu = CompilationUnit(packageDecl, imports, NodeList(renderedTestClass), null)
             val path = testFilePath.resolve("Tests.java")

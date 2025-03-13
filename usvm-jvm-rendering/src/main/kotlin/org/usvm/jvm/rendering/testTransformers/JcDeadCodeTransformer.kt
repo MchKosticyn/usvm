@@ -3,6 +3,7 @@ package org.usvm.jvm.rendering.testTransformers
 import org.usvm.jvm.rendering.testRenderer.JcTestVisitor
 import java.util.*
 import org.usvm.test.api.UTest
+import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestArraySetStatement
 import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestExpression
@@ -32,7 +33,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
 
         override fun visit(call: UTestCall) {
             super.visit(call)
-            if (reachableFound) {
+            if (reachableFound && call !is UTestAllocateMemoryCall) {
                 this.call = call
             }
         }
