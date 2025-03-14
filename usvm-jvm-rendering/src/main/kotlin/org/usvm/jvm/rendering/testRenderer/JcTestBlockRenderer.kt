@@ -296,7 +296,10 @@ open class JcTestBlockRenderer protected constructor(
 
     open fun renderShortExpression(expr: UTestShortExpression): Expression = IntegerLiteralExpr(expr.value.toString())
 
-    open fun renderStringExpression(expr: UTestStringExpression): Expression = StringLiteralExpr(expr.value)
+    open fun renderStringExpression(expr: UTestStringExpression): Expression {
+        val literal = StringLiteralExpr()
+        return literal.setString(expr.value)
+    }
 
     open fun renderCreateArrayExpression(expr: UTestCreateArrayExpression): Expression =
         ArrayCreationExpr(

@@ -19,18 +19,20 @@ class SpringTestExecBuilder private constructor(
     private var isPerformed: Boolean = false,
 ) {
     companion object {
-        fun intiTestCtx(cp: JcClasspath, generatedTestClass: JcClassType?): SpringTestExecBuilder {
+        fun initTestCtx(cp: JcClasspath, generatedTestClass: JcClassType?): SpringTestExecBuilder {
             if (generatedTestClass != null) return withPreparedContextFor(cp, generatedTestClass)
             val mockMvc = UTestAllocateMemoryCall(cp.findClass("org.springframework.test.web.servlet.MockMvc"))
             return SpringTestExecBuilder(cp, mutableListOf(), mockMvc)
         }
+
         /*
         * DSL STEPS:
         *   ctxManager: TestContextManager = new TestContextManager(<GENERATED-CLASS>.class)
         *   generatedClass: <GENERATED-CLASS> = new <GENERATED-CLASS>()
         *   ctxManager.prepareTestInstance(generatedClass)
         *   mockMvc: MockMvc = generatedClass.<FIELD-WITH-MOCKMVC>
-        * */
+        */
+
         private fun withPreparedContextFor(cp: JcClasspath, generatedTestClass: JcClassType): SpringTestExecBuilder {
             val testCtxManagerName = "org.springframework.test.context.TestContextManager"
             val testCtxManagerCtorCall = UTestConstructorCall(
