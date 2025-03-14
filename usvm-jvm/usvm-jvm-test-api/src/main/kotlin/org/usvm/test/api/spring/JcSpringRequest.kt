@@ -16,7 +16,11 @@ class JcSpringRealRequest(private val request: Any) : JcSpringRequest {
     private val requestClass = request.javaClass
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> getFromMethod(methodName: String, parameterTypes: Array<Class<*>> = arrayOf(), arguments: Array<Any> = arrayOf()): T {
+    private fun <T> getFromMethod(
+        methodName: String,
+        parameterTypes: Array<Class<*>> = arrayOf(),
+        arguments: Array<Any> = arrayOf()
+    ): T {
         return requestClass.getMethod(methodName, *parameterTypes).invoke(request, *arguments) as T
     }
 

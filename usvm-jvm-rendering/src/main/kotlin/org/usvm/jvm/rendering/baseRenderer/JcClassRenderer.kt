@@ -61,6 +61,23 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         renderingMethods.add(render)
     }
 
+    fun addOrGetField(
+        type: Type,
+        name: String,
+        modifiers: NodeList<Modifier> = NodeList(),
+        annotations: NodeList<AnnotationExpr> = NodeList(),
+        initializer: Expression? = null
+    ): SimpleName {
+        val fieldExists = members.any {
+            it is FieldDeclaration && it.variables.any { variable -> variable.name.asString() == name }
+        }
+
+        if (fieldExists)
+            return SimpleName(name)
+
+        return addField(type, name, modifiers, annotations, initializer)
+    }
+
     fun addField(
         type: Type,
         name: String,
