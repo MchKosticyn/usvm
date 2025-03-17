@@ -72,7 +72,17 @@ val Class<*>.allFields
         return result
     }
 
-// TODO: ask #Valya, #Misha
+val Class<*>.allMethods
+    get(): List<Method> {
+        val result = mutableListOf<Method>()
+        var current: Class<*>? = this
+        do {
+            result += current!!.declaredMethods
+            current = current!!.superclass
+        } while (current != null)
+        return result
+    }
+
 fun Class<*>.getFieldByName(name: String): Field? {
     var result: Field?
     var current: Class<*> = this

@@ -16,6 +16,7 @@ import org.usvm.USort
 import org.usvm.api.readArrayIndex
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
@@ -35,11 +36,11 @@ open class JcConcreteMethodApproximationResolver(
     }
 
     private fun approximateInternal(callJcInst: JcMethodCall): Boolean {
-        if (!callJcInst.method.isStatic) {
-            return approximateRegularMethod(callJcInst)
+        if (callJcInst.method.isStatic) {
+            return approximateStaticMethod(callJcInst)
         }
 
-        return false
+        return approximateRegularMethod(callJcInst)
     }
 
     private fun approximateRegularMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
@@ -52,6 +53,18 @@ open class JcConcreteMethodApproximationResolver(
 
         if (className == "java.lang.reflect.Field") {
             if (approximateFieldMethod(methodCall)) return true
+        }
+
+        return false
+    }
+
+    private fun approximateStaticMethod(methodCall: JcMethodCall): Boolean {
+        val enclosingClass = methodCall.method.enclosingClass
+        val className = enclosingClass.name
+
+        if (className == InitHelper::class.java.name) {
+            scope.doWithState { skipMethodInvocationWithValue(methodCall, ctx.voidValue) }
+            return true
         }
 
         return false

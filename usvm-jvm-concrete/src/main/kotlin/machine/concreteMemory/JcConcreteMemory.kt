@@ -58,6 +58,7 @@ import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefMapRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefSetRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteStaticFieldsRegion
+import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
@@ -316,7 +317,7 @@ open class JcConcreteMemory(
                         enclosingClass.isEnum && method.isConstructor ||
                         // Case for method, which exists only in approximations
                         method is JcEnrichedVirtualMethod && !method.isClassInitializer && method.toJavaMethod == null ||
-                        enclosingClass.isInternalType && enclosingClass.name != "org.usvm.api.internal.InitHelper" ||
+                        enclosingClass.isInternalType && enclosingClass.name != InitHelper::class.java.name ||
                         shouldNotInvoke(method)
                 )
     }

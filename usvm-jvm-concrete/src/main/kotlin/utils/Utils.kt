@@ -103,6 +103,7 @@ private val forbiddenModificationClasses = setOf<Class<*>>(
     java.lang.Short::class.java,
     java.lang.Character::class.java,
     java.lang.Void::class.java,
+//    java.util.zip.ZipFile::class.java,
 )
 
 private val Class<*>.isForbiddenToModify: Boolean
@@ -365,6 +366,7 @@ private val packagesWithImmutableTypes = setOf(
     "sun.reflect",
     "sun.instrument",
     "org.mockito.internal",
+    "java.util.zip",
 )
 
 internal val Class<*>.isClassLoader: Boolean
