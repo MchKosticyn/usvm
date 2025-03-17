@@ -227,6 +227,7 @@ internal class JcConcreteMemoryBindings private constructor(
 
     private fun shouldAllocate(type: JcType): Boolean {
         return !type.typeName.startsWith("org.usvm.api.") &&
+                !type.typeName.startsWith("org.usvm.concrete.api.") &&
                 !type.typeName.startsWith("generated.") &&
                 !type.typeName.startsWith("stub.") &&
                 !type.typeName.startsWith("runtime.")

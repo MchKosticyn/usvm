@@ -237,11 +237,6 @@ open class JcMethodApproximationResolver(
             if (approximateArrayReflectionMethod(methodCall)) return true
         }
 
-        if (className == "org.usvm.api.internal.InitHelper") {
-            scope.doWithState { skipMethodInvocationWithValue(methodCall, ctx.voidValue) }
-            return true
-        }
-
         return approximateEmptyNativeMethod(methodCall)
     }
 
