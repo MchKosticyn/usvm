@@ -103,7 +103,6 @@ private val forbiddenModificationClasses = setOf<Class<*>>(
     java.lang.Short::class.java,
     java.lang.Character::class.java,
     java.lang.Void::class.java,
-//    java.util.zip.ZipFile::class.java,
 )
 
 private val Class<*>.isForbiddenToModify: Boolean
@@ -354,6 +353,7 @@ private val immutableTypes = setOf<Class<*>>(
     java.net.NetPermission::class.java,
 )
 
+// TODO: make whitelist of mutable types instead of blacklist of immutable (check all packages of corretto-17) #Valya
 private val packagesWithImmutableTypes = setOf(
     "java.lang.reflect",
     "java.lang.invoke",
@@ -495,7 +495,7 @@ internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
             // TODO: add dynamic load of classes into jacodb
             val db = ctx.cp.db
             val vfs = db.javaClass.allInstanceFields.find { it.name == "classesVfs" }!!.getFieldValue(db)!!
-            val lambdasDir = System.getProperty("lambdasDir")
+            val lambdasDir = System.getenv("lambdasDir")
             val loc = ctx.cp.registeredLocations.find {
                 it.jcLocation?.jarOrFolder?.absolutePath == lambdasDir
             }!!

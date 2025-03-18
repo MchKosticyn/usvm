@@ -58,6 +58,7 @@ import kotlin.system.measureNanoTime
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
 
 private fun loadWebPetClinicBench(): BenchCp {
     val petClinicDir = Path("/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF")
@@ -123,9 +124,8 @@ private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, 
 }
 
 private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
-    // TODO: remove this!!!!
     val springApproximationDeps =
-        System.getProperty("usvm.jvm.springApproximationsDeps.paths")
+        System.getenv("usvm.jvm.springTestDeps.paths")
             .split(";")
             .map { File(it) }
 
@@ -172,8 +172,8 @@ private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.
 private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val cp = benchmark.cp
 
-    val dir = Path(System.getProperty("generatedDir"))
-    dir.createDirectories()
+    val dir = File(System.getenv("generatedDir"))
+    check(dir.exists()) { "Generated directory ${dir.absolutePath} does not exist" }
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
     val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
@@ -214,7 +214,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             classNode.fields.add(field)
         }
 
-        classNode.write(cp, dir.resolve("$testClassFullName.class"), checkClass = true)
+        classNode.write(cp, dir.resolve("$testClassFullName.class").toPath(), checkClass = true)
     }
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
@@ -234,17 +234,16 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             check(asmMethods.replace(asmMethod, newNode))
         }
         startSpringAsmNode.name = "NewStartSpring"
-        startSpringAsmNode.write(cp, dir.resolve("NewStartSpring.class"), checkClass = true)
+        startSpringAsmNode.write(cp, dir.resolve("NewStartSpring.class").toPath(), checkClass = true)
     }
-    val dirFile = dir.toFile()
-    val lambdasDirFile = Path(System.getProperty("lambdasDir")).toFile()
+    val lambdasDirFile = File(System.getenv("lambdasDir"))
     runBlocking {
-        benchmark.db.load(dirFile)
+        benchmark.db.load(dir)
         benchmark.db.load(lambdasDirFile)
         benchmark.db.awaitBackgroundJobs()
     }
-    val newCpFiles = benchmark.cpFiles + dirFile + lambdasDirFile
-    val newClasses = benchmark.classes + dirFile + lambdasDirFile
+    val newCpFiles = benchmark.cpFiles + dir + lambdasDirFile
+    val newClasses = benchmark.classes + dir + lambdasDirFile
     return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies)
 }
 
@@ -261,7 +260,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 1.minutes,
+        timeout = 40.seconds,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
