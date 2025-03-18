@@ -11,18 +11,22 @@ import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestGetFieldExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
+import org.usvm.test.api.UTestStatement
+import org.usvm.test.api.UTestStaticMethodCall
 
 class SpringTestExecBuilder private constructor(
     private val cp: JcClasspath,
-    private val initStatements: MutableList<UTestInst>,
+    private val initStatements: MutableList<UTestStatement>,
     private var mockMvcDSL: UTestExpression,
     private var isPerformed: Boolean = false,
+    private var generatedTestClass: JcClassType?,
+    private var testClassInst: UTestExpression?
 ) {
     companion object {
         fun initTestCtx(cp: JcClasspath, generatedTestClass: JcClassType?): SpringTestExecBuilder {
             if (generatedTestClass != null) return withPreparedContextFor(cp, generatedTestClass)
             val mockMvc = UTestAllocateMemoryCall(cp.findClass("org.springframework.test.web.servlet.MockMvc"))
-            return SpringTestExecBuilder(cp, mutableListOf(), mockMvc)
+            return SpringTestExecBuilder(cp, mutableListOf(), mockMvc, isPerformed = false, generatedTestClass, null)
         }
 
         /*
@@ -41,7 +45,8 @@ class SpringTestExecBuilder private constructor(
             )
 
             val generatedClassCtorCall = UTestConstructorCall(
-                method = cp.findJcMethod(generatedTestClass.typeName, "<init>").method, args = listOf()
+                method = cp.findJcMethod(generatedTestClass.typeName, "<init>").method,
+                args = listOf()
             )
 
             val prepareTestInstanceCall = UTestMethodCall(
@@ -55,42 +60,39 @@ class SpringTestExecBuilder private constructor(
                 field = generatedTestClass.fields.first { it.name.contains("mockMvc") }.field,
             )
 
-            val initStatements = mutableListOf<UTestInst>(
-                testCtxManagerCtorCall,
-                generatedClassCtorCall,
-                prepareTestInstanceCall
-            )
-
             return SpringTestExecBuilder(
                 cp = cp,
-                initStatements = initStatements,
+                initStatements = mutableListOf(),
                 mockMvcDSL = mockMvc,
+                generatedTestClass = generatedTestClass,
+                testClassInst = generatedClassCtorCall
             )
         }
     }
 
+    val testClassExpr get() = testClassInst
+
     fun addPerformCall(reqDSL: UTestExpression): SpringTestExecBuilder {
-        UTestMethodCall(
+        check(!isPerformed) { "second perform call" }
+        mockMvcDSL = UTestMethodCall(
             instance = mockMvcDSL,
             method = cp.findJcMethod("org.springframework.test.web.servlet.MockMvc", "perform").method,
             args = listOf(reqDSL)
-        ).also {
-            mockMvcDSL = it
-            isPerformed = true
-        }
+        )
+        isPerformed = true
+
         return this
     }
 
     fun addAndExpectCall(args: List<UTestExpression>): SpringTestExecBuilder {
         check(isPerformed)
 
-        UTestMethodCall(
+        mockMvcDSL = UTestMethodCall(
             instance = mockMvcDSL,
             method = cp.findJcMethod("org.springframework.test.web.servlet.ResultActions", "andExpect").method,
             args = args
-        ).also {
-            mockMvcDSL = it
-        }
+        )
+
         return this
     }
 
@@ -98,6 +100,19 @@ class SpringTestExecBuilder private constructor(
 
     fun getExecDSL(): UTestCall {
         check(isPerformed)
+
+        return mockMvcDSL as UTestCall
+    }
+
+    fun getIgnoreDsl(): UTestCall {
+        check(isPerformed)
+        check(generatedTestClass != null)
+
+        mockMvcDSL = UTestStaticMethodCall(
+            method = cp.findJcMethod(generatedTestClass!!.typeName, "ignoreResult").method,
+            args = listOf(mockMvcDSL)
+        )
+
         return mockMvcDSL as UTestCall
     }
 }

@@ -34,6 +34,7 @@ open class JcTestRenderer(
     protected val shouldDeclareVar: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
 
     override val body: JcTestBlockRenderer = JcTestBlockRenderer(
+        this,
         importManager,
         JcIdentifiersManager(identifiersManager),
         shouldDeclareVar

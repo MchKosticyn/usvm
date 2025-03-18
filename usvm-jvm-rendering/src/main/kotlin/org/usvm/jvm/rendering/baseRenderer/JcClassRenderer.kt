@@ -61,7 +61,7 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         renderingMethods.add(render)
     }
 
-    fun addOrGetField(
+    fun getOrCreateField(
         type: Type,
         name: String,
         modifiers: NodeList<Modifier> = NodeList(),

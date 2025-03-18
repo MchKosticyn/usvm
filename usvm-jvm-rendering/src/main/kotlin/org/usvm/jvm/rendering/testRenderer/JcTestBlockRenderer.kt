@@ -60,21 +60,24 @@ import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
 
 open class JcTestBlockRenderer protected constructor(
+    override val methodRenderer: JcTestRenderer,
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     protected val shouldDeclareVar: Set<UTestExpression>,
     protected val exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcBlockRenderer(importManager, identifiersManager, thrownExceptions) {
+) : JcBlockRenderer(methodRenderer, importManager, identifiersManager, thrownExceptions) {
 
     constructor(
+        methodRenderer: JcTestRenderer,
         importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
         shouldDeclareVar: Set<UTestExpression>
-    ) : this(importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
+    ) : this(methodRenderer, importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcTestBlockRenderer {
         return JcTestBlockRenderer(
+            methodRenderer,
             importManager,
             JcIdentifiersManager(identifiersManager),
             shouldDeclareVar,
@@ -353,6 +356,7 @@ open class JcTestBlockRenderer protected constructor(
                     else -> mockitoAnyMethodCall()
                 }
             }
+            // TODO: handle static method calls
             val methodCall = renderMethodCall(method, varExpr, args)
             var mockInitialization = mockitoWhenMethodCall(methodCall)
             for (mockValue in mockValues) {

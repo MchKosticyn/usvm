@@ -1,6 +1,5 @@
 package org.usvm.jvm.rendering.baseRenderer
 
-import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.Expression
@@ -12,22 +11,27 @@ import com.github.javaparser.ast.stmt.IfStmt
 import com.github.javaparser.ast.stmt.Statement
 import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 
 open class JcBlockRenderer protected constructor(
+    protected open val methodRenderer: JcMethodRenderer,
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     protected val thrownExceptions: HashSet<ReferenceType>
 ) : JcCodeRenderer<BlockStmt>(importManager, identifiersManager) {
 
     constructor(
+        methodRenderer: JcMethodRenderer,
         importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager
-    ): this(importManager, identifiersManager, HashSet())
+    ) : this(methodRenderer, importManager, identifiersManager, HashSet())
 
     private val statements = NodeList<Statement>()
+
+    protected open val classRenderer get() = methodRenderer.classRenderer
 
     override fun renderInternal(): BlockStmt {
         return BlockStmt(statements)
@@ -38,7 +42,7 @@ open class JcBlockRenderer protected constructor(
     }
 
     open fun newInnerBlock(): JcBlockRenderer {
-        return JcBlockRenderer(importManager, JcIdentifiersManager(identifiersManager), thrownExceptions)
+        return JcBlockRenderer(methodRenderer, importManager, JcIdentifiersManager(identifiersManager), thrownExceptions)
     }
 
     fun addExpression(expr: Expression) {
@@ -82,15 +86,17 @@ open class JcBlockRenderer protected constructor(
     }
 
     protected fun addThrownExceptions(method: JcMethod) {
+        val cp = method.enclosingClass.classpath
         thrownExceptions.addAll(
             method.exceptions.map {
-                StaticJavaParser.parseClassOrInterfaceType(qualifiedName(it.typeName))
+                renderClass(it.typeName, cp)
             }
         )
     }
 
-    protected fun addThrownException(name: String) {
-        thrownExceptions.add(StaticJavaParser.parseClassOrInterfaceType(name))
+    protected fun addThrownException(typeName: String, cp: JcClasspath) {
+        var thrown = renderClass(typeName, cp)
+        thrownExceptions.add(thrown)
     }
 
     override fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {

@@ -19,6 +19,8 @@ open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
         reflectionUtilsFullName: String
     ) : super(JcUnsafeImportManager(reflectionUtilsFullName), name)
 
+    constructor(decl: ClassOrInterfaceDeclaration): this(decl, ReflectionUtilNames.USVM.fullName)
+
     constructor(
         decl: ClassOrInterfaceDeclaration,
         reflectionUtilsFullName: String

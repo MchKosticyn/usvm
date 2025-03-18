@@ -18,13 +18,12 @@ import kotlin.io.path.createDirectories
 import kotlin.jvm.optionals.getOrNull
 import org.usvm.jvm.rendering.testRenderer.JcUnitTestInfo
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
-import org.usvm.jvm.rendering.unsafeRenderer.ReflectionUtilNames
 
 class JcTestsRenderer {
     private val transformers: List<JcTestTransformer> = listOf(
         JcOuterThisTransformer(),
-        JcCallCtorTransformer(),
         JcPrimitiveWrapperTransformer(),
+        JcCallCtorTransformer(),
         JcDeadCodeTransformer()
     )
 
@@ -45,7 +44,7 @@ class JcTestsRenderer {
             val testClassName = normalizePrefix(declType.simpleName + "Tests")
             val testClass = cu.getClassByName(testClassName).getOrNull() ?: cu.addClass(testClassName).setModifiers(
                 NodeList())
-            val testClassRenderer = JcSpringUnitTestClassRenderer(testClass, ReflectionUtilNames.SPRING.fullName)
+            val testClassRenderer = JcSpringUnitTestClassRenderer(testClass)
 
             for ((test, testInfo) in testsToRender) {
                 val transformedTest = transformers.fold(test) { currentTest, transformer ->

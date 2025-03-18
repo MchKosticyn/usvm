@@ -23,6 +23,7 @@ open class JcUnsafeTestRenderer(
 ) {
 
     override val body: JcUnsafeTestBlockRenderer = JcUnsafeTestBlockRenderer(
+        this,
         importManager,
         JcIdentifiersManager(identifiersManager),
         shouldDeclareVar

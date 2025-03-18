@@ -20,6 +20,7 @@ import com.github.javaparser.ast.type.VoidType
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
@@ -30,7 +31,7 @@ import org.jacodb.api.jvm.ext.toType
 
 abstract class JcCodeRenderer<T: Node>(
     open val importManager: JcImportManager,
-    protected val identifiersManager: JcIdentifiersManager
+    internal val identifiersManager: JcIdentifiersManager
 ) {
 
     private var rendered: T? = null
@@ -59,6 +60,16 @@ abstract class JcCodeRenderer<T: Node>(
         is JcClassType -> renderClass(type, includeGenericArgs)
         is JcTypeVariable -> renderClass(type.jcClass, includeGenericArgs)
         else -> error("unexpected type ${type.typeName}")
+    }
+
+    fun renderClass(typeName: String, cp: JcClasspath? = null, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
+        val type = (cp?.findTypeOrNull(typeName) as? JcClassType)
+        if (type != null)
+            return renderClass(type, includeGenericArgs)
+        var classOrInterface = StaticJavaParser.parseClassOrInterfaceType(typeName)
+        if (importManager.add(classOrInterface.nameWithScope))
+            classOrInterface = classOrInterface.removeScope()
+        return classOrInterface
     }
 
     fun renderClass(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
@@ -109,7 +120,6 @@ abstract class JcCodeRenderer<T: Node>(
         }
 
         val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(renderName))
-        // TODO: does not remove outer class arguments?
         if (!includeGenericArgs)
             return renderedType.removeTypeArguments()
 

@@ -24,21 +24,24 @@ import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
 
 open class JcUnsafeTestBlockRenderer protected constructor(
+    override val methodRenderer: JcUnsafeTestRenderer,
     override val importManager: JcUnsafeImportManager,
     identifiersManager: JcIdentifiersManager,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcTestBlockRenderer(importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
+) : JcTestBlockRenderer(methodRenderer, importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
 
     constructor(
+        methodRenderer: JcUnsafeTestRenderer,
         importManager: JcUnsafeImportManager,
         identifiersManager: JcIdentifiersManager,
         shouldDeclareVar: Set<UTestExpression>
-    ) : this(importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
+    ) : this(methodRenderer, importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcUnsafeTestBlockRenderer {
         return JcUnsafeTestBlockRenderer(
+            methodRenderer,
             importManager,
             JcIdentifiersManager(identifiersManager),
             shouldDeclareVar,
@@ -63,7 +66,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     //region Private Methods
 
     override fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
-        addThrownException("Throwable")
+        addThrownException("java.lang.Throwable", ctor.enclosingClass.classpath)
         val allArgs = listOf(renderClassExpression(type), StringLiteralExpr(ctor.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
@@ -81,7 +84,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     }
 
     override fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
-        addThrownException("Throwable")
+        addThrownException("java.lang.Throwable", method.enclosingClass.classpath)
         val allArgs = listOf(instance, StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
@@ -92,7 +95,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     }
 
     override fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
-        addThrownException("Throwable")
+        addThrownException("java.lang.Throwable", method.enclosingClass.classpath)
         val enclosingClass = method.enclosingClass
         val allArgs = listOf(renderClassExpression(enclosingClass), StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
@@ -153,7 +156,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     //region Allocation
 
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
-        addThrownException("InstantiationException")
+        addThrownException("java.lang.InstantiationException", expr.clazz.classpath)
         return MethodCallExpr(
             utilsName,
             NodeList(renderClass(expr.clazz)),

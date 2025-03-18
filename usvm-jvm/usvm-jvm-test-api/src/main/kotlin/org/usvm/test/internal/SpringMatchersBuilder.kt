@@ -18,6 +18,7 @@ class SpringMatchersBuilder(
     val cp: JcClasspath
 ) {
     private val SPRING_RESULT_PACK = "org.springframework.test.web.servlet.result"
+
     private val initStatements: MutableList<UTestInst> = mutableListOf()
     private val matchers: MutableList<UTestExpression> = mutableListOf()
 
@@ -30,7 +31,7 @@ class SpringMatchersBuilder(
                 UTestStringExpression(list[it].toString(), cp.stringType)
             )
         }
-        initStatements.addAll(listOf(listDsl) + listInitializer)
+        initStatements.addAll(listInitializer)
         return listDsl
     }
 
@@ -55,7 +56,8 @@ class SpringMatchersBuilder(
         val matcherDsl = UTestStaticMethodCall(
             method = createMatcherMethod,
             args = matcherArguments.map { wrapArgument(it) }.toList()
-        ).also { initStatements.add(it) }
+        )
+        initStatements.add(matcherDsl)
 
         return matcherDsl
     }

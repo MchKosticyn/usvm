@@ -54,7 +54,7 @@ class SpringRequestBuilder private constructor(
                     UTestStringExpression(pathArgs[it].toString(), cp.stringType)
                 )
             }
-            initDSL.addAll(listOf(pathArgsArray) + pathArgsInitializer)
+            initDSL.addAll(pathArgsInitializer)
             val argsDSL = mutableListOf<UTestExpression>()
             argsDSL.add(UTestStringExpression(path, cp.stringType))
             argsDSL.add(pathArgsArray)
@@ -86,10 +86,10 @@ class SpringRequestBuilder private constructor(
         val argsDSL = mutableListOf<UTestExpression>()
         argsDSL.add(UTestStringExpression(str, cp.stringType))
         argsDSL.addAll(arrOfStr.map { UTestStringExpression(it.toString(), cp.stringType) })
-        UTestMethodCall(
+        reqDSL = UTestMethodCall(
             instance = reqDSL,
             method = mName,
             args = argsDSL,
-        ).also { reqDSL = it }
+        )
     }
 }

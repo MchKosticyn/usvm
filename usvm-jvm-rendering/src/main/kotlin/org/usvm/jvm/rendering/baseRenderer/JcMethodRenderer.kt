@@ -11,7 +11,7 @@ import com.github.javaparser.ast.type.Type
 open class JcMethodRenderer(
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
-    protected open val classRenderer: JcClassRenderer,
+    internal open val classRenderer: JcClassRenderer,
     private val name: SimpleName,
     private val modifiers: NodeList<Modifier>,
     private val annotations: NodeList<AnnotationExpr>,
@@ -19,7 +19,7 @@ open class JcMethodRenderer(
     private val returnType: Type
 ): JcCodeRenderer<MethodDeclaration>(importManager, identifiersManager) {
 
-    protected open val body: JcBlockRenderer = JcBlockRenderer(importManager, JcIdentifiersManager(identifiersManager))
+    protected open val body: JcBlockRenderer = JcBlockRenderer(this, importManager, JcIdentifiersManager(identifiersManager))
 
     override fun renderInternal(): MethodDeclaration {
         return MethodDeclaration(

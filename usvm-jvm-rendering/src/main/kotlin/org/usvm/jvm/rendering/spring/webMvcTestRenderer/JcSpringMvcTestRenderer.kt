@@ -24,6 +24,7 @@ open class JcSpringMvcTestRenderer(
 ) {
 
     override val body: JcSpringMvcTestBlockRenderer = JcSpringMvcTestBlockRenderer(
+        this,
         importManager,
         JcIdentifiersManager(identifiersManager),
         shouldDeclareVar

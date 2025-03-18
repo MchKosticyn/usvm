@@ -24,6 +24,7 @@ open class JcSpringUnitTestRenderer(
 ) {
 
     override val body: JcSpringUnitTestBlockRenderer = JcSpringUnitTestBlockRenderer(
+        this,
         importManager,
         JcIdentifiersManager(identifiersManager),
         shouldDeclareVar
