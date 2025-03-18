@@ -1,8 +1,3 @@
-import kotlin.io.path.Path
-import kotlin.io.path.absolutePathString
-import kotlin.io.path.createDirectories
-import kotlin.io.path.exists
-
 plugins {
     id("usvm.kotlin-conventions")
 }
@@ -25,14 +20,8 @@ dependencies {
     implementation(Libs.jacodb_api_jvm)
     implementation(Libs.jacodb_core)
     implementation(Libs.jacodb_approximations)
-}
 
-dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web:3.3.4")
-    implementation("org.springframework.boot:spring-boot-starter-test:3.3.4")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.3.4")
-    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:3.3.4")
+    implementation(Libs.logback)
 }
 
 val usvmApiJarConfiguration by configurations.creating
@@ -53,13 +42,29 @@ dependencies {
     approximations(approximationsRepo, "approximations", approximationsVersion)
 }
 
-val springApproximationsDeps by configurations.creating
+// TODO: make versions flexible
+val springVersion = "3.2.0"
+
+//dependencies {
+//    implementation("org.springframework.boot:spring-boot-starter-web:$springVersion")
+//    implementation("org.springframework.boot:spring-boot-starter-test:$springVersion")
+//    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springVersion")
+//    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
+//    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:$springVersion")
+//}
+
+val springTestDeps by configurations.creating
 
 dependencies {
-    springApproximationsDeps("org.springframework.boot:spring-boot-starter-test:3.2.0")
-    springApproximationsDeps("org.springframework.boot:spring-boot-starter-web:3.2.0")
-    springApproximationsDeps("org.springframework:spring-jcl:6.1.1")
-    springApproximationsDeps("org.springframework.boot:spring-boot-starter-data-jpa:3.2.0")
+    springTestDeps("org.springframework.boot:spring-boot-starter-test:$springVersion")
+}
+
+fun createOrClear(file: File) {
+    if (file.exists()) {
+        file.listFiles()?.forEach { it.deleteRecursively() }
+    } else {
+        file.mkdirs()
+    }
 }
 
 tasks.register<JavaExec>("runWebBench") {
@@ -68,34 +73,29 @@ tasks.register<JavaExec>("runWebBench") {
 
     systemProperty("jdk.util.jar.enableMultiRelease", false)
 
+    val absolutePaths = springTestDeps.resolvedConfiguration.files.joinToString(";") { it.absolutePath }
+    environment("usvm.jvm.springTestDeps.paths", absolutePaths)
+
+    val currentDir = File(System.getProperty("user.dir"))
+    val generatedDir = currentDir.resolve("generated")
+    createOrClear(generatedDir)
+    environment("generatedDir", generatedDir.absolutePath)
+    val lambdaDir = generatedDir.resolve("lambdas")
+    createOrClear(lambdaDir)
+    environment("lambdasDir", lambdaDir.absolutePath)
+
     val usvmApiJarPath = usvmApiJarConfiguration.resolvedConfiguration.files.single()
+    environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
+
     val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
-    val springApproximationDepsJarPath = springApproximationsDeps.resolvedConfiguration.files
-    val absolutePaths = springApproximationDepsJarPath.joinToString(";") { it.absolutePath }
+    environment("usvm.jvm.approximations.jar.path", usvmApproximationJarPath.absolutePath)
 
     val usvmConcreteApiJarPath = usvmConcreteApiJarConfiguration.resolvedConfiguration.files.single()
     environment("usvm.jvm.concrete.api.jar.path", usvmConcreteApiJarPath)
 
-    // TODO: remove this!!!!
-    systemProperty("usvm.jvm.springApproximationsDeps.paths", absolutePaths)
-    val currentDir = Path(System.getProperty("user.dir"))
-    val generatedDir = currentDir.resolve("generated")
-    generatedDir.createDirectories()
-    systemProperty("generatedDir", generatedDir.absolutePathString())
-    val lambdaDir = generatedDir.resolve("lambdas")
-    if (lambdaDir.exists()) {
-        lambdaDir.toFile().listFiles()?.forEach { it.deleteRecursively() }
-    } else {
-        lambdaDir.createDirectories()
-    }
-    systemProperty("lambdasDir", lambdaDir.absolutePathString())
-
-    environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
-    environment("usvm.jvm.approximations.jar.path", usvmApproximationJarPath.absolutePath)
-
     jvmArgs = listOf("-Xmx12g") + mutableListOf<String>().apply {
         add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
-        add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePathString()}")
+        add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePath}")
         openPackage("java.base", "jdk.internal.misc")
         openPackage("java.base", "java.lang")
         openPackage("java.base", "java.lang.reflect")

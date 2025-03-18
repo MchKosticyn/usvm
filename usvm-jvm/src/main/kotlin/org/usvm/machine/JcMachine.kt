@@ -237,7 +237,7 @@ open class JcMachine(
         run(
             interpreter,
             pathSelector,
-            observer = CompositeUMachineObserver(observers),
+            observer = CompositeUMachineObserver(observers.distinct()),
             isStateTerminated = ::isStateTerminated,
             stopStrategy = stopStrategy,
         )
