@@ -4,7 +4,6 @@ import com.github.javaparser.ast.ArrayCreationLevel
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayCreationExpr
-import com.github.javaparser.ast.expr.AssignExpr
 import com.github.javaparser.ast.expr.BinaryExpr
 import com.github.javaparser.ast.expr.BooleanLiteralExpr
 import com.github.javaparser.ast.expr.CastExpr
@@ -13,7 +12,10 @@ import com.github.javaparser.ast.expr.DoubleLiteralExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.FieldAccessExpr
 import com.github.javaparser.ast.expr.IntegerLiteralExpr
+import com.github.javaparser.ast.expr.LambdaExpr
 import com.github.javaparser.ast.expr.LongLiteralExpr
+import com.github.javaparser.ast.expr.MethodCallExpr
+import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.type.ReferenceType
@@ -58,6 +60,8 @@ import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
+import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcMethod
 
 open class JcTestBlockRenderer protected constructor(
     override val methodRenderer: JcTestRenderer,
@@ -319,7 +323,7 @@ open class JcTestBlockRenderer protected constructor(
         return renderGetStaticField(expr.field)
     }
 
-    open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mock is not implemented")
+    open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mocks not yet supported")
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
         val type = expr.type as JcClassType
@@ -341,32 +345,76 @@ open class JcTestBlockRenderer protected constructor(
                 continue
 
             check(method.returnType.typeName != PredefinedPrimitives.Void)
-            check(!method.isStatic)
 
-            val args = method.parameters.map {
-                when (it.type.typeName) {
-                    PredefinedPrimitives.Boolean -> mockitoAnyBooleanMethodCall()
-                    PredefinedPrimitives.Byte -> mockitoAnyByteMethodCall()
-                    PredefinedPrimitives.Char -> mockitoAnyCharMethodCall()
-                    PredefinedPrimitives.Short -> mockitoAnyShortMethodCall()
-                    PredefinedPrimitives.Int -> mockitoAnyIntMethodCall()
-                    PredefinedPrimitives.Long -> mockitoAnyLongMethodCall()
-                    PredefinedPrimitives.Float -> mockitoAnyFloatMethodCall()
-                    PredefinedPrimitives.Double -> mockitoAnyDoubleMethodCall()
-                    else -> mockitoAnyMethodCall()
-                }
-            }
-            // TODO: handle static method calls
-            val methodCall = renderMethodCall(method, varExpr, args)
-            var mockInitialization = mockitoWhenMethodCall(methodCall)
-            for (mockValue in mockValues) {
-                val renderedMockValue = renderExpression(mockValue)
-                mockInitialization = mockitoThenReturnMethodCall(mockInitialization, renderedMockValue)
-            }
+            val mockInitialization = renderMockObjectMethod(varExpr, method, mockValues)
 
             addExpression(mockInitialization)
         }
 
         return varExpr
+    }
+
+    private fun renderMockObjectMethod(
+        mockVar: NameExpr,
+        method: JcMethod,
+        mockValues: List<UTestExpression>
+    ): Expression {
+        val args = method.parameters.map {
+            when (it.type.typeName) {
+                PredefinedPrimitives.Boolean -> mockitoAnyBooleanMethodCall()
+                PredefinedPrimitives.Byte -> mockitoAnyByteMethodCall()
+                PredefinedPrimitives.Char -> mockitoAnyCharMethodCall()
+                PredefinedPrimitives.Short -> mockitoAnyShortMethodCall()
+                PredefinedPrimitives.Int -> mockitoAnyIntMethodCall()
+                PredefinedPrimitives.Long -> mockitoAnyLongMethodCall()
+                PredefinedPrimitives.Float -> mockitoAnyFloatMethodCall()
+                PredefinedPrimitives.Double -> mockitoAnyDoubleMethodCall()
+                else -> mockitoAnyMethodCall()
+            }
+        }
+
+        var mockWhenCall =
+            if (method.isStatic)
+                renderMockObjectStaticMethodWhenCall(method, args)
+            else
+                renderMockObjectInstanceMethodWhenCall(mockVar, method, args)
+
+        var mockedMethod = mockValues.fold(mockWhenCall) { mock, nextReturnValue ->
+            val renderedMockValue = renderExpression(nextReturnValue)
+            mockitoThenReturnMethodCall(mock, renderedMockValue)
+        }
+
+        return mockedMethod
+    }
+
+    private fun renderMockObjectInstanceMethodWhenCall(
+        mockVar: NameExpr,
+        method: JcMethod,
+        args: List<Expression>
+    ): Expression {
+        val methodCall = renderMethodCall(method, mockVar, args)
+        return mockitoWhenMethodCall(methodCall)
+    }
+
+    private fun renderMockObjectStaticMethodWhenCall(method: JcMethod, args: List<Expression>): Expression {
+        val mockStaticUtil = renderMockedStaticVarDeclaration(method.enclosingClass)
+        var mockedMethodRef = LambdaExpr(NodeList(), renderStaticMethodCall(method, args))
+
+        return mockitoWhenMethodCall(mockedMethodRef, mockStaticUtil)
+    }
+
+    private fun renderMockedStaticVarDeclaration(mockedClass: JcClassOrInterface): NameExpr {
+        val mockMethodDeclType = renderClass(mockedClass)
+
+        var mockedStaticType = renderClass("org.mockito.MockedStatic", mockedClass.classpath)
+        mockedStaticType = mockedStaticType.setTypeArguments(mockMethodDeclType)
+
+        var mockStaticCall = mockitoMockStaticMethodCall(mockedClass)
+
+        var mockStaticUtil = renderVarDeclaration(mockedStaticType, mockStaticCall, "staticMockUtil")
+
+        var mockStaticDefferedClose = MethodCallExpr(mockStaticUtil, "close")
+        methodRenderer.trailingExpressions.add(mockStaticDefferedClose)
+        return mockStaticUtil
     }
 }

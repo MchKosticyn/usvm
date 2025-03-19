@@ -3,6 +3,7 @@ package org.usvm.jvm.rendering.testRenderer
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
+import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.SimpleName
 import java.util.Collections
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
@@ -32,6 +33,8 @@ open class JcTestRenderer(
 ) {
 
     protected val shouldDeclareVar: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
+
+    internal val trailingExpressions: MutableList<Expression> = mutableListOf()
 
     override val body: JcTestBlockRenderer = JcTestBlockRenderer(
         this,
@@ -64,6 +67,8 @@ open class JcTestRenderer(
             body.renderInst(inst)
 
         body.renderInst(test.callMethodExpression)
+
+        trailingExpressions.forEach { expr -> body.addExpression(expr) }
 
         return super.renderInternal()
     }

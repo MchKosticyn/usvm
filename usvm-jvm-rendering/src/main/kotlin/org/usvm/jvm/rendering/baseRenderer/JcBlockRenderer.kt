@@ -10,6 +10,7 @@ import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.ast.stmt.IfStmt
 import com.github.javaparser.ast.stmt.Statement
 import com.github.javaparser.ast.type.ReferenceType
+import com.github.javaparser.ast.type.Type
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
@@ -51,8 +52,12 @@ open class JcBlockRenderer protected constructor(
 
     fun renderVarDeclaration(type: JcType, expr: Expression? = null, namePrefix: String? = null): NameExpr {
         val renderedType = renderType(type)
+        return renderVarDeclaration(renderedType, expr, namePrefix)
+    }
+
+    protected fun renderVarDeclaration(type: Type, expr: Expression? = null, namePrefix: String? = null): NameExpr {
         val name = identifiersManager[namePrefix ?: "v"]
-        val declarator = VariableDeclarator(renderedType, name, expr)
+        val declarator = VariableDeclarator(type, name, expr)
         addExpression(VariableDeclarationExpr(declarator))
         return NameExpr(name)
     }

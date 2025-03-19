@@ -147,10 +147,7 @@ abstract class JcCodeRenderer<T: Node>(
 
     //region Mockito methods
 
-    val mockitoClass: ClassOrInterfaceType by lazy {
-        importManager.add("org.mockito.Mockito")
-        StaticJavaParser.parseClassOrInterfaceType("Mockito")
-    }
+    val mockitoClass: ClassOrInterfaceType by lazy { renderClass("org.mockito.Mockito") }
 
     fun mockitoMockMethodCall(classToSpy: JcClassType): MethodCallExpr {
         return MethodCallExpr(
@@ -160,9 +157,17 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    fun mockitoWhenMethodCall(methodCall: Expression): MethodCallExpr {
+    fun mockitoMockStaticMethodCall(mockedClass: JcClassOrInterface): MethodCallExpr {
         return MethodCallExpr(
             TypeExpr(mockitoClass),
+            "mockStatic",
+            NodeList(renderClassExpression(mockedClass))
+        )
+    }
+
+    fun mockitoWhenMethodCall(methodCall: Expression, mockStaticReceiver: Expression? = null): MethodCallExpr {
+        return MethodCallExpr(
+            mockStaticReceiver ?: TypeExpr(mockitoClass),
             "when",
             NodeList(methodCall)
         )

@@ -98,20 +98,16 @@ class SpringTestExecBuilder private constructor(
 
     fun getInitDSL(): List<UTestInst> = initStatements
 
-    fun getExecDSL(): UTestCall {
+    fun getExecDSL(shouldIgnoreResult: Boolean = false): UTestCall {
         check(isPerformed)
+        check(!shouldIgnoreResult || generatedTestClass != null)
 
-        return mockMvcDSL as UTestCall
-    }
-
-    fun getIgnoreDsl(): UTestCall {
-        check(isPerformed)
-        check(generatedTestClass != null)
-
-        mockMvcDSL = UTestStaticMethodCall(
-            method = cp.findJcMethod(generatedTestClass!!.typeName, "ignoreResult").method,
-            args = listOf(mockMvcDSL)
-        )
+        if (shouldIgnoreResult) {
+            mockMvcDSL = UTestStaticMethodCall(
+                method = cp.findJcMethod(generatedTestClass!!.typeName, "ignoreResult").method,
+                args = listOf(mockMvcDSL)
+            )
+        }
 
         return mockMvcDSL as UTestCall
     }

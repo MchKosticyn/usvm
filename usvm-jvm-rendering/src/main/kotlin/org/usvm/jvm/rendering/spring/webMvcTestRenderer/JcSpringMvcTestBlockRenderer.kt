@@ -46,20 +46,22 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     }
 
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
-        val (mockNamePrefix, mockAnnotation) = getMockNamePrefixAndAnnotation(expr.clazz)
+        val mockPrefixAndAnnotation = getMockNamePrefixAndAnnotation(expr.clazz)
 
-        if (mockNamePrefix == null || mockAnnotation == null) return super.renderAllocateMemoryCall(expr)
+        if (mockPrefixAndAnnotation == null) return super.renderAllocateMemoryCall(expr)
+
+        val (mockPrefix, mockAnnotation) = mockPrefixAndAnnotation
 
         val mockField = classRenderer.getOrCreateField(
             renderClass(expr.clazz),
-            classRenderer.identifiersManager.generateIdentifier(mockNamePrefix).asString(),
+            classRenderer.identifiersManager.generateIdentifier(mockPrefix).asString(),
             annotations = NodeList(mockAnnotation)
         )
 
         return FieldAccessExpr(ThisExpr(), mockField.asString())
     }
 
-    private fun getMockNamePrefixAndAnnotation(clazz: JcClassOrInterface): Pair<String?, AnnotationExpr?> =
+    private fun getMockNamePrefixAndAnnotation(clazz: JcClassOrInterface): Pair<String, AnnotationExpr>? =
         when {
             clazz.name == "org.springframework.test.web.servlet.MockMvc" -> {
                 "mockMvc" to autowiredAnnotation(clazz.classpath)
@@ -74,7 +76,7 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
             }
 
             else -> {
-                null to null
+                null
             }
         }
 

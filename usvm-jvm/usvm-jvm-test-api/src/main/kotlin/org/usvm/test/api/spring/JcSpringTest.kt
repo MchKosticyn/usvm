@@ -78,7 +78,7 @@ open class JcSpringTest internal constructor(
 
         matchersDSL.forEach { testExecBuilder.addAndExpectCall(listOf(it)) }
 
-        return UTest(initStatements = initStatements, callMethodExpression = testExecBuilder.getIgnoreDsl())
+        return UTest(initStatements = initStatements, callMethodExpression = testExecBuilder.getExecDSL())
     }
 
     protected open fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> =

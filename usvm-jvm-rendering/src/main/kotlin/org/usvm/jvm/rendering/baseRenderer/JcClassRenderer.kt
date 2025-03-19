@@ -93,6 +93,12 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         return fieldName
     }
 
+    fun addAnnotation(annotation: AnnotationExpr) {
+        if (!annotations.contains(annotation)) {
+            annotations.add(annotation)
+        }
+    }
+
     override fun renderInternal(): ClassOrInterfaceDeclaration {
         val renderedMembers = mutableListOf<BodyDeclaration<*>>()
         for (renderer in renderingMethods) {

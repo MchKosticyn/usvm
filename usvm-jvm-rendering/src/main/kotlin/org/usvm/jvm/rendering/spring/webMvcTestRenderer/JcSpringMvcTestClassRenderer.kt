@@ -1,7 +1,10 @@
 package org.usvm.jvm.rendering.spring.webMvcTestRenderer
 
+import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
+import com.github.javaparser.ast.expr.Name
+import com.github.javaparser.ast.expr.NormalAnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
@@ -19,6 +22,18 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         decl: ClassOrInterfaceDeclaration,
         reflectionUtilsFullName: String
     ) : super(decl, reflectionUtilsFullName)
+
+    init {
+        addAnnotation(webMvcAnnotation())
+    }
+
+    private fun webMvcAnnotation(): AnnotationExpr {
+        val webMvcTestClass = renderClass("org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest")
+        // TODO: put classExpr for controller class
+        val annotation = NormalAnnotationExpr(Name(webMvcTestClass.nameWithScope), NodeList())
+        return annotation
+    }
+
 
     override fun createTestRenderer(
         test: UTest,

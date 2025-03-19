@@ -29,7 +29,6 @@ class JcTestsRenderer {
 
     private val testFilePath = Paths.get("src/test/java/org/usvm/generated").createDirectories()
 
-    // TODO: check rendering in existing file
     fun renderTests(tests: List<Pair<UTest, JcTestInfo>>) {
         System.err.println("Test File Path: $testFilePath")
 
