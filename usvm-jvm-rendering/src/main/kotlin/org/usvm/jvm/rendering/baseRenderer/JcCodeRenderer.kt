@@ -68,6 +68,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     fun renderClass(typeName: String, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
+        check(!typeName.contains('<') && !typeName.contains('>')) {
+            "hardcoded generics not supported"
+        }
         val type = cp.findTypeOrNull(typeName) as? JcClassType
         if (type != null)
             return renderClass(type, includeGenericArgs)
