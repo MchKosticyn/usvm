@@ -12,6 +12,7 @@ import org.usvm.machine.interpreter.statics.JcStaticFieldLValue
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
 import utils.getStaticFieldValue
+import utils.setStaticFieldValue
 import utils.toJavaField
 import utils.typedField
 
@@ -36,6 +37,16 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
         return marshall.objToExpr(value, fieldType)
     }
 
+    private fun writeToRegion(
+        key: JcStaticFieldLValue<Sort>,
+        value: UExpr<Sort>,
+        guard: UBoolExpr,
+        ownership: MutabilityOwnership
+    ) {
+        writtenFields.add(key)
+        baseRegion = baseRegion.write(key, value, guard, ownership)
+    }
+
     override fun write(
         key: JcStaticFieldLValue<Sort>,
         value: UExpr<Sort>,
@@ -43,10 +54,23 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
         ownership: MutabilityOwnership
     ): JcConcreteStaticFieldsRegion<Sort> {
         check(this.ownership == ownership)
-        // TODO: check isWritable and set #CM
-        writtenFields.add(key)
-        // TODO: mutate concrete statics #CM
-        baseRegion = baseRegion.write(key, value, guard, ownership)
+        val field = key.field
+        val javaField = field.toJavaField
+        // TODO: should mutate every field or filter some fields?
+        if (javaField == null) {
+            writeToRegion(key, value, guard, ownership)
+            return this
+        }
+
+        val fieldType = field.typedField.type
+        val concreteValue = marshall.tryExprToFullyConcreteObj(value, fieldType)
+        if (concreteValue.isNone) {
+            writeToRegion(key, value, guard, ownership)
+            return this
+        }
+        check(JcConcreteMemoryClassLoader.isLoaded(field.enclosingClass))
+        javaField.setStaticFieldValue(concreteValue.getOrThrow())
+
         return this
     }
 
