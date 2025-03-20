@@ -2,6 +2,7 @@ package org.usvm.test.internal
 
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.findClass
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestCall
@@ -29,6 +30,16 @@ class SpringTestExecBuilder private constructor(
             return SpringTestExecBuilder(cp, mutableListOf(), mockMvc, isPerformed = false, generatedTestClass, null)
         }
 
+        private const val testContextManagerName = "org.springframework.test.context.TestContextManager"
+
+        private fun testContextManagerCtor(cp: JcClasspath): JcMethod {
+            return cp.findJcMethod(testContextManagerName, "<init>").method
+        }
+
+        private fun testCtxManagerPrepareTestIntance(cp: JcClasspath): JcMethod {
+            return cp.findJcMethod(testContextManagerName, "prepareTestInstance").method
+        }
+
         /*
         * DSL STEPS:
         *   ctxManager: TestContextManager = new TestContextManager(<GENERATED-CLASS>.class)
@@ -38,9 +49,8 @@ class SpringTestExecBuilder private constructor(
         */
 
         private fun withPreparedContextFor(cp: JcClasspath, generatedTestClass: JcClassType): SpringTestExecBuilder {
-            val testCtxManagerName = "org.springframework.test.context.TestContextManager"
             val testCtxManagerCtorCall = UTestConstructorCall(
-                method = cp.findJcMethod(testCtxManagerName, "<init>").method,
+                method = testContextManagerCtor(cp),
                 args = listOf(UTestClassExpression(generatedTestClass))
             )
 
@@ -51,7 +61,7 @@ class SpringTestExecBuilder private constructor(
 
             val prepareTestInstanceCall = UTestMethodCall(
                 instance = testCtxManagerCtorCall,
-                method = cp.findJcMethod(testCtxManagerName, "prepareTestInstance").method,
+                method = testCtxManagerPrepareTestIntance(cp),
                 args = listOf(generatedClassCtorCall)
             )
 
@@ -72,11 +82,15 @@ class SpringTestExecBuilder private constructor(
 
     val testClassExpr get() = testClassInst
 
+    private val mockMvcPerform: JcMethod by lazy {
+        cp.findJcMethod("org.springframework.test.web.servlet.MockMvc", "perform").method
+    }
+
     fun addPerformCall(reqDSL: UTestExpression): SpringTestExecBuilder {
         check(!isPerformed) { "second perform call" }
         mockMvcDSL = UTestMethodCall(
             instance = mockMvcDSL,
-            method = cp.findJcMethod("org.springframework.test.web.servlet.MockMvc", "perform").method,
+            method = mockMvcPerform,
             args = listOf(reqDSL)
         )
         isPerformed = true
@@ -84,12 +98,16 @@ class SpringTestExecBuilder private constructor(
         return this
     }
 
+    private val andExpectAction: JcMethod by lazy {
+        cp.findJcMethod("org.springframework.test.web.servlet.ResultActions", "andExpect").method
+    }
+
     fun addAndExpectCall(args: List<UTestExpression>): SpringTestExecBuilder {
         check(isPerformed)
 
         mockMvcDSL = UTestMethodCall(
             instance = mockMvcDSL,
-            method = cp.findJcMethod("org.springframework.test.web.servlet.ResultActions", "andExpect").method,
+            method = andExpectAction,
             args = args
         )
 
