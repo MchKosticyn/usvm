@@ -18,7 +18,7 @@ import kotlin.io.path.createDirectories
 import kotlin.jvm.optionals.getOrNull
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.testRenderer.JcUnitTestInfo
-import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 
 class JcTestsRenderer {
     private val transformers: List<JcTestTransformer> = listOf(
@@ -44,7 +44,7 @@ class JcTestsRenderer {
             val testClassName = normalizePrefix(declType.simpleName + "Tests")
             val testClass = cu.getClassByName(testClassName).getOrNull() ?: cu.addClass(testClassName).setModifiers(
                 NodeList())
-            val testClassRenderer = JcSpringUnitTestClassRenderer(testClass, cp)
+            val testClassRenderer = JcUnsafeTestClassRenderer(testClass, cp)
 
             for ((test, testInfo) in testsToRender) {
                 val transformedTest = transformers.fold(test) { currentTest, transformer ->
