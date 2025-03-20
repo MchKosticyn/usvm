@@ -10,6 +10,7 @@ import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.type.ReferenceType
 import java.util.*
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
@@ -23,23 +24,34 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
     override val methodRenderer: JcSpringUnitTestRenderer,
     override val importManager: JcUnsafeImportManager,
     identifiersManager: JcIdentifiersManager,
+    cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcUnsafeTestBlockRenderer(methodRenderer, importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
+) : JcUnsafeTestBlockRenderer(
+    methodRenderer,
+    importManager,
+    identifiersManager,
+    cp,
+    shouldDeclareVar,
+    exprCache,
+    thrownExceptions
+) {
 
     constructor(
         methodRenderer: JcSpringUnitTestRenderer,
         importManager: JcUnsafeImportManager,
         identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>
-    ) : this(methodRenderer, importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
+    ) : this(methodRenderer, importManager, identifiersManager, cp, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcSpringUnitTestBlockRenderer {
         return JcSpringUnitTestBlockRenderer(
             methodRenderer,
             importManager,
             JcIdentifiersManager(identifiersManager),
+            cp,
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions
@@ -64,7 +76,7 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
         addThrownException("java.lang.InstantiationException", cp)
         addThrownException("java.lang.IllegalAccessException", cp)
 
-        val internalReflectionUtils = renderClass("org.springframework.util.ReflectionUtils", cp)
+        val internalReflectionUtils = renderClass("org.springframework.util.ReflectionUtils")
         val ctorParametersTypes = ctor.parametersTypes()
         val instanceType = renderClass(type, includeGenericArgs = false)
         val accessibleCtorArgs = listOf(ClassExpr(instanceType)) + ctorParametersTypes.map {

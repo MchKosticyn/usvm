@@ -31,7 +31,8 @@ import org.jacodb.api.jvm.ext.toType
 
 abstract class JcCodeRenderer<T: Node>(
     open val importManager: JcImportManager,
-    internal val identifiersManager: JcIdentifiersManager
+    internal val identifiersManager: JcIdentifiersManager,
+    protected val cp: JcClasspath
 ) {
 
     private var rendered: T? = null
@@ -62,8 +63,8 @@ abstract class JcCodeRenderer<T: Node>(
         else -> error("unexpected type ${type.typeName}")
     }
 
-    fun renderClass(typeName: String, cp: JcClasspath? = null, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
-        val type = (cp?.findTypeOrNull(typeName) as? JcClassType)
+    fun renderClass(typeName: String, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
+        val type = cp.findTypeOrNull(typeName) as? JcClassType
         if (type != null)
             return renderClass(type, includeGenericArgs)
         var classOrInterface = StaticJavaParser.parseClassOrInterfaceType(typeName)

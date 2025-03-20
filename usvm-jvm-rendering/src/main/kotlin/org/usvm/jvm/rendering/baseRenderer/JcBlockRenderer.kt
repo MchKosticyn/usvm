@@ -21,14 +21,16 @@ open class JcBlockRenderer protected constructor(
     protected open val methodRenderer: JcMethodRenderer,
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
+    cp: JcClasspath,
     protected val thrownExceptions: HashSet<ReferenceType>
-) : JcCodeRenderer<BlockStmt>(importManager, identifiersManager) {
+) : JcCodeRenderer<BlockStmt>(importManager, identifiersManager, cp) {
 
     constructor(
         methodRenderer: JcMethodRenderer,
         importManager: JcImportManager,
-        identifiersManager: JcIdentifiersManager
-    ) : this(methodRenderer, importManager, identifiersManager, HashSet())
+        identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath
+    ) : this(methodRenderer, importManager, identifiersManager, cp, HashSet())
 
     private val statements = NodeList<Statement>()
 
@@ -43,7 +45,13 @@ open class JcBlockRenderer protected constructor(
     }
 
     open fun newInnerBlock(): JcBlockRenderer {
-        return JcBlockRenderer(methodRenderer, importManager, JcIdentifiersManager(identifiersManager), thrownExceptions)
+        return JcBlockRenderer(
+            methodRenderer,
+            importManager,
+            JcIdentifiersManager(identifiersManager),
+            cp,
+            thrownExceptions
+        )
     }
 
     fun addExpression(expr: Expression) {
@@ -94,13 +102,13 @@ open class JcBlockRenderer protected constructor(
         val cp = method.enclosingClass.classpath
         thrownExceptions.addAll(
             method.exceptions.map {
-                renderClass(it.typeName, cp)
+                renderClass(it.typeName)
             }
         )
     }
 
     protected fun addThrownException(typeName: String, cp: JcClasspath) {
-        var thrown = renderClass(typeName, cp)
+        var thrown = renderClass(typeName)
         thrownExceptions.add(thrown)
     }
 

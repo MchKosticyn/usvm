@@ -61,29 +61,33 @@ import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 
 open class JcTestBlockRenderer protected constructor(
     override val methodRenderer: JcTestRenderer,
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
+    cp: JcClasspath,
     protected val shouldDeclareVar: Set<UTestExpression>,
     protected val exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcBlockRenderer(methodRenderer, importManager, identifiersManager, thrownExceptions) {
+) : JcBlockRenderer(methodRenderer, importManager, identifiersManager, cp, thrownExceptions) {
 
     constructor(
         methodRenderer: JcTestRenderer,
         importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>
-    ) : this(methodRenderer, importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
+    ) : this(methodRenderer, importManager, identifiersManager, cp, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcTestBlockRenderer {
         return JcTestBlockRenderer(
             methodRenderer,
             importManager,
             JcIdentifiersManager(identifiersManager),
+            cp,
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions
@@ -406,7 +410,7 @@ open class JcTestBlockRenderer protected constructor(
     private fun renderMockedStaticVarDeclaration(mockedClass: JcClassOrInterface): NameExpr {
         val mockMethodDeclType = renderClass(mockedClass)
 
-        var mockedStaticType = renderClass("org.mockito.MockedStatic", mockedClass.classpath)
+        var mockedStaticType = renderClass("org.mockito.MockedStatic")
         mockedStaticType = mockedStaticType.setTypeArguments(mockMethodDeclType)
 
         var mockStaticCall = mockitoMockStaticMethodCall(mockedClass)

@@ -22,28 +22,40 @@ import org.usvm.jvm.rendering.testRenderer.JcTestBlockRenderer
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
+import org.jacodb.api.jvm.JcClasspath
 
 open class JcUnsafeTestBlockRenderer protected constructor(
     override val methodRenderer: JcUnsafeTestRenderer,
     override val importManager: JcUnsafeImportManager,
     identifiersManager: JcIdentifiersManager,
+    cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcTestBlockRenderer(methodRenderer, importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
+) : JcTestBlockRenderer(
+    methodRenderer,
+    importManager,
+    identifiersManager,
+    cp,
+    shouldDeclareVar,
+    exprCache,
+    thrownExceptions
+) {
 
     constructor(
         methodRenderer: JcUnsafeTestRenderer,
         importManager: JcUnsafeImportManager,
         identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>
-    ) : this(methodRenderer, importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
+    ) : this(methodRenderer, importManager, identifiersManager, cp, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcUnsafeTestBlockRenderer {
         return JcUnsafeTestBlockRenderer(
             methodRenderer,
             importManager,
             JcIdentifiersManager(identifiersManager),
+            cp,
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions

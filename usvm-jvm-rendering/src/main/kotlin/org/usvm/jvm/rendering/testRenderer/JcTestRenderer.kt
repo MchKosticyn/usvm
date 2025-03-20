@@ -13,17 +13,20 @@ import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestConstExpression
 import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
+import org.jacodb.api.jvm.JcClasspath
 
 open class JcTestRenderer(
     private val test: UTest,
     override val classRenderer: JcTestClassRenderer,
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
+    cp: JcClasspath,
     name: SimpleName,
     testAnnotation: AnnotationExpr,
 ): JcMethodRenderer(
     importManager,
     identifiersManager,
+    cp,
     classRenderer,
     name,
     NodeList(),
@@ -40,6 +43,7 @@ open class JcTestRenderer(
         this,
         importManager,
         JcIdentifiersManager(identifiersManager),
+        cp,
         shouldDeclareVar
     )
 

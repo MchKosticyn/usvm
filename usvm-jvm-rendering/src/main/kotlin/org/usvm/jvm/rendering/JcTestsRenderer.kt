@@ -16,6 +16,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.io.path.createDirectories
 import kotlin.jvm.optionals.getOrNull
+import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.testRenderer.JcUnitTestInfo
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
 
@@ -29,7 +30,7 @@ class JcTestsRenderer {
 
     private val testFilePath = Paths.get("src/test/java/org/usvm/generated").createDirectories()
 
-    fun renderTests(tests: List<Pair<UTest, JcTestInfo>>) {
+    fun renderTests(cp: JcClasspath, tests: List<Pair<UTest, JcTestInfo>>) {
         System.err.println("Test File Path: $testFilePath")
 
         val testClasses = tests.groupBy { (_, info) -> info.method.enclosingClass }
@@ -43,7 +44,7 @@ class JcTestsRenderer {
             val testClassName = normalizePrefix(declType.simpleName + "Tests")
             val testClass = cu.getClassByName(testClassName).getOrNull() ?: cu.addClass(testClassName).setModifiers(
                 NodeList())
-            val testClassRenderer = JcSpringUnitTestClassRenderer(testClass)
+            val testClassRenderer = JcSpringUnitTestClassRenderer(testClass, cp)
 
             for ((test, testInfo) in testsToRender) {
                 val transformedTest = transformers.fold(test) { currentTest, transformer ->

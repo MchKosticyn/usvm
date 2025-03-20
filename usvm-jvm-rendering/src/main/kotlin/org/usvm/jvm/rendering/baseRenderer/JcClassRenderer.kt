@@ -10,6 +10,7 @@ import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.type.Type
+import org.jacodb.api.jvm.JcClasspath
 
 open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
 
@@ -21,11 +22,12 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
     private constructor(
         importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath,
         name: SimpleName,
         modifiers: NodeList<Modifier>,
         annotations: NodeList<AnnotationExpr>,
         existingMembers: NodeList<BodyDeclaration<*>>
-    ) : super(importManager, identifiersManager) {
+    ) : super(importManager, identifiersManager, cp) {
         this.name = name
         this.modifiers = modifiers
         this.annotations = annotations
@@ -36,17 +38,20 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
 
     protected constructor(
         importManager: JcImportManager,
-        decl: ClassOrInterfaceDeclaration
-    ) : this(importManager, JcIdentifiersManager(), decl.name, decl.modifiers, decl.annotations, decl.members)
+        decl: ClassOrInterfaceDeclaration,
+        cp: JcClasspath
+    ) : this(importManager, JcIdentifiersManager(), cp, decl.name, decl.modifiers, decl.annotations, decl.members)
 
     constructor(
-        decl: ClassOrInterfaceDeclaration
-    ): this(JcImportManager(), decl)
+        decl: ClassOrInterfaceDeclaration,
+        cp: JcClasspath
+    ): this(JcImportManager(), decl, cp)
 
     protected constructor(
         importManager: JcImportManager,
-        name: String
-    ): super(importManager, JcIdentifiersManager()) {
+        name: String,
+        cp: JcClasspath
+    ): super(importManager, JcIdentifiersManager(), cp) {
         this.name = identifiersManager.generateIdentifier(name)
         this.modifiers = NodeList()
         this.annotations = NodeList()
@@ -54,8 +59,9 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
     }
 
     constructor(
-        name: String
-    ): this(JcImportManager(), name)
+        name: String,
+        cp: JcClasspath,
+    ): this(JcImportManager(), name, cp)
 
     protected fun addRenderingMethod(render: JcMethodRenderer) {
         renderingMethods.add(render)

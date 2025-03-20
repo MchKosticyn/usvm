@@ -6,6 +6,7 @@ import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.Name
 import com.github.javaparser.ast.expr.NormalAnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
+import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
@@ -15,13 +16,15 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
 
     constructor(
         name: String,
-        reflectionUtilsFullName: String
-    ) : super(name, reflectionUtilsFullName)
+        reflectionUtilsFullName: String,
+        cp: JcClasspath
+    ) : super(name, reflectionUtilsFullName, cp)
 
     constructor(
         decl: ClassOrInterfaceDeclaration,
-        reflectionUtilsFullName: String
-    ) : super(decl, reflectionUtilsFullName)
+        reflectionUtilsFullName: String,
+        cp: JcClasspath
+    ) : super(decl, reflectionUtilsFullName, cp)
 
     init {
         addAnnotation(webMvcAnnotation())
@@ -46,6 +49,7 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
             this,
             importManager,
             identifiersManager,
+            cp,
             name,
             testAnnotation
         )

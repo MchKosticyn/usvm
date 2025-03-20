@@ -4,6 +4,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import kotlin.jvm.optionals.getOrNull
+import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestClassRenderer
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
@@ -16,15 +17,17 @@ open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
 
     constructor(
         name: String,
-        reflectionUtilsFullName: String
-    ) : super(JcUnsafeImportManager(reflectionUtilsFullName), name)
+        reflectionUtilsFullName: String,
+        cp: JcClasspath
+    ) : super(JcUnsafeImportManager(reflectionUtilsFullName), name, cp)
 
-    constructor(decl: ClassOrInterfaceDeclaration): this(decl, ReflectionUtilNames.USVM.fullName)
+    constructor(decl: ClassOrInterfaceDeclaration, cp: JcClasspath): this(decl, ReflectionUtilNames.USVM.fullName, cp)
 
     constructor(
         decl: ClassOrInterfaceDeclaration,
-        reflectionUtilsFullName: String
-    ) : super(JcUnsafeImportManager(reflectionUtilsFullName, decl.findCompilationUnit().getOrNull()), decl)
+        reflectionUtilsFullName: String,
+        cp: JcClasspath
+    ) : super(JcUnsafeImportManager(reflectionUtilsFullName, decl.findCompilationUnit().getOrNull()), decl, cp)
 
     override fun createTestRenderer(
         test: UTest,
@@ -37,6 +40,7 @@ open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
             this,
             importManager,
             identifiersManager,
+            cp,
             name,
             testAnnotation
         )

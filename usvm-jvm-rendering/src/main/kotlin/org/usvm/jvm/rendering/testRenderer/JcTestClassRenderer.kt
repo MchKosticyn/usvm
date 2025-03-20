@@ -4,6 +4,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
+import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcClassRenderer
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
@@ -13,21 +14,25 @@ open class JcTestClassRenderer : JcClassRenderer {
 
     protected constructor(
         importManager: JcImportManager,
-        name: String
-    ) : super(importManager, name)
+        name: String,
+        cp: JcClasspath
+    ) : super(importManager, name, cp)
 
     constructor(
-        name: String
-    ) : super(name)
+        name: String,
+        cp: JcClasspath
+    ) : super(name, cp)
 
     protected constructor(
         importManager: JcImportManager,
-        decl: ClassOrInterfaceDeclaration
-    ): super(importManager, decl)
+        decl: ClassOrInterfaceDeclaration,
+        cp: JcClasspath,
+    ): super(importManager, decl, cp)
 
     constructor(
-        decl: ClassOrInterfaceDeclaration
-    ) : super(decl)
+        decl: ClassOrInterfaceDeclaration,
+        cp: JcClasspath
+    ) : super(decl, cp)
 
     protected val testAnnotationJUnit: AnnotationExpr by lazy {
         importManager.add("org.junit.jupiter.api.Test")
@@ -45,6 +50,7 @@ open class JcTestClassRenderer : JcClassRenderer {
             this,
             importManager,
             identifiersManager,
+            cp,
             name,
             testAnnotation
         )

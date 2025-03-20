@@ -22,23 +22,26 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     override val methodRenderer: JcSpringMvcTestRenderer,
     importManager: JcUnsafeImportManager,
     identifiersManager: JcIdentifiersManager,
+    cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>
-) : JcSpringUnitTestBlockRenderer(methodRenderer, importManager, identifiersManager, shouldDeclareVar, exprCache, thrownExceptions) {
+) : JcSpringUnitTestBlockRenderer(methodRenderer, importManager, identifiersManager, cp, shouldDeclareVar, exprCache, thrownExceptions) {
 
     constructor(
         methodRenderer: JcSpringMvcTestRenderer,
         importManager: JcUnsafeImportManager,
         identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>
-    ) : this(methodRenderer, importManager, identifiersManager, shouldDeclareVar, IdentityHashMap(), HashSet())
+    ) : this(methodRenderer, importManager, identifiersManager, cp, shouldDeclareVar, IdentityHashMap(), HashSet())
 
     override fun newInnerBlock(): JcSpringMvcTestBlockRenderer {
         return JcSpringMvcTestBlockRenderer(
             methodRenderer,
             importManager,
             JcIdentifiersManager(identifiersManager),
+            cp,
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions
@@ -81,12 +84,12 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
         }
 
     private fun autowiredAnnotation(cp: JcClasspath): AnnotationExpr {
-        val autowired = renderClass("org.springframework.beans.factory.annotation.Autowired", cp)
+        val autowired = renderClass("org.springframework.beans.factory.annotation.Autowired")
         return MarkerAnnotationExpr(autowired.nameAsString)
     }
 
     private fun mockBeanAnnotation(cp: JcClasspath): AnnotationExpr {
-        val mockBean = renderClass("org.springframework.boot.test.mock.mockito.MockBean", cp)
+        val mockBean = renderClass("org.springframework.boot.test.mock.mockito.MockBean")
         return MarkerAnnotationExpr(mockBean.nameAsString)
     }
 }
