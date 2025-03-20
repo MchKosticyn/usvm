@@ -29,6 +29,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypeVariable
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
+import org.usvm.test.internal.toTyped
 
 abstract class JcCodeRenderer<T: Node>(
     open val importManager: JcImportManager,
@@ -249,9 +250,10 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    fun mockitoAnyMethodCall(): MethodCallExpr {
+    fun mockitoAnyMethodCall(type: JcType): MethodCallExpr {
         return MethodCallExpr(
             TypeExpr(mockitoClass),
+            NodeList(renderType(type)),
             "any",
             NodeList()
         )
@@ -324,14 +326,14 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     private fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>): List<Expression> {
-        val typedMethod = method.enclosingClass.toType().declaredMethods.first { typedM -> typedM.method == method }
-        val typedParams = typedMethod.parameters
+        val typedParams = method.toTyped().parameters
 
         check(args.size == typedParams.size)
 
         return args.zip(typedParams).map { (arg, param) ->
             val paramType = param.type as JcClassType
             if (paramType.typeArguments.isEmpty()) return@map arg
+
             val asObj = CastExpr(objectType, arg)
             val asTargetType = CastExpr(renderClass(paramType), asObj)
             asTargetType

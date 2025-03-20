@@ -63,6 +63,7 @@ import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
+import org.usvm.test.internal.toTyped
 
 open class JcTestBlockRenderer protected constructor(
     override val methodRenderer: JcTestRenderer,
@@ -363,8 +364,8 @@ open class JcTestBlockRenderer protected constructor(
         method: JcMethod,
         mockValues: List<UTestExpression>
     ): Expression {
-        val args = method.parameters.map {
-            when (it.type.typeName) {
+        val args = method.toTyped().parameters.map { param ->
+            when (param.type.typeName) {
                 PredefinedPrimitives.Boolean -> mockitoAnyBooleanMethodCall()
                 PredefinedPrimitives.Byte -> mockitoAnyByteMethodCall()
                 PredefinedPrimitives.Char -> mockitoAnyCharMethodCall()
@@ -373,7 +374,7 @@ open class JcTestBlockRenderer protected constructor(
                 PredefinedPrimitives.Long -> mockitoAnyLongMethodCall()
                 PredefinedPrimitives.Float -> mockitoAnyFloatMethodCall()
                 PredefinedPrimitives.Double -> mockitoAnyDoubleMethodCall()
-                else -> mockitoAnyMethodCall()
+                else -> mockitoAnyMethodCall(param.type)
             }
         }
 

@@ -35,8 +35,8 @@ open class JcTestClassRenderer : JcClassRenderer {
     ) : super(decl, cp)
 
     protected val testAnnotationJUnit: AnnotationExpr by lazy {
-        importManager.add("org.junit.jupiter.api.Test")
-        MarkerAnnotationExpr("Test")
+        val annotationName = renderClass("org.junit.jupiter.api.Test")
+        MarkerAnnotationExpr(annotationName.nameWithScope)
     }
 
     protected open fun createTestRenderer(
