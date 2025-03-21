@@ -334,11 +334,11 @@ abstract class JcCodeRenderer<T: Node>(
         check(args.size == typedParams.size)
 
         return args.zip(typedParams).map { (arg, param) ->
-            val paramType = param.type as JcClassType
-            if (paramType.typeArguments.isEmpty()) return@map arg
+            val paramType = param.type
+            if (paramType !is JcClassType || paramType.typeArguments.isEmpty()) return@map arg
 
             val asObj = CastExpr(objectType, arg)
-            val asTargetType = CastExpr(renderClass(paramType), asObj)
+            val asTargetType = CastExpr(renderType(paramType), asObj)
             asTargetType
         }
     }

@@ -315,7 +315,7 @@ open class JcTestBlockRenderer protected constructor(
 
     open fun renderCreateArrayExpression(expr: UTestCreateArrayExpression): Expression =
         ArrayCreationExpr(
-            renderType(expr.elementType),
+            renderType(expr.elementType, false),
             NodeList(ArrayCreationLevel(renderExpression(expr.size))),
             null
         )
