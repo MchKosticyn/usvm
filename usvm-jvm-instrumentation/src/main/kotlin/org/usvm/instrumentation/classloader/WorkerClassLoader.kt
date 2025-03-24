@@ -17,6 +17,9 @@ import org.usvm.jvm.util.isFinal
 import org.usvm.jvm.util.isStatic
 import org.usvm.jvm.util.setFieldValue
 import org.usvm.jvm.util.toByteArray
+import java.net.URL
+import java.util.Collections
+import java.util.Enumeration
 
 /**
  * Worker classloader using as classloader in testing project
@@ -126,8 +129,18 @@ class WorkerClassLoader(
 
     private fun getWorkerResource(name: String): URLClassPathLoader.Resource = cachedClasses.getOrPut(name) {
         val path = name.replace('.', '/') + ".class"
-        val resource = urlClassPath.getResource(path)
+        val resource = urlClassPath.getResource(path) ?: error("Could not find resource $path")
         WorkerResource(resource)
+    }
+
+    override fun getResource(name: String?): URL? {
+        if (name == null) return null
+        return urlClassPath.getResource(name)?.getURL()
+    }
+
+    override fun findResources(name: String): Enumeration<URL> {
+        val resourceUrls = urlClassPath.getResources(name).map { it.getURL() }
+        return Collections.enumeration(resourceUrls.toList())
     }
 
     companion object {
@@ -139,5 +152,4 @@ class WorkerClassLoader(
         private val cachedBytes by lazy { resource.getBytes() }
         override fun getBytes(): ByteArray = cachedBytes
     }
-
 }

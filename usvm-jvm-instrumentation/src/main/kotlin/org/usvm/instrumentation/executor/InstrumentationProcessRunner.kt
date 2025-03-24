@@ -24,7 +24,9 @@ class InstrumentationProcessRunner(
     private val jcClasspath: JcClasspath,
     private val instrumentationClassFactory: KClass<out JcInstrumenterFactory<out JcInstrumenter>>,
     private val instrumentedClasses: List<String> = listOf(),
-    private val executionMode: InstrumentedProcess.UTestExecMode = InstrumentedProcess.UTestExecMode.STATE
+    private val executionMode: InstrumentedProcess.UTestExecMode = InstrumentedProcess.UTestExecMode.STATE,
+    memoryLimit: Int = 1,
+    allowForDebugger: Boolean = false,
 ) {
 
     private lateinit var rdProcessRunner: RdProcessRunner
@@ -40,16 +42,20 @@ class InstrumentationProcessRunner(
 
     private val jvmArgs: List<String> by lazy {
         val instrumentationClassNameFactoryName = instrumentationClassFactory.java.name
-        val memoryLimit = listOf("-Xmx1g")
+        val memoryLimitOption = listOf("-Xmx${memoryLimit}g")
         val pathToJava = Paths.get(InstrumentationModuleConstants.pathToJava)
         val usvmClasspath = System.getProperty("java.class.path")
         val javaVersionSpecificArguments = OpenModulesContainer.javaVersionSpecificArguments
         val instrumentedProcessClassName =
-            InstrumentedProcess::class.qualifiedName ?: error("Can't find instumented process")
+            InstrumentedProcess::class.qualifiedName ?: error("Can't find instrumented process")
+        val debuggingOption =
+            if (allowForDebugger) listOf("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:${NetUtils.findFreePort(0)}")
+            else emptyList()
         listOf(pathToJava.resolve("bin${File.separatorChar}${osSpecificJavaExecutable()}").toString()) +
                 listOf("-ea") +
                 listOf("-javaagent:${InstrumentationModuleConstants.pathToUsvmInstrumentationJar}=$instrumentationClassNameFactoryName") +
-                memoryLimit +
+                memoryLimitOption +
+                debuggingOption +
                 javaVersionSpecificArguments +
                 listOf("-classpath", usvmClasspath) +
                 listOf(instrumentedProcessClassName)

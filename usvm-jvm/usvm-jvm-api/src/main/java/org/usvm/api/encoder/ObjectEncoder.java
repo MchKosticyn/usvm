@@ -1,4 +1,4 @@
-package org.usvm.concrete.api.encoder;
+package org.usvm.api.encoder;
 
 public interface ObjectEncoder {
     Object encode(Object object);

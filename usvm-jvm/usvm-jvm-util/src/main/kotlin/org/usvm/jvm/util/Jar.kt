@@ -273,6 +273,7 @@ internal class LabelFilterer(private val mn: MethodNode) {
 
         new.visibleAnnotations = mn.visibleAnnotations?.toList()
         new.invisibleAnnotations = mn.invisibleAnnotations?.toList()
+        new.annotationDefault = mn.annotationDefault
 
         new.parameters = mn.parameters?.toList().orEmpty()
 
