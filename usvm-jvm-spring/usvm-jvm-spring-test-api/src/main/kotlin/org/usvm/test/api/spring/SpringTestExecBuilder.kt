@@ -1,4 +1,4 @@
-package org.usvm.test.internal
+package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
@@ -11,6 +11,7 @@ import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestGetFieldExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
+import org.usvm.test.internal.findJcMethod
 
 class SpringTestExecBuilder private constructor(
     private val cp: JcClasspath,

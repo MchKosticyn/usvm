@@ -112,7 +112,7 @@ class ForbiddenModificationException(msg: String) : Exception(msg)
 
 internal fun Field.setFieldValue(obj: Any, value: Any?) {
     check(!isStatic)
-    check(this.declaringClass.isAssignableFrom(obj.javaClass)) {
+    check(declaringClass.isAssignableFrom(obj.javaClass)) {
         "field $this cannot be written to object of ${obj.javaClass}"
     }
 

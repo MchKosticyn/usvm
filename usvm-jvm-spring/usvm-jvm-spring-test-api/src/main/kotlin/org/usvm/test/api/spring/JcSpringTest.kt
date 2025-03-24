@@ -5,9 +5,6 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
-import org.usvm.test.internal.SpringMatchersBuilder
-import org.usvm.test.internal.SpringRequestBuilder
-import org.usvm.test.internal.SpringTestExecBuilder
 
 class SpringException
 

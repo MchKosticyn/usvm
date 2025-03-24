@@ -1,5 +1,6 @@
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.isSubClassOf
 
 internal val JcClassOrInterface.isSpringFilter: Boolean
@@ -28,6 +29,23 @@ internal val JcClassOrInterface.isSpringController: Boolean
         it.name == "org.springframework.stereotype.Controller"
                 || it.name == "org.springframework.web.bind.annotation.RestController"
     }
+
+internal val JcClassOrInterface.isArgumentResolver: Boolean
+    get() {
+        val argumentResolverType =
+            classpath.findClassOrNull("org.springframework.web.method.support.HandlerMethodArgumentResolver")
+                ?: return false
+        return isSubClassOf(argumentResolverType)
+    }
+
+internal val JcMethod.isSpringFilterMethod: Boolean
+    get() = enclosingClass.isSpringFilter && (name == "doFilter" || name == "doFilterInternal")
+
+internal val JcMethod.isSpringFilterChainMethod: Boolean
+    get() = enclosingClass.isSpringFilterChain && (name == "doFilter" || name == "doFilterInternal")
+
+internal val JcMethod.isArgumentResolverMethod: Boolean
+    get() = enclosingClass.isArgumentResolver && (name == "resolveArgument" || name == "readWithMessageConverters" || name == "resolveName")
 
 internal val JcField.isInjectedViaValue: Boolean
     get() = !isStatic && annotations.any {

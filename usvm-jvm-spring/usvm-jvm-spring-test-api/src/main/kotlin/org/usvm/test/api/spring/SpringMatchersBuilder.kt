@@ -1,4 +1,4 @@
-package org.usvm.test.internal
+package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.int
@@ -11,8 +11,7 @@ import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
-import org.usvm.test.api.spring.JcSpringHttpHeader
-import org.usvm.test.api.stringType
+import org.usvm.test.internal.findJcMethod
 
 class SpringMatchersBuilder(
     val cp: JcClasspath

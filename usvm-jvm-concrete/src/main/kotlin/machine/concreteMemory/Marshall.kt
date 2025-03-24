@@ -44,8 +44,8 @@ import org.usvm.USymbol
 import org.usvm.api.SymbolicIdentityMap
 import org.usvm.api.SymbolicList
 import org.usvm.api.SymbolicMap
-import org.usvm.concrete.api.encoder.EncoderFor
-import org.usvm.concrete.api.encoder.ObjectEncoder
+import org.usvm.api.encoder.EncoderFor
+import org.usvm.api.encoder.ObjectEncoder
 import org.usvm.isFalse
 import org.usvm.isTrue
 import org.usvm.machine.JcContext
@@ -54,7 +54,6 @@ import org.usvm.util.allInstanceFields
 import org.usvm.util.name
 import org.usvm.util.onNone
 import org.usvm.util.onSome
-import utils.allInstanceFields
 import utils.declaredInstanceFields
 import utils.isInstanceApproximation
 import utils.toJcType

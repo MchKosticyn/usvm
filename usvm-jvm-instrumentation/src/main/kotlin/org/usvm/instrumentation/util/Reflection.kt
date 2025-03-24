@@ -39,7 +39,7 @@ fun executeWithTimeout(body: () -> Any?): Any? {
     }
     when {
         isThreadStopped -> throw TimeoutException()
-        result is InvocationTargetException -> throw (result as InvocationTargetException).cause ?: result as Throwable
+        result is InvocationTargetException -> throw (result as InvocationTargetException).targetException ?: result as Throwable
         result is Throwable -> throw (result as Throwable)
         else -> return result
     }
