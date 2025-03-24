@@ -349,7 +349,8 @@ open class JcTestBlockRenderer protected constructor(
             if (mockValues.isEmpty())
                 continue
 
-            check(method.returnType.typeName != PredefinedPrimitives.Void)
+            if (method.returnType.typeName == PredefinedPrimitives.Void)
+                continue
 
             val mockInitialization = renderMockObjectMethod(varExpr, method, mockValues)
 

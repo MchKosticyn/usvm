@@ -49,12 +49,14 @@ open class JcTestRenderer(
 
     open fun requireVarDeclarationOf(expr: UTestExpression): Boolean = false
 
+    open fun preventVarDeclarationOf(expr: UTestExpression): Boolean = expr is UTestConstExpression<*>
+
     inner class JcExprUsageVisitor: JcTestVisitor() {
 
         private val exprCache: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
 
         override fun visit(expr: UTestExpression) {
-            if (expr !is UTestConstExpression<*> && !exprCache.add(expr) || requireVarDeclarationOf(expr))
+            if (!preventVarDeclarationOf(expr) && !exprCache.add(expr) || requireVarDeclarationOf(expr))
                 // Multiple usage of expression
                 shouldDeclareVar.add(expr)
 

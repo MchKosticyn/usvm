@@ -17,13 +17,22 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 
-open class JcBlockRenderer protected constructor(
+open class JcBlockRenderer private constructor(
     protected open val methodRenderer: JcMethodRenderer,
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
-    protected val thrownExceptions: HashSet<ReferenceType>
+    protected val thrownExceptions: HashSet<ReferenceType>,
+    private val vars: HashSet<NameExpr>
 ) : JcCodeRenderer<BlockStmt>(importManager, identifiersManager, cp) {
+
+    protected constructor(
+        methodRenderer: JcMethodRenderer,
+        importManager: JcImportManager,
+        identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath,
+        thrownExceptions: HashSet<ReferenceType>
+    ) : this(methodRenderer, importManager, identifiersManager, cp, thrownExceptions, HashSet())
 
     constructor(
         methodRenderer: JcMethodRenderer,
@@ -45,12 +54,15 @@ open class JcBlockRenderer protected constructor(
     }
 
     open fun newInnerBlock(): JcBlockRenderer {
+        val innerIdManager = JcIdentifiersManager(identifiersManager)
+        val innerVars = HashSet(vars)
         return JcBlockRenderer(
             methodRenderer,
             importManager,
-            JcIdentifiersManager(identifiersManager),
+            innerIdManager,
             cp,
-            thrownExceptions
+            thrownExceptions,
+            innerVars
         )
     }
 
@@ -64,10 +76,17 @@ open class JcBlockRenderer protected constructor(
     }
 
     protected fun renderVarDeclaration(type: Type, expr: Expression? = null, namePrefix: String? = null): NameExpr {
+        if (expr is NameExpr && expr in vars)
+            return expr
+
         val name = identifiersManager[namePrefix ?: "v"]
         val declarator = VariableDeclarator(type, name, expr)
         addExpression(VariableDeclarationExpr(declarator))
-        return NameExpr(name)
+
+        val freshVar = NameExpr(name)
+        vars.add(freshVar)
+
+        return freshVar
     }
 
     fun renderIfStatement(
