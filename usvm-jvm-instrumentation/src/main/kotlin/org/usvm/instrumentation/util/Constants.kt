@@ -1,17 +1,17 @@
 package org.usvm.instrumentation.util
 
 import org.usvm.instrumentation.rd.StaticsRollbackStrategy
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.minutes
 
 //TODO move in common settings file
 object InstrumentationModuleConstants {
 
     //Timeout for test execution
-    val testExecutionTimeout = 10.seconds
+    val testExecutionTimeout = 10.minutes
     //Timeout for method execution
-    val methodExecutionTimeout = 2.seconds
+    val methodExecutionTimeout = 10.minutes
     //Timeout for executor process waiting (should be in seconds)
-    const val concreteExecutorProcessTimeout = 120
+    const val concreteExecutorProcessTimeout = 1000000
     //If something gone wrong with RD
     const val triesToRecreateExecutorRdProcess = 3
     //Rollback strategy

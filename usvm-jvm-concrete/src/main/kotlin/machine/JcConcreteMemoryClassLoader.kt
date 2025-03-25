@@ -97,7 +97,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
 
     private fun findResourcesInJar(locFile: File, name: String, single: Boolean): List<URL>? {
         val jar = JarFile(locFile)
-        val jarPath = "jar:file:${locFile.absolutePath}!"
+        val jarPath = "jar:file:${locFile.absolutePath}!".replace("\\", "/")
         if (single) {
             for (current in jar.entries()) {
                 if (current.matchResource(name, true))

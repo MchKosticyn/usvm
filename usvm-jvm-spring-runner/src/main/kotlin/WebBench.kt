@@ -25,6 +25,7 @@ import org.jacodb.impl.jacodb
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.FieldNode
+import org.objectweb.asm.Type
 import org.usvm.PathSelectionStrategy
 import org.usvm.SolverType
 import org.usvm.UMachineOptions
@@ -50,13 +51,11 @@ import java.util.Locale
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.Path
 import kotlin.io.path.PathWalkOption
-import kotlin.io.path.createDirectories
 import kotlin.io.path.div
 import kotlin.io.path.extension
 import kotlin.io.path.walk
 import kotlin.system.measureNanoTime
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -176,30 +175,34 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     check(dir.exists()) { "Generated directory ${dir.absolutePath} does not exist" }
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
+    val importAnnotation = cp.findClass("org.springframework.context.annotation.Import")
     val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
+    val nonAbstractClasses = cp.nonAbstractClasses(benchmark.classLocations)
+    val securityConfigs = nonAbstractClasses.filter { type ->
+        type.annotations.any {
+            it.name == "org.springframework.security.config.annotation.web.configuration.EnableWebSecurity"
+        }
+    }.toList()
     val repositories = runBlocking { cp.hierarchyExt() }
         .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
         .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
         .toList()
-    val services =
-        cp.nonAbstractClasses(benchmark.classLocations)
-            .filter {
-                it.annotations.any { annotation ->
-                    annotation.name == "org.springframework.stereotype.Service"
-                }
-            }.toList()
+    val services = nonAbstractClasses.filter {
+        it.annotations.any { annotation ->
+            annotation.name == "org.springframework.stereotype.Service"
+        }
+    }.toList()
     val mockBeans = repositories + services
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
 
-    val webApplicationPackage =
-        cp.nonAbstractClasses(benchmark.classLocations)
-            .find {
-                it.annotations.any { annotation ->
-                    annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
-                }
-            }?.packageName
-            ?: throw IllegalArgumentException("No entry classes found (with SpringBootApplication annotation)")
-    val entryPackagePath = Path(webApplicationPackage.replace('.', '/'))
+    val webApplicationPackage = nonAbstractClasses.find {
+        it.annotations.any { annotation ->
+            annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
+        }
+    }?.packageName
+    ?: throw IllegalArgumentException("No entry classes found (with SpringBootApplication annotation)")
+
+    val entryPackagePath = webApplicationPackage.replace('.', '/')
 
     val testClassName = "StartSpringTestClass"
     val testClassFullName = "$entryPackagePath/$testClassName"
@@ -214,6 +217,9 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             classNode.fields.add(field)
         }
 
+        val importAnnotationNode = AnnotationNode(importAnnotation.jvmDescriptor)
+        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) })
+        classNode.visibleAnnotations.add(importAnnotationNode)
         classNode.write(cp, dir.resolve("$testClassFullName.class").toPath(), checkClass = true)
     }
 

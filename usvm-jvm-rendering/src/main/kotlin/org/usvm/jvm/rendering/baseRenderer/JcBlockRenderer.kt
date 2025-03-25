@@ -16,11 +16,18 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 
-open class JcBlockRenderer protected constructor(
+open class JcBlockRenderer private constructor(
     importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
-    protected val thrownExceptions: HashSet<ReferenceType>
+    protected val thrownExceptions: HashSet<ReferenceType>,
+    private val vars: HashSet<NameExpr>
 ) : JcCodeRenderer<BlockStmt>(importManager, identifiersManager) {
+
+    protected constructor(
+        importManager: JcImportManager,
+        identifiersManager: JcIdentifiersManager,
+        thrownExceptions: HashSet<ReferenceType>
+    ) : this(importManager, identifiersManager, thrownExceptions, HashSet())
 
     constructor(
         importManager: JcImportManager,
@@ -38,7 +45,8 @@ open class JcBlockRenderer protected constructor(
     }
 
     open fun newInnerBlock(): JcBlockRenderer {
-        return JcBlockRenderer(importManager, JcIdentifiersManager(identifiersManager), thrownExceptions)
+        val newIdentifiersManager = JcIdentifiersManager(identifiersManager)
+        return JcBlockRenderer(importManager, newIdentifiersManager, thrownExceptions, HashSet(vars))
     }
 
     fun addExpression(expr: Expression) {
@@ -46,11 +54,16 @@ open class JcBlockRenderer protected constructor(
     }
 
     fun renderVarDeclaration(type: JcType, expr: Expression? = null, namePrefix: String? = null): NameExpr {
+        if (expr is NameExpr && vars.contains(expr))
+            return expr
+
         val renderedType = renderType(type)
         val name = identifiersManager[namePrefix ?: "v"]
         val declarator = VariableDeclarator(renderedType, name, expr)
         addExpression(VariableDeclarationExpr(declarator))
-        return NameExpr(name)
+        val varNameExpr = NameExpr(name)
+        vars.add(varNameExpr)
+        return varNameExpr
     }
 
     fun renderIfStatement(
