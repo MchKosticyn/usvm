@@ -83,10 +83,10 @@ class SpringRequestBuilder private constructor(
         val argsDSL = mutableListOf<UTestExpression>()
         argsDSL.add(UTestStringExpression(str, cp.stringType))
         argsDSL.addAll(arrOfStr.map { UTestStringExpression(it.toString(), cp.stringType) })
-        UTestMethodCall(
+        reqDSL = UTestMethodCall(
             instance = reqDSL,
             method = mName,
             args = argsDSL,
-        ).also { reqDSL = it }
+        )
     }
 }

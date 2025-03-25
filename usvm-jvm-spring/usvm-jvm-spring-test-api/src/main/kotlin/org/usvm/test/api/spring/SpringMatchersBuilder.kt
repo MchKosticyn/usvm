@@ -29,7 +29,7 @@ class SpringMatchersBuilder(
                 UTestStringExpression(list[it].toString(), cp.stringType)
             )
         }
-        initStatements.addAll(listOf(listDsl) + listInitializer)
+        initStatements.addAll(listInitializer)
         return listDsl
     }
 
@@ -54,7 +54,8 @@ class SpringMatchersBuilder(
         val matcherDsl = UTestStaticMethodCall(
             method = createMatcherMethod,
             args = matcherArguments.map { wrapArgument(it) }.toList()
-        ).also { initStatements.add(it) }
+        )
+        initStatements.add(matcherDsl)
 
         return matcherDsl
     }
@@ -73,7 +74,8 @@ class SpringMatchersBuilder(
             instance = matcherSourceDsl,
             method = conditionMethod,
             args = conditionArguments.map { wrapArgument(it) }.toList()
-        ).also { matchers.add(it) }
+        )
+        matchers.add(conditionDsl)
 
         return conditionDsl
     }

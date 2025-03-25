@@ -477,7 +477,7 @@ class LambdaClassSource(
     }
 }
 
-internal fun Class<*>.toJcType(ctx: JcContext): JcType? {
+fun Class<*>.toJcType(ctx: JcContext): JcType? {
     try {
         if (isProxy) {
             val interfaces = interfaces
