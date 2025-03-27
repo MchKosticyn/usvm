@@ -7,7 +7,6 @@ interface JcSpringRequest {
     fun getHeaders(): List<JcSpringHttpHeader>
     fun getMethod(): JcSpringRequestMethod
     fun getPath(): String
-    fun getEncoding(): String?
     fun getContentAsString(): String
     fun getParameters(): List<JcSpringHttpParameter>
     fun getUriVariables(): List<Any?>
@@ -45,17 +44,11 @@ class JcSpringRealRequest(private val request: Any) : JcSpringRequest {
 
     override fun getPath(): String = getFromMethod("getPathInfo")
 
-    override fun getEncoding(): String? {
-        TODO("Not yet implemented")
-    }
-
     override fun getContentAsString(): String {
         // TODO: If read once will fail after! Needs copying request #AA
-        val encoding = getEncoding()
         val inputStream = getFromMethod("getInputStream") as Any
         val content = inputStream.javaClass.getMethod("readAllBytes").invoke(inputStream) as ByteArray
-        check(encoding != null) { "Cannot read content if encoding is not set" }
-        return String(content, charset(encoding))
+        return String(content)
     }
 
     override fun getParameters(): List<JcSpringHttpParameter> {
