@@ -1,12 +1,14 @@
 package org.usvm.jvm.rendering.spring.webMvcTestRenderer
 
-import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
-import org.usvm.jvm.rendering.testRenderer.JcTestInfo
+import org.jacodb.api.jvm.ext.toType
+import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestInfo
 
-data class JcSpringMvcTestInfo(override val method: JcMethod, val controller: JcClassType) : JcTestInfo() {
+class JcSpringMvcTestInfo(method: JcMethod, isExceptional: Boolean) : JcSpringUnitTestInfo(method, isExceptional) {
+    val controller by lazy { method.enclosingClass.toType() }
+
     override fun hashCode(): Int {
-        return controller.hashCode()
+        return method.enclosingClass.hashCode()
     }
 
     override fun equals(other: Any?): Boolean {

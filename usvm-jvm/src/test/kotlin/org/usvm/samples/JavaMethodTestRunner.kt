@@ -36,7 +36,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import org.usvm.api.createUTest
 import org.usvm.jvm.rendering.JcTestsRenderer
-import org.usvm.jvm.rendering.testRenderer.JcUnitTestInfo
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestInfo
 
 
 @ExtendWith(UTestRunnerController::class)
@@ -821,8 +821,8 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
         JcMachine(cp, options, interpreterObserver = interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
             val renderer = JcTestsRenderer()
-            val tests = states.map { state -> createUTest(jcMethod, state) to JcUnitTestInfo(jcMethod.method, state.isExceptional) }
-            renderer.renderTests(cp, tests)
+            val tests = states.map { state -> createUTest(jcMethod, state) to JcUnsafeTestInfo(jcMethod.method, state.isExceptional) }
+            renderer.renderTests(cp, tests, true)
             states.map { testResolver.resolve(jcMethod, it) }
         }
     }

@@ -14,54 +14,37 @@ import org.jacodb.api.jvm.JcClasspath
 
 open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
 
-    private val name: SimpleName
+    internal val name: SimpleName
     private val modifiers: NodeList<Modifier>
     private val annotations: NodeList<AnnotationExpr>
     private val members: NodeList<BodyDeclaration<*>>
 
-    private constructor(
-        importManager: JcImportManager,
-        identifiersManager: JcIdentifiersManager,
-        cp: JcClasspath,
-        name: SimpleName,
-        modifiers: NodeList<Modifier>,
-        annotations: NodeList<AnnotationExpr>,
-        existingMembers: NodeList<BodyDeclaration<*>>
-    ) : super(importManager, identifiersManager, cp) {
-        this.name = name
-        this.modifiers = modifiers
-        this.annotations = annotations
-        this.members = existingMembers
-    }
-
     private val renderingMethods: MutableList<JcMethodRenderer> = mutableListOf()
-
-    protected constructor(
-        importManager: JcImportManager,
-        decl: ClassOrInterfaceDeclaration,
-        cp: JcClasspath
-    ) : this(importManager, JcIdentifiersManager(), cp, decl.name, decl.modifiers, decl.annotations, decl.members)
 
     constructor(
         decl: ClassOrInterfaceDeclaration,
-        cp: JcClasspath
-    ): this(JcImportManager(), decl, cp)
-
-    protected constructor(
         importManager: JcImportManager,
-        name: String,
+        identifiersManager: JcIdentifiersManager,
         cp: JcClasspath
-    ): super(importManager, JcIdentifiersManager(), cp) {
+    ) : super(importManager, identifiersManager.extendedWith(decl), cp)
+    {
+        this.name = decl.name
+        this.modifiers = decl.modifiers
+        this.annotations = decl.annotations
+        this.members = decl.members
+    }
+
+    constructor(
+        name: String,
+        importManager: JcImportManager,
+        identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath
+    ): super(importManager, identifiersManager, cp) {
         this.name = identifiersManager.generateIdentifier(name)
         this.modifiers = NodeList()
         this.annotations = NodeList()
         this.members = NodeList()
     }
-
-    constructor(
-        name: String,
-        cp: JcClasspath,
-    ): this(JcImportManager(), name, cp)
 
     protected fun addRenderingMethod(render: JcMethodRenderer) {
         renderingMethods.add(render)

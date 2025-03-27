@@ -5,10 +5,10 @@ import com.github.javaparser.ast.ImportDeclaration
 import com.github.javaparser.ast.NodeList
 
 open class JcImportManager(cu: CompilationUnit? = null) {
-    private val names: MutableSet<String>
-    private val staticNames: MutableSet<String>
-    private val packages: MutableSet<String>
-    private val staticPackages: MutableSet<String>
+    protected val names: MutableSet<String>
+    protected val staticNames: MutableSet<String>
+    protected val packages: MutableSet<String>
+    protected val staticPackages: MutableSet<String>
 
     private val simpleToPackage: MutableMap<String, String>
 
@@ -31,7 +31,7 @@ open class JcImportManager(cu: CompilationUnit? = null) {
         packages.add("java.lang")
     }
 
-    private fun add(
+    protected open fun add(
         packageName: String,
         simpleName: String,
         packages: MutableSet<String>,

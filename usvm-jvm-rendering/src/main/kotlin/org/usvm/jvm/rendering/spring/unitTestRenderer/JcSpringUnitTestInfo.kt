@@ -1,7 +1,6 @@
 package org.usvm.jvm.rendering.spring.unitTestRenderer
 
 import org.jacodb.api.jvm.JcMethod
-import org.usvm.jvm.rendering.testRenderer.JcTestInfo
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestInfo
 
-data class JcSpringUnitTestInfo(override val method: JcMethod) : JcTestInfo()
-
+open class JcSpringUnitTestInfo(method: JcMethod, isExceptional: Boolean): JcUnsafeTestInfo(method, isExceptional)

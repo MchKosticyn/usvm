@@ -12,27 +12,19 @@ import org.usvm.test.api.UTest
 
 open class JcTestClassRenderer : JcClassRenderer {
 
-    protected constructor(
-        importManager: JcImportManager,
-        name: String,
-        cp: JcClasspath
-    ) : super(importManager, name, cp)
-
     constructor(
         name: String,
-        cp: JcClasspath
-    ) : super(name, cp)
-
-    protected constructor(
         importManager: JcImportManager,
+        identifiersManager: JcIdentifiersManager,
+        cp: JcClasspath
+    ) : super(name, importManager, identifiersManager, cp)
+
+    constructor(
         decl: ClassOrInterfaceDeclaration,
+        importManager: JcImportManager,
+        identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
-    ): super(importManager, decl, cp)
-
-    constructor(
-        decl: ClassOrInterfaceDeclaration,
-        cp: JcClasspath
-    ) : super(decl, cp)
+    ): super(decl, importManager, identifiersManager, cp)
 
     protected val testAnnotationJUnit: AnnotationExpr by lazy {
         val annotationName = renderClass("org.junit.jupiter.api.Test")
@@ -49,7 +41,7 @@ open class JcTestClassRenderer : JcClassRenderer {
             test,
             this,
             importManager,
-            identifiersManager,
+            JcIdentifiersManager(identifiersManager),
             cp,
             name,
             testAnnotation
