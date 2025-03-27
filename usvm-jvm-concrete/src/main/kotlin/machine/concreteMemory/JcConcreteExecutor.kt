@@ -1,53 +1,11 @@
 package machine.concreteMemory
 
 import machine.JcConcreteMemoryClassLoader
+import org.usvm.jvm.util.JcExecutor
 import utils.isThreadLocal
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
-import java.util.concurrent.ThreadFactory
 
-private class JcThreadFactory : ThreadFactory {
-
-    private var currentThread: Thread? = null
-
-    override fun newThread(runnable: Runnable): Thread {
-        check(currentThread == null)
-        val thread = Thread(runnable)
-        thread.contextClassLoader = JcConcreteMemoryClassLoader
-        thread.isDaemon = true
-        currentThread = thread
-        return thread
-    }
-
-    fun getCurrentThread(): Thread? {
-        return currentThread
-    }
-}
-
-internal class JcConcreteExecutor: ThreadLocalHelper {
-    private val threadFactory = JcThreadFactory()
-    private val executor = Executors.newSingleThreadExecutor(threadFactory)
+internal class JcConcreteExecutor: JcExecutor(JcConcreteMemoryClassLoader), ThreadLocalHelper {
     private val threadLocalType by lazy { ThreadLocal::class.java }
-    private var lastTask: Future<*>? = null
-
-    private val alreadyInExecutor: Boolean
-        get() = Thread.currentThread() === threadFactory.getCurrentThread()
-
-    private val taskIsRunning: Boolean
-        get() = lastTask != null && lastTask?.isDone == false
-
-    fun execute(task: Runnable) {
-        if (alreadyInExecutor) {
-            check(taskIsRunning)
-            task.run()
-            return
-        }
-
-        check(!taskIsRunning)
-        val future = executor.submit(task)
-        lastTask = future
-        future.get()
-    }
 
     override fun checkIsPresent(threadLocal: Any): Boolean {
         check(threadLocal.javaClass.isThreadLocal)

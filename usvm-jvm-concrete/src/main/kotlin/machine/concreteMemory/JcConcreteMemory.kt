@@ -437,14 +437,6 @@ open class JcConcreteMemory(
         return success
     }
 
-    private fun unfoldException(e: Throwable): Throwable {
-        return when {
-            e is ExecutionException && e.cause != null -> unfoldException(e.cause!!)
-            e is InvocationTargetException -> e.targetException
-            else -> e
-        }
-    }
-
     private fun invoke(
         state: JcState,
         exprResolver: JcExprResolver,
@@ -460,14 +452,8 @@ open class JcConcreteMemory(
                 bindings.effectStorage.addObjectToEffectRec(arg)
         }
 
-        var resultObj: Any? = null
-        var exception: Throwable? = null
-        executor.execute {
-            try {
-                resultObj = method.invoke(JcConcreteMemoryClassLoader, thisObj, objParameters)
-            } catch (e: Throwable) {
-                exception = unfoldException(e)
-            }
+        val (resultObj, exception) = executor.executeWithResult {
+            method.invoke(JcConcreteMemoryClassLoader, thisObj, objParameters)
         }
 
         if (exception == null) {
@@ -482,12 +468,12 @@ open class JcConcreteMemory(
                 // TODO: think about this:
                 //  A <: B
                 //  A.ctor is called symbolically, but B.ctor called concretelly #CM
-                check(thisObj.javaClass == resultObj!!.javaClass)
+                check(thisObj.javaClass == resultObj.javaClass)
                 val thisAddress = bindings.tryPhysToVirt(thisObj)
                 check(thisAddress != null)
                 val type = bindings.typeOf(thisAddress)
                 bindings.remove(thisAddress, isSymbolic = false)
-                bindings.allocate(thisAddress, resultObj!!, type)
+                bindings.allocate(thisAddress, resultObj, type)
             }
 
             val returnType = ctx.cp.findTypeOrNull(method.returnType)!!
@@ -496,10 +482,9 @@ open class JcConcreteMemory(
             state.newStmt(JcConcreteInvocationResult(result, stmt))
         } else {
             // Exception thrown
-            val e = exception!!
-            val jcType = ctx.jcTypeOf(e)
-            println("Exception ${e.javaClass} with message ${e.message}")
-            val exceptionObj = allocateObject(e, jcType)
+            val jcType = ctx.jcTypeOf(exception)
+            println("Exception ${exception.javaClass} with message ${exception.message}")
+            val exceptionObj = allocateObject(exception, jcType)
             state.throwExceptionWithoutStackFrameDrop(exceptionObj, jcType)
         }
     }
