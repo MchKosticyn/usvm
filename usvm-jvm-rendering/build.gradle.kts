@@ -8,3 +8,11 @@ dependencies {
     implementation(project(":usvm-jvm:usvm-jvm-test-api"))
     implementation("com.github.javaparser:javaparser-symbol-solver-core:3.26.3")
 }
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
+}
