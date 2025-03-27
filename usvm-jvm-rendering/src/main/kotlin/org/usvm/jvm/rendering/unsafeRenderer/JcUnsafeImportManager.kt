@@ -9,7 +9,7 @@ object ReflectionUtilName {
     const val USVM = "org.usvm.jvm.rendering.ReflectionUtils"
     const val USVM_SIMPLE = "ReflectionUtils"
 
-    fun isValid(name: String) = name in listOf(SPRING, USVM)
+    fun isValidFullName(name: String) = name in listOf(SPRING, USVM)
 }
 
 class JcUnsafeImportManager(
@@ -19,7 +19,7 @@ class JcUnsafeImportManager(
 ) : JcImportManager(cu) {
 
     init {
-        check(ReflectionUtilName.isValid(reflectionUtilsFullName))
+        check(ReflectionUtilName.isValidFullName(reflectionUtilsFullName))
     }
 
     private var reflectionUtilsImported = false
@@ -81,7 +81,7 @@ class JcUnsafeImportManager(
         "allocateInstance" to listOf()
     )
 
-    fun useUsvmMethod(name: String) {
+    fun useUsvmReflectionMethod(name: String) {
         usvmUtilMethodCollector.add(name)
     }
 

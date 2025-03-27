@@ -21,7 +21,7 @@ class JcIdentifiersManager private constructor(
     constructor(manager: JcIdentifiersManager) : this(manager.prefixIndexer.toMutableMap())
 
     constructor(cu: CompilationUnit? = null): this(mutableMapOf<String, Int>()) {
-        val classes = cu?.types?.map { it.name.asString() } .orEmpty()
+        val classes = cu?.types?.map { it.name.asString() }.orEmpty()
         prefixIndexer.addAll(classes)
     }
 

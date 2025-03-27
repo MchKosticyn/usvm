@@ -109,7 +109,7 @@ open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
         if (existingDecl == null) return null
 
         existingMembers.removeIf { decl -> decl == existingDecl }
-        val renderer= classRendererFor(existingDecl)
+        val renderer = classRendererFor(existingDecl)
         addRenderingClass(renderer)
 
         return renderer

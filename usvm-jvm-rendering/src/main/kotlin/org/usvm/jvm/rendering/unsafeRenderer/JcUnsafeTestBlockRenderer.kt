@@ -79,7 +79,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
 
     override fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
         addThrownException("java.lang.Throwable", ctor.enclosingClass.classpath)
-        importManager.useUsvmMethod("callConstructor")
+        importManager.useUsvmReflectionMethod("callConstructor")
         val allArgs = listOf(renderClassExpression(type), StringLiteralExpr(ctor.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
@@ -98,7 +98,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
 
     override fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
         addThrownException("java.lang.Throwable", method.enclosingClass.classpath)
-        importManager.useUsvmMethod("callMethod")
+        importManager.useUsvmReflectionMethod("callMethod")
         val allArgs = listOf(instance, StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
@@ -110,7 +110,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
 
     override fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
         addThrownException("java.lang.Throwable", method.enclosingClass.classpath)
-        importManager.useUsvmMethod("callStaticMethod")
+        importManager.useUsvmReflectionMethod("callStaticMethod")
         val enclosingClass = method.enclosingClass
         val allArgs = listOf(renderClassExpression(enclosingClass), StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
@@ -133,7 +133,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     }
 
     override fun renderGetPrivateStaticField(field: JcField): Expression {
-        importManager.useUsvmMethod("getStaticFieldValue")
+        importManager.useUsvmReflectionMethod("getStaticFieldValue")
         return MethodCallExpr(
             utilsName,
             typeArgsForPrivateFieldGet(field),
@@ -143,7 +143,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     }
 
     override fun renderGetPrivateField(instance: Expression, field: JcField): Expression {
-        importManager.useUsvmMethod("getFieldValue")
+        importManager.useUsvmReflectionMethod("getFieldValue")
         return MethodCallExpr(
             utilsName,
             typeArgsForPrivateFieldGet(field),
@@ -153,7 +153,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     }
 
     override fun renderSetPrivateStaticField(field: JcField, value: Expression): Expression {
-        importManager.useUsvmMethod("setStaticFieldValue")
+        importManager.useUsvmReflectionMethod("setStaticFieldValue")
         return MethodCallExpr(
             utilsName,
             "setStaticFieldValue",
@@ -162,7 +162,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     }
 
     override fun renderSetPrivateField(instance: Expression, field: JcField, value: Expression): Expression {
-        importManager.useUsvmMethod("setFieldValue")
+        importManager.useUsvmReflectionMethod("setFieldValue")
         return MethodCallExpr(
             utilsName,
             "setFieldValue",
@@ -176,7 +176,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
 
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
         addThrownException("java.lang.InstantiationException", expr.clazz.classpath)
-        importManager.useUsvmMethod("allocateInstance")
+        importManager.useUsvmReflectionMethod("allocateInstance")
         return MethodCallExpr(
             utilsName,
             NodeList(renderClass(expr.clazz)),

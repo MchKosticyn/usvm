@@ -2,6 +2,7 @@ package org.usvm.jvm.rendering.unsafeRenderer
 
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.CompilationUnit
+import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import kotlin.jvm.optionals.getOrNull
@@ -37,7 +38,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         packageName: String,
         cp: JcClasspath,
         inlineUsvmUtils: Boolean
-    ) : this(packageName, JcUnsafeImportManager(ReflectionUtilName.USVM, shouldInlineUsvmUtils = inlineUsvmUtils), cp, inlineUsvmUtils)
+    ) : this(packageName, JcUnsafeImportManager(ReflectionUtilName.USVM, null, inlineUsvmUtils), cp, inlineUsvmUtils)
 
     override val importManager: JcUnsafeImportManager
         get() = super.importManager as JcUnsafeImportManager
@@ -52,6 +53,8 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         JcUnsafeTestClassRenderer(name, importManager, identifiersManager, cp)
 
     private fun addUsvmReflectionUtilClassWith(methods: Set<String>, cu: CompilationUnit): CompilationUnit {
+        if (methods.isEmpty()) return cu
+
         val filteredUtilCu =
             this::class.java.classLoader.getResourceAsStream("ReflectionUtils.java").use { stream ->
                 val usvmUtils = StaticJavaParser.parse(stream)
@@ -71,7 +74,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         }
 
         filteredUtilCu.imports.forEach { importDecl -> cu.addImport(importDecl) }
-        previousUtils.modifiers = NodeList()
+        previousUtils.modifiers = NodeList(Modifier.privateModifier())
         previousUtils.allContainedComments.forEach { it.remove() }
 
         return cu
