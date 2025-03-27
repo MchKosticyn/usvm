@@ -74,7 +74,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         }
 
         filteredUtilCu.imports.forEach { importDecl -> cu.addImport(importDecl) }
-        previousUtils.modifiers = NodeList(Modifier.privateModifier())
+        previousUtils.modifiers = NodeList()
         previousUtils.allContainedComments.forEach { it.remove() }
 
         return cu
