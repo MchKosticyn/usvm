@@ -4,43 +4,45 @@ import org.usvm.jvm.util.withAccessibility
 import java.lang.reflect.Constructor
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
-import java.util.concurrent.TimeoutException
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
 
-fun Method.invokeWithAccessibility(instance: Any?, args: List<Any?>): Any? =
-    executeWithTimeout {
+fun Method.invokeWithAccessibility(instance: Any?, args: List<Any?>, executor: TestTaskExecutor): Any? =
+    executeWithTimeout(executor) {
         withAccessibility {
             invoke(instance, *args.toTypedArray())
         }
     }
 
-fun Constructor<*>.newInstanceWithAccessibility(args: List<Any?>): Any =
-    executeWithTimeout {
+fun Constructor<*>.newInstanceWithAccessibility(args: List<Any?>, executor: TestTaskExecutor): Any =
+    executeWithTimeout(executor) {
         withAccessibility {
             newInstance(*args.toTypedArray())
         }
     } ?: error("Cant instantiate class ${this.declaringClass.name}")
 
-fun executeWithTimeout(body: () -> Any?): Any? {
+private fun unfoldException(e: Throwable): Throwable {
+    return when {
+        e is ExecutionException && e.cause != null -> unfoldException(e.cause!!)
+        e is InvocationTargetException -> e.targetException
+        else -> e
+    }
+}
+
+fun executeWithTimeout(executor: TestTaskExecutor, body: () -> Any?): Any? {
     var result: Any? = null
-    val thread = Thread {
-        result = try {
-            body()
+    var exception: Throwable? = null
+    val timeout = InstrumentationModuleConstants.methodExecutionTimeout
+    // TODO: unify with executor from concrete memory
+    executor.runWithTimeout(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS) {
+        try {
+            result = body()
         } catch (e: Throwable) {
-            e
+            exception = unfoldException(e)
         }
     }
-    thread.start()
-    thread.join(InstrumentationModuleConstants.methodExecutionTimeout.inWholeMilliseconds)
-    var isThreadStopped = false
-    while (thread.isAlive) {
-        @Suppress("DEPRECATION")
-        thread.stop()
-        isThreadStopped = true
-    }
-    when {
-        isThreadStopped -> throw TimeoutException()
-        result is InvocationTargetException -> throw (result as InvocationTargetException).targetException ?: result as Throwable
-        result is Throwable -> throw (result as Throwable)
-        else -> return result
-    }
+    if (exception != null)
+        throw exception!!
+
+    return result
 }
