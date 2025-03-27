@@ -49,14 +49,7 @@ class JcSpringRealRequest(private val request: Any) : JcSpringRequest {
         TODO("Not yet implemented")
     }
 
-    override fun getContentAsString(): String {
-        // TODO: If read once will fail after! Needs copying request #AA
-        val encoding = getEncoding()
-        val inputStream = getFromMethod("getInputStream") as Any
-        val content = inputStream.javaClass.getMethod("readAllBytes").invoke(inputStream) as ByteArray
-        check(encoding != null) { "Cannot read content if encoding is not set" }
-        return String(content, charset(encoding))
-    }
+    override fun getContentAsString(): String = getFromMethod("getContentAsString")
 
     override fun getParameters(): List<JcSpringHttpParameter> {
         val parameterMap = getFromMethod("getParameterMap") as Map<String, Array<String>>
