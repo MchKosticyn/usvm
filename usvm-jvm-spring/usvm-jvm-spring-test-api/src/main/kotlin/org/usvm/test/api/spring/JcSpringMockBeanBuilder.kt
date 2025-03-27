@@ -14,6 +14,7 @@ import org.jacodb.api.jvm.ext.findType
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestGetFieldExpression
+import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestSetFieldStatement
 import org.usvm.test.api.UTestStatement
@@ -36,7 +37,7 @@ class SpringMockBeanBuilder(
     private val argumentMatchersClass = cp.findClassOrNull("org.mockito.ArgumentMatchers")
         ?: VirtualMockito.argumentMatcher
 
-    private val initStatements: MutableList<UTestStatement> = mutableListOf()
+    private val initStatements: MutableList<UTestInst> = mutableListOf()
     private val mockitoCalls: MutableList<UTestExpression> = mutableListOf()
     private val mockBeanCache = HashMap<JcType, UTestExpression>()
 
@@ -146,10 +147,12 @@ class SpringMockBeanBuilder(
         return mockitoCall
     }
 
-    fun addMock(mock: JcSpringMockBean): SpringMockBeanBuilder {
-        val type = mock.getType()
-        mock.getFields().forEach { (field, value) -> addMockField(type, field, value) }
-        mock.getMethods().forEach { (method, values) -> addMockMethod(type, method, values) }
+    fun addMock(mock: JcMockBean): SpringMockBeanBuilder {
+        val type = mock.type
+        initStatements.addAll(mock.initStatements)
+        mock.fields.forEach { (field, value) -> addMockField(type, field, value) }
+        mock.methods.forEach { (method, values) -> addMockMethod(type, method, values) }
+
         return this
     }
 

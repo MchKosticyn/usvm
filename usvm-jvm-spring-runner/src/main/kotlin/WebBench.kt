@@ -168,6 +168,9 @@ private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp 
 
 private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.','/')};"
 
+fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: String) =
+    allClasses.filter { it.annotations.any { annotation -> annotation.name == annotationName } }
+
 private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val cp = benchmark.cp
 
@@ -178,29 +181,21 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val importAnnotation = cp.findClass("org.springframework.context.annotation.Import")
     val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
     val nonAbstractClasses = cp.nonAbstractClasses(benchmark.classLocations)
-    val securityConfigs = nonAbstractClasses.filter { type ->
-        type.annotations.any {
-            it.name == "org.springframework.security.config.annotation.web.configuration.EnableWebSecurity"
-        }
-    }.toList()
+    val securityConfigs = allByAnnotation(
+        nonAbstractClasses,
+        "org.springframework.security.config.annotation.web.configuration.EnableWebSecurity"
+    )
     val repositories = runBlocking { cp.hierarchyExt() }
         .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
         .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
-        .toList()
-    val services = nonAbstractClasses.filter {
-        it.annotations.any { annotation ->
-            annotation.name == "org.springframework.stereotype.Service"
-        }
-    }.toList()
+        .toList() + allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Repository")
+    val services = allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Service")
     val mockBeans = repositories + services
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
 
-    val webApplicationPackage = nonAbstractClasses.find {
-        it.annotations.any { annotation ->
-            annotation.name == "org.springframework.boot.autoconfigure.SpringBootApplication"
-        }
-    }?.packageName
-    ?: throw IllegalArgumentException("No entry classes found (with SpringBootApplication annotation)")
+    val webApplicationPackage = allByAnnotation(nonAbstractClasses, "org.springframework.boot.autoconfigure.SpringBootApplication")
+        .firstOrNull()?.packageName
+        ?: throw IllegalArgumentException("No entry classes found (with SpringBootApplication annotation)")
 
     val entryPackagePath = webApplicationPackage.replace('.', '/')
 
@@ -208,7 +203,6 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val testClassFullName = "$entryPackagePath/$testClassName"
 
     testClass.withAsmNode { classNode ->
-//        classNode.visibleAnnotations = listOf()
         classNode.name = testClassFullName
         mockBeans.forEach { mockBeanType ->
             val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
@@ -218,7 +212,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
         }
 
         val importAnnotationNode = AnnotationNode(importAnnotation.jvmDescriptor)
-        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) })
+        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) }.toList())
         classNode.visibleAnnotations.add(importAnnotationNode)
         classNode.write(cp, dir.resolve("$testClassFullName.class").toPath(), checkClass = true)
     }
@@ -283,17 +277,17 @@ private fun analyzeBench(benchmark: BenchCp) {
     val jcSpringMachineOptions = JcSpringMachineOptions(
         springAnalysisMode = SpringAnalysisMode.WebMVCTest
     )
-    val testResolver = JcTestInterpreter()
-    JcSpringMachine(
+
+    val machine = JcSpringMachine(
         cp,
         options,
         jcMachineOptions,
         jcConcreteMachineOptions,
         jcSpringMachineOptions
-    ).use { machine ->
-        val states = machine.analyze(method.method)
-        states.map { testResolver.resolve(method, it) }
-    }
+    )
+
+    // TODO: use states?
+    machine.analyze(method.method)
 }
 
 private fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =

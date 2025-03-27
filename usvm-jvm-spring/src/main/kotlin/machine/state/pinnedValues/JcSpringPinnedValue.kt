@@ -8,11 +8,6 @@ class JcSpringPinnedValue (
     private val expr: UExpr<out USort>,
     private val type: JcType,
 ){
-    fun getExpr(): UExpr<out USort> {
-        return expr
-    }
-
-    fun getType(): JcType {
-        return type
-    }
+    fun getExpr() = expr
+    fun getType() = type
 }

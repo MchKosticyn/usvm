@@ -497,6 +497,7 @@ internal class JcConcreteEffectStorage private constructor(
     fun kill() {
         check(isCurrent)
         own.head()?.kill()
+        JcConcreteMemoryClassLoader.disableEffectStorage()
     }
 
     fun copy(): JcConcreteEffectStorage {

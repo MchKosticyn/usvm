@@ -41,7 +41,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     lateinit var cp: JcClasspath
     private val loadedClasses = hashMapOf<String, Class<*>>()
     private val initializedStatics = hashSetOf<Class<*>>()
-    private lateinit var effectStorage: JcConcreteEffectStorage
+    private var effectStorage: JcConcreteEffectStorage? = null
 
     private val File.isJar
         get() = this.extension == "jar"
@@ -145,8 +145,12 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         return null
     }
 
-    internal fun setEffectStorage(effectStorage: JcConcreteEffectStorage) {
-        JcConcreteMemoryClassLoader.effectStorage = effectStorage
+    internal fun setEffectStorage(storage: JcConcreteEffectStorage) {
+        effectStorage = storage
+    }
+
+    internal fun disableEffectStorage() {
+        effectStorage = null
     }
 
     fun initializedStatics(): Set<Class<*>> {
@@ -155,15 +159,17 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
 
     private val afterClinitAction: java.util.function.Function<String, Void?> =
         java.util.function.Function { className: String ->
+            val storage = effectStorage ?: return@Function null
             val clazz = loadedClasses[className] ?: return@Function null
             initializedStatics.add(clazz)
-            effectStorage.addStatics(clazz)
+            storage.addStatics(clazz)
             null
         }
 
     private val afterInitAction: java.util.function.Function<Any, Void?> =
         java.util.function.Function { newObj: Any ->
-            effectStorage.addNewObject(newObj)
+            val storage = effectStorage ?: return@Function null
+            storage.addNewObject(newObj)
             null
         }
 

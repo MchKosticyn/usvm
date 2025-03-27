@@ -17,7 +17,6 @@ import org.usvm.machine.state.JcState
 import org.usvm.mkSizeExpr
 import org.usvm.util.allInstanceFields
 import utils.LambdaInvocationHandler
-import utils.allInstanceFields
 import utils.approximationMethod
 import utils.createDefault
 import utils.isThreadLocal

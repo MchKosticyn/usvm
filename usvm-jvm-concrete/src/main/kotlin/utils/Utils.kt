@@ -200,7 +200,7 @@ internal val JcField.toJavaField: Field?
 internal val JcMethod.toJavaMethod: Executable?
     get() = this.toJavaExecutable(JcConcreteMemoryClassLoader)
 
-internal val JcMethod.toTypedMethod: JcTypedMethod
+val JcMethod.toTypedMethod: JcTypedMethod
     get() = enclosingClass.toType().declaredMethods.find { this == it.method }!!
 
 internal val JcEnrichedVirtualMethod.approximationMethod: JcMethod?

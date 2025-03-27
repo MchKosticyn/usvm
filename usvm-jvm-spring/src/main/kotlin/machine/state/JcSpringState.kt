@@ -1,8 +1,8 @@
 package machine.state
 
 import machine.state.memory.JcSpringMemory
+import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcSpringPinnedValue
-import machine.state.pinnedValues.JcSpringPinnedValueKey
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
 import org.jacodb.api.jvm.JcMethod
@@ -54,7 +54,7 @@ class JcSpringState(
         get() = this.memory as JcSpringMemory
 
     private fun firstPinnedOfSourceOrNull(source: JcSpringPinnedValueSource): UExpr<out USort>? {
-        return pinnedValues.getValuesOfSource(source).values.firstOrNull()?.getExpr()
+        return pinnedValues.getValuesOfSource<JcPinnedKey>(source).values.firstOrNull()?.getExpr()
     }
 
     val response get() = firstPinnedOfSourceOrNull(JcSpringPinnedValueSource.RESPONSE)
@@ -77,16 +77,16 @@ class JcSpringState(
         )
     }
 
-    fun getPinnedValue(key: JcSpringPinnedValueKey): JcSpringPinnedValue? {
+    fun getPinnedValue(key: JcPinnedKey): JcSpringPinnedValue? {
         return pinnedValues.getValue(key)
     }
 
-    fun setPinnedValue(key: JcSpringPinnedValueKey, value: UExpr<out USort>, type: JcType) {
+    fun setPinnedValue(key: JcPinnedKey, value: UExpr<out USort>, type: JcType) {
         return pinnedValues.setValue(key, JcSpringPinnedValue(value, type))
     }
 
     fun createPinnedIfAbsent(
-        key: JcSpringPinnedValueKey,
+        key: JcPinnedKey,
         type: JcType,
         scope: JcStepScope,
         sort: USort,
@@ -95,20 +95,16 @@ class JcSpringState(
         return pinnedValues.createIfAbsent(key, type, scope, sort, nullable)
     }
 
-    fun getPinnedValueKey(expr: UExpr<out USort>): JcSpringPinnedValueKey? {
+    fun getPinnedValueKey(expr: UExpr<out USort>): JcPinnedKey? {
         return pinnedValues.getKeyOfExpr(expr)
     }
 
-    fun getPinnedValuesOfSource(source: JcSpringPinnedValueSource) : Map<JcSpringPinnedValueKey, JcSpringPinnedValue> {
-        return pinnedValues.getValuesOfSource(source)
-    }
-
     fun hasEnoughInfoForTest(): Boolean {
-        return pinnedValues.getValue(JcSpringPinnedValueKey.requestPath()) != null
+        return pinnedValues.getValue(JcPinnedKey.requestPath()) != null
     }
 
     fun getResult(): UExpr<out USort>? {
-        return pinnedValues.getValue(JcSpringPinnedValueKey.response())?.getExpr()
+        return pinnedValues.getValue(JcPinnedKey.response())?.getExpr()
     }
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
