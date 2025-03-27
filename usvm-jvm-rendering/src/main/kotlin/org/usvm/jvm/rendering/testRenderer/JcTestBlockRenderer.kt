@@ -368,7 +368,9 @@ open class JcTestBlockRenderer protected constructor(
         method: JcMethod,
         mockValues: List<UTestExpression>
     ): Expression {
-        val args = method.toTyped().parameters.map { param ->
+        val typedMethod = method.toTyped()
+
+        val args = typedMethod.parameters.map { param ->
             when (param.type.typeName) {
                 PredefinedPrimitives.Boolean -> mockitoAnyBooleanMethodCall()
                 PredefinedPrimitives.Byte -> mockitoAnyByteMethodCall()
@@ -388,9 +390,12 @@ open class JcTestBlockRenderer protected constructor(
             else
                 renderMockObjectInstanceMethodWhenCall(mockVar, method, args)
 
+        val methodReturnType = typedMethod.returnType
+
         var mockedMethod = mockValues.fold(mockWhenCall) { mock, nextReturnValue ->
             val renderedMockValue = renderExpression(nextReturnValue)
-            mockitoThenReturnMethodCall(mock, renderedMockValue)
+            val mockValueWithTypeChecked = exprWithGenericsCasted(methodReturnType, renderedMockValue)
+            mockitoThenReturnMethodCall(mock, mockValueWithTypeChecked)
         }
 
         return mockedMethod

@@ -328,19 +328,21 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    private fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>): List<Expression> {
+    protected fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>): List<Expression> {
         val typedParams = method.toTyped().parameters
 
         check(args.size == typedParams.size)
 
         return args.zip(typedParams).map { (arg, param) ->
-            val paramType = param.type
-            if (paramType !is JcClassType || paramType.typeArguments.isEmpty()) return@map arg
-
-            val asObj = CastExpr(objectType, arg)
-            val asTargetType = CastExpr(renderType(paramType), asObj)
-            asTargetType
+            exprWithGenericsCasted(param.type, arg)
         }
+    }
+
+    protected fun exprWithGenericsCasted(type: JcType, expr: Expression): Expression {
+        if (type !is JcClassType || type.typeArguments.isEmpty()) return expr
+        val asObj = CastExpr(objectType, expr)
+        val asTargetType = CastExpr(renderType(type), asObj)
+        return asTargetType
     }
 
     private fun renderStaticMethodCallScope(method: JcMethod, allowStaticImport: Boolean): TypeExpr? {
