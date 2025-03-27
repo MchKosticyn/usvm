@@ -31,6 +31,8 @@ sealed class JcTestClassInfo(val clazz: JcClassOrInterface) {
         }
     }
 
+    val testClassName: String get() = "${clazz.simpleName}Tests"
+
     override fun equals(other: Any?): Boolean {
         return other is JcTestClassInfo && clazz == other.clazz
     }
@@ -42,20 +44,6 @@ sealed class JcTestClassInfo(val clazz: JcClassOrInterface) {
 
 object JcTestFileRendererFactory {
     fun testFileRendererFor(
-        packageName: String?,
-        cu: CompilationUnit?,
-        cp: JcClasspath,
-        testClassInfo: JcTestClassInfo,
-        shouldInlineUsvmUtils: Boolean
-    ): JcTestFileRenderer {
-        return when {
-            cu != null -> testFileRendererFor(cu, cp, testClassInfo, shouldInlineUsvmUtils)
-            packageName != null -> testFileRendererFor(packageName, cp, testClassInfo, shouldInlineUsvmUtils)
-            else -> error("file renderer cannot be created")
-        }
-    }
-
-    private fun testFileRendererFor(
         cu: CompilationUnit,
         cp: JcClasspath,
         testClassInfo: JcTestClassInfo,
@@ -69,7 +57,7 @@ object JcTestFileRendererFactory {
         }
     }
 
-    private fun testFileRendererFor(
+    fun testFileRendererFor(
         packageName: String,
         cp: JcClasspath,
         testClassInfo: JcTestClassInfo,

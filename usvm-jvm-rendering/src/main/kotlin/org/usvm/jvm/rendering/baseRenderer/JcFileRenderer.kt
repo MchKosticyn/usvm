@@ -19,10 +19,11 @@ open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
                 val parsedName = StaticJavaParser.parseName(name)
                 PackageDeclaration(parsedName)
             }
-            return existingPackageDecl ?: freshPackageDecl ?: PackageDeclaration(defaultRenderedPackageName)
+
+            return existingPackageDecl ?: freshPackageDecl ?: PackageDeclaration(StaticJavaParser.parseName(defaultRenderedPackageName))
         }
 
-        private val defaultRenderedPackageName by lazy { StaticJavaParser.parseName("org.usvm.generated") }
+        const val defaultRenderedPackageName = "org.usvm.generated"
     }
 
     private constructor(
