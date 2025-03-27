@@ -17,11 +17,11 @@ import org.usvm.test.api.UTestStaticMethodCall
 
 class SpringTestExecBuilder private constructor(
     private val cp: JcClasspath,
-    private val initStatements: MutableList<UTestStatement>,
+    private val initStatements: MutableList<UTestInst>,
     private var mockMvcDSL: UTestExpression,
     private var isPerformed: Boolean = false,
-    private var generatedTestClass: JcClassType?,
-    private var testClassInst: UTestExpression?
+    private var generatedTestClass: JcClassType? = null,
+    private var testClassInst: UTestExpression? = null
 ) {
     companion object {
         fun initTestCtx(cp: JcClasspath, generatedTestClass: JcClassType?): SpringTestExecBuilder {
@@ -72,7 +72,7 @@ class SpringTestExecBuilder private constructor(
 
             return SpringTestExecBuilder(
                 cp = cp,
-                initStatements = mutableListOf(),
+                initStatements = mutableListOf(prepareTestInstanceCall),
                 mockMvcDSL = mockMvc,
                 generatedTestClass = generatedTestClass,
                 testClassInst = generatedClassCtorCall

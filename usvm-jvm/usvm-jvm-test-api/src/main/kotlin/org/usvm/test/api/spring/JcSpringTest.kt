@@ -21,8 +21,8 @@ class JcSpringTestBuilder(
     private var generatedTestClass: JcClassType? = null
     private var mocks: MutableList<JcSpringMockBean> = mutableListOf()
 
-    fun withResponse(response: JcSpringResponse?) = apply { this.response = response }
-    fun withException(exception: SpringException?) = apply { this.exception = exception }
+    fun withResponse(response: JcSpringResponse) = apply { this.response = response }
+    fun withException(exception: SpringException) = apply { this.exception = exception }
     fun withGeneratedTestClass(testClass: JcClassType) = apply { this.generatedTestClass = testClass }
     fun withMocks(mocks: List<JcSpringMockBean>) = apply { this.mocks = mocks.toMutableList() }
 
@@ -86,8 +86,9 @@ open class JcSpringTest internal constructor(
 
     private fun generateRequestDSL(): Pair<UTestExpression, List<UTestInst>> {
         val builder = SpringRequestBuilder.createRequest(cp, request.getMethod(), request.getPath(), request.getUriVariables())
-        request.getParameters().fold(builder) { builderAcc, param -> builderAcc.addParameter(param) }
-        request.getHeaders().fold(builder) { builderAcc, header -> builderAcc.addHeader(header) }
+        request.getParameters().forEach { builder.addParameter(it) }
+        request.getHeaders().forEach { builder.addHeader(it) }
+        builder.addContent(request.getContentAsString())
 
         return builder.getDSL() to builder.getInitDSL()
     }
