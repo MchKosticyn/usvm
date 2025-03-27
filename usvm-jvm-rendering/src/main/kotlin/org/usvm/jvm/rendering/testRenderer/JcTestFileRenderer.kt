@@ -32,8 +32,7 @@ open class JcTestFileRenderer : JcFileRenderer {
         val existing = findRenderingClass(SimpleName(testClassName))
         if (existing != null) return existing as JcTestClassRenderer
 
-        val renderedTestClassName = identifiersManager.generateIdentifier(testClassName).asString()
-        val renderer = classRendererFor(renderedTestClassName)
+        val renderer = classRendererFor(testClassName)
 
         addRenderingClass(renderer)
         return renderer

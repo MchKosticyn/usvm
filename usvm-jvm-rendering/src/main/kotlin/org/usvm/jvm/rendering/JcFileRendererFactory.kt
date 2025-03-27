@@ -30,6 +30,14 @@ sealed class JcTestClassInfo(val clazz: JcClassOrInterface) {
             else -> Base(testInfo.method.enclosingClass)
         }
     }
+
+    override fun equals(other: Any?): Boolean {
+        return other is JcTestClassInfo && clazz == other.clazz
+    }
+
+    override fun hashCode(): Int {
+        return clazz.hashCode()
+    }
 }
 
 object JcTestFileRendererFactory {
