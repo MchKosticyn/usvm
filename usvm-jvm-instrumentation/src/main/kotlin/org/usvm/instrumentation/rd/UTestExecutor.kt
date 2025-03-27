@@ -19,6 +19,7 @@ import org.usvm.instrumentation.testcase.descriptor.UTestExceptionDescriptor
 import org.usvm.instrumentation.testcase.descriptor.Value2DescriptorConverter
 import org.usvm.instrumentation.testcase.executor.UTestExpressionExecutor
 import org.usvm.instrumentation.util.InstrumentationModuleConstants
+import org.usvm.instrumentation.util.TestTaskExecutor
 import org.usvm.instrumentation.util.URLClassPathLoader
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestCall
@@ -29,15 +30,12 @@ abstract class UTestExecutor(
 ) {
 
     fun executeUTest(uTest: UTest): UTestExecutionResult {
-        when (InstrumentationModuleConstants.testExecutorStaticsRollbackStrategy) {
-            StaticsRollbackStrategy.HARD -> workerClassLoader = createWorkerClassLoader()
-            else -> {}
-        }
         reset()
+        val taskExecutor = TestTaskExecutor(workerClassLoader)
         val accessedStatics = mutableSetOf<Pair<JcField, JcInstructionTracer.StaticFieldAccessType>>()
         val callMethodExpr = uTest.callMethodExpression
 
-        val executor = UTestExpressionExecutor(workerClassLoader, accessedStatics, mockHelper)
+        val executor = UTestExpressionExecutor(workerClassLoader, accessedStatics, mockHelper, taskExecutor)
         val initStmts = (uTest.initStatements + listOf(callMethodExpr.instance) + callMethodExpr.args).filterNotNull()
         executor.executeUTestInsts(initStmts)
             ?.onFailure {
@@ -99,7 +97,7 @@ abstract class UTestExecutor(
 
         when (InstrumentationModuleConstants.testExecutorStaticsRollbackStrategy) {
             StaticsRollbackStrategy.ROLLBACK -> staticDescriptorsBuilder!!.rollBackStatics()
-            StaticsRollbackStrategy.REINIT -> workerClassLoader.reset(accessedStaticsFields)
+            StaticsRollbackStrategy.REINIT -> workerClassLoader.reset(accessedStaticsFields, taskExecutor)
             else -> Unit
         }
 
@@ -138,6 +136,11 @@ abstract class UTestExecutor(
     )
 
     private fun reset() {
+        when (InstrumentationModuleConstants.testExecutorStaticsRollbackStrategy) {
+            StaticsRollbackStrategy.HARD -> workerClassLoader = createWorkerClassLoader()
+            else -> Unit
+        }
+
         initStateDescriptorBuilder = Value2DescriptorConverter(
             workerClassLoader = workerClassLoader,
             previousState = null

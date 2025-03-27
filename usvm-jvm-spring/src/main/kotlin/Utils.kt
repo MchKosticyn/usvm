@@ -38,6 +38,11 @@ internal val JcClassOrInterface.isArgumentResolver: Boolean
         return isSubClassOf(argumentResolverType)
     }
 
+internal val JcClassOrInterface.isSpringRepository: Boolean
+    get() = this.annotations.any { it.name == "org.springframework.stereotype.Repository" }
+            || classpath.findClassOrNull("org.springframework.data.repository.Repository")
+                ?.let { isSubClassOf(it) } ?: false
+
 internal val JcMethod.isSpringFilterMethod: Boolean
     get() = enclosingClass.isSpringFilter && (name == "doFilter" || name == "doFilterInternal")
 

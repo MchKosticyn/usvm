@@ -51,7 +51,7 @@ class SpringRequestBuilder private constructor(
                     UTestStringExpression(pathArgs[it].toString(), cp.stringType)
                 )
             }
-            initDSL.addAll(listOf(pathArgsArray) + pathArgsInitializer)
+            initDSL.addAll(pathArgsInitializer)
             val argsDSL = mutableListOf<UTestExpression>()
             argsDSL.add(UTestStringExpression(path, cp.stringType))
             argsDSL.add(pathArgsArray)
@@ -79,10 +79,29 @@ class SpringRequestBuilder private constructor(
         return this
     }
 
+    fun addContent(content: String): SpringRequestBuilder {
+        val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "content", listOf("java.lang.String")).method
+        reqDSL = UTestMethodCall(
+            instance = reqDSL,
+            method = method,
+            args = listOf(UTestStringExpression(content, cp.stringType)),
+        )
+        return this
+    }
+
     private fun addStrArrOfStrCallDSL(mName: JcMethod, str: String, arrOfStr: List<Any>) {
         val argsDSL = mutableListOf<UTestExpression>()
+        val argsArray = UTestCreateArrayExpression(cp.stringType, UTestIntExpression(arrOfStr.size, cp.int))
+        val argsInit = List(arrOfStr.size) {
+            UTestArraySetStatement(
+                argsArray,
+                UTestIntExpression(it, cp.int),
+                UTestStringExpression(arrOfStr[it].toString(), cp.stringType)
+            )
+        }
+        initStatements.addAll(argsInit)
         argsDSL.add(UTestStringExpression(str, cp.stringType))
-        argsDSL.addAll(arrOfStr.map { UTestStringExpression(it.toString(), cp.stringType) })
+        argsDSL.add(argsArray)
         reqDSL = UTestMethodCall(
             instance = reqDSL,
             method = mName,

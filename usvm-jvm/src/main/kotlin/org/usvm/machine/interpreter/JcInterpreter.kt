@@ -717,6 +717,7 @@ open class JcInterpreter(
         return ctx.allocateStaticRef() to false
     }
 
+    // TODO: make this region! (like interningPool)
     private val initializedRefs = hashSetOf<UConcreteHeapRef>()
 
     // Equal string constants must have equal references

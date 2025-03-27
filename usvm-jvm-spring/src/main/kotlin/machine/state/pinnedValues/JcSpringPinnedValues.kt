@@ -8,20 +8,33 @@ import org.usvm.api.makeNullableSymbolicRef
 import org.usvm.api.makeSymbolicRef
 import org.usvm.machine.interpreter.JcStepScope
 
-class JcSpringPinnedValues (
-    private var pinnedValues: Map<JcSpringPinnedValueKey, JcSpringPinnedValue> = emptyMap()
-){
-    fun getValue(key: JcSpringPinnedValueKey): JcSpringPinnedValue? {
+open class JcSpringRawPinnedValues<V> (
+    protected var pinnedValues: Map<JcPinnedKey, V> = emptyMap()
+) {
+    fun getMap() = pinnedValues
+
+    fun getValue(key: JcPinnedKey): V? {
         return pinnedValues[key]
     }
 
-    fun setValue(key: JcSpringPinnedValueKey, value: JcSpringPinnedValue) {
+    fun setValue(key: JcPinnedKey, value: V) {
         pinnedValues = pinnedValues.filter { it.key != key }
         pinnedValues += key to value
     }
 
+    // TODO: Find solution without unchecked cast #AA
+    @Suppress("UNCHECKED_CAST")
+    fun <K : JcPinnedKey> getValuesOfSource(source: JcSpringPinnedValueSource): Map<K, V> {
+        return pinnedValues
+            .filter { it.key.getSource() == source }
+            .map { (k, v) -> k as K to v }
+            .toMap()
+    }
+}
+
+class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
     fun createIfAbsent(
-        key: JcSpringPinnedValueKey,
+        key: JcPinnedKey,
         type: JcType,
         scope: JcStepScope,
         sort: USort,
@@ -46,14 +59,10 @@ class JcSpringPinnedValues (
         return newValue
     }
 
-    fun getKeyOfExpr(value: UExpr<out USort>): JcSpringPinnedValueKey? {
+    fun getKeyOfExpr(value: UExpr<out USort>): JcPinnedKey? {
         val pair = pinnedValues.entries.firstOrNull { it.value.getExpr() == value }
         if (pair == null)
             return null
         return pair.key
-    }
-
-    fun getValuesOfSource(source: JcSpringPinnedValueSource): Map<JcSpringPinnedValueKey, JcSpringPinnedValue> {
-        return pinnedValues.filter { it.key.getSource() == source }
     }
 }
