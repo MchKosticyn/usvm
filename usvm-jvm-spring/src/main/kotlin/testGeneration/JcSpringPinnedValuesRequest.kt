@@ -1,36 +1,35 @@
 package testGeneration
 
 import machine.state.pinnedValues.JcPinnedKey
-import machine.state.pinnedValues.JcSpringPinnedValue
+import machine.state.pinnedValues.JcSimplePinnedKey
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
-import machine.state.pinnedValues.JcSpringRawPinnedValues
 import machine.state.pinnedValues.JcStringPinnedKey
+import org.jacodb.api.jvm.ext.int
+import org.usvm.api.util.JcTestStateResolver
+import org.usvm.test.api.UTestArraySetStatement
+import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.spring.JcSpringHttpCookie
 import org.usvm.test.api.spring.JcSpringHttpHeader
 import org.usvm.test.api.spring.JcSpringHttpParameter
 import org.usvm.test.api.spring.JcSpringRequest
 import org.usvm.test.api.spring.JcSpringRequestMethod
+import org.usvm.test.api.spring.UTAny
+import org.usvm.test.api.spring.UTString
+import org.usvm.test.api.spring.UTStringArray
+
 
 class JcSpringPinnedValuesRequest(
-    pinnedValues: JcSpringPinnedValues,
-    concretize: (value: JcSpringPinnedValue) -> Any?
+    private val pinnedValues: JcSpringPinnedValues,
+    private val exprResolver: JcSpringTestExprResolver,
 ) : JcSpringRequest {
+    private val stringType = exprResolver.ctx.stringType
+    private val intType = exprResolver.ctx.cp.int
 
-    private val calculatedValues = JcSpringRawPinnedValues(pinnedValues.getMap().map { (k, v) -> k to concretize(v) }.toMap())
-
-    private fun collectAndConcretize(source: JcSpringPinnedValueSource): Map<String, Any?> {
-        return calculatedValues.getValuesOfSource<JcStringPinnedKey>(source)
-            .map { (key, value) ->
-                val name = key.getName()
-                name to value
-            }.toMap()
-    }
-
-    private fun sortRequestUriVariables(path: String, uriVariables: Map<String, Any?>): List<Any?> {
+    private fun sortRequestUriVariables(path: UTString, uriVariables: Map<UTString, UTAny>): List<UTAny> {
         // TODO: check it
-        val uriVariableNames = Regex("\\{([^}]*)}").findAll(path)
-            .map { it.groupValues[1] }
+        val uriVariableNames = Regex("\\{([^}]*)}").findAll(path.value)
+            .map { UTString(it.groupValues[1], stringType) }
             .toList()
 
         return uriVariableNames.map {
@@ -38,45 +37,64 @@ class JcSpringPinnedValuesRequest(
         }.also { assert(it.size == uriVariables.size) }
     }
 
-    private fun handleStringMultiValue(possibleMultiValue: Any?): List<String>? {
-        if (possibleMultiValue == null) return null
-        // TODO: Check return types and adjust this accordingly #AA
-        return listOf(possibleMultiValue.toString())
+    private fun collectAndConcretize(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
+        return pinnedValues.collectAndConcretize(
+            exprResolver,
+            JcTestStateResolver.ResolveMode.MODEL,
+            pinnedValueSource,
+            stringType
+        )
+    }
+
+    private fun handleMultiValue(value: UTAny) : UTStringArray {
+        return handleStringMultiValue(
+            exprResolver,
+            value,
+            stringType,
+            intType
+        )
+    }
+
+    private fun getStringPinnedValue(key: JcSimplePinnedKey): UTString {
+        val methodExpr = pinnedValues.getValue(key)
+        check(methodExpr != null)
+        return exprResolver.withMode(JcTestStateResolver.ResolveMode.MODEL) {
+            val method = exprResolver.resolvePinnedValue(methodExpr)
+            check(method is UTString)
+            method
+        }
     }
 
     override fun getCookies(): List<JcSpringHttpCookie> {
         val cookies = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_COOKIE)
-        return cookies.mapNotNull { (key, value) -> JcSpringHttpCookie(key, value as String) }
+        return cookies.mapNotNull { (key, value) -> JcSpringHttpCookie(key, value as UTString) }
     }
 
     override fun getHeaders(): List<JcSpringHttpHeader> {
         val headersRaw = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_HEADER)
-        return headersRaw.mapNotNull { (key, value) -> handleStringMultiValue(value)?.let { JcSpringHttpHeader(key, it)} }
+        return headersRaw.mapNotNull { (key, value) -> JcSpringHttpHeader(key, handleMultiValue(value)) }
     }
 
     override fun getMethod(): JcSpringRequestMethod {
-        val method = calculatedValues.getValue(JcPinnedKey.requestMethod())
-        check(method != null && method is String)
-        return JcSpringRequestMethod.valueOf(method.uppercase())
+        val method = getStringPinnedValue(JcPinnedKey.requestMethod())
+        return JcSpringRequestMethod.valueOf(method.value.uppercase())
     }
 
-    override fun getPath(): String {
-        val path = calculatedValues.getValue(JcPinnedKey.requestPath())
-        check(path != null && path is String)
-        return path
+    override fun getPath(): UTString {
+        val method = getStringPinnedValue(JcPinnedKey.requestPath())
+        return method
     }
 
-    override fun getContentAsString(): String {
-        val body = calculatedValues.getValue(JcPinnedKey.requestBody())
-        return body as String
+    override fun getContent(): UTAny {
+        return getStringPinnedValue(JcPinnedKey.requestBody())
     }
 
     override fun getParameters(): List<JcSpringHttpParameter> {
-        val paramsRaw = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_PARAM)
-        return paramsRaw.mapNotNull { (key, value) -> handleStringMultiValue(value)?.let { JcSpringHttpParameter(key, it)} }
+        val parametersRaw = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_PARAM)
+        return parametersRaw.mapNotNull { (key, value) -> JcSpringHttpParameter(key, handleMultiValue(value)) }
     }
 
-    override fun getUriVariables(): List<Any?> {
+    override fun getUriVariables(): List<UTAny> {
         val pathVariables = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_PATH_VARIABLE)
         return sortRequestUriVariables(getPath(), pathVariables)
     }

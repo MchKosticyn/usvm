@@ -70,15 +70,6 @@ object WithSolverStateForker : StateForker {
             )
 
             falseModels.isNotEmpty() -> {
-                val original = state.pathConstraints.clone()
-                val xxx = original.clone()
-
-                xxx += notCondition
-                if (xxx.isFalse) {
-                    let {  }
-                }
-
-
                 val forkedState = forkIfSat(
                     state,
                     newConstraintToOriginalState = condition,

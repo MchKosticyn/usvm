@@ -149,7 +149,6 @@ class SpringMockBeanBuilder(
 
     fun addMock(mock: JcMockBean): SpringMockBeanBuilder {
         val type = mock.type
-        initStatements.addAll(mock.initStatements)
         mock.fields.forEach { (field, value) -> addMockField(type, field, value) }
         mock.methods.forEach { (method, values) -> addMockMethod(type, method, values) }
 

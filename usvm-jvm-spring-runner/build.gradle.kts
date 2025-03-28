@@ -8,6 +8,7 @@ repositories {
 
 dependencies {
     implementation(project(":usvm-jvm"))
+    implementation(project(":usvm-jvm-instrumentation"))
     implementation(project(":usvm-jvm-concrete"))
     implementation(project(":usvm-jvm-spring"))
     implementation(project(":usvm-core"))
@@ -93,7 +94,25 @@ tasks.register<JavaExec>("runWebBench") {
     val usvmConcreteApiJarPath = usvmConcreteApiJarConfiguration.resolvedConfiguration.files.single()
     environment("usvm.jvm.concrete.api.jar.path", usvmConcreteApiJarPath)
 
-    jvmArgs = listOf("-Xmx12g") + mutableListOf<String>().apply {
+    environment(
+        "usvm-jvm-instrumentation-jar",
+        project(":usvm-jvm-instrumentation")
+            .layout
+            .buildDirectory
+            .file("libs/usvm-jvm-instrumentation-runner.jar")
+            .get().asFile.absolutePath
+    )
+
+    environment(
+        "usvm-jvm-collectors-jar",
+        project(":usvm-jvm-instrumentation")
+            .layout
+            .buildDirectory
+            .file("libs/usvm-jvm-instrumentation-collectors.jar")
+            .get().asFile.absolutePath
+    )
+
+    jvmArgs = listOf("-Xmx8g") + mutableListOf<String>().apply {
         add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
         add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePath}")
         openPackage("java.base", "jdk.internal.misc")

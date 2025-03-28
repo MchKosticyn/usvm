@@ -9,17 +9,19 @@ import org.usvm.test.api.UTestInst
 class SpringException
 
 class JcSpringTestBuilder(
-    private val request: JcSpringRequest
+    private val request: JcSpringRequest,
 ) {
     private var response: JcSpringResponse? = null
     private var exception: SpringException? = null
     private var generatedTestClass: JcClassType? = null
     private var mocks: MutableList<JcMockBean> = mutableListOf()
+    private var additionalInstructions: List<UTestInst> = listOf()
 
     fun withResponse(response: JcSpringResponse) = apply { this.response = response }
     fun withException(exception: SpringException) = apply { this.exception = exception }
     fun withGeneratedTestClass(testClass: JcClassType) = apply { this.generatedTestClass = testClass }
     fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks.toMutableList() }
+    fun withAdditionalInstructions(instructions: List<UTestInst>) = apply { this.additionalInstructions = instructions }
 
     fun build(cp: JcClasspath): JcSpringTest {
         return when {
@@ -29,6 +31,7 @@ class JcSpringTestBuilder(
                 mocks = mocks,
                 request = request,
                 response = response!!,
+                additionalInstructions = additionalInstructions,
             )
 
             exception != null -> JcSpringExceptionTest(
@@ -37,6 +40,7 @@ class JcSpringTestBuilder(
                 mocks = mocks,
                 request = request,
                 exception = exception!!,
+                additionalInstructions = additionalInstructions,
             )
 
             else -> JcSpringTest(
@@ -44,6 +48,7 @@ class JcSpringTestBuilder(
                 generatedTestClass = generatedTestClass,
                 mocks = mocks,
                 request = request,
+                additionalInstructions = additionalInstructions,
             )
         }
     }
@@ -54,10 +59,13 @@ open class JcSpringTest internal constructor(
     private val generatedTestClass: JcClassType?,
     private val mocks: List<JcMockBean>,
     private val request: JcSpringRequest,
+    private val additionalInstructions: List<UTestInst>,
 ) {
     fun generateTestDSL(): UTest {
         val initStatements: MutableList<UTestInst> = mutableListOf()
         val testExecBuilder = SpringTestExecBuilder.initTestCtx(cp, generatedTestClass)
+        initStatements.addAll(additionalInstructions)
+
         initStatements.addAll(testExecBuilder.getInitDSL())
 
         val mocks = generateMocksDSL(mocks, testExecBuilder.testClassExpr)
@@ -83,7 +91,7 @@ open class JcSpringTest internal constructor(
         val builder = SpringRequestBuilder.createRequest(cp, request.getMethod(), request.getPath(), request.getUriVariables())
         request.getParameters().forEach { builder.addParameter(it) }
         request.getHeaders().forEach { builder.addHeader(it) }
-        builder.addContent(request.getContentAsString())
+        builder.addContent(request.getContent())
 
         return builder.getDSL() to builder.getInitDSL()
     }
@@ -100,13 +108,14 @@ class JcSpringResponseTest internal constructor(
     generatedTestClass: JcClassType?,
     mocks: List<JcMockBean>,
     request: JcSpringRequest,
-    val response: JcSpringResponse
-) : JcSpringTest(cp, generatedTestClass, mocks, request) {
+    val response: JcSpringResponse,
+    additionalInstructions: List<UTestInst>,
+) : JcSpringTest(cp, generatedTestClass, mocks, request, additionalInstructions) {
 
     override fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> {
         val matchersBuilder = SpringMatchersBuilder(cp)
-        matchersBuilder.addStatusCheck(response.getStatusCode())
-        matchersBuilder.addContentCheck(response.getContentAsString())
+        matchersBuilder.addStatusCheck(response.getStatus())
+        matchersBuilder.addContentCheck(response.getContent())
         matchersBuilder.addHeadersCheck(response.getHeaders())
         return matchersBuilder.getMatchersDSL() to matchersBuilder.getInitDSL()
     }
@@ -117,8 +126,9 @@ class JcSpringExceptionTest internal constructor(
     generatedTestClass: JcClassType?,
     mocks: List<JcMockBean>,
     request: JcSpringRequest,
-    val exception: SpringException
-) : JcSpringTest(cp, generatedTestClass, mocks, request) {
+    val exception: SpringException,
+    additionalInstructions: List<UTestInst>,
+) : JcSpringTest(cp, generatedTestClass, mocks, request, additionalInstructions) {
 
     override fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> {
         TODO()

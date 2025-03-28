@@ -87,7 +87,7 @@ open class JcConcreteInterpreter(
                         is JcPrimitiveType -> {
                             val boxedType = returnType.autoboxIfNeeded() as JcClassType
                             val boxMethod = boxedType.declaredMethods.find {
-                                it.name == "valueOf" && it.isStatic && it.parameters.singleOrNull() == returnType
+                                it.name == "valueOf" && it.isStatic && it.parameters.singleOrNull()?.type == returnType
                             }!!
                             newStmt(JcConcreteMethodCallInst(stmt.location, boxMethod.method, listOf(result), stmt.returnSite))
                         }
