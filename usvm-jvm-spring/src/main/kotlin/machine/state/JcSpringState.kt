@@ -56,8 +56,7 @@ class JcSpringState(
     private fun firstPinnedOfSourceOrNull(source: JcSpringPinnedValueSource): UExpr<out USort>? {
         return pinnedValues.getValuesOfSource<JcPinnedKey>(source).values.firstOrNull()?.getExpr()
     }
-
-    val response get() = firstPinnedOfSourceOrNull(JcSpringPinnedValueSource.RESPONSE)
+    
     val requestMethod get() = firstPinnedOfSourceOrNull(JcSpringPinnedValueSource.REQUEST_METHOD)
     val requestPath get() = firstPinnedOfSourceOrNull(JcSpringPinnedValueSource.REQUEST_PATH)
 
@@ -95,16 +94,22 @@ class JcSpringState(
         return pinnedValues.createIfAbsent(key, type, scope, sort, nullable)
     }
 
+    fun createPinnedAndReplace(
+        key: JcPinnedKey, 
+        type: JcType, 
+        scope: JcStepScope, 
+        sort: USort, 
+        nullable: Boolean = true
+    ): JcSpringPinnedValue? {
+        return pinnedValues.createAndReplace(key, type, scope, sort, nullable)
+    }
+
     fun getPinnedValueKey(expr: UExpr<out USort>): JcPinnedKey? {
         return pinnedValues.getKeyOfExpr(expr)
     }
 
     fun hasEnoughInfoForTest(): Boolean {
         return pinnedValues.getValue(JcPinnedKey.requestPath()) != null
-    }
-
-    fun getResult(): UExpr<out USort>? {
-        return pinnedValues.getValue(JcPinnedKey.response())?.getExpr()
     }
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {

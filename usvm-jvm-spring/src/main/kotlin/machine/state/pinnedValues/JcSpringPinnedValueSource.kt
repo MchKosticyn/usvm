@@ -15,7 +15,10 @@ enum class JcSpringPinnedValueSource {
     REQUEST_USER_AUTHORITIES,
     REQUEST_COOKIE,
     REQUEST_ATTRIBUTE,
-    RESPONSE,
+    RESPONSE_STATUS,
+    RESPONSE_CONTENT,
+    RESPONSE_COOKIE,
+    RESPONSE_HEADER,
     MOCK_RESULT;
 
     fun caseSensitive(): Boolean {

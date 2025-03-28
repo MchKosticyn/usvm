@@ -14,7 +14,8 @@ abstract class JcPinnedKey(
         fun requestAttribute(name: String): JcStringPinnedKey = JcStringPinnedKey(JcSpringPinnedValueSource.REQUEST_ATTRIBUTE, name)
         fun requestPath(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_PATH)
         fun requestMethod(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_METHOD)
-        fun response(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.RESPONSE)
+        fun responseStatus(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.RESPONSE_STATUS)
+        fun responseContent(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.RESPONSE_CONTENT)
         fun requestBody(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_BODY)
         fun mockCallResult(method: JcMethod) = JcObjectPinnedKey(JcSpringPinnedValueSource.MOCK_RESULT, method)
     }
@@ -23,7 +24,7 @@ abstract class JcPinnedKey(
 }
 
 class JcSimplePinnedKey(
-    source: JcSpringPinnedValueSource,
+    private val source: JcSpringPinnedValueSource,
 ) : JcPinnedKey(source) {
 
     override fun hashCode(): Int {
@@ -36,10 +37,14 @@ class JcSimplePinnedKey(
         other as JcSimplePinnedKey
         return getSource() == other.getSource()
     }
+
+    override fun toString(): String {
+        return source.name
+    }
 }
 
 class JcObjectPinnedKey<T>(
-    source: JcSpringPinnedValueSource,
+    private val source: JcSpringPinnedValueSource,
     private val obj: T? = null,
 ) : JcPinnedKey(source) {
 
@@ -55,6 +60,10 @@ class JcObjectPinnedKey<T>(
     }
 
     fun getObj() = obj
+
+    override fun toString(): String {
+        return "${source.name} ($obj)"
+    }
 }
 
 class JcStringPinnedKey(

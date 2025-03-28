@@ -46,6 +46,10 @@ class RdProcessRunner(
     suspend fun init() {
         rdProcess = initRdProcess()
     }
+    
+    fun kill() {
+        lifetime.terminate()
+    }
 
     private suspend fun initRdProcess(): RdServerProcess {
         val serializers = Serializers()

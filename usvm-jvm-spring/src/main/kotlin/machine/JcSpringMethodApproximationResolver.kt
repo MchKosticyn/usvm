@@ -17,12 +17,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcFieldRef
-import org.jacodb.api.jvm.ext.boolean
-import org.jacodb.api.jvm.ext.findType
-import org.jacodb.api.jvm.ext.isAssignable
-import org.jacodb.api.jvm.ext.isEnum
-import org.jacodb.api.jvm.ext.isSubClassOf
-import org.jacodb.api.jvm.ext.objectType
+import org.jacodb.api.jvm.ext.*
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UNullRef
@@ -214,9 +209,9 @@ class JcSpringMethodApproximationResolver (
             val source = methodCall.arguments[4]
             return scope.calcOnState {
                 this as JcSpringState
-                val type = getTypeFromParameter(parameter)
-                val key = getPinnedValueKey(source)
-                val newSymbolicValue = createPinnedIfAbsent(key!!, type!!, scope, ctx.addressSort, true)
+                val type = getTypeFromParameter(parameter)?.autoboxIfNeeded()!!
+                val key = getPinnedValueKey(source)!!
+                val newSymbolicValue = createPinnedAndReplace(key, type, scope, ctx.addressSort, false) ?: return@calcOnState false
                     ?: return@calcOnState false
                 skipMethodInvocationWithValue(methodCall, newSymbolicValue.getExpr())
 
@@ -481,7 +476,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldSkipPath(path: String, kind: String, controllerTypeName: String): Boolean {
-        return false
+        return path != "/service/link_node"
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {

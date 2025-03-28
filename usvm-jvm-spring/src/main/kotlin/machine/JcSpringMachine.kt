@@ -5,11 +5,19 @@ import isSpringFilter
 import isSpringHandlerInterceptor
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.impl.features.classpaths.JcUnknownMethod
 import org.usvm.UMachineOptions
+import org.usvm.UPathSelector
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.JcInterpreter
+import org.usvm.machine.state.JcState
+import org.usvm.statistics.CoverageStatistics
+import org.usvm.statistics.StepsStatistics
+import org.usvm.statistics.TimeStatistics
+import org.usvm.statistics.UMachineObserver
+import org.usvm.statistics.collectors.StatesCollector
 import org.usvm.util.classesOfLocations
 
 class JcSpringMachine(
@@ -18,6 +26,7 @@ class JcSpringMachine(
     jcMachineOptions: JcMachineOptions = JcMachineOptions(),
     jcConcreteMachineOptions: JcConcreteMachineOptions,
     private val jcSpringMachineOptions: JcSpringMachineOptions,
+    private val testObserver: JcSpringTestObserver,
     interpreterObserver: JcInterpreterObserver? = null,
 ) : JcConcreteMachine(cp, options, jcMachineOptions, jcConcreteMachineOptions, interpreterObserver) {
 
@@ -42,5 +51,28 @@ class JcSpringMachine(
             .flatMap { it.declaredMethods }
             .filterNot { it is JcUnknownMethod || it.isConstructor }
             .toSet()
+    }
+
+    override fun createObservers(
+        coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
+        timeStatistics: TimeStatistics<JcMethod, JcState>,
+        stepsStatistics: StepsStatistics<JcMethod, JcState>,
+        methodsToTrackCoverage: Set<JcMethod>,
+        statesCollector: StatesCollector<JcState>,
+        methods: List<JcMethod>,
+        pathSelector: UPathSelector<JcState>
+    ): List<UMachineObserver<JcState>> {
+        val observers = super.createObservers(
+            coverageStatistics,
+            timeStatistics,
+            stepsStatistics,
+            methodsToTrackCoverage,
+            statesCollector,
+            methods,
+            pathSelector
+        )
+        
+        @Suppress("UNCHECKED_CAST")
+        return observers + (testObserver as UMachineObserver<JcState>)
     }
 }

@@ -499,6 +499,10 @@ open class JcConcreteMemory(
         return projectLocations.any { it == jcLocation }
     }
 
+    protected open fun shouldConcretizeMethod(method: JcMethod): Boolean {
+        return false
+    }
+    
     private fun tryConcreteInvokeInternal(
         stmt: JcMethodCall,
         state: JcState,
@@ -524,7 +528,7 @@ open class JcConcreteMemory(
             return TryConcreteInvokeSuccess()
         }
 
-        if (concretization || concretizeInvocations.contains(signature)) {
+        if (concretization || shouldConcretizeMethod(method)) {
             concretize(state, exprResolver, stmt, method)
             return TryConcreteInvokeSuccess()
         }
@@ -629,16 +633,6 @@ open class JcConcreteMemory(
 
             "java.lang.Object#<init>():void",
         )
-
-        private val concretizeInvocations = emptySet<String>()
-
-        //endregion
-
-        //region Invariants check
-
-        init {
-            check(concretizeInvocations.intersect(forbiddenInvocations).isEmpty())
-        }
 
         //endregion
     }

@@ -33,17 +33,13 @@ open class JcSpringRawPinnedValues<V> (
 }
 
 class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
-    fun createIfAbsent(
-        key: JcPinnedKey,
-        type: JcType,
-        scope: JcStepScope,
-        sort: USort,
+    fun createAndReplace(
+        key: JcPinnedKey, 
+        type: JcType, 
+        scope: JcStepScope, 
+        sort: USort, 
         nullable: Boolean = true
     ): JcSpringPinnedValue? {
-        val existingValue = getValue(key)
-        if (existingValue != null)
-            return existingValue
-
         val newValueExpr =
             if (nullable) scope.makeNullableSymbolicRef(type)?.asExpr(sort)
             else scope.makeSymbolicRef(type)?.asExpr(sort)
@@ -57,6 +53,19 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
         setValue(key, newValue)
 
         return newValue
+    }
+
+    fun createIfAbsent(
+        key: JcPinnedKey, 
+        type: JcType, 
+        scope: JcStepScope, 
+        sort: USort, 
+        nullable: Boolean = true
+    ): JcSpringPinnedValue? {
+        val existingValue = getValue(key)
+        if (existingValue != null)
+            return existingValue
+        return createAndReplace(key, type, scope, sort, nullable)
     }
 
     fun getKeyOfExpr(value: UExpr<out USort>): JcPinnedKey? {

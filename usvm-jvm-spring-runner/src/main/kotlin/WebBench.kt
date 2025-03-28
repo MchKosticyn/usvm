@@ -1,5 +1,6 @@
 package bench
 
+import SpringTestReproducer
 import features.JcClinitFeature
 import features.JcInitFeature
 import kotlinx.coroutines.runBlocking
@@ -38,10 +39,7 @@ import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.util.classpathWithApproximations
 import features.JcLambdaFeature
-import machine.JcConcreteMachineOptions
-import machine.JcSpringMachine
-import machine.JcSpringMachineOptions
-import machine.SpringAnalysisMode
+import machine.*
 import org.usvm.CoverageZone
 import utils.typeName
 import java.io.File
@@ -56,6 +54,7 @@ import kotlin.io.path.extension
 import kotlin.io.path.walk
 import kotlin.system.measureNanoTime
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -87,9 +86,16 @@ private fun loadKlawBench(): BenchCp {
     }
 }
 
+private fun loadSynthBench(): BenchCp {
+    val benchDir = Path("C:/Users/arthu/Documents/usvm-spring-benchmarks/build/libs/BOOT-INF")
+    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib").apply {
+        entrypointFilter = { it.enclosingClass.simpleName.startsWith("SpringBenchmarks") }
+    }
+}
+
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadWebPetClinicBench()
+        loadSynthBench()
     }
 
     logTime("Analysis ALL") {
@@ -260,7 +266,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 40.seconds,
+        timeout = 10.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
@@ -277,13 +283,17 @@ private fun analyzeBench(benchmark: BenchCp) {
     val jcSpringMachineOptions = JcSpringMachineOptions(
         springAnalysisMode = SpringAnalysisMode.WebMVCTest
     )
+    
+    val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp)
+    val testObserver = JcSpringTestObserver(testReproducer)
 
     val machine = JcSpringMachine(
         cp,
         options,
         jcMachineOptions,
         jcConcreteMachineOptions,
-        jcSpringMachineOptions
+        jcSpringMachineOptions,
+        testObserver
     )
 
     // TODO: use states?
