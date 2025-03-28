@@ -1,6 +1,7 @@
 package org.usvm.jvm.rendering
 
 import com.github.javaparser.ast.CompilationUnit
+import java.nio.file.Path
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.toType
@@ -13,25 +14,34 @@ import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestFileRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestInfo
 
-sealed class JcTestClassInfo(val clazz: JcClassOrInterface) {
-    class Base(clazz: JcClassOrInterface) : JcTestClassInfo(clazz)
+sealed class JcTestClassInfo(val clazz: JcClassOrInterface, protected val filePath: Path?, protected val className: String?) {
 
-    class Unsafe(clazz: JcClassOrInterface) : JcTestClassInfo(clazz)
+    private val defaultTestClassName: String by lazy { "${clazz.simpleName}Tests" }
 
-    class SpringUnit(clazz: JcClassOrInterface) : JcTestClassInfo(clazz)
+    val testClassName: String get() = className ?: defaultTestClassName
 
-    class SpringMvc(clazz: JcClassOrInterface) : JcTestClassInfo(clazz)
+    val testFilePath: Path? get() = filePath
+
+    class Base(clazz: JcClassOrInterface, testFilePath: Path?, testClassName: String?) :
+        JcTestClassInfo(clazz, testFilePath, testClassName)
+
+    class Unsafe(clazz: JcClassOrInterface, testFilePath: Path?, testClassName: String?) :
+        JcTestClassInfo(clazz, testFilePath, testClassName)
+
+    class SpringUnit(clazz: JcClassOrInterface, testFilePath: Path?, testClassName: String?) :
+        JcTestClassInfo(clazz, testFilePath, testClassName)
+
+    class SpringMvc(clazz: JcClassOrInterface, testFilePath: Path?, testClassName: String?) :
+        JcTestClassInfo(clazz, testFilePath, testClassName)
 
     companion object {
         fun from(testInfo: JcTestInfo) = when (testInfo) {
-            is JcSpringMvcTestInfo -> SpringMvc(testInfo.method.enclosingClass)
-            is JcSpringUnitTestInfo -> SpringUnit(testInfo.method.enclosingClass)
-            is JcUnsafeTestInfo -> Unsafe(testInfo.method.enclosingClass)
-            else -> Base(testInfo.method.enclosingClass)
+            is JcSpringMvcTestInfo -> SpringMvc(testInfo.method.enclosingClass, testInfo.testFilePath, testInfo.testClassName)
+            is JcSpringUnitTestInfo -> SpringUnit(testInfo.method.enclosingClass, testInfo.testFilePath, testInfo.testClassName)
+            is JcUnsafeTestInfo -> Unsafe(testInfo.method.enclosingClass, testInfo.testFilePath, testInfo.testClassName)
+            else -> Base(testInfo.method.enclosingClass, testInfo.testFilePath, testInfo.testClassName)
         }
     }
-
-    val testClassName: String get() = "${clazz.simpleName}Tests"
 
     override fun equals(other: Any?): Boolean {
         return other is JcTestClassInfo && clazz == other.clazz

@@ -16,6 +16,8 @@ import org.usvm.test.api.UTest
 
 class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
 
+    private val controller: JcClassType
+
     constructor(
         controller: JcClassType,
         name: String,
@@ -24,6 +26,7 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         cp: JcClasspath
     ) : super(name, importManager, identifiersManager, cp) {
         this.controller = controller
+        addAnnotation(webMvcAnnotation())
     }
 
     constructor(
@@ -34,11 +37,6 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         cp: JcClasspath
     ) : super(decl, importManager, identifiersManager, cp) {
         this.controller = controller
-    }
-
-    private val controller: JcClassType
-
-    init {
         addAnnotation(webMvcAnnotation())
     }
 

@@ -16,9 +16,12 @@ import com.github.javaparser.ast.type.ArrayType
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import com.github.javaparser.ast.type.PrimitiveType
 import com.github.javaparser.ast.type.PrimitiveType.Primitive
+import com.github.javaparser.ast.type.ReferenceType
 import com.github.javaparser.ast.type.Type
 import com.github.javaparser.ast.type.VoidType
+import com.github.javaparser.ast.type.WildcardType
 import org.jacodb.api.jvm.JcArrayType
+import org.jacodb.api.jvm.JcBoundedWildcard
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
@@ -27,6 +30,7 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypeVariable
+import org.jacodb.api.jvm.JcUnboundWildcard
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.test.internal.toTyped
@@ -64,7 +68,21 @@ abstract class JcCodeRenderer<T: Node>(
         is JcArrayType -> ArrayType(renderType(type.elementType, includeGenericArgs))
         is JcClassType -> renderClass(type, includeGenericArgs)
         is JcTypeVariable -> renderClass(type.jcClass, includeGenericArgs)
+        is JcBoundedWildcard -> renderBoundedWildcardType(type)
+        is JcUnboundWildcard -> WildcardType()
         else -> error("unexpected type ${type.typeName}")
+    }
+
+    private fun renderBoundedWildcardType(type: JcBoundedWildcard): Type {
+        var wc = WildcardType()
+
+        val ub = type.upperBounds.singleOrNull()
+        if (ub != null) wc = wc.setExtendedType(renderType(ub, false) as ReferenceType)
+
+        val lb = type.lowerBounds.singleOrNull()
+        if (lb != null) wc = wc.setSuperType(renderType(lb, false) as ReferenceType)
+
+        return wc
     }
 
     fun renderClass(typeName: String, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
