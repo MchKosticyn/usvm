@@ -46,13 +46,14 @@ dependencies {
 // TODO: make versions flexible
 val springVersion = "3.2.0"
 
-//dependencies {
-//    implementation("org.springframework.boot:spring-boot-starter-web:$springVersion")
-//    implementation("org.springframework.boot:spring-boot-starter-test:$springVersion")
-//    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springVersion")
-//    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
-//    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:$springVersion")
-//}
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-web:$springVersion")
+    implementation("org.springframework.boot:spring-boot-starter-test:$springVersion")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springVersion")
+    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:$springVersion")
+    implementation(approximationsRepo, "approximations", approximationsVersion)
+}
 
 val springTestDeps by configurations.creating
 
