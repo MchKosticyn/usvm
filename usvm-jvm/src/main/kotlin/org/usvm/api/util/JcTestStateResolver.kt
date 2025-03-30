@@ -98,6 +98,11 @@ abstract class JcTestStateResolver<T>(
         }
     }
 
+    private fun <R> withCorrectMemory(heapRef: UHeapRef, body: JcTestStateResolver<T>.() -> R): R {
+        val mode = if (heapRef is UConcreteHeapRef) ResolveMode.CURRENT else resolveMode
+        return withMode(mode) { body() }
+    }
+
     enum class ResolveMode {
         MODEL, CURRENT, ERROR
     }
@@ -138,6 +143,7 @@ abstract class JcTestStateResolver<T>(
             decoderApi.setField(field, decoderApi.createNullConst(field.enclosingClass.toType()), resolvedValue)
         }
 
+    // TODO: #AA
     fun resolveLValue(lvalue: ULValue<*, *>, type: JcType): T {
         val expr = memory.read(lvalue)
 
@@ -192,16 +198,16 @@ abstract class JcTestStateResolver<T>(
         return null
     }
 
-    fun resolveReference(heapRef: UHeapRef, type: JcRefType): T {
+    fun resolveReference(heapRef: UHeapRef, type: JcRefType): T = withCorrectMemory(heapRef) {
         val ref = evaluateInModel(heapRef) as UConcreteHeapRef
         if (ref.address == NULL_ADDRESS) {
-            return decoderApi.createNullConst(type)
+            return@withCorrectMemory decoderApi.createNullConst(type)
         }
 
         val obj = tryCreateObjectInstance(ref, heapRef)
         if (obj != null) {
             saveResolvedRef(ref.address, obj)
-            return obj
+            return@withCorrectMemory obj
         }
 
         // to find a type, we need to understand the source of the object
@@ -219,13 +225,13 @@ abstract class JcTestStateResolver<T>(
         // In such cases, we need to resolve this element to null.
 
         val evaluatedType = typeSelector.firstOrNull(typeStream, type.jcClass)
-            ?: return decoderApi.createNullConst(type)
+            ?: return@withCorrectMemory decoderApi.createNullConst(type)
 
         // We check for the type stream emptiness firsly and only then for the resolved cache,
         // because even if the object is already resolved, it could be incompatible with the [type], if it
         // is an element of an array of the wrong type.
 
-        return resolveRef(ref.address) {
+        return@withCorrectMemory resolveRef(ref.address) {
             when (evaluatedType) {
                 is JcArrayType -> resolveArray(ref, heapRef, evaluatedType)
                 is JcClassType -> resolveObject(ref, heapRef, evaluatedType)
@@ -236,7 +242,7 @@ abstract class JcTestStateResolver<T>(
 
     open fun resolveArray(
         ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcArrayType
-    ): T {
+    ): T = withCorrectMemory(heapRef) {
         val arrayDescriptor = ctx.arrayDescriptorOf(type)
         val lengthRef = UArrayLengthLValue(heapRef, arrayDescriptor, ctx.sizeSort)
         val resolvedLength = resolvePrimitiveInt(memory.read(lengthRef))
@@ -254,43 +260,47 @@ abstract class JcTestStateResolver<T>(
             decoderApi.setArrayIndex(arrayInstance, decoderApi.createIntConst(idx), element)
         }
 
-        return arrayInstance
+        return@withCorrectMemory arrayInstance
     }
 
     abstract fun allocateClassInstance(type: JcClassType): T
 
-    open fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): T {
+    open fun resolveObject(
+        ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType
+    ): T = withCorrectMemory(heapRef) {
         val decoder = decoders.findDecoder(type.jcClass)
         if (decoder != null) {
-            return decodeObject(ref, type, decoder)
+            return@withCorrectMemory decodeObject(ref, type, decoder)
         }
 
         if (type.jcClass == ctx.classType.jcClass && ref.address <= INITIAL_STATIC_ADDRESS) {
             // Note that non-negative addresses are possible only for the result value.
-            return resolveAllocatedClass(ref)
+            return@withCorrectMemory resolveAllocatedClass(ref)
         }
 
         if (type.jcClass == ctx.stringType.jcClass && ref.address <= INITIAL_STATIC_ADDRESS) {
             // Note that non-negative addresses are possible only for the result value.
-            return resolveAllocatedString(ref)
+            return@withCorrectMemory resolveAllocatedString(ref)
         }
 
         val anyEnumAncestor = type.getEnumAncestorOrNull()
         if (anyEnumAncestor != null) {
-            return resolveEnumValue(heapRef, anyEnumAncestor)
+            return@withCorrectMemory resolveEnumValue(heapRef, anyEnumAncestor)
         }
 
-        return allocateAndInitializeObject(ref, heapRef, type)
+        return@withCorrectMemory allocateAndInitializeObject(ref, heapRef, type)
     }
 
-    fun allocateAndInitializeObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): T {
+    fun allocateAndInitializeObject(
+        ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType
+    ): T = withCorrectMemory(heapRef) {
         val instance = allocateClassInstance(type)
         saveResolvedRef(ref.address, instance)
 
         // TODO skips throwable construction for now
         val throwable = ctx.cp.findTypeOrNull<Throwable>()
         if (throwable != null && type.isAssignable(throwable)) {
-            return instance
+            return@withCorrectMemory instance
         }
 
         for (cls in generateSequence(type.jcClass) { it.superClass }.map { it.toType() }) {
@@ -330,20 +340,20 @@ abstract class JcTestStateResolver<T>(
             }
         }
 
-        return instance
+        return@withCorrectMemory instance
     }
 
-    fun resolveEnumValue(heapRef: UHeapRef, enumAncestor: JcClassOrInterface): T {
+    fun resolveEnumValue(heapRef: UHeapRef, enumAncestor: JcClassOrInterface): T = withCorrectMemory(heapRef) {
         val ordinalLValue = UFieldLValue(ctx.sizeSort, heapRef, ctx.enumOrdinalField)
         val ordinalFieldValue = resolvePrimitiveInt(memory.read(ordinalLValue))
 
         val enumField = enumAncestor.enumValues?.get(ordinalFieldValue)
             ?: error("Cant find enum field with index $ordinalFieldValue")
 
-        return decoderApi.getField(enumField, decoderApi.createNullConst(ctx.cp.objectType))
+        return@withCorrectMemory decoderApi.getField(enumField, decoderApi.createNullConst(ctx.cp.objectType))
     }
 
-    fun resolveAllocatedClass(ref: UConcreteHeapRef): T {
+    fun resolveAllocatedClass(ref: UConcreteHeapRef): T = withCorrectMemory(ref) {
         val classTypeField = ctx.classTypeSyntheticField
         val classTypeLValue = UFieldLValue(ctx.addressSort, ref, classTypeField)
 
@@ -354,12 +364,12 @@ abstract class JcTestStateResolver<T>(
 
         val classType = memoryToResolveClassType.typeStreamOf(classTypeRef).first()
 
-        return decoderApi.createClassConst(classType)
+        return@withCorrectMemory decoderApi.createClassConst(classType)
     }
 
     abstract fun allocateString(value: T): T
 
-    fun resolveAllocatedString(ref: UConcreteHeapRef): T {
+    fun resolveAllocatedString(ref: UConcreteHeapRef): T = withCorrectMemory(ref) {
         val valueField = ctx.stringValueField
         val strValueLValue = UFieldLValue(ctx.typeToSort(valueField.type), ref, valueField.field)
 
@@ -372,10 +382,12 @@ abstract class JcTestStateResolver<T>(
             resolveLValue(strValueLValue, valueField.type)
         }
 
-        return allocateString(strValue)
+        return@withCorrectMemory allocateString(strValue)
     }
 
-    fun decodeObject(ref: UConcreteHeapRef, type: JcClassType, objectDecoder: ObjectDecoder): T {
+    fun decodeObject(
+        ref: UConcreteHeapRef, type: JcClassType, objectDecoder: ObjectDecoder
+    ): T = withCorrectMemory(ref) {
         val refDecoder = TestObjectData(ref)
 
         val decodedObject = objectDecoder.createInstance(type.jcClass, refDecoder, decoderApi)
@@ -383,11 +395,11 @@ abstract class JcTestStateResolver<T>(
         saveResolvedRef(ref.address, decodedObject)
 
         objectDecoder.initializeInstance(type.jcClass, refDecoder, decodedObject, decoderApi)
-        return decodedObject
+        return@withCorrectMemory decodedObject
     }
 
-    fun resolveSymbolicList(heapRef: UHeapRef): SymbolicList<T>? {
-        val listType = ctx.cp.findTypeOrNull<SymbolicList<*>>() ?: return null
+    fun resolveSymbolicList(heapRef: UHeapRef): SymbolicList<T>? = withCorrectMemory(heapRef) {
+        val listType = ctx.cp.findTypeOrNull<SymbolicList<*>>() ?: return@withCorrectMemory null
 
         val lengthRef = UArrayLengthLValue(heapRef, listType, ctx.sizeSort)
         val resolvedLength = resolvePrimitiveInt(memory.read(lengthRef))
@@ -400,25 +412,25 @@ abstract class JcTestStateResolver<T>(
             result.insert(i, element)
         }
 
-        return result
+        return@withCorrectMemory result
     }
 
-    fun resolveSymbolicMap(heapRef: UHeapRef): SymbolicMap<T, T>? {
-        val mapType = ctx.cp.findTypeOrNull<SymbolicMap<*, *>>() ?: return null
+    fun resolveSymbolicMap(heapRef: UHeapRef): SymbolicMap<T, T>? = withCorrectMemory(heapRef) {
+        val mapType = ctx.cp.findTypeOrNull<SymbolicMap<*, *>>() ?: return@withCorrectMemory null
 
         val resultMap = SymbolicMapImpl<T, T>()
 
         // todo: equals based check
         resolveSymbolicIdentityMapEntries(heapRef, mapType, { resultMap.size() }, { k, v -> resultMap.set(k, v) })
 
-        return resultMap
+        return@withCorrectMemory resultMap
     }
 
-    fun resolveSymbolicIdentityMap(heapRef: UHeapRef): SymbolicIdentityMap<T, T>? {
-        val mapType = ctx.cp.findTypeOrNull<SymbolicIdentityMap<*, *>>() ?: return null
+    fun resolveSymbolicIdentityMap(heapRef: UHeapRef): SymbolicIdentityMap<T, T>? = withCorrectMemory(heapRef) {
+        val mapType = ctx.cp.findTypeOrNull<SymbolicIdentityMap<*, *>>() ?: return@withCorrectMemory null
         val resultMap = SymbolicIdentityMapImpl<T, T>()
         resolveSymbolicIdentityMapEntries(heapRef, mapType, { resultMap.size() }, { k, v -> resultMap.set(k, v) })
-        return resultMap
+        return@withCorrectMemory resultMap
     }
 
     private inline fun resolveSymbolicIdentityMapEntries(

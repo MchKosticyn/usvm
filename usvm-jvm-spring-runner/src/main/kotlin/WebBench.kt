@@ -87,7 +87,7 @@ private fun loadKlawBench(): BenchCp {
 }
 
 private fun loadSynthBench(): BenchCp {
-    val benchDir = Path("C:/Users/arthu/Documents/usvm-spring-benchmarks/build/libs/BOOT-INF")
+    val benchDir = Path("C:/Users/arthur/Documents/usvm-spring-benchmarks/build/libs/BOOT-INF")
     return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib").apply {
         entrypointFilter = { it.enclosingClass.simpleName.startsWith("SpringBenchmarks") }
     }

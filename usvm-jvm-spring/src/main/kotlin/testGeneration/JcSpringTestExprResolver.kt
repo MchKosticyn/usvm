@@ -13,12 +13,12 @@ import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestStatement
 
-class JcSpringTestExprResolver(
+class   JcSpringTestExprResolver(
     ctx: JcContext,
     private val model: UModelBase<JcType>,
     finalStateMemory: UReadOnlyMemory<JcType>,
     method: JcTypedMethod
-) : JcTestStateResolver<UTestExpression>(ctx, model, finalStateMemory, method) {
+) : JcConcreteStateResolver<UTestExpression>(ctx, model, finalStateMemory, method) {
 
     private val appendedStatements: MutableList<UTestStatement> = mutableListOf()
     override val decoderApi = JcTestExecutorDecoderApi(ctx.cp)
