@@ -4,10 +4,13 @@ import machine.state.pinnedValues.JcPinnedKey.Companion.responseContent
 import machine.state.pinnedValues.JcPinnedKey.Companion.responseStatus
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
-import org.jacodb.api.jvm.ext.int
 import org.usvm.api.util.JcTestStateResolver
-import org.usvm.test.api.UTestConstructorCall
-import org.usvm.test.api.spring.*
+import org.usvm.test.api.spring.JcSpringHttpCookie
+import org.usvm.test.api.spring.JcSpringHttpHeader
+import org.usvm.test.api.spring.JcSpringResponse
+import org.usvm.test.api.spring.UTAny
+import org.usvm.test.api.spring.UTString
+import org.usvm.test.api.spring.UTStringArray
 
 class JcSpringPinnedValuesResponse(
     private val pinnedValues: JcSpringPinnedValues,

@@ -1,7 +1,9 @@
 package machine.state
 
 import machine.state.memory.JcSpringMemory
-import machine.state.pinnedValues.*
+import machine.state.pinnedValues.JcPinnedKey
+import machine.state.pinnedValues.JcPinnedValue
+import machine.state.pinnedValues.JcSpringPinnedValues
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst

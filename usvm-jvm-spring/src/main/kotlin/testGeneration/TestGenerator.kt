@@ -2,6 +2,7 @@ package testGeneration
 
 import machine.state.JcSpringState
 import machine.state.pinnedValues.JcObjectPinnedKey
+import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
 import org.jacodb.api.jvm.JcClassType
@@ -18,6 +19,11 @@ import org.usvm.test.api.spring.JcSpringTestBuilder
 import org.usvm.test.api.spring.SpringException
 import utils.toTypedMethod
 
+
+fun JcSpringState.canGenerateTest(): Boolean {
+    return pinnedValues.getValue(JcPinnedKey.requestPath()) != null
+            && pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
+}
 
 fun JcSpringState.generateTest(): UTest {
     val exprResolver = createExprResolver(this)

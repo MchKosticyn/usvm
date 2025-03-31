@@ -28,7 +28,7 @@ class JcSpringTestBuilder(
                 generatedTestClass = generatedTestClass,
                 mocks = mocks,
                 request = request,
-                response = response!!
+                response = response!!,
             )
 
             exception != null -> JcSpringExceptionTest(
@@ -36,14 +36,14 @@ class JcSpringTestBuilder(
                 generatedTestClass = generatedTestClass,
                 mocks = mocks,
                 request = request,
-                exception = exception!!
+                exception = exception!!,
             )
 
             else -> JcSpringTest(
                 cp = cp,
                 generatedTestClass = generatedTestClass,
                 mocks = mocks,
-                request = request
+                request = request,
             )
         }
     }
@@ -53,7 +53,7 @@ open class JcSpringTest internal constructor(
     val cp: JcClasspath,
     private val generatedTestClass: JcClassType?,
     private val mocks: List<JcMockBean>,
-    private val request: JcSpringRequest
+    private val request: JcSpringRequest,
 ) {
     fun generateTestDSL(additionalInstructions: () -> List<UTestInst>): UTest {
         val initStatements: MutableList<UTestInst> = mutableListOf()

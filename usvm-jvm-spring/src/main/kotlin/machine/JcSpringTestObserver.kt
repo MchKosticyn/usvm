@@ -5,6 +5,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.statistics.UMachineObserver
 import org.usvm.test.api.spring.JcSpringTest
 import org.usvm.test.api.UTest
+import testGeneration.canGenerateTest
 import testGeneration.generateTest
 
 
@@ -21,6 +22,7 @@ class JcSpringTestObserver(
         state.callStack.push(state.entrypoint, state.entrypoint.instList[0])
         if (!stateReachable || !state.hasEnoughInfoForTest()) return
         try {
+            if (!state.canGenerateTest()) return
             val success = testReproducer.reproduce(state.generateTest())
             println("Test success: $success")
         } catch (e: Throwable) {
