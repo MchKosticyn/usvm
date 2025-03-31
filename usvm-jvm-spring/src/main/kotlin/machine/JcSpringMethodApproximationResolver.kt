@@ -211,7 +211,7 @@ class JcSpringMethodApproximationResolver (
                 this as JcSpringState
                 val type = getTypeFromParameter(parameter)?.autoboxIfNeeded()!!
                 val key = getPinnedValueKey(source)!!
-                val newSymbolicValue = createPinnedAndReplace(key, type, scope, ctx.addressSort, false) ?: return@calcOnState false
+                val newSymbolicValue = createPinnedAndReplace(key, type, scope, ctx.addressSort, false)
                     ?: return@calcOnState false
                 skipMethodInvocationWithValue(methodCall, newSymbolicValue.getExpr())
 
