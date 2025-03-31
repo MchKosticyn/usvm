@@ -19,8 +19,8 @@ import org.usvm.instrumentation.testcase.descriptor.UTestExceptionDescriptor
 import org.usvm.instrumentation.testcase.descriptor.Value2DescriptorConverter
 import org.usvm.instrumentation.testcase.executor.UTestExpressionExecutor
 import org.usvm.instrumentation.util.InstrumentationModuleConstants
-import org.usvm.instrumentation.util.TestTaskExecutor
 import org.usvm.instrumentation.util.URLClassPathLoader
+import org.usvm.jvm.util.JcExecutor
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestCall
 
@@ -31,7 +31,7 @@ abstract class UTestExecutor(
 
     fun executeUTest(uTest: UTest): UTestExecutionResult {
         reset()
-        val taskExecutor = TestTaskExecutor(workerClassLoader)
+        val taskExecutor = JcExecutor(workerClassLoader)
         val accessedStatics = mutableSetOf<Pair<JcField, JcInstructionTracer.StaticFieldAccessType>>()
         val callMethodExpr = uTest.callMethodExpression
 
