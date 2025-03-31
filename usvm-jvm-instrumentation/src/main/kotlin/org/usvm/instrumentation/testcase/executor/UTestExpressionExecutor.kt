@@ -12,7 +12,14 @@ import org.usvm.instrumentation.collector.trace.MockCollector
 import org.usvm.instrumentation.collector.trace.MockCollector.MockValueArrayWrapper
 import org.usvm.instrumentation.util.invokeWithAccessibility
 import org.usvm.instrumentation.util.newInstanceWithAccessibility
-import org.usvm.jvm.util.*
+import org.usvm.jvm.util.JcExecutor
+import org.usvm.jvm.util.ReflectionUtils
+import org.usvm.jvm.util.getFieldValue
+import org.usvm.jvm.util.setFieldValue
+import org.usvm.jvm.util.toJavaClass
+import org.usvm.jvm.util.toJavaConstructor
+import org.usvm.jvm.util.toJavaField
+import org.usvm.jvm.util.toJavaMethod
 import java.lang.ClassCastException
 
 class UTestExpressionExecutor(

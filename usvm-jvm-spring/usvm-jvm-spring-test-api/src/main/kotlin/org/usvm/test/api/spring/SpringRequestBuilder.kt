@@ -67,15 +67,15 @@ class SpringRequestBuilder private constructor(
 
     fun getDSL() = reqDSL
 
-    fun addParameter(attr: JcSpringHttpParameter): SpringRequestBuilder {
+    fun addParameter(parameter: JcSpringHttpParameter): SpringRequestBuilder {
         val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "param").method
-        addStrArrOfStrCallDSL(method, attr.getName(), attr.getValues())
+        addMethodCall(method, parameter.getName(), parameter.getValues())
         return this
     }
 
-    fun addHeader(attr: JcSpringHttpHeader): SpringRequestBuilder {
+    fun addHeader(header: JcSpringHttpHeader): SpringRequestBuilder {
         val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "header").method
-        addStrArrOfStrCallDSL(method, attr.getName(), attr.getValues())
+        addMethodCall(method, header.getName(), header.getValues())
         return this
     }
 
@@ -89,10 +89,10 @@ class SpringRequestBuilder private constructor(
         return this
     }
 
-    private fun addStrArrOfStrCallDSL(mName: JcMethod, str: UTString, arguments: UTStringArray) {
+    private fun addMethodCall(method: JcMethod, str: UTString, arguments: UTStringArray) {
         reqDSL = UTestMethodCall(
             instance = reqDSL,
-            method = mName,
+            method = method,
             args = listOf(str, arguments),
         )
     }

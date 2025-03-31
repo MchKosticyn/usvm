@@ -30,7 +30,6 @@ import org.objectweb.asm.Type
 import org.usvm.PathSelectionStrategy
 import org.usvm.SolverType
 import org.usvm.UMachineOptions
-import org.usvm.api.util.JcTestInterpreter
 import org.usvm.jvm.util.isSameSignature
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
@@ -39,7 +38,11 @@ import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.util.classpathWithApproximations
 import features.JcLambdaFeature
-import machine.*
+import machine.JcConcreteMachineOptions
+import machine.JcSpringMachine
+import machine.JcSpringMachineOptions
+import machine.JcSpringTestObserver
+import machine.SpringAnalysisMode
 import org.usvm.CoverageZone
 import utils.typeName
 import java.io.File
@@ -95,7 +98,7 @@ private fun loadSynthBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadSynthBench()
+        loadWebPetClinicBench()
     }
 
     logTime("Analysis ALL") {

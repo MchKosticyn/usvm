@@ -9,7 +9,11 @@ import org.usvm.instrumentation.instrumentation.JcRuntimeTraceInstrumenter
 import org.usvm.instrumentation.testcase.descriptor.StaticDescriptorsBuilder
 import org.usvm.instrumentation.util.URLClassPathLoader
 import org.usvm.instrumentation.util.invokeWithAccessibility
-import org.usvm.jvm.util.*
+import org.usvm.jvm.util.JcExecutor
+import org.usvm.jvm.util.isFinal
+import org.usvm.jvm.util.isStatic
+import org.usvm.jvm.util.setFieldValue
+import org.usvm.jvm.util.toByteArray
 import java.lang.instrument.ClassDefinition
 import java.lang.instrument.Instrumentation
 import java.security.CodeSource

@@ -10,7 +10,6 @@ import machine.state.JcSpringState
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcPinnedKey.Companion.mockCallResult
-import machine.state.pinnedValues.JcPinnedKey.Companion.responseStatus
 import machine.state.pinnedValues.JcPinnedValue
 import machine.state.pinnedValues.JcStringPinnedKey
 import org.jacodb.api.jvm.JcAnnotation
@@ -21,7 +20,12 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcFieldRef
-import org.jacodb.api.jvm.ext.*
+import org.jacodb.api.jvm.ext.autoboxIfNeeded
+import org.jacodb.api.jvm.ext.boolean
+import org.jacodb.api.jvm.ext.findType
+import org.jacodb.api.jvm.ext.isAssignable
+import org.jacodb.api.jvm.ext.isEnum
+import org.jacodb.api.jvm.ext.objectType
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UNullRef
@@ -504,7 +508,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldSkipPath(path: String, kind: String, controllerTypeName: String): Boolean {
-        return path != "/service/link_node"
+        return false
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
