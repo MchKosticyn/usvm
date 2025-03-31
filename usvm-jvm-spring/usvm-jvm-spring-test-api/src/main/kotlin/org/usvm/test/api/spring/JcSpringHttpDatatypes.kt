@@ -12,7 +12,7 @@ typealias UTAny = UTestExpression
 typealias UTInt = UTestIntExpression
 
 abstract class JcSpringNamedValueHolder<T>(
-    private val name: UTestStringExpression,
+    private val name: UTString,
     private val values: T
 ) {
     fun getName() = name

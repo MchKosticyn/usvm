@@ -8,8 +8,8 @@ import org.usvm.api.makeNullableSymbolicRef
 import org.usvm.api.makeSymbolicRef
 import org.usvm.machine.interpreter.JcStepScope
 
-open class JcSpringRawPinnedValues<V> (
-    protected var pinnedValues: Map<JcPinnedKey, V> = emptyMap()
+abstract class JcSpringRawPinnedValues<V> (
+    protected var pinnedValues: Map<JcPinnedKey, V>
 ) {
     fun getMap() = pinnedValues
 
@@ -32,14 +32,14 @@ open class JcSpringRawPinnedValues<V> (
     }
 }
 
-class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
+class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) {
     fun createAndReplace(
         key: JcPinnedKey, 
         type: JcType, 
         scope: JcStepScope, 
         sort: USort, 
         nullable: Boolean = true
-    ): JcSpringPinnedValue? {
+    ): JcPinnedValue? {
         val newValueExpr =
             if (nullable) scope.makeNullableSymbolicRef(type)?.asExpr(sort)
             else scope.makeSymbolicRef(type)?.asExpr(sort)
@@ -49,7 +49,7 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
             return null
         }
 
-        val newValue = JcSpringPinnedValue(newValueExpr, type)
+        val newValue = JcPinnedValue(newValueExpr, type)
         setValue(key, newValue)
 
         return newValue
@@ -61,7 +61,7 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
         scope: JcStepScope, 
         sort: USort, 
         nullable: Boolean = true
-    ): JcSpringPinnedValue? {
+    ): JcPinnedValue? {
         val existingValue = getValue(key)
         if (existingValue != null)
             return existingValue
@@ -73,5 +73,9 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
         if (pair == null)
             return null
         return pair.key
+    }
+
+    fun copy(): JcSpringPinnedValues {
+        return JcSpringPinnedValues().also { it.pinnedValues = pinnedValues }
     }
 }

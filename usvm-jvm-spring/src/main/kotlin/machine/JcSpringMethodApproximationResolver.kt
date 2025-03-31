@@ -7,8 +7,12 @@ import isSpringRepository
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.concreteMemory.JcConcreteMemory
 import machine.state.JcSpringState
+import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcPinnedKey.Companion.mockCallResult
+import machine.state.pinnedValues.JcPinnedKey.Companion.responseStatus
+import machine.state.pinnedValues.JcPinnedValue
+import machine.state.pinnedValues.JcStringPinnedKey
 import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -160,6 +164,15 @@ class JcSpringMethodApproximationResolver (
         return key to type
     }
 
+    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
+        val memory = state.memory as JcSpringMemory
+        val concretizer = memory.getConcretizer(state)
+        val result = concretizer.resolveExpr(value.getExpr(), value.getType()) ?: return null
+        val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
+        val expr = memory.objectToExpr(arrayOf(result.toString()), stringArrayType)
+        return JcPinnedValue(expr, stringArrayType)
+    }
+
     private fun approximatePinnedValueStorage(methodCall: JcMethodCall): Boolean = with(methodCall) {
         if (method.name == "_writePinnedInner") {
             return scope.calcOnState {
@@ -192,6 +205,21 @@ class JcSpringMethodApproximationResolver (
                 val value = createPinnedIfAbsent(key, type, scope, ctx.addressSort) ?: return@calcOnState false
 
                 skipMethodInvocationWithValue(methodCall, value.getExpr())
+                return@calcOnState true
+            }
+        }
+
+        if (method.name == "preparePinnedValues") {
+            return scope.calcOnState {
+                this as JcSpringState
+                val headers = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_HEADER)
+                val parameters = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_PARAM)
+                (headers + parameters)
+                    .map { it.key to pinnedValueToStringArray(it.value, this) }
+                    .filter { it.second != null }
+                    .forEach { (key, value) -> setPinnedValue(key, value!!.getExpr(), value.getType()) }
+
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
                 return@calcOnState true
             }
         }

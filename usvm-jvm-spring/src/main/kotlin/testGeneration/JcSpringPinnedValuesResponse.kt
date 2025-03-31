@@ -14,7 +14,6 @@ class JcSpringPinnedValuesResponse(
     private val exprResolver: JcSpringTestExprResolver
 ) : JcSpringResponse {
     private val stringType = exprResolver.ctx.stringType
-    private val intType = exprResolver.ctx.cp.int
 
     @Suppress("SameParameterValue")
     private fun collectAndConcretize(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
@@ -26,25 +25,9 @@ class JcSpringPinnedValuesResponse(
         )
     }
 
-    private fun handleMultiValue(value: UTAny) : UTStringArray {
-        return handleStringMultiValue(
-            exprResolver,
-            value,
-            stringType,
-            intType
-        )
-    }
-
-    private fun unwrapInt(integerConstructor: UTAny): UTInt {
-        // Integer(10) -> 10
-        check(integerConstructor is UTestConstructorCall)
-        return integerConstructor.args[0] as UTInt
-    }
-
-    override fun getStatus(): UTInt {
+    override fun getStatus(): UTAny {
         val status = pinnedValues.getValue(responseStatus())
             ?.let { exprResolver.resolvePinnedValue(it) }
-            ?.let { unwrapInt(it) }
         check(status != null)
         return status
     }
@@ -62,6 +45,6 @@ class JcSpringPinnedValuesResponse(
     
     override fun getHeaders(): List<JcSpringHttpHeader> {
         val headers = collectAndConcretize(JcSpringPinnedValueSource.RESPONSE_COOKIE)
-        return headers.mapNotNull { (key, value) -> JcSpringHttpHeader(key, handleMultiValue(value as UTString)) }
+        return headers.mapNotNull { (key, value) -> JcSpringHttpHeader(key, value as UTStringArray) }
     }
 }

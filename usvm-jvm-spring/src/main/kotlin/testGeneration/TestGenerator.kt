@@ -33,7 +33,7 @@ fun JcSpringState.generateTest(): UTest {
 
     return test
         .build(ctx.cp)
-        .generateTestDSL(exprResolver.getInstructions())
+        .generateTestDSL { exprResolver.getInstructions() }
 }
 
 private fun getSpringExn(): SpringException {
