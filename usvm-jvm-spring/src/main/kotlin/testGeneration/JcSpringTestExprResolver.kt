@@ -1,5 +1,6 @@
 package testGeneration
 
+import machine.state.JcSpringState
 import machine.state.pinnedValues.JcSpringPinnedValue
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcType
@@ -12,13 +13,12 @@ import org.usvm.test.api.JcTestExecutorDecoderApi
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestStatement
+import utils.JcConcreteStateResolver
 
 class   JcSpringTestExprResolver(
-    ctx: JcContext,
-    private val model: UModelBase<JcType>,
-    finalStateMemory: UReadOnlyMemory<JcType>,
-    method: JcTypedMethod
-) : JcConcreteStateResolver<UTestExpression>(ctx, model, finalStateMemory, method) {
+    state: JcSpringState
+) : JcConcreteStateResolver<UTestExpression>(state) {
+    private val model = state.models[0]
 
     private val appendedStatements: MutableList<UTestStatement> = mutableListOf()
     override val decoderApi = JcTestExecutorDecoderApi(ctx.cp)

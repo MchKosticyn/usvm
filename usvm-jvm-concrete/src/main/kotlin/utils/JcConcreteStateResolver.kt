@@ -12,18 +12,19 @@ import org.usvm.machine.state.JcState
 
 abstract class JcConcreteStateResolver<T>(
     state: JcState,
-    override val decoderApi: DecoderApi<T>
 ) : JcTestStateResolver<T>(state.ctx, state.models.first(), state.memory, state.entrypoint.toTypedMethod) {
-    val bindings = (state.memory as JcConcreteMemory)
+    val concreteMemory = (state.memory as JcConcreteMemory)
 
     override fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): T {
-        if (type == ctx.stringType && bindings.contains(ref.address)) {
-            val string = bindings.virtToPhys(ref.address) as String
+        if (type == ctx.stringType) {
+            val string = concreteMemory.tryHeapRefToObject(ref) as String?
+                ?: return super.resolveObject(ref, heapRef, type)
             return decoderApi.createStringConst(string)
         }
 
-        if (type == ctx.classType && bindings.contains(ref.address)) {
-            val clazz = bindings.virtToPhys(ref.address) as Class<*>
+        if (type == ctx.classType) {
+            val clazz = concreteMemory.tryHeapRefToObject(ref) as Class<*>?
+                ?: return super.resolveObject(ref, heapRef, type)
             return decoderApi.createClassConst(ctx.cp.findType(clazz.name))
         }
 
