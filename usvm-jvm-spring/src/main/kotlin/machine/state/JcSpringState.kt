@@ -1,10 +1,7 @@
 package machine.state
 
 import machine.state.memory.JcSpringMemory
-import machine.state.pinnedValues.JcPinnedKey
-import machine.state.pinnedValues.JcSpringPinnedValue
-import machine.state.pinnedValues.JcSpringPinnedValueSource
-import machine.state.pinnedValues.JcSpringPinnedValues
+import machine.state.pinnedValues.*
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
@@ -35,7 +32,7 @@ class JcSpringState(
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
     methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
-    val pinnedValues: JcSpringPinnedValues = JcSpringPinnedValues(),
+    var pinnedValues: JcSpringPinnedValues = JcSpringPinnedValues(),
 ) : JcState(
     ctx,
     ownership,
@@ -53,13 +50,6 @@ class JcSpringState(
     internal val springMemory: JcSpringMemory
         get() = this.memory as JcSpringMemory
 
-    private fun firstPinnedOfSourceOrNull(source: JcSpringPinnedValueSource): UExpr<out USort>? {
-        return pinnedValues.getValuesOfSource<JcPinnedKey>(source).values.firstOrNull()?.getExpr()
-    }
-    
-    val requestMethod get() = firstPinnedOfSourceOrNull(JcSpringPinnedValueSource.REQUEST_METHOD)
-    val requestPath get() = firstPinnedOfSourceOrNull(JcSpringPinnedValueSource.REQUEST_PATH)
-
     companion object {
         fun defaultFromJcState(state: JcState): JcSpringState = JcSpringState(
             state.ctx,
@@ -76,12 +66,12 @@ class JcSpringState(
         )
     }
 
-    fun getPinnedValue(key: JcPinnedKey): JcSpringPinnedValue? {
+    fun getPinnedValue(key: JcPinnedKey): JcPinnedValue? {
         return pinnedValues.getValue(key)
     }
 
     fun setPinnedValue(key: JcPinnedKey, value: UExpr<out USort>, type: JcType) {
-        return pinnedValues.setValue(key, JcSpringPinnedValue(value, type))
+        return pinnedValues.setValue(key, JcPinnedValue(value, type))
     }
 
     fun createPinnedIfAbsent(
@@ -90,7 +80,7 @@ class JcSpringState(
         scope: JcStepScope,
         sort: USort,
         nullable: Boolean = true
-    ): JcSpringPinnedValue? {
+    ): JcPinnedValue? {
         return pinnedValues.createIfAbsent(key, type, scope, sort, nullable)
     }
 
@@ -100,7 +90,7 @@ class JcSpringState(
         scope: JcStepScope, 
         sort: USort, 
         nullable: Boolean = true
-    ): JcSpringPinnedValue? {
+    ): JcPinnedValue? {
         return pinnedValues.createAndReplace(key, type, scope, sort, nullable)
     }
 
@@ -114,6 +104,8 @@ class JcSpringState(
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
         println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
-        return super.clone(newConstraints) as JcSpringState
+        val cloned = super.clone(newConstraints) as JcSpringState
+        cloned.pinnedValues = pinnedValues.copy() as JcSpringPinnedValues
+        return cloned
     }
 }

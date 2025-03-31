@@ -4,11 +4,7 @@ import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcSimplePinnedKey
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
-import machine.state.pinnedValues.JcStringPinnedKey
-import org.jacodb.api.jvm.ext.int
 import org.usvm.api.util.JcTestStateResolver
-import org.usvm.test.api.UTestArraySetStatement
-import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestNullExpression
 import org.usvm.test.api.spring.JcSpringHttpCookie
 import org.usvm.test.api.spring.JcSpringHttpHeader
@@ -25,7 +21,6 @@ class JcSpringPinnedValuesRequest(
     private val exprResolver: JcSpringTestExprResolver,
 ) : JcSpringRequest {
     private val stringType = exprResolver.ctx.stringType
-    private val intType = exprResolver.ctx.cp.int
 
     private fun sortRequestUriVariables(path: UTString, uriVariables: Map<UTString, UTAny>): List<UTAny> {
         // TODO: check it
@@ -45,15 +40,6 @@ class JcSpringPinnedValuesRequest(
             pinnedValueSource,
             stringType
         ).filter { it.value !is UTestNullExpression }
-    }
-
-    private fun handleMultiValue(value: UTAny) : UTStringArray {
-        return handleStringMultiValue(
-            exprResolver,
-            value,
-            stringType,
-            intType
-        )
     }
 
     private fun getStringPinnedValue(key: JcSimplePinnedKey): UTString {
@@ -78,7 +64,7 @@ class JcSpringPinnedValuesRequest(
 
     override fun getHeaders(): List<JcSpringHttpHeader> {
         val headersRaw = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_HEADER)
-        return headersRaw.mapNotNull { (key, value) -> JcSpringHttpHeader(key, handleMultiValue(value)) }
+        return headersRaw.mapNotNull { (key, value) -> JcSpringHttpHeader(key, value as UTStringArray) }
     }
 
     override fun getMethod(): JcSpringRequestMethod {
@@ -98,7 +84,7 @@ class JcSpringPinnedValuesRequest(
 
     override fun getParameters(): List<JcSpringHttpParameter> {
         val parametersRaw = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_PARAM)
-        return parametersRaw.mapNotNull { (key, value) -> JcSpringHttpParameter(key, handleMultiValue(value)) }
+        return parametersRaw.mapNotNull { (key, value) -> JcSpringHttpParameter(key, value as UTStringArray) }
     }
 
     override fun getUriVariables(): List<UTAny> {

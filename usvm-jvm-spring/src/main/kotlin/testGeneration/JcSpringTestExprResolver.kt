@@ -1,21 +1,15 @@
 package testGeneration
 
 import machine.state.JcSpringState
-import machine.state.pinnedValues.JcSpringPinnedValue
+import machine.state.pinnedValues.JcPinnedValue
 import org.jacodb.api.jvm.JcClassType
-import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.JcTypedMethod
-import org.usvm.api.util.JcTestStateResolver
-import org.usvm.machine.JcContext
-import org.usvm.memory.UReadOnlyMemory
-import org.usvm.model.UModelBase
 import org.usvm.test.api.JcTestExecutorDecoderApi
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestStatement
 import utils.JcConcreteStateResolver
 
-class   JcSpringTestExprResolver(
+class JcSpringTestExprResolver(
     state: JcSpringState
 ) : JcConcreteStateResolver<UTestExpression>(state) {
     private val model = state.models[0]
@@ -24,7 +18,7 @@ class   JcSpringTestExprResolver(
     override val decoderApi = JcTestExecutorDecoderApi(ctx.cp)
     override fun allocateClassInstance(type: JcClassType) = UTestAllocateMemoryCall(type.jcClass)
     override fun allocateString(value: UTestExpression) = value
-    fun resolvePinnedValue(value: JcSpringPinnedValue) = resolveExpr(model.eval(value.getExpr()), value.getType())
+    fun resolvePinnedValue(value: JcPinnedValue) = resolveExpr(model.eval(value.getExpr()), value.getType())
     fun getInstructions() = decoderApi.initializerInstructions() + appendedStatements
     fun appendStatement(statements: UTestStatement) = appendedStatements.add(statements)
 }

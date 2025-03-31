@@ -54,7 +54,7 @@ class SpringMatchersBuilder(
         return conditionDsl
     }
 
-    fun addStatusCheck(int: UTInt): SpringMatchersBuilder {
+    fun addStatusCheck(int: UTAny): SpringMatchersBuilder {
         addCondition(addMatcher("status"), "is", listOf(int))
         return this
     }

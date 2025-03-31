@@ -58,6 +58,7 @@ import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefMapRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefSetRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteStaticFieldsRegion
+import org.usvm.api.util.JcTestStateResolver
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.state.newStmt
@@ -302,6 +303,10 @@ open class JcConcreteMemory(
         regionStorage = myRegionStorage
 
         return clonedMemory
+    }
+
+    fun getConcretizer(state: JcState): JcTestStateResolver<Any?> {
+        return JcConcretizer(state, bindings)
     }
 
     //region Concrete Invoke

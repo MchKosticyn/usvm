@@ -55,7 +55,7 @@ open class JcSpringTest internal constructor(
     private val mocks: List<JcMockBean>,
     private val request: JcSpringRequest
 ) {
-    fun generateTestDSL(additionalInstructions: List<UTestInst>): UTest {
+    fun generateTestDSL(additionalInstructions: () -> List<UTestInst>): UTest {
         val initStatements: MutableList<UTestInst> = mutableListOf()
         val testExecBuilder = SpringTestExecBuilder.initTestCtx(cp, generatedTestClass)
         initStatements.addAll(testExecBuilder.getInitDSL())
@@ -73,7 +73,7 @@ open class JcSpringTest internal constructor(
 
         matchersDSL.forEach { testExecBuilder.addAndExpectCall(listOf(it)) }
 
-        initStatements.addAll(additionalInstructions)
+        initStatements.addAll(additionalInstructions())
         return UTest(initStatements = initStatements, callMethodExpression = testExecBuilder.getExecDSL())
     }
 
