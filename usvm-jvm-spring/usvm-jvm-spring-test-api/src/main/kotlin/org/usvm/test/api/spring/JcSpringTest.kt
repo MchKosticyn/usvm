@@ -21,7 +21,7 @@ class JcSpringTestBuilder(
     fun withException(exception: SpringException) = apply { this.exception = exception }
     fun withGeneratedTestClass(testClass: JcClassType) = apply { this.generatedTestClass = testClass }
     fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks.toMutableList() }
-    fun withAdditionalInstructions(instructions: List<UTestInst>) = apply { this.additionalInstructions = instructions }
+    fun withAdditionalInstructions(instructions: () -> List<UTestInst>) = apply { this.additionalInstructions = instructions() }
 
     fun build(cp: JcClasspath): JcSpringTest {
         return when {
@@ -91,7 +91,7 @@ open class JcSpringTest internal constructor(
         val builder = SpringRequestBuilder.createRequest(cp, request.getMethod(), request.getPath(), request.getUriVariables())
         request.getParameters().forEach { builder.addParameter(it) }
         request.getHeaders().forEach { builder.addHeader(it) }
-        builder.addContent(request.getContent())
+        request.getContent()?.let { builder.addContent(it) }
 
         return builder.getDSL() to builder.getInitDSL()
     }
@@ -115,7 +115,7 @@ class JcSpringResponseTest internal constructor(
     override fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> {
         val matchersBuilder = SpringMatchersBuilder(cp)
         matchersBuilder.addStatusCheck(response.getStatus())
-        matchersBuilder.addContentCheck(response.getContent())
+        response.getContent()?.let { matchersBuilder.addContentCheck(it) }
         matchersBuilder.addHeadersCheck(response.getHeaders())
         return matchersBuilder.getMatchersDSL() to matchersBuilder.getInitDSL()
     }

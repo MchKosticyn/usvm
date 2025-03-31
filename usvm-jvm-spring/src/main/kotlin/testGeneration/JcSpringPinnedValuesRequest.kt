@@ -9,6 +9,7 @@ import org.jacodb.api.jvm.ext.int
 import org.usvm.api.util.JcTestStateResolver
 import org.usvm.test.api.UTestArraySetStatement
 import org.usvm.test.api.UTestIntExpression
+import org.usvm.test.api.UTestNullExpression
 import org.usvm.test.api.spring.JcSpringHttpCookie
 import org.usvm.test.api.spring.JcSpringHttpHeader
 import org.usvm.test.api.spring.JcSpringHttpParameter
@@ -43,7 +44,7 @@ class JcSpringPinnedValuesRequest(
             JcTestStateResolver.ResolveMode.MODEL,
             pinnedValueSource,
             stringType
-        )
+        ).filter { it.value !is UTestNullExpression }
     }
 
     private fun handleMultiValue(value: UTAny) : UTStringArray {
@@ -63,6 +64,11 @@ class JcSpringPinnedValuesRequest(
             check(method is UTString)
             method
         }
+    }
+
+    private fun withJsonSerialize(target: UTAny): UTAny {
+        if (target is UTString) return target
+        TODO("Create ObjectMapper and make a write call with constructed object #AA")
     }
 
     override fun getCookies(): List<JcSpringHttpCookie> {
@@ -85,8 +91,9 @@ class JcSpringPinnedValuesRequest(
         return method
     }
 
-    override fun getContent(): UTAny {
-        return getStringPinnedValue(JcPinnedKey.requestBody())
+    override fun getContent(): UTAny? {
+        val body = pinnedValues.getValue(JcPinnedKey.requestBody()) ?: return null
+        return withJsonSerialize(exprResolver.resolvePinnedValue(body))
     }
 
     override fun getParameters(): List<JcSpringHttpParameter> {

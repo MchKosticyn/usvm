@@ -23,7 +23,7 @@ import org.usvm.test.api.UTestStaticMethodCall
 class SpringMockBeanBuilder(
     private val cp: JcClasspath,
     private val testClass: UTestExpression?,
-    private val reproducing: Boolean = false
+    private val reproducing: Boolean = true
 ) {
     private val mockitoClass = cp.findClassOrNull("org.mockito.Mockito")
         ?: VirtualMockito.mockito

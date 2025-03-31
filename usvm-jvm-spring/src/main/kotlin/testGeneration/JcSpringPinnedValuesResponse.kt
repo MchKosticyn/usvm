@@ -6,6 +6,7 @@ import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
 import org.jacodb.api.jvm.ext.int
 import org.usvm.api.util.JcTestStateResolver
+import org.usvm.test.api.UTestConstructorCall
 import org.usvm.test.api.spring.*
 
 class JcSpringPinnedValuesResponse(
@@ -33,10 +34,18 @@ class JcSpringPinnedValuesResponse(
             intType
         )
     }
-    
+
+    private fun unwrapInt(integerConstructor: UTAny): UTInt {
+        // Integer(10) -> 10
+        check(integerConstructor is UTestConstructorCall)
+        return integerConstructor.args[0] as UTInt
+    }
+
     override fun getStatus(): UTInt {
-        val status = pinnedValues.getValue(responseStatus())?.let { exprResolver.resolvePinnedValue(it) }
-        check(status != null && status is UTInt)
+        val status = pinnedValues.getValue(responseStatus())
+            ?.let { exprResolver.resolvePinnedValue(it) }
+            ?.let { unwrapInt(it) }
+        check(status != null)
         return status
     }
     
