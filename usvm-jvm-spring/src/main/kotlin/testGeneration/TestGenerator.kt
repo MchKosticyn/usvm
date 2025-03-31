@@ -30,7 +30,7 @@ fun JcSpringState.generateTest(): UTest {
         .withResponse(response)
         .withMocks(mocks)
         .withGeneratedTestClass(testClass)
-        .withAdditionalInstructions(exprResolver.getInstructions())
+        .withAdditionalInstructions { exprResolver.getInstructions() }
 
     return test
         .build(ctx.cp)
