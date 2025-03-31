@@ -42,12 +42,7 @@ private fun getSpringExn(): SpringException {
 }
 
 private fun createExprResolver(state: JcSpringState): JcSpringTestExprResolver {
-    return JcSpringTestExprResolver(
-        state.ctx,
-        state.models[0],
-        state.memory,
-        state.entrypoint.toTypedMethod
-    )
+    return JcSpringTestExprResolver(state)
 }
 
 private fun getGeneratedClassName(cp: JcClasspath): JcClassType {
