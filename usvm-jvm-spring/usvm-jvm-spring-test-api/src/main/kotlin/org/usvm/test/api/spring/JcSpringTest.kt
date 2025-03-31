@@ -15,13 +15,11 @@ class JcSpringTestBuilder(
     private var exception: SpringException? = null
     private var generatedTestClass: JcClassType? = null
     private var mocks: MutableList<JcMockBean> = mutableListOf()
-    private var additionalInstructions: List<UTestInst> = listOf()
 
     fun withResponse(response: JcSpringResponse) = apply { this.response = response }
     fun withException(exception: SpringException) = apply { this.exception = exception }
     fun withGeneratedTestClass(testClass: JcClassType) = apply { this.generatedTestClass = testClass }
     fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks.toMutableList() }
-    fun withAdditionalInstructions(instructions: () -> List<UTestInst>) = apply { this.additionalInstructions = instructions() }
 
     fun build(cp: JcClasspath): JcSpringTest {
         return when {
@@ -30,8 +28,7 @@ class JcSpringTestBuilder(
                 generatedTestClass = generatedTestClass,
                 mocks = mocks,
                 request = request,
-                response = response!!,
-                additionalInstructions = additionalInstructions,
+                response = response!!
             )
 
             exception != null -> JcSpringExceptionTest(
@@ -39,16 +36,14 @@ class JcSpringTestBuilder(
                 generatedTestClass = generatedTestClass,
                 mocks = mocks,
                 request = request,
-                exception = exception!!,
-                additionalInstructions = additionalInstructions,
+                exception = exception!!
             )
 
             else -> JcSpringTest(
                 cp = cp,
                 generatedTestClass = generatedTestClass,
                 mocks = mocks,
-                request = request,
-                additionalInstructions = additionalInstructions,
+                request = request
             )
         }
     }
@@ -58,14 +53,11 @@ open class JcSpringTest internal constructor(
     val cp: JcClasspath,
     private val generatedTestClass: JcClassType?,
     private val mocks: List<JcMockBean>,
-    private val request: JcSpringRequest,
-    private val additionalInstructions: List<UTestInst>,
+    private val request: JcSpringRequest
 ) {
-    fun generateTestDSL(): UTest {
+    fun generateTestDSL(additionalInstructions: List<UTestInst>): UTest {
         val initStatements: MutableList<UTestInst> = mutableListOf()
         val testExecBuilder = SpringTestExecBuilder.initTestCtx(cp, generatedTestClass)
-        initStatements.addAll(additionalInstructions)
-
         initStatements.addAll(testExecBuilder.getInitDSL())
 
         val mocks = generateMocksDSL(mocks, testExecBuilder.testClassExpr)
@@ -81,6 +73,7 @@ open class JcSpringTest internal constructor(
 
         matchersDSL.forEach { testExecBuilder.addAndExpectCall(listOf(it)) }
 
+        initStatements.addAll(additionalInstructions)
         return UTest(initStatements = initStatements, callMethodExpression = testExecBuilder.getExecDSL())
     }
 
@@ -108,9 +101,8 @@ class JcSpringResponseTest internal constructor(
     generatedTestClass: JcClassType?,
     mocks: List<JcMockBean>,
     request: JcSpringRequest,
-    val response: JcSpringResponse,
-    additionalInstructions: List<UTestInst>,
-) : JcSpringTest(cp, generatedTestClass, mocks, request, additionalInstructions) {
+    val response: JcSpringResponse
+) : JcSpringTest(cp, generatedTestClass, mocks, request) {
 
     override fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> {
         val matchersBuilder = SpringMatchersBuilder(cp)
@@ -126,9 +118,8 @@ class JcSpringExceptionTest internal constructor(
     generatedTestClass: JcClassType?,
     mocks: List<JcMockBean>,
     request: JcSpringRequest,
-    val exception: SpringException,
-    additionalInstructions: List<UTestInst>,
-) : JcSpringTest(cp, generatedTestClass, mocks, request, additionalInstructions) {
+    val exception: SpringException
+) : JcSpringTest(cp, generatedTestClass, mocks, request) {
 
     override fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> {
         TODO()

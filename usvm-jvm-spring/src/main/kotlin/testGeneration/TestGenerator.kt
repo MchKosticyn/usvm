@@ -30,11 +30,10 @@ fun JcSpringState.generateTest(): UTest {
         .withResponse(response)
         .withMocks(mocks)
         .withGeneratedTestClass(testClass)
-        .withAdditionalInstructions { exprResolver.getInstructions() }
 
     return test
         .build(ctx.cp)
-        .generateTestDSL()
+        .generateTestDSL(exprResolver.getInstructions())
 }
 
 private fun getSpringExn(): SpringException {

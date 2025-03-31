@@ -58,6 +58,7 @@ fun handleStringMultiValue(
     // TODO: Check return types and adjust this accordingly #AA
     check(value is UTString) { "Value was not unboxed" }
     val singletonArray = UTStringArray(stringType, UTestIntExpression(1, intType))
+
     exprResolver.appendStatement(UTestArraySetStatement(
         singletonArray,
         UTestIntExpression(0, intType),
