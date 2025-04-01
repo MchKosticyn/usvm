@@ -8,8 +8,8 @@ import org.usvm.api.makeNullableSymbolicRef
 import org.usvm.api.makeSymbolicRef
 import org.usvm.machine.interpreter.JcStepScope
 
-open class JcSpringRawPinnedValues<V> (
-    protected var pinnedValues: Map<JcPinnedKey, V> = emptyMap()
+abstract class JcSpringRawPinnedValues<V> (
+    protected var pinnedValues: Map<JcPinnedKey, V>
 ) {
     fun getMap() = pinnedValues
 
@@ -32,18 +32,14 @@ open class JcSpringRawPinnedValues<V> (
     }
 }
 
-class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
-    fun createIfAbsent(
-        key: JcPinnedKey,
-        type: JcType,
-        scope: JcStepScope,
-        sort: USort,
+class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) {
+    fun createAndPut(
+        key: JcPinnedKey, 
+        type: JcType, 
+        scope: JcStepScope, 
+        sort: USort, 
         nullable: Boolean = true
-    ): JcSpringPinnedValue? {
-        val existingValue = getValue(key)
-        if (existingValue != null)
-            return existingValue
-
+    ): JcPinnedValue? {
         val newValueExpr =
             if (nullable) scope.makeNullableSymbolicRef(type)?.asExpr(sort)
             else scope.makeSymbolicRef(type)?.asExpr(sort)
@@ -53,10 +49,23 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
             return null
         }
 
-        val newValue = JcSpringPinnedValue(newValueExpr, type)
+        val newValue = JcPinnedValue(newValueExpr, type)
         setValue(key, newValue)
 
         return newValue
+    }
+
+    fun createIfAbsent(
+        key: JcPinnedKey, 
+        type: JcType, 
+        scope: JcStepScope, 
+        sort: USort, 
+        nullable: Boolean = true
+    ): JcPinnedValue? {
+        val existingValue = getValue(key)
+        if (existingValue != null)
+            return existingValue
+        return createAndPut(key, type, scope, sort, nullable)
     }
 
     fun getKeyOfExpr(value: UExpr<out USort>): JcPinnedKey? {
@@ -64,5 +73,9 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcSpringPinnedValue>() {
         if (pair == null)
             return null
         return pair.key
+    }
+
+    fun copy(): JcSpringPinnedValues {
+        return JcSpringPinnedValues().also { it.pinnedValues = pinnedValues }
     }
 }

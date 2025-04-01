@@ -29,6 +29,10 @@ class JcSpringMemory(
                 method.isArgumentResolverMethod
     }
 
+    override fun shouldConcretizeMethod(method: JcMethod): Boolean {
+        return super.shouldConcretizeMethod(method) || concretizeInvocations.contains(method.humanReadableSignature)
+    }
+
     companion object {
 
         //region Concrete Invocations

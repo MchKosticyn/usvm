@@ -55,7 +55,7 @@ open class JcSpringTest internal constructor(
     private val mocks: List<JcMockBean>,
     private val request: JcSpringRequest,
 ) {
-    fun generateTestDSL(): UTest {
+    fun generateTestDSL(additionalInstructions: () -> List<UTestInst>): UTest {
         val initStatements: MutableList<UTestInst> = mutableListOf()
         val testExecBuilder = SpringTestExecBuilder.initTestCtx(cp, generatedTestClass)
         initStatements.addAll(testExecBuilder.getInitDSL())
@@ -73,6 +73,7 @@ open class JcSpringTest internal constructor(
 
         matchersDSL.forEach { testExecBuilder.addAndExpectCall(listOf(it)) }
 
+        initStatements.addAll(additionalInstructions())
         return UTest(initStatements = initStatements, callMethodExpression = testExecBuilder.getExecDSL())
     }
 
@@ -83,7 +84,7 @@ open class JcSpringTest internal constructor(
         val builder = SpringRequestBuilder.createRequest(cp, request.getMethod(), request.getPath(), request.getUriVariables())
         request.getParameters().forEach { builder.addParameter(it) }
         request.getHeaders().forEach { builder.addHeader(it) }
-        builder.addContent(request.getContentAsString())
+        request.getContent()?.let { builder.addContent(it) }
 
         return builder.getDSL() to builder.getInitDSL()
     }
@@ -105,8 +106,8 @@ class JcSpringResponseTest internal constructor(
 
     override fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> {
         val matchersBuilder = SpringMatchersBuilder(cp)
-        matchersBuilder.addStatusCheck(response.getStatusCode())
-        matchersBuilder.addContentCheck(response.getContentAsString())
+        matchersBuilder.addStatusCheck(response.getStatus())
+        response.getContent()?.let { matchersBuilder.addContentCheck(it) }
         matchersBuilder.addHeadersCheck(response.getHeaders())
         return matchersBuilder.getMatchersDSL() to matchersBuilder.getInitDSL()
     }

@@ -1,51 +1,53 @@
 package testGeneration
 
 import machine.state.JcSpringState
+import machine.state.pinnedValues.JcObjectPinnedKey
+import machine.state.pinnedValues.JcPinnedKey
+import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
+import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.ext.toType
+import org.usvm.api.util.JcTestStateResolver
 import org.usvm.test.api.UTest
-import org.usvm.test.api.spring.JcSpringTest
+import org.usvm.test.api.UTestMockObject
+import org.usvm.test.api.spring.JcMockBean
+import org.usvm.test.api.spring.JcSpringRequest
+import org.usvm.test.api.spring.JcSpringResponse
 import org.usvm.test.api.spring.JcSpringTestBuilder
+import org.usvm.test.api.spring.SpringException
 import utils.toTypedMethod
 
-fun JcSpringState.generateTest(): UTest {
-    val cp = ctx.cp
-    JcSpringTestBuilder()
-    if (getResult() != null)
-        generateResponseTest(state)
-    else
-        generateExnTest(state)
+
+fun JcSpringState.canGenerateTest(): Boolean {
+    return pinnedValues.getValue(JcPinnedKey.requestPath()) != null
+            && pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
 }
 
-private fun generateResponseTest(state: JcSpringState): JcSpringTest = JcSpringTest(
-    state.ctx,
-    getGeneratedClassName(state.ctx.cp),
-    mocks = getSpringMocks(state),
-    request = getSpringRequest(state),
-    response = getSpringResponse(state.ctx.cp, state),
-    exception = null
-)
+fun JcSpringState.generateTest(): UTest {
+    val exprResolver = createExprResolver(this)
+    val request = getSpringRequest(this, exprResolver)
+    val response = getSpringResponse(this, exprResolver)
+    val mocks = getSpringMocks(pinnedValues, exprResolver)
+    val testClass = getGeneratedClassName(ctx.cp)
 
-private fun generateExnTest(state: JcSpringState): JcSpringTest = JcSpringTest(
-    state.ctx,
-    getGeneratedClassName(state.ctx.cp),
-    mocks = getSpringMocks(state),
-    request = getSpringRequest(state),
-    response = null,
-    exception = getSpringExn(),
-)
+    val test = JcSpringTestBuilder(request)
+        .withResponse(response)
+        .withMocks(mocks)
+        .withGeneratedTestClass(testClass)
 
-private fun getSpringExn(): SpringExn {
+    return test
+        .build(ctx.cp)
+        .generateTestDSL { exprResolver.getInstructions() }
+}
+
+private fun getSpringExn(): SpringException {
     TODO()
 }
 
 private fun createExprResolver(state: JcSpringState): JcSpringTestExprResolver {
-    return JcSpringTestExprResolver(
-        state.ctx,
-        state.models[0],
-        state.memory,
-        state.entrypoint.toTypedMethod
-    )
+    return JcSpringTestExprResolver(state)
 }
 
 private fun getGeneratedClassName(cp: JcClasspath): JcClassType {
@@ -55,58 +57,38 @@ private fun getGeneratedClassName(cp: JcClasspath): JcClassType {
     return cl.toType()
 }
 
-private fun getSpringResponse(cp: JcClasspath, state: JcSpringState): JcSpringResponse {
-    // Will be refactored with common refactor merge!!
-    val result = state.getResult()
-    assert(result != null)
-    val expr = result ?: throw IllegalArgumentException("No Response")
-    val valueExpr = state.models[0].eval(expr)
-
-    val type = cp.findType("org.springframework.mock.web.MockHttpServletResponse")
-
-    // TODO: problem with cast
-    val response = concretizeSimple(
-        RESPONSE_MOD,
-        state,
-        valueExpr,
-        type
-    )
-
-    check(response != null)
-    return JcSpringResponse(response)
+private fun getSpringResponse(
+    state: JcSpringState,
+    exprResolver: JcSpringTestExprResolver
+): JcSpringResponse {
+    return JcSpringPinnedValuesResponse(state.pinnedValues, exprResolver)
 }
 
 fun getSpringMocks(
     pinnedValues: JcSpringPinnedValues,
     exprResolver: JcSpringTestExprResolver
-): Pair<List<JcMockBean>, List<UTestInst>> {
+): List<JcMockBean> {
     // TODO: Also fields #AA
-    val mocks = pinnedValues.getValuesOfSource<JcObjectPinnedKey<JcMethod>>(JcSpringPinnedValueSource.MOCK_RESULT)
-    val distinctMocks = mocks.entries.mapNotNull { it.key.getObj()?.enclosingClass }.distinct()
-    val testMockObjects = distinctMocks.map { type ->
-        val distinctMethods = mocks.entries
-            .filter { it.key.getObj()?.enclosingClass == type }
-            .groupBy({ it.key.getObj()!! }, { exprResolver.resolvePinnedValue(it.value) })
-        UTestMockObject(
-            type.toType(),
-            mapOf(),
-            distinctMethods
-        )
-    }
-    return testMockObjects.map { JcMockBean(it) } to exprResolver.getInstructions()
-}
-
-private fun getSpringMocks(state: JcSpringState): Pair<List<JcMockBean>, List<UTestInst>> {
-    val resolver = createExprResolver(state)
-    return resolver.withMode(REQUEST_MOD) {
-        return@withMode JcMockBean.ofPinnedValues(state.pinnedValues, resolver)
+    return exprResolver.withMode(JcTestStateResolver.ResolveMode.MODEL) {
+        val mocks = pinnedValues.getValuesOfSource<JcObjectPinnedKey<JcMethod>>(JcSpringPinnedValueSource.MOCK_RESULT)
+        val distinctMocks = mocks.entries.mapNotNull { it.key.getObj()?.enclosingClass }.distinct()
+        val testMockObjects = distinctMocks.map { type ->
+            val distinctMethods = mocks.entries
+                .filter { it.key.getObj()?.enclosingClass == type }
+                .groupBy({ it.key.getObj()!! }, { exprResolver.resolvePinnedValue(it.value) })
+            UTestMockObject(
+                type.toType(),
+                mapOf(),
+                distinctMethods
+            )
+        }
+        testMockObjects.map { JcMockBean(it) }
     }
 }
 
-private fun getSpringRequest(state: JcSpringState): JcSpringRequest {
-    val requestConcretizer = { value: JcSpringPinnedValue -> concretizeSimple(REQUEST_MOD, state, value.getExpr(), value.getType()) }
-    return JcSpringPinnedValuesRequest(state.pinnedValues, requestConcretizer)
+private fun getSpringRequest(
+    state: JcSpringState,
+    exprResolver: JcSpringTestExprResolver
+): JcSpringRequest {
+    return JcSpringPinnedValuesRequest(state.pinnedValues, exprResolver)
 }
-
-private fun concretizeSimple(mode: ResolveMode, state: JcState, expr: UExpr<out USort>, type: JcType) =
-    (state.memory as JcConcreteMemory).concretize(state, state.models[0].eval(expr), type, mode)

@@ -10,9 +10,9 @@ import org.usvm.instrumentation.mock.MockHelper
 import org.usvm.test.api.*
 import org.usvm.instrumentation.collector.trace.MockCollector
 import org.usvm.instrumentation.collector.trace.MockCollector.MockValueArrayWrapper
-import org.usvm.instrumentation.util.TestTaskExecutor
 import org.usvm.instrumentation.util.invokeWithAccessibility
 import org.usvm.instrumentation.util.newInstanceWithAccessibility
+import org.usvm.jvm.util.JcExecutor
 import org.usvm.jvm.util.ReflectionUtils
 import org.usvm.jvm.util.getFieldValue
 import org.usvm.jvm.util.setFieldValue
@@ -26,7 +26,7 @@ class UTestExpressionExecutor(
     private val workerClassLoader: WorkerClassLoader,
     private val accessedStatics: MutableSet<Pair<JcField, StaticFieldAccessType>>,
     private val mockHelper: MockHelper,
-    private val taskExecutor: TestTaskExecutor
+    private val taskExecutor: JcExecutor
 ) {
 
     private val jcClasspath = workerClassLoader.jcClasspath

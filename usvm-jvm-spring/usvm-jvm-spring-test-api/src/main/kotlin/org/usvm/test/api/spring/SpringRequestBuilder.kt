@@ -22,7 +22,7 @@ class SpringRequestBuilder private constructor(
         fun createRequest(
             cp: JcClasspath,
             method: JcSpringRequestMethod,
-            path: String,
+            path: UTString,
             pathVariables: List<Any?>
         ): SpringRequestBuilder =
             commonReqDSLBuilder(cp, method, path, pathVariables)
@@ -36,7 +36,7 @@ class SpringRequestBuilder private constructor(
         private fun commonReqDSLBuilder(
             cp: JcClasspath,
             method: JcSpringRequestMethod,
-            path: String,
+            path: UTString,
             pathVariables: List<Any?>
         ): SpringRequestBuilder {
             val requestMethodName = method.name.lowercase()
@@ -53,7 +53,7 @@ class SpringRequestBuilder private constructor(
             }
             initDSL.addAll(pathArgsInitializer)
             val argsDSL = mutableListOf<UTestExpression>()
-            argsDSL.add(UTestStringExpression(path, cp.stringType))
+            argsDSL.add(path)
             argsDSL.add(pathArgsArray)
             return SpringRequestBuilder(
                 initStatements = initDSL,
@@ -67,45 +67,33 @@ class SpringRequestBuilder private constructor(
 
     fun getDSL() = reqDSL
 
-    fun addParameter(attr: JcSpringHttpParameter): SpringRequestBuilder {
+    fun addParameter(parameter: JcSpringHttpParameter): SpringRequestBuilder {
         val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "param").method
-        addStrArrOfStrCallDSL(method, attr.getName(), attr.getValues())
+        addMethodCall(method, parameter.getName(), parameter.getValues())
         return this
     }
 
-    fun addHeader(attr: JcSpringHttpHeader): SpringRequestBuilder {
+    fun addHeader(header: JcSpringHttpHeader): SpringRequestBuilder {
         val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "header").method
-        addStrArrOfStrCallDSL(method, attr.getName(), attr.getValues())
+        addMethodCall(method, header.getName(), header.getValues())
         return this
     }
 
-    fun addContent(content: String): SpringRequestBuilder {
+    fun addContent(content: UTAny): SpringRequestBuilder {
         val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "content", listOf("java.lang.String")).method
         reqDSL = UTestMethodCall(
             instance = reqDSL,
             method = method,
-            args = listOf(UTestStringExpression(content, cp.stringType)),
+            args = listOf(content),
         )
         return this
     }
 
-    private fun addStrArrOfStrCallDSL(mName: JcMethod, str: String, arrOfStr: List<Any>) {
-        val argsDSL = mutableListOf<UTestExpression>()
-        val argsArray = UTestCreateArrayExpression(cp.stringType, UTestIntExpression(arrOfStr.size, cp.int))
-        val argsInit = List(arrOfStr.size) {
-            UTestArraySetStatement(
-                argsArray,
-                UTestIntExpression(it, cp.int),
-                UTestStringExpression(arrOfStr[it].toString(), cp.stringType)
-            )
-        }
-        initStatements.addAll(argsInit)
-        argsDSL.add(UTestStringExpression(str, cp.stringType))
-        argsDSL.add(argsArray)
+    private fun addMethodCall(method: JcMethod, str: UTString, arguments: UTStringArray) {
         reqDSL = UTestMethodCall(
             instance = reqDSL,
-            method = mName,
-            args = argsDSL,
+            method = method,
+            args = listOf(str, arguments),
         )
     }
 }

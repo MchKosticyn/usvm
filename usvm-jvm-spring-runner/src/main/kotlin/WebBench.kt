@@ -1,5 +1,6 @@
 package bench
 
+import SpringTestReproducer
 import features.JcClinitFeature
 import features.JcInitFeature
 import kotlinx.coroutines.runBlocking
@@ -29,7 +30,6 @@ import org.objectweb.asm.Type
 import org.usvm.PathSelectionStrategy
 import org.usvm.SolverType
 import org.usvm.UMachineOptions
-import org.usvm.api.util.JcTestInterpreter
 import org.usvm.jvm.util.isSameSignature
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
@@ -41,6 +41,7 @@ import features.JcLambdaFeature
 import machine.JcConcreteMachineOptions
 import machine.JcSpringMachine
 import machine.JcSpringMachineOptions
+import machine.JcSpringTestObserver
 import machine.SpringAnalysisMode
 import org.usvm.CoverageZone
 import utils.typeName
@@ -56,6 +57,7 @@ import kotlin.io.path.extension
 import kotlin.io.path.walk
 import kotlin.system.measureNanoTime
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -84,6 +86,13 @@ private fun loadKlawBench(): BenchCp {
     val klawDir = Path("/Users/michael/Documents/Work/klaw/core/target/build/BOOT-INF")
     return loadWebAppBenchCp(klawDir / "classes", klawDir / "lib").apply {
         entrypointFilter = { it.enclosingClass.simpleName.startsWith("WebGoatApplication") }
+    }
+}
+
+private fun loadSynthBench(): BenchCp {
+    val benchDir = Path("C:/Users/arthur/Documents/usvm-spring-benchmarks/build/libs/BOOT-INF")
+    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib").apply {
+        entrypointFilter = { it.enclosingClass.simpleName.startsWith("SpringBenchmarks") }
     }
 }
 
@@ -260,7 +269,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 40.seconds,
+        timeout = 10.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
@@ -277,13 +286,17 @@ private fun analyzeBench(benchmark: BenchCp) {
     val jcSpringMachineOptions = JcSpringMachineOptions(
         springAnalysisMode = SpringAnalysisMode.WebMVCTest
     )
+    
+    val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp)
+    val testObserver = JcSpringTestObserver(testReproducer)
 
     val machine = JcSpringMachine(
         cp,
         options,
         jcMachineOptions,
         jcConcreteMachineOptions,
-        jcSpringMachineOptions
+        jcSpringMachineOptions,
+        testObserver
     )
 
     // TODO: use states?

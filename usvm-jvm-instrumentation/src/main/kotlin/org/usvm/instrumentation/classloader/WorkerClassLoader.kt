@@ -7,17 +7,17 @@ import org.jacodb.api.jvm.ext.findClass
 import org.objectweb.asm.tree.ClassNode
 import org.usvm.instrumentation.instrumentation.JcRuntimeTraceInstrumenter
 import org.usvm.instrumentation.testcase.descriptor.StaticDescriptorsBuilder
-import org.usvm.instrumentation.util.TestTaskExecutor
 import org.usvm.instrumentation.util.URLClassPathLoader
 import org.usvm.instrumentation.util.invokeWithAccessibility
-import java.lang.instrument.ClassDefinition
-import java.lang.instrument.Instrumentation
-import java.security.CodeSource
-import java.security.SecureClassLoader
+import org.usvm.jvm.util.JcExecutor
 import org.usvm.jvm.util.isFinal
 import org.usvm.jvm.util.isStatic
 import org.usvm.jvm.util.setFieldValue
 import org.usvm.jvm.util.toByteArray
+import java.lang.instrument.ClassDefinition
+import java.lang.instrument.Instrumentation
+import java.security.CodeSource
+import java.security.SecureClassLoader
 import java.net.URL
 import java.util.Collections
 import java.util.Enumeration
@@ -51,7 +51,7 @@ class WorkerClassLoader(
     }
 
     //Invoking clinit method for loaded classes for statics reset between executions
-    fun reset(accessedStatics: List<JcField>, taskExecutor: TestTaskExecutor) {
+    fun reset(accessedStatics: List<JcField>, taskExecutor: JcExecutor) {
         val jcClassesToReinit = accessedStatics.map { it.enclosingClass }.toSet()
         val classesToReinit = foundClasses.values
             .filter { it.second in jcClassesToReinit }

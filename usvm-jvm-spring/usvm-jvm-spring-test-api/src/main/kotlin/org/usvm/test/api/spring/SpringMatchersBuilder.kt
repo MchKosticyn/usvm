@@ -20,32 +20,7 @@ class SpringMatchersBuilder(
     private val initStatements: MutableList<UTestInst> = mutableListOf()
     private val matchers: MutableList<UTestExpression> = mutableListOf()
 
-    private fun wrapStringList(list: List<Any>): UTestCreateArrayExpression {
-        val listDsl = UTestCreateArrayExpression(cp.stringType, UTestIntExpression(list.size, cp.int))
-        val listInitializer = List(list.size) { index ->
-            UTestArraySetStatement(
-                listDsl,
-                UTestIntExpression(index, cp.int),
-                UTestStringExpression(list[index].toString(), cp.stringType)
-            )
-        }
-        initStatements.addAll(listInitializer)
-        return listDsl
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun wrapArgument(argument: Any): UTestExpression {
-        // TODO: other types #AA
-        if (argument is List<*>)
-            return wrapStringList(argument as List<Any>)
-        return when (argument.javaClass) {
-            Integer::class.java -> UTestIntExpression(argument as Int, cp.int)
-            String::class.java -> UTestStringExpression(argument as String, cp.stringType)
-            else -> error("TODO #AA")
-        }
-    }
-
-    private fun addMatcher(matcherName: String, matcherArguments: List<Any> = listOf()): UTestCall {
+    private fun addMatcher(matcherName: String, matcherArguments: List<UTAny> = listOf()): UTestCall {
         val createMatcherMethod = cp.findJcMethod(
             "$SPRING_RESULT_PACK.MockMvcResultMatchers",
             matcherName
@@ -53,7 +28,7 @@ class SpringMatchersBuilder(
 
         val matcherDsl = UTestStaticMethodCall(
             method = createMatcherMethod,
-            args = matcherArguments.map { wrapArgument(it) }.toList()
+            args = matcherArguments
         )
 
         return matcherDsl
@@ -62,7 +37,7 @@ class SpringMatchersBuilder(
     private fun addCondition(
         matcherSourceDsl: UTestCall,
         conditionName: String,
-        conditionArguments: List<Any> = listOf()
+        conditionArguments: List<UTAny>
     ): UTestExpression {
         val conditionMethod = cp.findJcMethod(
             matcherSourceDsl.method!!.returnType.typeName,
@@ -72,19 +47,19 @@ class SpringMatchersBuilder(
         val conditionDsl = UTestMethodCall(
             instance = matcherSourceDsl,
             method = conditionMethod,
-            args = conditionArguments.map { wrapArgument(it) }.toList()
+            args = conditionArguments
         )
         matchers.add(conditionDsl)
 
         return conditionDsl
     }
 
-    fun addStatusCheck(int: Int): SpringMatchersBuilder {
+    fun addStatusCheck(int: UTAny): SpringMatchersBuilder {
         addCondition(addMatcher("status"), "is", listOf(int))
         return this
     }
 
-    fun addContentCheck(content: String): SpringMatchersBuilder {
+    fun addContentCheck(content: UTString): SpringMatchersBuilder {
         addCondition(addMatcher("content"), "string", listOf(content))
         return this
     }
