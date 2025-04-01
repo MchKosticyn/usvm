@@ -33,8 +33,8 @@ class JcSpringPinnedValuesRequest(
         }.also { assert(it.size == uriVariables.size) }
     }
 
-    private fun collectAndConcretize(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
-        return pinnedValues.collectAndConcretize(
+    private fun collectAndResolve(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
+        return pinnedValues.collectAndResolve(
             exprResolver,
             JcTestStateResolver.ResolveMode.MODEL,
             pinnedValueSource,
@@ -58,12 +58,12 @@ class JcSpringPinnedValuesRequest(
     }
 
     override fun getCookies(): List<JcSpringHttpCookie> {
-        val cookies = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_COOKIE)
+        val cookies = collectAndResolve(JcSpringPinnedValueSource.REQUEST_COOKIE)
         return cookies.mapNotNull { (key, value) -> JcSpringHttpCookie(key, value as UTString) }
     }
 
     override fun getHeaders(): List<JcSpringHttpHeader> {
-        val headersRaw = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_HEADER)
+        val headersRaw = collectAndResolve(JcSpringPinnedValueSource.REQUEST_HEADER)
         return headersRaw.mapNotNull { (key, value) -> JcSpringHttpHeader(key, value as UTStringArray) }
     }
 
@@ -83,12 +83,12 @@ class JcSpringPinnedValuesRequest(
     }
 
     override fun getParameters(): List<JcSpringHttpParameter> {
-        val parametersRaw = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_PARAM)
+        val parametersRaw = collectAndResolve(JcSpringPinnedValueSource.REQUEST_PARAM)
         return parametersRaw.mapNotNull { (key, value) -> JcSpringHttpParameter(key, value as UTStringArray) }
     }
 
     override fun getUriVariables(): List<UTAny> {
-        val pathVariables = collectAndConcretize(JcSpringPinnedValueSource.REQUEST_PATH_VARIABLE)
+        val pathVariables = collectAndResolve(JcSpringPinnedValueSource.REQUEST_PATH_VARIABLE)
         return sortRequestUriVariables(getPath(), pathVariables)
     }
 }

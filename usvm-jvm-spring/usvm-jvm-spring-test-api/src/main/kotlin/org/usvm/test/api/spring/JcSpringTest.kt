@@ -9,7 +9,7 @@ import org.usvm.test.api.UTestInst
 class SpringException
 
 class JcSpringTestBuilder(
-    private val request: JcSpringRequest,
+    private val request: JcSpringRequest
 ) {
     private var response: JcSpringResponse? = null
     private var exception: SpringException? = null

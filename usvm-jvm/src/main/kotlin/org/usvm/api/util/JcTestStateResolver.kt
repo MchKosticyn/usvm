@@ -142,7 +142,7 @@ abstract class JcTestStateResolver<T>(
 
             decoderApi.setField(field, decoderApi.createNullConst(field.enclosingClass.toType()), resolvedValue)
         }
-    
+
     fun resolveLValue(lvalue: ULValue<*, *>, type: JcType): T {
         val expr = memory.read(lvalue)
 

@@ -19,8 +19,8 @@ class JcSpringPinnedValuesResponse(
     private val stringType = exprResolver.ctx.stringType
 
     @Suppress("SameParameterValue")
-    private fun collectAndConcretize(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
-        return pinnedValues.collectAndConcretize(
+    private fun collectAndResolve(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
+        return pinnedValues.collectAndResolve(
             exprResolver,
             JcTestStateResolver.ResolveMode.CURRENT,
             pinnedValueSource,
@@ -36,7 +36,7 @@ class JcSpringPinnedValuesResponse(
     }
     
     override fun getCookies(): List<JcSpringHttpCookie> {
-        val cookies = collectAndConcretize(JcSpringPinnedValueSource.RESPONSE_COOKIE)
+        val cookies = collectAndResolve(JcSpringPinnedValueSource.RESPONSE_COOKIE)
         return cookies.mapNotNull { (key, value) -> JcSpringHttpCookie(key, value as UTString) }
     }
 
@@ -47,7 +47,7 @@ class JcSpringPinnedValuesResponse(
     } 
     
     override fun getHeaders(): List<JcSpringHttpHeader> {
-        val headers = collectAndConcretize(JcSpringPinnedValueSource.RESPONSE_COOKIE)
+        val headers = collectAndResolve(JcSpringPinnedValueSource.RESPONSE_COOKIE)
         return headers.mapNotNull { (key, value) -> JcSpringHttpHeader(key, value as UTStringArray) }
     }
 }
