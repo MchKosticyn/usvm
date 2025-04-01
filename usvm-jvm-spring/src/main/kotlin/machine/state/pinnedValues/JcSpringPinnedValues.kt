@@ -33,7 +33,7 @@ abstract class JcSpringRawPinnedValues<V> (
 }
 
 class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) {
-    fun createAndReplace(
+    fun createAndPut(
         key: JcPinnedKey, 
         type: JcType, 
         scope: JcStepScope, 
@@ -65,7 +65,7 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) 
         val existingValue = getValue(key)
         if (existingValue != null)
             return existingValue
-        return createAndReplace(key, type, scope, sort, nullable)
+        return createAndPut(key, type, scope, sort, nullable)
     }
 
     fun getKeyOfExpr(value: UExpr<out USort>): JcPinnedKey? {
