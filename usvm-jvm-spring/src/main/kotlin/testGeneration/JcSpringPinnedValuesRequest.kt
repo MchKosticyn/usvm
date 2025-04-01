@@ -23,7 +23,7 @@ class JcSpringPinnedValuesRequest(
     private val stringType = exprResolver.ctx.stringType
 
     private fun sortRequestUriVariables(path: UTString, uriVariables: Map<UTString, UTAny>): List<UTAny> {
-        // TODO: check it
+        // TODO: check it + sort in approximations #AA
         val uriVariableNames = Regex("\\{([^}]*)}").findAll(path.value)
             .map { UTString(it.groupValues[1], stringType) }
             .toList()
@@ -38,7 +38,7 @@ class JcSpringPinnedValuesRequest(
             exprResolver,
             JcTestStateResolver.ResolveMode.MODEL,
             pinnedValueSource,
-            stringType
+            exprResolver.ctx
         ).filter { it.value !is UTestNullExpression }
     }
 

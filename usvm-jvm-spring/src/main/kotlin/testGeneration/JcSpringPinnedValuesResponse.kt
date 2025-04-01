@@ -16,15 +16,13 @@ class JcSpringPinnedValuesResponse(
     private val pinnedValues: JcSpringPinnedValues,
     private val exprResolver: JcSpringTestExprResolver
 ) : JcSpringResponse {
-    private val stringType = exprResolver.ctx.stringType
-
     @Suppress("SameParameterValue")
     private fun collectAndResolve(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
         return pinnedValues.collectAndResolve(
             exprResolver,
             JcTestStateResolver.ResolveMode.CURRENT,
             pinnedValueSource,
-            stringType
+            exprResolver.ctx
         )
     }
 
