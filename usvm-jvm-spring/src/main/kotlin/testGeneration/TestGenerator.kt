@@ -17,10 +17,27 @@ import org.usvm.test.api.spring.JcSpringRequest
 import org.usvm.test.api.spring.JcSpringResponse
 import org.usvm.test.api.spring.JcSpringTestBuilder
 import org.usvm.test.api.spring.SpringException
+import org.usvm.test.api.spring.UTString
 
 fun JcSpringState.canGenerateTest(): Boolean {
     return pinnedValues.getValue(JcPinnedKey.requestPath()) != null
             && pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
+}
+
+fun JcSpringState.getHandlerMethod(): JcMethod {
+    val exprResolver = createExprResolver(this)
+
+    val path = pinnedValues.getValue(JcPinnedKey.requestPath())
+        ?.let { exprResolver.resolvePinnedValue(it) }
+        ?.let { (it as UTString).value }
+
+    val requestMethod = pinnedValues.getValue(JcPinnedKey.requestMethod())
+        ?.let { exprResolver.resolvePinnedValue(it) }
+        ?.let { (it as UTString).value }
+
+    val method = handlerData.find { it.pathTemplate == path && it.allowedMethods.contains(requestMethod) }?.handler
+    check(method != null) { "Could not infer handler method of path" }
+    return method
 }
 
 fun JcSpringState.generateTest(): UTest {

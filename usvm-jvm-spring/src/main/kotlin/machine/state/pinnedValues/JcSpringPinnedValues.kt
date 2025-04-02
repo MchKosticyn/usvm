@@ -2,9 +2,11 @@ package machine.state.pinnedValues
 
 import io.ksmt.utils.asExpr
 import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.PredefinedPrimitive
 import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.api.makeNullableSymbolicRef
+import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.machine.interpreter.JcStepScope
 
@@ -18,8 +20,11 @@ abstract class JcSpringRawPinnedValues<V> (
     }
 
     fun setValue(key: JcPinnedKey, value: V) {
-        pinnedValues = pinnedValues.filter { it.key != key }
         pinnedValues += key to value
+    }
+
+    fun removeValue(key: JcPinnedKey) {
+        pinnedValues = pinnedValues.filter { it.key != key }
     }
 
     // TODO: Find solution without unchecked cast #AA
@@ -40,9 +45,13 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) 
         sort: USort, 
         nullable: Boolean = true
     ): JcPinnedValue? {
-        val newValueExpr =
-            if (nullable) scope.makeNullableSymbolicRef(type)?.asExpr(sort)
-            else scope.makeSymbolicRef(type)?.asExpr(sort)
+        val newValueExpr = scope.calcOnState {
+            when {
+                type is PredefinedPrimitive -> makeSymbolicPrimitive(sort)
+                nullable -> scope.makeNullableSymbolicRef(type)?.asExpr(sort)
+                else -> scope.makeSymbolicRef(type)?.asExpr(sort)
+            }
+        }
 
         if (newValueExpr == null) {
             println("Error creating symbolic value!")

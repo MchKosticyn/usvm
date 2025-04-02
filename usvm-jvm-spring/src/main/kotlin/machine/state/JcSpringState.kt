@@ -1,5 +1,6 @@
 package machine.state
 
+import machine.HandlerMethodData
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcPinnedValue
@@ -48,6 +49,7 @@ class JcSpringState(
     methodResult,
     targets
 ) {
+    var handlerData: List<HandlerMethodData> = listOf()
 
     internal val springMemory: JcSpringMemory
         get() = this.memory as JcSpringMemory
@@ -74,6 +76,10 @@ class JcSpringState(
 
     fun setPinnedValue(key: JcPinnedKey, value: UExpr<out USort>, type: JcType) {
         return pinnedValues.setValue(key, JcPinnedValue(value, type))
+    }
+
+    fun removePinnedValue(key: JcPinnedKey) {
+        return pinnedValues.removeValue(key)
     }
 
     fun createPinnedIfAbsent(

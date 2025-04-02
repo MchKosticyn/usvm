@@ -17,6 +17,7 @@ import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcFieldRef
@@ -35,6 +36,7 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
 import org.usvm.api.readField
+import org.usvm.api.util.JcTestStateResolver
 import org.usvm.api.writeField
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
@@ -46,6 +48,14 @@ import org.usvm.util.classesOfLocations
 import utils.toJcType
 import java.util.ArrayList
 import java.util.TreeMap
+
+data class HandlerMethodData(
+    val pathTemplate: String,
+    val allowedMethods: List<String>,
+    val uriVariablesCount: Int,
+    val controller: JcClassOrInterface,
+    val handler: JcMethod
+)
 
 class JcSpringMethodApproximationResolver (
     ctx: JcContext,
@@ -168,10 +178,12 @@ class JcSpringMethodApproximationResolver (
         return key to type
     }
 
-    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
+    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState, mode: JcTestStateResolver.ResolveMode): JcPinnedValue? {
         val memory = state.memory as JcSpringMemory
         val concretizer = memory.getConcretizer(state)
-        val result = concretizer.resolveExpr(value.getExpr(), value.getType()) ?: return null
+        val result = concretizer.withMode(mode) {
+            concretizer.resolveExpr(value.getExpr(), value.getType())
+        } ?: return null
         val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
         val expr = memory.objectToExpr(arrayOf(result.toString()), stringArrayType)
         return JcPinnedValue(expr, stringArrayType)
@@ -219,9 +231,11 @@ class JcSpringMethodApproximationResolver (
                 val headers = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_HEADER)
                 val parameters = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_PARAM)
                 (headers + parameters)
-                    .map { it.key to pinnedValueToStringArray(it.value, this) }
-                    .filter { it.second != null }
-                    .forEach { (key, value) -> setPinnedValue(key, value!!.getExpr(), value.getType()) }
+                    .map { it.key to pinnedValueToStringArray(it.value, this, JcTestStateResolver.ResolveMode.MODEL) }
+                    .forEach { (key, value) ->
+                        if (value == null) removePinnedValue(key)
+                        else setPinnedValue(key, value.getExpr(), value.getType())
+                    }
 
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
                 return@calcOnState true
@@ -372,8 +386,8 @@ class JcSpringMethodApproximationResolver (
         }
 
         if (methodName == "_allControllerPaths") {
-            val allControllerPaths = allControllerPaths()
             scope.doWithState {
+                val allControllerPaths = allControllerPaths(this as JcSpringState)
                 val memory = memory as JcConcreteMemory
                 val type = allControllerPaths.javaClass
                 val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
@@ -535,45 +549,50 @@ class JcSpringMethodApproximationResolver (
         return "$basePath/$localPath"
     }
 
-    private fun allControllerPaths(): Map<String, Map<String, List<Any>>> {
-        val controllerTypes =
-            ctx.classesOfLocations(jcConcreteMachineOptions.projectLocations)
-                .filter { !it.isAbstract && !it.isInterface && !it.isAnonymous && it.isSpringController }
-                .filterNot { shouldSkipController(it) }
-        val result = TreeMap<String, Map<String, List<Any>>>()
-        for (controllerType in controllerTypes) {
-            val basePath: String? = reqMappingPath(controllerType)
-            val paths = TreeMap<String, List<Any>>()
-            val methods = controllerType.declaredMethods
-            for (method in methods) {
-                for (annotation in method.annotations) {
-                    val kind =
-                        when (annotation.name) {
-                            "org.springframework.web.bind.annotation.RequestMapping" -> getRequestMappingMethod(annotation)
-                            "org.springframework.web.bind.annotation.GetMapping" -> "GET"
-                            "org.springframework.web.bind.annotation.PostMapping" -> "POST"
-                            "org.springframework.web.bind.annotation.PutMapping" -> "PUT"
-                            "org.springframework.web.bind.annotation.DeleteMapping" -> "DELETE"
-                            "org.springframework.web.bind.annotation.PatchMapping" -> "PATCH"
-                            else -> null
-                        }
+    private fun requestMethodOfAnnotation(annotation: JcAnnotation): String? {
+        return when (annotation.name) {
+            "org.springframework.web.bind.annotation.RequestMapping" -> getRequestMappingMethod(annotation)
+            "org.springframework.web.bind.annotation.GetMapping" -> "GET"
+            "org.springframework.web.bind.annotation.PostMapping" -> "POST"
+            "org.springframework.web.bind.annotation.PutMapping" -> "PUT"
+            "org.springframework.web.bind.annotation.DeleteMapping" -> "DELETE"
+            "org.springframework.web.bind.annotation.PatchMapping" -> "PATCH"
+            else -> null
+        }
+    }
 
-                    if (kind != null) {
-                        val localPath = pathFromAnnotation(annotation)
-                        val path = if (basePath != null) combinePaths(basePath, localPath) else localPath
-                        if (shouldSkipPath(path, kind, controllerType.name))
-                            continue
-                        val pathArgsCount = path.filter { it == '{' }.length
-                        val properties = ArrayList(listOf(kind, Integer.valueOf(pathArgsCount)))
-                        paths[path] = properties
-                    }
+    private fun getHandlerData(): List<HandlerMethodData> {
+        val controllerTypes = ctx.classesOfLocations(jcConcreteMachineOptions.projectLocations)
+            .filter { !it.isAbstract && !it.isInterface && !it.isAnonymous && it.isSpringController }
+            .filterNot { shouldSkipController(it) }
+
+        return controllerTypes.flatMap { controllerType ->
+            controllerType.declaredMethods.flatMap { handlerMethod ->
+                handlerMethod.annotations.mapNotNull { annotation ->
+                    val basePath = reqMappingPath(controllerType)
+                    val requestMethod = requestMethodOfAnnotation(annotation) ?: return@mapNotNull null
+                    val localPath = pathFromAnnotation(annotation)
+                    val path = if (basePath != null) combinePaths(basePath, localPath) else localPath
+                    val pathArgsCount = path.filter { it == '{' }.length
+                    HandlerMethodData(
+                        path,
+                        listOf(requestMethod),
+                        pathArgsCount,
+                        controllerType,
+                        handlerMethod
+                    )
                 }
             }
-            if (paths.isNotEmpty())
-                result[controllerType.name] = paths
-        }
+        }.toList()
+    }
 
-        return result
+    private fun allControllerPaths(stateToFill: JcSpringState): List<List<Any>> {
+        val handlerData = getHandlerData()
+        stateToFill.handlerData = handlerData
+
+        return handlerData
+            .filterNot {shouldSkipPath(it.pathTemplate, it.handler.name, it.controller.name)}
+            .map { listOf(it.controller.name, it.handler.name, it.pathTemplate, it.uriVariablesCount, it.allowedMethods.first()) }
     }
 
 

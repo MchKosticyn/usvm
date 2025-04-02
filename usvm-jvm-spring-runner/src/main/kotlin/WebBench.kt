@@ -1,5 +1,6 @@
 package bench
 
+import SpringTestRenderer
 import SpringTestReproducer
 import features.JcClinitFeature
 import features.JcInitFeature
@@ -44,6 +45,7 @@ import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
 import machine.SpringAnalysisMode
 import org.usvm.CoverageZone
+import org.usvm.jvm.rendering.JcTestsRenderer
 import utils.typeName
 import java.io.File
 import java.io.PrintStream
@@ -98,7 +100,7 @@ private fun loadSynthBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadWebPetClinicBench()
+        loadSynthBench()
     }
 
     logTime("Analysis ALL") {
@@ -288,7 +290,8 @@ private fun analyzeBench(benchmark: BenchCp) {
     )
     
     val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp)
-    val testObserver = JcSpringTestObserver(testReproducer)
+    val testRenderer = SpringTestRenderer(cp)
+    val testObserver = JcSpringTestObserver(testReproducer, testRenderer)
 
     val machine = JcSpringMachine(
         cp,
