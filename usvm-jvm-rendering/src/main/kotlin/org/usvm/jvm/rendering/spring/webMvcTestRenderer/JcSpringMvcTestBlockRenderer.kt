@@ -57,7 +57,7 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
 
         val mockField = classRenderer.getOrCreateField(
             renderClass(expr.clazz),
-            classRenderer.identifiersManager.generateIdentifier(mockPrefix).asString(),
+            mockPrefix,
             annotations = NodeList(mockAnnotation)
         )
 
