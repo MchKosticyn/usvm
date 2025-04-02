@@ -67,15 +67,15 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     private fun getMockNamePrefixAndAnnotation(clazz: JcClassOrInterface): Pair<String, AnnotationExpr>? =
         when {
             clazz.name == "org.springframework.test.web.servlet.MockMvc" -> {
-                "mockMvc" to autowiredAnnotation(clazz.classpath)
+                "mockMvc" to autowiredAnnotation
             }
 
             clazz.superClasses.any { sup -> sup.name == "org.springframework.data.repository.Repository" } -> {
-                "repositoryMock" to mockBeanAnnotation(clazz.classpath)
+                "repositoryMock" to mockBeanAnnotation
             }
 
             clazz.hasAnnotation("org.springframework.stereotype.Service") -> {
-                "serviceMock" to mockBeanAnnotation(clazz.classpath)
+                "serviceMock" to mockBeanAnnotation
             }
 
             else -> {
@@ -83,12 +83,12 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
             }
         }
 
-    private fun autowiredAnnotation(cp: JcClasspath): AnnotationExpr {
+    private val autowiredAnnotation: AnnotationExpr get() {
         val autowired = renderClass("org.springframework.beans.factory.annotation.Autowired")
         return MarkerAnnotationExpr(autowired.nameAsString)
     }
 
-    private fun mockBeanAnnotation(cp: JcClasspath): AnnotationExpr {
+    private val mockBeanAnnotation: AnnotationExpr get() {
         val mockBean = renderClass("org.springframework.boot.test.mock.mockito.MockBean")
         return MarkerAnnotationExpr(mockBean.nameAsString)
     }
