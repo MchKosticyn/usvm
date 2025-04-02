@@ -5,16 +5,13 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestFileRenderer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
-import org.usvm.jvm.rendering.unsafeRenderer.ReflectionUtilName
-
-
+import org.usvm.jvm.rendering.spring.JcSpringImportManager
 
 class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
     private constructor(
         controller: JcClassType,
         cu: CompilationUnit,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         cp: JcClasspath
     ) : super(cu, importManager, cp) {
         this.controller = controller
@@ -23,7 +20,7 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
     private constructor(
         controller: JcClassType,
         packageName: String,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         cp: JcClasspath
     ) : super(packageName, importManager, cp) {
         this.controller = controller
@@ -36,7 +33,7 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
     ) : this(
         controller,
         cu,
-        JcUnsafeImportManager(ReflectionUtilName.SPRING, cu),
+        JcSpringImportManager(cu),
         cp
     )
 
@@ -47,7 +44,7 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
     ) : this(
         controller,
         packageName,
-        JcUnsafeImportManager(ReflectionUtilName.SPRING),
+        JcSpringImportManager(),
         cp
     )
 

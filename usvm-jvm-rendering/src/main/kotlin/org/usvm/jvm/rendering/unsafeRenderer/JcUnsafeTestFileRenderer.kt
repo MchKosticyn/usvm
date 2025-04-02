@@ -2,7 +2,6 @@ package org.usvm.jvm.rendering.unsafeRenderer
 
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.CompilationUnit
-import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import kotlin.jvm.optionals.getOrNull
@@ -32,13 +31,13 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         cu: CompilationUnit,
         cp: JcClasspath,
         inlineUsvmUtils: Boolean
-    ) : this(cu, JcUnsafeImportManager(ReflectionUtilName.USVM, cu, inlineUsvmUtils), cp, inlineUsvmUtils)
+    ) : this(cu, JcUnsafeImportManager(cu, inlineUsvmUtils), cp, inlineUsvmUtils)
 
     constructor(
         packageName: String,
         cp: JcClasspath,
         inlineUsvmUtils: Boolean
-    ) : this(packageName, JcUnsafeImportManager(ReflectionUtilName.USVM, null, inlineUsvmUtils), cp, inlineUsvmUtils)
+    ) : this(packageName, JcUnsafeImportManager(null, inlineUsvmUtils), cp, inlineUsvmUtils)
 
     override val importManager: JcUnsafeImportManager
         get() = super.importManager as JcUnsafeImportManager

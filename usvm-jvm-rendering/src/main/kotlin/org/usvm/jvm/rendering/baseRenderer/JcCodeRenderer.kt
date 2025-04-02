@@ -34,6 +34,9 @@ import org.jacodb.api.jvm.JcUnboundWildcard
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.util.toTypedMethod
+import org.jacodb.impl.types.JcTypeVariableImpl
+import org.usvm.jvm.rendering.baseRenderer.JcTypeVariableExt.isRecursive
+
 
 abstract class JcCodeRenderer<T: Node>(
     open val importManager: JcImportManager,
@@ -67,7 +70,7 @@ abstract class JcCodeRenderer<T: Node>(
         is JcPrimitiveType -> PrimitiveType(Primitive.byTypeName(type.typeName).get())
         is JcArrayType -> ArrayType(renderType(type.elementType, includeGenericArgs))
         is JcClassType -> renderClass(type, includeGenericArgs)
-        is JcTypeVariable -> renderClass(type.jcClass, includeGenericArgs)
+        is JcTypeVariable -> renderClass(type.jcClass, (type as? JcTypeVariableImpl)?.isRecursive == false)
         is JcBoundedWildcard -> renderBoundedWildcardType(type)
         is JcUnboundWildcard -> WildcardType()
         else -> error("unexpected type ${type.typeName}")
@@ -77,10 +80,10 @@ abstract class JcCodeRenderer<T: Node>(
         var wc = WildcardType()
 
         val ub = type.upperBounds.singleOrNull()
-        if (ub != null) wc = wc.setExtendedType(renderType(ub, false) as ReferenceType)
+        if (ub != null) wc = wc.setExtendedType(renderType(ub) as ReferenceType)
 
         val lb = type.lowerBounds.singleOrNull()
-        if (lb != null) wc = wc.setSuperType(renderType(lb, false) as ReferenceType)
+        if (lb != null) wc = wc.setSuperType(renderType(lb) as ReferenceType)
 
         return wc
     }
@@ -146,7 +149,7 @@ abstract class JcCodeRenderer<T: Node>(
         }
 
         val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(renderName))
-        if (!includeGenericArgs)
+        if (!includeGenericArgs || type.typeArguments.any { it is JcTypeVariableImpl && it.isRecursive })
             return renderedType.removeTypeArguments()
 
         val typeArguments = type.typeArguments
