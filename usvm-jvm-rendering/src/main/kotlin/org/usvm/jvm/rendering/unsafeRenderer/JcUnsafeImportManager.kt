@@ -8,11 +8,6 @@ open class JcUnsafeImportManager(
     cu: CompilationUnit? = null,
     private val shouldInlineUsvmUtils: Boolean = false
 ) : JcImportManager(cu) {
-
-    init {
-        check(ReflectionUtilName.isValidFullName(ReflectionUtilName.USVM))
-    }
-
     var usvmUtilsImported = false
         get private set
 
