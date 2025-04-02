@@ -159,11 +159,7 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
     //region Allocate Call
 
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
-        return MethodCallExpr(
-            utilsName,
-            "TEST_ALLOCATE_MEMORY",
-            NodeList(StringLiteralExpr(expr.clazz.name)),
-        )
+        error("allocateInstance not allowed in spring tests")
     }
 
     //endregion

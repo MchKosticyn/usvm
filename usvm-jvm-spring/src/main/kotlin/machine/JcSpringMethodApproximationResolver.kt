@@ -36,6 +36,7 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
 import org.usvm.api.readField
+import org.usvm.api.util.JcTestStateResolver
 import org.usvm.api.writeField
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
@@ -177,10 +178,12 @@ class JcSpringMethodApproximationResolver (
         return key to type
     }
 
-    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
+    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState, mode: JcTestStateResolver.ResolveMode): JcPinnedValue? {
         val memory = state.memory as JcSpringMemory
         val concretizer = memory.getConcretizer(state)
-        val result = concretizer.resolveExpr(value.getExpr(), value.getType()) ?: return null
+        val result = concretizer.withMode(mode) {
+            concretizer.resolveExpr(value.getExpr(), value.getType())
+        } ?: return null
         val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
         val expr = memory.objectToExpr(arrayOf(result.toString()), stringArrayType)
         return JcPinnedValue(expr, stringArrayType)
@@ -227,16 +230,12 @@ class JcSpringMethodApproximationResolver (
                 this as JcSpringState
                 val headers = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_HEADER)
                 val parameters = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_PARAM)
-                val correctedStringMultiValues = (headers + parameters)
-                    .map { it.key to pinnedValueToStringArray(it.value, this) }
-
-                correctedStringMultiValues
-                    .filter { it.second != null }
-                    .forEach { (key, value) -> setPinnedValue(key, value!!.getExpr(), value.getType()) }
-
-                correctedStringMultiValues
-                    .filter { it.second == null }
-                    .forEach { (key, _) -> removePinnedValue(key) }
+                (headers + parameters)
+                    .map { it.key to pinnedValueToStringArray(it.value, this, JcTestStateResolver.ResolveMode.MODEL) }
+                    .forEach { (key, value) ->
+                        if (value == null) removePinnedValue(key)
+                        else setPinnedValue(key, value.getExpr(), value.getType())
+                    }
 
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
                 return@calcOnState true
@@ -569,9 +568,9 @@ class JcSpringMethodApproximationResolver (
 
         return controllerTypes.flatMap { controllerType ->
             controllerType.declaredMethods.flatMap { handlerMethod ->
-                handlerMethod.annotations.map { annotation ->
+                handlerMethod.annotations.mapNotNull { annotation ->
                     val basePath = reqMappingPath(controllerType)
-                    val requestMethod = requestMethodOfAnnotation(annotation) ?: return@map null
+                    val requestMethod = requestMethodOfAnnotation(annotation) ?: return@mapNotNull null
                     val localPath = pathFromAnnotation(annotation)
                     val path = if (basePath != null) combinePaths(basePath, localPath) else localPath
                     val pathArgsCount = path.filter { it == '{' }.length
@@ -582,7 +581,7 @@ class JcSpringMethodApproximationResolver (
                         controllerType,
                         handlerMethod
                     )
-                }.filterNotNull()
+                }
             }
         }.toList()
     }

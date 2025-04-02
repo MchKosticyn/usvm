@@ -5,7 +5,6 @@ plugins {
 dependencies {
     implementation(project(":usvm-jvm"))
     implementation(project(":usvm-core"))
-    implementation(project(":usvm-jvm-rendering"))
     implementation(project(":usvm-jvm:usvm-jvm-api"))
 
     implementation(project(":usvm-jvm-concrete"))

@@ -20,7 +20,6 @@ abstract class JcSpringRawPinnedValues<V> (
     }
 
     fun setValue(key: JcPinnedKey, value: V) {
-        removeValue(key)
         pinnedValues += key to value
     }
 
@@ -46,11 +45,13 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) 
         sort: USort, 
         nullable: Boolean = true
     ): JcPinnedValue? {
-        val newValueExpr = scope.calcOnState { when {
-            type is PredefinedPrimitive -> makeSymbolicPrimitive(sort)
-            nullable -> scope.makeNullableSymbolicRef(type)?.asExpr(sort)
-            else -> scope.makeSymbolicRef(type)?.asExpr(sort)
-        } }
+        val newValueExpr = scope.calcOnState {
+            when {
+                type is PredefinedPrimitive -> makeSymbolicPrimitive(sort)
+                nullable -> scope.makeNullableSymbolicRef(type)?.asExpr(sort)
+                else -> scope.makeSymbolicRef(type)?.asExpr(sort)
+            }
+        }
 
         if (newValueExpr == null) {
             println("Error creating symbolic value!")
