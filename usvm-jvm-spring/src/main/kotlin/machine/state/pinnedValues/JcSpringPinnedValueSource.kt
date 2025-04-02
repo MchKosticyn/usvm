@@ -19,7 +19,9 @@ enum class JcSpringPinnedValueSource {
     RESPONSE_CONTENT,
     RESPONSE_COOKIE,
     RESPONSE_HEADER,
-    MOCK_RESULT;
+    RESPONSE_EXCEPTION,
+    MOCK_RESULT,
+    RESEARCHED_HANDLER;
 
     fun caseSensitive(): Boolean {
         // TODO: Research specifications and sources #AA
