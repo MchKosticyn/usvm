@@ -23,9 +23,11 @@ class JcDeadCodeTransformer: JcTestTransformer() {
         fun fetchFrom(expr: UTestExpression): MutableSet<UTestExpression> = fetchFrom(listOf(expr))
         fun fetchFrom(exprs: List<UTestExpression>): MutableSet<UTestExpression> {
             fetched.clear()
-            exprs.forEach { expr ->
+
+            for (expr in exprs) {
                 visit(expr)
             }
+
             return fetched
         }
 
@@ -128,9 +130,9 @@ class JcDeadCodeTransformer: JcTestTransformer() {
 
     private fun transformExprs(expr: UTestExpression): List<UTestInst?>{
         if (expr in reachable)
-            return listOf(super.transform(expr))
+            return listOf(expr)
 
-        return rootFetcher.fetchFrom(expr).map { super.transform(it) }
+        return rootFetcher.fetchFrom(expr).toList()
     }
 
     private fun transformInstProxy(inst: UTestInst): List<UTestInst?> {
@@ -138,7 +140,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
             is UTestArraySetStatement -> transformArraySet(inst)
             is UTestSetFieldStatement -> transformFieldSet(inst)
             is UTestExpression -> transformExprs(inst)
-            else -> listOf(transformInst(inst))
+            else -> listOf(inst)
         }
     }
 
