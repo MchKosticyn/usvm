@@ -154,5 +154,4 @@ class JcDeadCodeTransformer: JcTestTransformer() {
         if (instance in reachable) return listOf(super.transform(stmt))
         return rootFetcher.fetchFrom(targets).map { super.transform(it) }
     }
-    // TODO: handle static field set
 }
