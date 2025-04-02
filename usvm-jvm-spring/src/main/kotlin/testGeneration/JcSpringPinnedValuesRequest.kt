@@ -4,7 +4,11 @@ import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcSimplePinnedKey
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
+import org.jacodb.api.jvm.ext.constructors
+import org.jacodb.api.jvm.ext.findClass
 import org.usvm.api.util.JcTestStateResolver
+import org.usvm.test.api.UTestConstructorCall
+import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestNullExpression
 import org.usvm.test.api.spring.JcSpringHttpCookie
 import org.usvm.test.api.spring.JcSpringHttpHeader
@@ -54,7 +58,16 @@ class JcSpringPinnedValuesRequest(
 
     private fun withJsonSerialize(target: UTAny): UTAny {
         if (target is UTString) return target
-        TODO("Create ObjectMapper and make a write call with constructed object #AA")
+        val objectMapperClass = exprResolver.ctx.cp.findClass("com.fasterxml.jackson.databind.ObjectMapper")
+        val objectMapperConstructor = objectMapperClass.constructors.find { it.parameters.isEmpty() }
+        val writeValueAsString = objectMapperClass.declaredMethods.find { it.name == "writeValueAsString" }
+        check(objectMapperConstructor != null) { "Unable to find ObjectMapper constructor" }
+        check(writeValueAsString != null) { "Unable to find writeValueAsString method" }
+        return UTestMethodCall(
+            UTestConstructorCall(objectMapperConstructor, listOf()),
+            writeValueAsString,
+            listOf(target)
+        )
     }
 
     override fun getCookies(): List<JcSpringHttpCookie> {

@@ -10,6 +10,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.api.util.JcTestStateResolver
+import org.usvm.jvm.rendering.spring.webMvcTestRenderer.JcSpringMvcTestInfo
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestMockObject
 import org.usvm.test.api.spring.JcMockBean
@@ -17,10 +18,26 @@ import org.usvm.test.api.spring.JcSpringRequest
 import org.usvm.test.api.spring.JcSpringResponse
 import org.usvm.test.api.spring.JcSpringTestBuilder
 import org.usvm.test.api.spring.SpringException
+import org.usvm.test.api.spring.UTString
 
 fun JcSpringState.canGenerateTest(): Boolean {
     return pinnedValues.getValue(JcPinnedKey.requestPath()) != null
             && pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
+}
+
+fun JcSpringState.generateTestInfo(): JcSpringMvcTestInfo {
+    // TODO: Kinda dirty #AA
+    val exprResolver = createExprResolver(this)
+    val path = pinnedValues.getValue(JcPinnedKey.requestPath())
+        ?.let { exprResolver.resolvePinnedValue(it) }
+        ?.let { (it as UTString).value }
+
+    val method = handlerData.find { it.pathTemplate == path }?.handler
+    check(method != null) { "Could not infer handler method of path" }
+    return JcSpringMvcTestInfo(
+        method,
+        isExceptional
+    )
 }
 
 fun JcSpringState.generateTest(): UTest {
