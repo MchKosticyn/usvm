@@ -62,8 +62,8 @@ open class JcUnsafeTestBlockRenderer protected constructor(
         )
     }
 
-    protected val utilsName: NameExpr by lazy {
-        NameExpr(importManager.reflectionUtilsName)
+    private val utilsName: NameExpr by lazy {
+        NameExpr(importManager.usvmUtilsName)
     }
 
     private fun typeArgsForType(type: JcType): NodeList<Type>? {

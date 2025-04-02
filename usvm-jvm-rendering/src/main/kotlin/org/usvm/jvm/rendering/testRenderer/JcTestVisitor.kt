@@ -136,8 +136,34 @@ open class JcTestVisitor {
     open fun visit(expr: UTestNullExpression) { }
     open fun visit(expr: UTestShortExpression) { }
     open fun visit(expr: UTestStringExpression) { }
-    open fun visit(expr: UTestGlobalMock) { }
-    open fun visit(expr: UTestMockObject) { }
+
+    //endregion
+
+    //region Mocks
+
+    open fun visit(expr: UTestGlobalMock) {
+        for (fieldValue in expr.fields.values) {
+            visit(fieldValue)
+        }
+
+        for (methodValues in expr.methods.values) {
+            for (value in methodValues) {
+                visit(value)
+            }
+        }
+    }
+
+    open fun visit(expr: UTestMockObject) {
+        for (fieldValue in expr.fields.values) {
+            visit(fieldValue)
+        }
+
+        for (methodValues in expr.methods.values) {
+            for (value in methodValues) {
+                visit(value)
+            }
+        }
+    }
 
     //endregion
 

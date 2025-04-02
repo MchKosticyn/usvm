@@ -8,7 +8,7 @@ import com.github.javaparser.ast.expr.MarkerAnnotationExpr
 import com.github.javaparser.ast.expr.ThisExpr
 import com.github.javaparser.ast.type.ReferenceType
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
+import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestBlockRenderer
 import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
@@ -20,7 +20,7 @@ import org.usvm.test.api.UTestAllocateMemoryCall
 
 open class JcSpringMvcTestBlockRenderer protected constructor(
     override val methodRenderer: JcSpringMvcTestRenderer,
-    importManager: JcUnsafeImportManager,
+    importManager: JcSpringImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
@@ -30,7 +30,7 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
 
     constructor(
         methodRenderer: JcSpringMvcTestRenderer,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>
@@ -57,7 +57,7 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
 
         val mockField = classRenderer.getOrCreateField(
             renderClass(expr.clazz),
-            classRenderer.identifiersManager.generateIdentifier(mockPrefix).asString(),
+            mockPrefix,
             annotations = NodeList(mockAnnotation)
         )
 
@@ -67,15 +67,15 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     private fun getMockNamePrefixAndAnnotation(clazz: JcClassOrInterface): Pair<String, AnnotationExpr>? =
         when {
             clazz.name == "org.springframework.test.web.servlet.MockMvc" -> {
-                "mockMvc" to autowiredAnnotation(clazz.classpath)
+                "mockMvc" to autowiredAnnotation
             }
 
             clazz.superClasses.any { sup -> sup.name == "org.springframework.data.repository.Repository" } -> {
-                "repositoryMock" to mockBeanAnnotation(clazz.classpath)
+                "repositoryMock" to mockBeanAnnotation
             }
 
             clazz.hasAnnotation("org.springframework.stereotype.Service") -> {
-                "serviceMock" to mockBeanAnnotation(clazz.classpath)
+                "serviceMock" to mockBeanAnnotation
             }
 
             else -> {
@@ -83,12 +83,12 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
             }
         }
 
-    private fun autowiredAnnotation(cp: JcClasspath): AnnotationExpr {
+    private val autowiredAnnotation: AnnotationExpr get() {
         val autowired = renderClass("org.springframework.beans.factory.annotation.Autowired")
         return MarkerAnnotationExpr(autowired.nameAsString)
     }
 
-    private fun mockBeanAnnotation(cp: JcClasspath): AnnotationExpr {
+    private val mockBeanAnnotation: AnnotationExpr get() {
         val mockBean = renderClass("org.springframework.boot.test.mock.mockito.MockBean")
         return MarkerAnnotationExpr(mockBean.nameAsString)
     }
