@@ -5,6 +5,7 @@ import com.github.javaparser.ast.expr.CastExpr
 import com.github.javaparser.ast.expr.ClassExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.MethodCallExpr
+import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.type.ReferenceType
@@ -15,14 +16,14 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
+import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestBlockRenderer
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 
 open class JcSpringUnitTestBlockRenderer protected constructor(
     override val methodRenderer: JcSpringUnitTestRenderer,
-    override val importManager: JcUnsafeImportManager,
+    override val importManager: JcSpringImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
@@ -38,9 +39,13 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
     thrownExceptions
 ) {
 
+    private val utilsName: NameExpr by lazy {
+        NameExpr(importManager.springUtilsName)
+    }
+
     constructor(
         methodRenderer: JcSpringUnitTestRenderer,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>
@@ -152,14 +157,6 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
             "setField",
             NodeList(instance, StringLiteralExpr(field.name), value),
         )
-    }
-
-    //endregion
-    
-    //region Allocate Call
-
-    override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
-        error("allocateInstance not allowed in spring tests")
     }
 
     //endregion

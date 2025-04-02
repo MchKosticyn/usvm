@@ -8,7 +8,7 @@ import com.github.javaparser.ast.expr.MarkerAnnotationExpr
 import com.github.javaparser.ast.expr.ThisExpr
 import com.github.javaparser.ast.type.ReferenceType
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
+import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestBlockRenderer
 import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
@@ -20,7 +20,7 @@ import org.usvm.test.api.UTestAllocateMemoryCall
 
 open class JcSpringMvcTestBlockRenderer protected constructor(
     override val methodRenderer: JcSpringMvcTestRenderer,
-    importManager: JcUnsafeImportManager,
+    importManager: JcSpringImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
@@ -30,7 +30,7 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
 
     constructor(
         methodRenderer: JcSpringMvcTestRenderer,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>

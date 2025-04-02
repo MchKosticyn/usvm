@@ -11,7 +11,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
+import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.test.api.UTest
 
 class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
@@ -21,7 +21,7 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
     constructor(
         controller: JcClassType,
         name: String,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath
     ) : super(name, importManager, identifiersManager, cp) {
@@ -32,7 +32,7 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
     constructor(
         controller: JcClassType,
         decl: ClassOrInterfaceDeclaration,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath
     ) : super(decl, importManager, identifiersManager, cp) {

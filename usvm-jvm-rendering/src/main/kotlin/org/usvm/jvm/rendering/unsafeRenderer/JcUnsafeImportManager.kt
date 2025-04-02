@@ -4,35 +4,24 @@ import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.expr.SimpleName
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 
-object ReflectionUtilName {
-    const val SPRING = "org.springframework.test.util.ReflectionTestUtils"
-    const val USVM = "org.usvm.jvm.rendering.ReflectionUtils"
-    const val USVM_SIMPLE = "ReflectionUtils"
-
-    fun isValidFullName(name: String) = name in listOf(SPRING, USVM)
-}
-
-class JcUnsafeImportManager(
-    reflectionUtilsFullName: String,
+open class JcUnsafeImportManager(
     cu: CompilationUnit? = null,
     private val shouldInlineUsvmUtils: Boolean = false
 ) : JcImportManager(cu) {
 
     init {
-        check(ReflectionUtilName.isValidFullName(reflectionUtilsFullName))
+        check(ReflectionUtilName.isValidFullName(ReflectionUtilName.USVM))
     }
 
-    private var reflectionUtilsImported = false
+    var usvmUtilsImported = false
+        get private set
 
-    val reflectionUtilsName: SimpleName by lazy {
-        reflectionUtilsImported = true
-        if (add(reflectionUtilsFullName))
-            SimpleName(reflectionUtilsFullName.split(".").last())
-        else SimpleName(reflectionUtilsFullName)
+    val usvmUtilsName: SimpleName by lazy {
+        usvmUtilsImported = true
+        if (add(ReflectionUtilName.USVM))
+            SimpleName(ReflectionUtilName.USVM_SIMPLE)
+        else SimpleName(ReflectionUtilName.USVM)
     }
-
-    val needReflectionUtils: Boolean
-        get() = reflectionUtilsImported
 
     override fun add(
         packageName: String,

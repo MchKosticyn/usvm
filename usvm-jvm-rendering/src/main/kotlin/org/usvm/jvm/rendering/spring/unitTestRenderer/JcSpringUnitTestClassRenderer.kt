@@ -6,21 +6,23 @@ import com.github.javaparser.ast.expr.SimpleName
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
+import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.test.api.UTest
 
 open class JcSpringUnitTestClassRenderer : JcUnsafeTestClassRenderer {
+    override val importManager: JcSpringImportManager get() = super.importManager as JcSpringImportManager
+
     constructor(
         name: String,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath
     ) : super(name, importManager, identifiersManager, cp)
 
     constructor(
         decl: ClassOrInterfaceDeclaration,
-        importManager: JcUnsafeImportManager,
+        importManager: JcSpringImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath
     ) : super(decl, importManager, identifiersManager, cp)
