@@ -1,12 +1,12 @@
 package machine
 
 import machine.state.JcSpringState
-import org.usvm.jvm.rendering.testRenderer.JcTestInfo
+import org.jacodb.api.jvm.JcMethod
 import org.usvm.statistics.UMachineObserver
 import org.usvm.test.api.UTest
 import testGeneration.canGenerateTest
 import testGeneration.generateTest
-import testGeneration.generateTestInfo
+import testGeneration.getHandlerMethod
 
 
 interface TestReproducer {
@@ -15,7 +15,7 @@ interface TestReproducer {
 }
 
 interface TestRenderer {
-    fun render(test: UTest, info: JcTestInfo)
+    fun render(test: UTest, method: JcMethod, isExceptional: Boolean)
 }
 
 class JcSpringTestObserver(
@@ -28,7 +28,7 @@ class JcSpringTestObserver(
         if (!stateReachable || !state.hasEnoughInfoForTest()) return
         try {
             if (!state.canGenerateTest()) return
-            testRenderer.render(state.generateTest(), state.generateTestInfo())
+            testRenderer.render(state.generateTest(), state.getHandlerMethod(), state.isExceptional)
             val success = testReproducer.reproduce(state.generateTest())
             println("Test success: $success")
         } catch (e: Throwable) {

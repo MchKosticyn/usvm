@@ -290,7 +290,7 @@ private fun analyzeBench(benchmark: BenchCp) {
     )
     
     val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp)
-    val testRenderer = SpringTestRenderer(JcTestsRenderer(), cp)
+    val testRenderer = SpringTestRenderer(cp)
     val testObserver = JcSpringTestObserver(testReproducer, testRenderer)
 
     val machine = JcSpringMachine(
