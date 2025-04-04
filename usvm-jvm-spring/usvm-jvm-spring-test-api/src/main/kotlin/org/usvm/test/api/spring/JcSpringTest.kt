@@ -1,7 +1,9 @@
 package org.usvm.test.api.spring
 
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.ext.findType
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
@@ -13,19 +15,26 @@ class JcSpringTestBuilder(
 ) {
     private var response: JcSpringResponse? = null
     private var exception: SpringException? = null
-    private var generatedTestClass: JcClassType? = null
+    private var generatedTestClass: JcClassOrInterface? = null
     private var mocks: MutableList<JcMockBean> = mutableListOf()
 
     fun withResponse(response: JcSpringResponse) = apply { this.response = response }
     fun withException(exception: SpringException) = apply { this.exception = exception }
-    fun withGeneratedTestClass(testClass: JcClassType) = apply { this.generatedTestClass = testClass }
+    fun withGeneratedTestClass(testClass: JcClassOrInterface) = apply { this.generatedTestClass = testClass }
     fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks.toMutableList() }
 
+    private fun findTestClass(cp: JcClasspath): JcClassOrInterface {
+        check(cp.features?.contains(JcSpringTestClassesFeature) == true)
+        return cp.findClassOrNull(JcSpringTestClassesFeature.DEFAULT_TEST_CLASS_NAME)
+            ?: error("test class not found")
+    }
+
     fun build(cp: JcClasspath): JcSpringTest {
+        val testClass = generatedTestClass ?: findTestClass(cp)
         return when {
             response != null -> JcSpringResponseTest(
                 cp = cp,
-                generatedTestClass = generatedTestClass,
+                generatedTestClass = testClass,
                 mocks = mocks,
                 request = request,
                 response = response!!,
@@ -33,7 +42,7 @@ class JcSpringTestBuilder(
 
             exception != null -> JcSpringExceptionTest(
                 cp = cp,
-                generatedTestClass = generatedTestClass,
+                generatedTestClass = testClass,
                 mocks = mocks,
                 request = request,
                 exception = exception!!,
@@ -41,7 +50,7 @@ class JcSpringTestBuilder(
 
             else -> JcSpringTest(
                 cp = cp,
-                generatedTestClass = generatedTestClass,
+                generatedTestClass = testClass,
                 mocks = mocks,
                 request = request,
             )
@@ -51,7 +60,7 @@ class JcSpringTestBuilder(
 
 open class JcSpringTest internal constructor(
     val cp: JcClasspath,
-    private val generatedTestClass: JcClassType?,
+    private val generatedTestClass: JcClassOrInterface,
     private val mocks: List<JcMockBean>,
     private val request: JcSpringRequest,
 ) {
@@ -89,7 +98,7 @@ open class JcSpringTest internal constructor(
         return builder.getDSL() to builder.getInitDSL()
     }
 
-    private fun generateMocksDSL(mocks: List<JcMockBean>, testClass: UTestExpression?): List<UTestInst>{
+    private fun generateMocksDSL(mocks: List<JcMockBean>, testClass: UTestExpression): List<UTestInst>{
         val builder = SpringMockBeanBuilder(cp, testClass)
         mocks.forEach { builder.addMock(it) }
         return builder.getInitStatements() + builder.getMockitoCalls()
@@ -98,7 +107,7 @@ open class JcSpringTest internal constructor(
 
 class JcSpringResponseTest internal constructor(
     cp: JcClasspath,
-    generatedTestClass: JcClassType?,
+    generatedTestClass: JcClassOrInterface,
     mocks: List<JcMockBean>,
     request: JcSpringRequest,
     val response: JcSpringResponse
@@ -115,7 +124,7 @@ class JcSpringResponseTest internal constructor(
 
 class JcSpringExceptionTest internal constructor(
     cp: JcClasspath,
-    generatedTestClass: JcClassType?,
+    generatedTestClass: JcClassOrInterface,
     mocks: List<JcMockBean>,
     request: JcSpringRequest,
     val exception: SpringException

@@ -24,7 +24,7 @@ class SpringMatchersBuilder(
         val createMatcherMethod = cp.findJcMethod(
             "$SPRING_RESULT_PACK.MockMvcResultMatchers",
             matcherName
-        ).method
+        )
 
         val matcherDsl = UTestStaticMethodCall(
             method = createMatcherMethod,
@@ -42,7 +42,7 @@ class SpringMatchersBuilder(
         val conditionMethod = cp.findJcMethod(
             matcherSourceDsl.method!!.returnType.typeName,
             conditionName
-        ).method
+        )
 
         val conditionDsl = UTestMethodCall(
             instance = matcherSourceDsl,

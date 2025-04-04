@@ -1,20 +1,32 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcTypedMethod
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.MethodNotFoundException
-import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.api.jvm.ext.findMethodOrNull
-import org.jacodb.api.jvm.ext.toType
+import org.jacodb.api.jvm.ext.superClasses
 
-fun JcClasspath.findJcMethod(cName: String, mName: String, parametersTypeNames: List<String>? = null): JcTypedMethod {
-    return this.findClass(cName)
-        .toType()
-        .findMethodOrNull { method ->
-            method.name == mName && (
-                    parametersTypeNames == null
-                            || parametersTypeNames.size == method.parameters.size
-                            && parametersTypeNames.zip(method.parameters).all { (t, p) -> p.type.typeName == t }
-                    )
-        } ?: throw MethodNotFoundException("$mName not found")
+internal fun JcClasspath.findJcMethod(cName: String, mName: String, parametersTypeNames: List<String>? = null): JcMethod {
+    val enclosingClass = this.findClassOrNull(cName) ?: error("Class $cName not found in classpath")
+    val allMethods = (listOf(enclosingClass) + enclosingClass.superClasses).flatMap { it.declaredMethods }
+    for (method in allMethods) {
+        if (method.name != mName)
+            continue
+
+        if (parametersTypeNames == null)
+            return method
+
+        if (parametersTypeNames.size != method.parameters.size)
+            continue
+
+        if (parametersTypeNames.zip(method.parameters).all { (t, p) -> p.type.typeName == t })
+            return method
+    }
+
+    throw MethodNotFoundException("$mName not found")
 }
+
+internal val String.decapitalized: String
+    get() = replaceFirstChar { it.lowercase() }
+
+internal val String.capitalized: String
+    get() = replaceFirstChar { it.titlecase() }

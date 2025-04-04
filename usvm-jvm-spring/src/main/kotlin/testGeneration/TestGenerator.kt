@@ -5,7 +5,7 @@ import machine.state.pinnedValues.JcObjectPinnedKey
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
-import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.toType
@@ -45,7 +45,7 @@ fun JcSpringState.generateTest(): UTest {
     val request = getSpringRequest(this, exprResolver)
     val response = getSpringResponse(this, exprResolver)
     val mocks = getSpringMocks(pinnedValues, exprResolver)
-    val testClass = getGeneratedClassName(ctx.cp)
+    val testClass = getGeneratedTestClass(ctx.cp)
 
     val test = JcSpringTestBuilder(request)
         .withResponse(response)
@@ -65,11 +65,11 @@ private fun createExprResolver(state: JcSpringState): JcSpringTestExprResolver {
     return JcSpringTestExprResolver(state)
 }
 
-private fun getGeneratedClassName(cp: JcClasspath): JcClassType {
+private fun getGeneratedTestClass(cp: JcClasspath): JcClassOrInterface {
     // TODO hardcoded
     val cl = cp.findClassOrNull("org.usvm.spring.benchmarks.StartSpringTestClass") //TODO: get it from state? (it is generated in runtime)
     check(cl != null)
-    return cl.toType()
+    return cl
 }
 
 private fun getSpringResponse(

@@ -1,10 +1,12 @@
 package org.usvm.test.api.spring
 
-import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.ext.findClass
-import org.usvm.test.api.UTestAllocateMemoryCall
+import org.jacodb.api.jvm.ext.CONSTRUCTOR
+import org.jacodb.api.jvm.ext.findDeclaredFieldOrNull
+import org.jacodb.api.jvm.ext.findDeclaredMethodOrNull
+import org.jacodb.api.jvm.ext.toType
 import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestConstructorCall
@@ -19,25 +21,14 @@ class SpringTestExecBuilder private constructor(
     private val initStatements: MutableList<UTestInst>,
     private var mockMvcDSL: UTestExpression,
     private var isPerformed: Boolean = false,
-    private var generatedTestClass: JcClassType? = null,
-    private var testClassInst: UTestExpression? = null
+    private var generatedTestClass: JcClassOrInterface,
+    private var testClassInst: UTestExpression
 ) {
     companion object {
-        fun initTestCtx(cp: JcClasspath, generatedTestClass: JcClassType?): SpringTestExecBuilder {
-            if (generatedTestClass != null) return withPreparedContextFor(cp, generatedTestClass)
-            val mockMvc = UTestAllocateMemoryCall(cp.findClass("org.springframework.test.web.servlet.MockMvc"))
-            return SpringTestExecBuilder(cp, mutableListOf(), mockMvc, isPerformed = false, generatedTestClass, null)
-        }
 
-        private const val testContextManagerName = "org.springframework.test.context.TestContextManager"
+        const val MOCK_MVC_NAME = "org.springframework.test.web.servlet.MockMvc"
 
-        private fun testContextManagerCtor(cp: JcClasspath): JcMethod {
-            return cp.findJcMethod(testContextManagerName, "<init>").method
-        }
-
-        private fun testCtxManagerPrepareTestIntance(cp: JcClasspath): JcMethod {
-            return cp.findJcMethod(testContextManagerName, "prepareTestInstance").method
-        }
+        private const val TEST_CONTEXT_MANAGER_NAME = "org.springframework.test.context.TestContextManager"
 
         /*
         * DSL STEPS:
@@ -47,26 +38,35 @@ class SpringTestExecBuilder private constructor(
         *   mockMvc: MockMvc = generatedClass.<FIELD-WITH-MOCKMVC>
         */
 
-        private fun withPreparedContextFor(cp: JcClasspath, generatedTestClass: JcClassType): SpringTestExecBuilder {
+        fun initTestCtx(cp: JcClasspath, generatedTestClass: JcClassOrInterface): SpringTestExecBuilder {
             val testCtxManagerCtorCall = UTestConstructorCall(
                 method = testContextManagerCtor(cp),
-                args = listOf(UTestClassExpression(generatedTestClass))
+                args = listOf(UTestClassExpression(generatedTestClass.toType()))
             )
 
+            val ctor = generatedTestClass.findDeclaredMethodOrNull(CONSTRUCTOR)
+                ?: error("test class constructor not found")
             val generatedClassCtorCall = UTestConstructorCall(
-                method = cp.findJcMethod(generatedTestClass.typeName, "<init>").method,
+                method = ctor,
                 args = listOf()
             )
 
             val prepareTestInstanceCall = UTestMethodCall(
                 instance = testCtxManagerCtorCall,
-                method = testCtxManagerPrepareTestIntance(cp),
+                method = testCtxManagerPrepareTestInstance(cp),
                 args = listOf(generatedClassCtorCall)
             )
 
+            val mockMvcType = cp.findTypeOrNull(MOCK_MVC_NAME) ?: error("MockMvc type not found")
+            val mockMvcField =
+                generatedTestClass.findDeclaredFieldOrNull("mockMvc")
+                    ?: JcSpringTestClassesFeature.addAutowireField(mockMvcType)
+
+            check(generatedTestClass.findDeclaredFieldOrNull("mockMvc") != null)
+
             val mockMvc = UTestGetFieldExpression(
                 instance = generatedClassCtorCall,
-                field = generatedTestClass.fields.first { it.name.contains("mockMvc") }.field,
+                field = mockMvcField,
             )
 
             return SpringTestExecBuilder(
@@ -77,12 +77,20 @@ class SpringTestExecBuilder private constructor(
                 testClassInst = generatedClassCtorCall
             )
         }
+
+        private fun testContextManagerCtor(cp: JcClasspath): JcMethod {
+            return cp.findJcMethod(TEST_CONTEXT_MANAGER_NAME, CONSTRUCTOR)
+        }
+
+        private fun testCtxManagerPrepareTestInstance(cp: JcClasspath): JcMethod {
+            return cp.findJcMethod(TEST_CONTEXT_MANAGER_NAME, "prepareTestInstance")
+        }
     }
 
     val testClassExpr get() = testClassInst
 
     private val mockMvcPerform: JcMethod by lazy {
-        cp.findJcMethod("org.springframework.test.web.servlet.MockMvc", "perform").method
+        cp.findJcMethod(MOCK_MVC_NAME, "perform")
     }
 
     fun addPerformCall(reqDSL: UTestExpression): SpringTestExecBuilder {
@@ -98,7 +106,7 @@ class SpringTestExecBuilder private constructor(
     }
 
     private val andExpectAction: JcMethod by lazy {
-        cp.findJcMethod("org.springframework.test.web.servlet.ResultActions", "andExpect").method
+        cp.findJcMethod("org.springframework.test.web.servlet.ResultActions", "andExpect")
     }
 
     fun addAndExpectCall(args: List<UTestExpression>): SpringTestExecBuilder {
@@ -115,16 +123,15 @@ class SpringTestExecBuilder private constructor(
 
     fun getInitDSL(): List<UTestInst> = initStatements
 
-    fun getExecDSL(shouldIgnoreResult: Boolean = false): UTestCall {
+    fun getExecDSL(): UTestCall {
         check(isPerformed)
-        check(!shouldIgnoreResult || generatedTestClass != null)
 
-        if (shouldIgnoreResult) {
-            mockMvcDSL = UTestStaticMethodCall(
-                method = cp.findJcMethod(generatedTestClass!!.typeName, "ignoreResult").method,
-                args = listOf(mockMvcDSL)
-            )
-        }
+        val ignoreMethod = generatedTestClass.findDeclaredMethodOrNull("ignoreResult")
+            ?: error("ignoreResult method not found")
+        mockMvcDSL = UTestStaticMethodCall(
+            method = ignoreMethod,
+            args = listOf(mockMvcDSL)
+        )
 
         return mockMvcDSL as UTestCall
     }
