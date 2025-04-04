@@ -47,6 +47,10 @@ internal val JcClassOrInterface.isSpringRepository: Boolean
 internal val JcClassOrInterface.isSpringRequest: Boolean
     get() = this.isSubClassOf(classpath.findClass("jakarta.servlet.http.HttpServletRequest"))
 
+internal val JcClassOrInterface.isServletWebRequest: Boolean
+    get() = this.isSubClassOf(classpath.findClass("org.springframework.web.context.request.ServletWebRequest"))
+
+
 internal val JcMethod.isSpringFilterMethod: Boolean
     get() = enclosingClass.isSpringFilter && (name == "doFilter" || name == "doFilterInternal")
 
@@ -54,10 +58,13 @@ internal val JcMethod.isSpringFilterChainMethod: Boolean
     get() = enclosingClass.isSpringFilterChain && (name == "doFilter" || name == "doFilterInternal")
 
 internal val JcMethod.isArgumentResolverMethod: Boolean
-    get() = enclosingClass.isArgumentResolver && (name == "resolveArgument" || name == "readWithMessageConverters" || name == "resolveName")
+    get() = enclosingClass.isArgumentResolver && (name == "resolveArgument" || name == "readWithMessageConverters" || name == "resolveName" || name == "handleNullValue")
 
 internal val JcMethod.isHttpRequestMethod: Boolean
     get() = enclosingClass.isSpringRequest
+
+internal val JcMethod.isServletRequestMethod: Boolean
+    get() = enclosingClass.isServletWebRequest
 
 internal val JcMethod.isDeserializationMethod: Boolean
     get() = name == "readWithMessageConverters"

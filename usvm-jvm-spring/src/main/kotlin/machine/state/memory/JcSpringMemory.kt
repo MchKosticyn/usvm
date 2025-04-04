@@ -2,6 +2,7 @@ package machine.state.memory
 
 import isArgumentResolverMethod
 import isHttpRequestMethod
+import isServletRequestMethod
 import isSpringFilterChainMethod
 import isSpringFilterMethod
 import machine.concreteMemory.JcConcreteMemory
@@ -28,7 +29,8 @@ class JcSpringMemory(
                 method.isSpringFilterMethod ||
                 method.isSpringFilterChainMethod ||
                 method.isArgumentResolverMethod ||
-                method.isHttpRequestMethod
+                method.isHttpRequestMethod ||
+                method.isServletRequestMethod
     }
 
     override fun shouldConcretizeMethod(method: JcMethod): Boolean {
