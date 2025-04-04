@@ -342,6 +342,7 @@ open class JcTestBlockRenderer protected constructor(
             return mockCreationExpression
 
         val varExpr = renderVarDeclaration(type, mockCreationExpression, "mocked")
+        exprCache[expr] = varExpr
 
         for ((field, fieldValue) in expr.fields) {
             val renderedFieldValue = renderExpression(fieldValue)
