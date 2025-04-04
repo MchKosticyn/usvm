@@ -7,7 +7,9 @@ import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethodImpl
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualParameter
 import org.jacodb.impl.types.TypeNameImpl
 
-object VirtualMockito {
+// TODO: implement as ClasspathExtFeature
+
+internal object VirtualMockito {
     val mockito by lazy {
         JcVirtualClassImpl(
             "org.mockito.Mockito",
@@ -46,32 +48,45 @@ object VirtualMockito {
         JcVirtualClassImpl(
             "org.mockito.ArgumentMatchers",
             initialFields = listOf(),
-            initialMethods = listOf()
+            initialMethods = createMatchers()
         )
-    }
-
-    fun anyMatcherBy(methodName: String): JcVirtualMethod {
-        val suffix = methodName.drop(3)
-
-        val returnTypeName = when {
-            javaUtilCollectionSuffixes.contains(suffix) -> "java.util.$suffix"
-            javaLangCollectionSuffixes.contains(suffix) -> "java.lang.$suffix"
-            PredefinedPrimitives.matches(suffix) -> suffix
-            else -> "java.lang.Object"
-        }
-
-        val anyMatcher = JcVirtualMethodImpl(
-            name = methodName,
-            returnType = TypeNameImpl.fromTypeName(returnTypeName),
-            parameters = listOf(),
-            description = ""
-        )
-        anyMatcher.bind(argumentMatcher)
-
-        return anyMatcher
     }
 
     private val javaUtilCollectionSuffixes = listOf("Set", "Map", "List", "Collection")
 
     private val javaLangCollectionSuffixes = listOf("Iterable", "String")
+
+    private fun createMatchers(): List<JcVirtualMethod> {
+        val primitiveSuffixes = listOf(
+            PredefinedPrimitives.Boolean,
+            PredefinedPrimitives.Byte,
+            PredefinedPrimitives.Char,
+            PredefinedPrimitives.Double,
+            PredefinedPrimitives.Float,
+            PredefinedPrimitives.Int,
+            PredefinedPrimitives.Long,
+            PredefinedPrimitives.Short
+        )
+        val suffixes = javaUtilCollectionSuffixes + javaLangCollectionSuffixes + primitiveSuffixes
+        val matchers = mutableListOf<JcVirtualMethod>()
+        for (suffix in suffixes.distinct()) {
+            val returnTypeName = when {
+                javaUtilCollectionSuffixes.contains(suffix) -> "java.util.$suffix"
+                javaLangCollectionSuffixes.contains(suffix) -> "java.lang.$suffix"
+                PredefinedPrimitives.matches(suffix) -> suffix
+                else -> "java.lang.Object"
+            }
+
+            matchers.add(
+                JcVirtualMethodImpl(
+                    name = "any${suffix.replaceFirstChar(Char::titlecase)}",
+                    returnType = TypeNameImpl.fromTypeName(returnTypeName),
+                    parameters = listOf(),
+                    description = ""
+                )
+            )
+        }
+
+        return matchers
+    }
 }

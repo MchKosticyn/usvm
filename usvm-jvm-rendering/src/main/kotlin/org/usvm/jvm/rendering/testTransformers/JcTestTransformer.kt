@@ -178,13 +178,25 @@ abstract class JcTestTransformer {
     }
 
     open fun transform(expr: UTestGlobalMock): UTestExpression? {
+        val fields = mutableMapOf<JcField, UTestExpression>()
+        val methods = mutableMapOf<JcMethod, List<UTestExpression>>()
+        val mock = UTestGlobalMock(expr.type, fields, methods)
+        cache[expr] = mock
         val (transformedFields, transformedMethods) = transformMockContents(expr)
-        return UTestGlobalMock(expr.type, transformedFields, transformedMethods)
+        fields.putAll(transformedFields)
+        methods.putAll(transformedMethods)
+        return mock
     }
 
     open fun transform(expr: UTestMockObject): UTestExpression? {
+        val fields = mutableMapOf<JcField, UTestExpression>()
+        val methods = mutableMapOf<JcMethod, List<UTestExpression>>()
+        val mock = UTestMockObject(expr.type, fields, methods)
+        cache[expr] = mock
         val (transformedFields, transformedMethods) = transformMockContents(expr)
-        return UTestMockObject(expr.type, transformedFields, transformedMethods)
+        fields.putAll(transformedFields)
+        methods.putAll(transformedMethods)
+        return mock
     }
 
     //endregion

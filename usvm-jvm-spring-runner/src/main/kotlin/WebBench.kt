@@ -45,7 +45,6 @@ import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
 import machine.SpringAnalysisMode
 import org.usvm.CoverageZone
-import org.usvm.jvm.rendering.JcTestsRenderer
 import utils.typeName
 import java.io.File
 import java.io.PrintStream
@@ -61,7 +60,6 @@ import kotlin.system.measureNanoTime
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
-import kotlin.time.Duration.Companion.seconds
 
 private fun loadWebPetClinicBench(): BenchCp {
     val petClinicDir = Path("/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF")
@@ -134,7 +132,7 @@ private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, 
 }
 
 private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
-    val springApproximationDeps =
+    val springTestDeps =
         System.getenv("usvm.jvm.springTestDeps.paths")
             .split(";")
             .map { File(it) }
@@ -142,7 +140,7 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
     val usvmConcreteApiJarPath = File(System.getenv("usvm.jvm.concrete.api.jar.path"))
     check(usvmConcreteApiJarPath.exists()) { "Concrete API jar does not exist" }
 
-    val cpFiles = classes + dependencies + springApproximationDeps + usvmConcreteApiJarPath
+    val cpFiles = classes + dependencies + springTestDeps + usvmConcreteApiJarPath
 
     val db = jacodb {
         useProcessJavaRuntime()
@@ -288,7 +286,7 @@ private fun analyzeBench(benchmark: BenchCp) {
     val jcSpringMachineOptions = JcSpringMachineOptions(
         springAnalysisMode = SpringAnalysisMode.WebMVCTest
     )
-    
+
     val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp)
     val testRenderer = SpringTestRenderer(cp)
     val testObserver = JcSpringTestObserver(testReproducer, testRenderer)

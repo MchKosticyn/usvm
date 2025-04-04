@@ -11,6 +11,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
+import org.usvm.jvm.rendering.testTransformers.JcSpringMvcTestTransformer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.test.api.UTest
 
@@ -48,21 +49,23 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         return annotation
     }
 
-
     override fun createTestRenderer(
         test: UTest,
         identifiersManager: JcIdentifiersManager,
         name: SimpleName,
         testAnnotation: AnnotationExpr,
     ): JcTestRenderer {
+        val mvcTransformer = JcSpringMvcTestTransformer()
+        val transformedTest = mvcTransformer.transform(test)
         return JcSpringMvcTestRenderer(
-            test,
+            transformedTest,
             this,
             importManager,
             JcIdentifiersManager(identifiersManager),
             cp,
             name,
-            testAnnotation
+            testAnnotation,
+            mvcTransformer.testClass
         )
     }
 }

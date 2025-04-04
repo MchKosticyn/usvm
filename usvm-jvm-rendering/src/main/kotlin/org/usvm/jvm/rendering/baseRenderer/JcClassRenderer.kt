@@ -8,9 +8,11 @@ import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.Expression
+import com.github.javaparser.ast.expr.MarkerAnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.type.Type
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcField
 
 open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
 
@@ -48,6 +50,38 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
 
     protected fun addRenderingMethod(render: JcMethodRenderer) {
         renderingMethods.add(render)
+    }
+
+    fun getOrCreateField(
+        field: JcField,
+        initializer: Expression? = null
+    ): SimpleName {
+        val modifiers: MutableList<Modifier> = mutableListOf()
+        if (field.isPublic)
+            modifiers.add(Modifier.publicModifier())
+        if (field.isStatic)
+            modifiers.add(Modifier.staticModifier())
+        if (field.isFinal)
+            modifiers.add(Modifier.finalModifier())
+        if (field.isPrivate)
+            modifiers.add(Modifier.privateModifier())
+        if (field.isAbstract)
+            modifiers.add(Modifier.abstractModifier())
+        if (field.isProtected)
+            modifiers.add(Modifier.protectedModifier())
+        val annotations = field.annotations.map {
+            // TODO: create method 'renderAnnotation'
+            MarkerAnnotationExpr(it.name)
+        }
+        val fieldType = cp.findTypeOrNull(field.type.typeName)
+            ?: error("Field type ${field.type.typeName} not found in classpath")
+        return getOrCreateField(
+            renderType(fieldType),
+            field.name,
+            NodeList(modifiers),
+            NodeList(annotations),
+            initializer
+        )
     }
 
     fun getOrCreateField(

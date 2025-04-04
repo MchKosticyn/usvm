@@ -40,7 +40,7 @@ class SpringRequestBuilder private constructor(
             pathVariables: List<Any?>
         ): SpringRequestBuilder {
             val requestMethodName = method.name.lowercase()
-            val staticMethod = cp.findJcMethod(MOCK_MVC_REQUEST_BUILDERS_CLASS, requestMethodName).method
+            val staticMethod = cp.findJcMethod(MOCK_MVC_REQUEST_BUILDERS_CLASS, requestMethodName)
             val initDSL = mutableListOf<UTestInst>()
             val pathArgs = pathVariables.map { it }
             val pathArgsArray = UTestCreateArrayExpression(cp.stringType, UTestIntExpression(pathArgs.size, cp.int))
@@ -68,19 +68,19 @@ class SpringRequestBuilder private constructor(
     fun getDSL() = reqDSL
 
     fun addParameter(parameter: JcSpringHttpParameter): SpringRequestBuilder {
-        val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "param").method
+        val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "param")
         addMethodCall(method, parameter.getName(), parameter.getValues())
         return this
     }
 
     fun addHeader(header: JcSpringHttpHeader): SpringRequestBuilder {
-        val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "header").method
+        val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "header")
         addMethodCall(method, header.getName(), header.getValues())
         return this
     }
 
     fun addContent(content: UTAny): SpringRequestBuilder {
-        val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "content", listOf("java.lang.String")).method
+        val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "content", listOf("java.lang.String"))
         reqDSL = UTestMethodCall(
             instance = reqDSL,
             method = method,

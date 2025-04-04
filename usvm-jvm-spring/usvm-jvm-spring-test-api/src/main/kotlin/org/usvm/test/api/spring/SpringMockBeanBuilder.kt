@@ -22,29 +22,27 @@ import org.usvm.test.api.UTestStaticMethodCall
 
 class SpringMockBeanBuilder(
     private val cp: JcClasspath,
-    private val testClass: UTestExpression?,
-    private val reproducing: Boolean = true
+    private val testClass: UTestExpression
 ) {
     private val mockitoClass = cp.findClassOrNull("org.mockito.Mockito")
-        ?: VirtualMockito.mockito
+        ?: error("mockito class not found")
+
     private val whenMethod = mockitoClass.declaredMethods.find { it.name == "when" }
+        ?: error("mockito when method not found")
 
     private val ongoingStubbingClass = cp.findClassOrNull("org.mockito.stubbing.OngoingStubbing")
-        ?: VirtualMockito.ongoingStubbing
+        ?: error("mockito ongoingStubbing not found")
 
-    private val thenReturnMethod = ongoingStubbingClass.declaredMethods.find { it.name == "thenReturn" && it.parameters.size == 1 }
+    private val thenReturnMethod = ongoingStubbingClass.declaredMethods.find {
+        it.name == "thenReturn" && it.parameters.size == 1
+    } ?: error("mockito thenReturn method not found")
 
     private val argumentMatchersClass = cp.findClassOrNull("org.mockito.ArgumentMatchers")
-        ?: VirtualMockito.argumentMatcher
+        ?: error("mockito argumentMatchers class not found")
 
     private val initStatements: MutableList<UTestInst> = mutableListOf()
     private val mockitoCalls: MutableList<UTestExpression> = mutableListOf()
     private val mockBeanCache = HashMap<JcType, UTestExpression>()
-
-    init {
-        check(whenMethod != null)
-        check(thenReturnMethod != null)
-    }
 
     private fun resolveAnyMatcherName(param: JcParameter): String {
         val paramTypeName = param.type.typeName
@@ -68,7 +66,7 @@ class SpringMockBeanBuilder(
     private fun mockitoAnyMatcherFor(param: JcParameter): JcMethod {
         val mockitoAnyMethodName = resolveAnyMatcherName(param)
         val anyMethod = argumentMatchersClass.declaredMethods.find { m -> m.name == mockitoAnyMethodName }
-            ?: VirtualMockito.anyMatcherBy(mockitoAnyMethodName)
+            ?: error("mockitoAnyMethod $mockitoAnyMethodName not found")
         return anyMethod
     }
 
@@ -87,33 +85,21 @@ class SpringMockBeanBuilder(
         return setFieldStatement
     }
 
-    private fun findReproducingMockBean(type: JcType): UTestExpression {
-        check(testClass != null) { "allowed only for rendering" }
-
-        val mockBeanField = (testClass.type as JcClassType).fields.find { it.type == type }?.field
-        check(mockBeanField != null)
-
-        return UTestGetFieldExpression(
-            testClass,
-            mockBeanField
-        )
-    }
-
-    private fun findRenderingMockBean(type: JcType): UTestExpression {
-        check(testClass == null) { "no test class expected" }
-
-        return UTestAllocateMemoryCall((type as JcRefType).jcClass)
-    }
-
     private fun findMockBean(type: JcType): UTestExpression {
         val current = mockBeanCache[type]
         if (current != null)
             return current
 
-        val mockBean = when {
-            reproducing -> findReproducingMockBean(type)
-            else -> findRenderingMockBean(type)
-        }
+        val testClassType = (testClass.type as JcClassType).jcClass
+        val mockBeanField = testClassType.declaredFields.find { it.type == type }
+            ?: JcSpringTestClassesFeature.addMockBeanField(type)
+
+        check(testClassType.declaredFields.find { it.type == type } != null)
+
+        val mockBean = UTestGetFieldExpression(
+            testClass,
+            mockBeanField
+        )
         mockBeanCache[type] = mockBean
 
         return mockBean
@@ -131,14 +117,10 @@ class SpringMockBeanBuilder(
             mockedMethodCallArgs
         )
 
-        check(whenMethod != null) { "virtual method should be used, if mockito not in classpath" }
-
         val whenCall = UTestStaticMethodCall(
             whenMethod,
             listOf(mockedMethodCall)
         )
-
-        check(thenReturnMethod != null) { "virtual method should be used, if mockito not in classpath" }
 
         val mockitoCall = values.fold(whenCall) { call: UTestExpression, result ->
             UTestMethodCall(call, thenReturnMethod, listOf(result))

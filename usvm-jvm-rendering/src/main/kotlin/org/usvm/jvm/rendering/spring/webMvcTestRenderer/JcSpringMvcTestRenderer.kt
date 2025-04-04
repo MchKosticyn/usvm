@@ -2,6 +2,7 @@ package org.usvm.jvm.rendering.spring.webMvcTestRenderer
 
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
@@ -16,6 +17,7 @@ open class JcSpringMvcTestRenderer(
     cp: JcClasspath,
     name: SimpleName,
     testAnnotation: AnnotationExpr,
+    mvcTestClass: JcClassOrInterface
 ): JcSpringUnitTestRenderer(
     test,
     classRenderer,
@@ -31,6 +33,7 @@ open class JcSpringMvcTestRenderer(
         importManager,
         JcIdentifiersManager(identifiersManager),
         cp,
-        shouldDeclareVar
+        shouldDeclareVar,
+        mvcTestClass
     )
 }
