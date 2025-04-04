@@ -155,12 +155,14 @@ open class JcTestVisitor {
 
     open fun visit(expr: UTestMockObject) {
         for (fieldValue in expr.fields.values) {
-            visit(fieldValue)
+            if (fieldValue !== expr)
+                visit(fieldValue)
         }
 
         for (methodValues in expr.methods.values) {
             for (value in methodValues) {
-                visit(value)
+                if (value !== expr)
+                    visit(value)
             }
         }
     }
