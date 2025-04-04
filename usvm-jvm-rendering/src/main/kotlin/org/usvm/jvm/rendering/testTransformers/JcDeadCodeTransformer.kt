@@ -25,7 +25,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
             fetched.clear()
 
             for (expr in exprs) {
-                visit(expr)
+                visitExpr(expr)
             }
 
             return fetched
