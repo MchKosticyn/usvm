@@ -184,6 +184,7 @@ class JcSpringMethodApproximationResolver (
         val result = concretizer.withMode(mode) {
             concretizer.resolveExpr(value.getExpr(), value.getType())
         } ?: return null
+        if (result.toString().isEmpty()) return null
         val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
         val expr = memory.objectToExpr(arrayOf(result.toString()), stringArrayType)
         return JcPinnedValue(expr, stringArrayType)
@@ -586,13 +587,14 @@ class JcSpringMethodApproximationResolver (
         }.toList()
     }
 
-    private fun allControllerPaths(stateToFill: JcSpringState): List<List<Any>> {
+    private fun allControllerPaths(stateToFill: JcSpringState): ArrayList<ArrayList<Any>> {
         val handlerData = getHandlerData()
         stateToFill.handlerData = handlerData
 
         return handlerData
             .filterNot {shouldSkipPath(it.pathTemplate, it.handler.name, it.controller.name)}
-            .map { listOf(it.controller.name, it.handler.name, it.pathTemplate, it.uriVariablesCount, it.allowedMethods.first()) }
+            .map { arrayListOf<Any>(it.controller.name, it.handler.name, it.pathTemplate, it.uriVariablesCount, it.allowedMethods.first()) }
+            .let { ArrayList(it) }
     }
 
 
