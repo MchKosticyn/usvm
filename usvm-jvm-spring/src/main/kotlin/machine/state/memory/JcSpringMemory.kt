@@ -1,6 +1,7 @@
 package machine.state.memory
 
 import isArgumentResolverMethod
+import isHttpRequestMethod
 import isSpringFilterChainMethod
 import isSpringFilterMethod
 import machine.concreteMemory.JcConcreteMemory
@@ -26,7 +27,8 @@ class JcSpringMemory(
                 forbiddenInvocations.contains(method.humanReadableSignature) ||
                 method.isSpringFilterMethod ||
                 method.isSpringFilterChainMethod ||
-                method.isArgumentResolverMethod
+                method.isArgumentResolverMethod ||
+                method.isHttpRequestMethod
     }
 
     override fun shouldConcretizeMethod(method: JcMethod): Boolean {

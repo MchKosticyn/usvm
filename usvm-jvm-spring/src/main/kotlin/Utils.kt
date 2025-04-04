@@ -1,6 +1,7 @@
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.isSubClassOf
 
 internal val JcClassOrInterface.isSpringFilter: Boolean
@@ -43,6 +44,9 @@ internal val JcClassOrInterface.isSpringRepository: Boolean
             || classpath.findClassOrNull("org.springframework.data.repository.Repository")
                 ?.let { isSubClassOf(it) } ?: false
 
+internal val JcClassOrInterface.isSpringRequest: Boolean
+    get() = this.isSubClassOf(classpath.findClass("jakarta.servlet.http.HttpServletRequest"))
+
 internal val JcMethod.isSpringFilterMethod: Boolean
     get() = enclosingClass.isSpringFilter && (name == "doFilter" || name == "doFilterInternal")
 
@@ -51,6 +55,9 @@ internal val JcMethod.isSpringFilterChainMethod: Boolean
 
 internal val JcMethod.isArgumentResolverMethod: Boolean
     get() = enclosingClass.isArgumentResolver && (name == "resolveArgument" || name == "readWithMessageConverters" || name == "resolveName")
+
+internal val JcMethod.isHttpRequestMethod: Boolean
+    get() = enclosingClass.isSpringRequest
 
 internal val JcMethod.isDeserializationMethod: Boolean
     get() = name == "readWithMessageConverters"
