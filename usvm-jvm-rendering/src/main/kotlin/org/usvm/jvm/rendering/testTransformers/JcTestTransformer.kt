@@ -182,7 +182,9 @@ abstract class JcTestTransformer {
         val methods = mutableMapOf<JcMethod, List<UTestExpression>>()
         val mock = UTestGlobalMock(expr.type, fields, methods)
         cache[expr] = mock
+
         val (transformedFields, transformedMethods) = transformMockContents(expr)
+
         fields.putAll(transformedFields)
         methods.putAll(transformedMethods)
         return mock
@@ -193,7 +195,9 @@ abstract class JcTestTransformer {
         val methods = mutableMapOf<JcMethod, List<UTestExpression>>()
         val mock = UTestMockObject(expr.type, fields, methods)
         cache[expr] = mock
+
         val (transformedFields, transformedMethods) = transformMockContents(expr)
+
         fields.putAll(transformedFields)
         methods.putAll(transformedMethods)
         return mock
