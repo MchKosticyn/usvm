@@ -10,6 +10,7 @@ import org.usvm.api.util.JcTestStateResolver
 import org.usvm.test.api.UTestConstructorCall
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestNullExpression
+import org.usvm.test.api.UTestStringExpression
 import org.usvm.test.api.spring.JcSpringHttpCookie
 import org.usvm.test.api.spring.JcSpringHttpHeader
 import org.usvm.test.api.spring.JcSpringHttpParameter
@@ -32,8 +33,10 @@ class JcSpringPinnedValuesRequest(
             .map { UTString(it.groupValues[1], stringType) }
             .toList()
 
+        val placeholder = UTestStringExpression("0", stringType)
+
         return uriVariableNames.map {
-            uriVariables.getValue(it)
+            uriVariables[it] ?: placeholder
         }.also { assert(it.size == uriVariables.size) }
     }
 

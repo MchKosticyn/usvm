@@ -1,6 +1,7 @@
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.isSubClassOf
 
 internal val JcClassOrInterface.isSpringFilter: Boolean
@@ -43,6 +44,14 @@ internal val JcClassOrInterface.isSpringRepository: Boolean
             || classpath.findClassOrNull("org.springframework.data.repository.Repository")
                 ?.let { isSubClassOf(it) } ?: false
 
+internal val JcClassOrInterface.isSpringRequest: Boolean
+    get() = classpath.findClassOrNull("jakarta.servlet.http.HttpServletRequest")
+        ?.let { this.isSubClassOf(it) } ?: false
+
+internal val JcClassOrInterface.isServletWebRequest: Boolean
+    get() = classpath.findClassOrNull("org.springframework.web.context.request.ServletWebRequest")
+        ?.let { this.isSubClassOf(it) } ?: false
+
 internal val JcMethod.isSpringFilterMethod: Boolean
     get() = enclosingClass.isSpringFilter && (name == "doFilter" || name == "doFilterInternal")
 
@@ -50,7 +59,13 @@ internal val JcMethod.isSpringFilterChainMethod: Boolean
     get() = enclosingClass.isSpringFilterChain && (name == "doFilter" || name == "doFilterInternal")
 
 internal val JcMethod.isArgumentResolverMethod: Boolean
-    get() = enclosingClass.isArgumentResolver && (name == "resolveArgument" || name == "readWithMessageConverters" || name == "resolveName")
+    get() = enclosingClass.isArgumentResolver && (name == "resolveArgument" || name == "readWithMessageConverters" || name == "resolveName" || name == "handleNullValue")
+
+internal val JcMethod.isHttpRequestMethod: Boolean
+    get() = enclosingClass.isSpringRequest
+
+internal val JcMethod.isServletRequestMethod: Boolean
+    get() = enclosingClass.isServletWebRequest
 
 internal val JcMethod.isDeserializationMethod: Boolean
     get() = name == "readWithMessageConverters"
