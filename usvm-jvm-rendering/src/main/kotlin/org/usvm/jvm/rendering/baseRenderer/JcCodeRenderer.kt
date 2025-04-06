@@ -41,7 +41,8 @@ import org.usvm.jvm.rendering.baseRenderer.JcTypeVariableExt.isRecursive
 abstract class JcCodeRenderer<T: Node>(
     open val importManager: JcImportManager,
     internal val identifiersManager: JcIdentifiersManager,
-    protected val cp: JcClasspath
+    protected val cp: JcClasspath,
+    private val packagePrivateAsPublic: Boolean = true
 ) {
 
     private var rendered: T? = null
@@ -101,8 +102,12 @@ abstract class JcCodeRenderer<T: Node>(
         return classOrInterface
     }
 
+    fun shouldRenderClassAsPrivate(type: JcClassType): Boolean {
+        return !(type.isPublic || packagePrivateAsPublic && type.isPackagePrivate)
+    }
+
     fun renderClass(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
-        check(!(type.isPrivate || type.isProtected)) { "Rendering private classes is not supported" }
+        check(!shouldRenderClassAsPrivate(type)) { "Rendering private classes is not supported" }
         check(!type.jcClass.isAnonymous) { "Rendering anonymous classes is not supported" }
 
         return when {
