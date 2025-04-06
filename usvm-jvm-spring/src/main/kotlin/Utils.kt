@@ -45,11 +45,12 @@ internal val JcClassOrInterface.isSpringRepository: Boolean
                 ?.let { isSubClassOf(it) } ?: false
 
 internal val JcClassOrInterface.isSpringRequest: Boolean
-    get() = this.isSubClassOf(classpath.findClass("jakarta.servlet.http.HttpServletRequest"))
+    get() = classpath.findClassOrNull("jakarta.servlet.http.HttpServletRequest")
+        ?.let { this.isSubClassOf(it) } ?: false
 
 internal val JcClassOrInterface.isServletWebRequest: Boolean
-    get() = this.isSubClassOf(classpath.findClass("org.springframework.web.context.request.ServletWebRequest"))
-
+    get() = classpath.findClassOrNull("org.springframework.web.context.request.ServletWebRequest")
+        ?.let { this.isSubClassOf(it) } ?: false
 
 internal val JcMethod.isSpringFilterMethod: Boolean
     get() = enclosingClass.isSpringFilter && (name == "doFilter" || name == "doFilterInternal")
