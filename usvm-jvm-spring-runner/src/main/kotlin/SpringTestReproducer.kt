@@ -1,6 +1,5 @@
 ﻿import kotlinx.coroutines.runBlocking
 import machine.JcConcreteMachineOptions
-import machine.TestReproducer
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.instrumentation.executor.UTestConcreteExecutor
 import org.usvm.instrumentation.executor.UTestExecutionOptions
@@ -14,8 +13,7 @@ import kotlin.time.Duration
 class SpringTestReproducer(
     private val options: JcConcreteMachineOptions,
     private val cp: JcClasspath
-) : TestReproducer {
-    
+) {
     private fun createExecutor(): UTestConcreteExecutor {
         val reproducingLocations = System.getenv("usvm.jvm.springTestDeps.paths").split(";")
         val locations = (options.projectLocations + options.dependenciesLocations).map { it.path } + reproducingLocations
@@ -30,15 +28,15 @@ class SpringTestReproducer(
         runBlocking { executor.ensureRunnerAlive() }
         return executor
     }
-    
+
     private val executor = createExecutor()
-    
-    override fun reproduce(test: UTest): Boolean {
+
+    fun reproduce(test: UTest): Boolean {
         val result = executor.executeSync(test)
         return result is UTestExecutionSuccessResult
     }
 
-    override fun kill() {
+    fun kill() {
         executor.close()
     }
 }

@@ -2,17 +2,24 @@
 
 import machine.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.ext.findType
 import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 import org.usvm.api.util.JcTestStateResolver
-import org.usvm.jvm.util.toTypedMethod
-import org.usvm.machine.state.JcState
+import org.usvm.machine.JcContext
+import org.usvm.memory.UReadOnlyMemory
+import org.usvm.model.UModelBase
 
 abstract class JcConcreteStateResolver<T>(
-    state: JcState,
-) : JcTestStateResolver<T>(state.ctx, state.models.first(), state.memory, state.entrypoint.toTypedMethod) {
-    val concreteMemory = (state.memory as JcConcreteMemory)
+    ctx: JcContext,
+    model: UModelBase<JcType>,
+    finalStateMemory: UReadOnlyMemory<JcType>,
+    method: JcTypedMethod,
+) : JcTestStateResolver<T>(ctx, model, finalStateMemory, method) {
+
+    val concreteMemory = finalStateMemory as JcConcreteMemory
 
     override fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): T {
         if (type == ctx.stringType) {
