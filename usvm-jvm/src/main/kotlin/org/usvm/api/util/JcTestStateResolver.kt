@@ -80,7 +80,7 @@ import org.usvm.types.first
 
 abstract class JcTestStateResolver<T>(
     val ctx: JcContext,
-    private val model: UModelBase<JcType>,
+    protected val model: UModelBase<JcType>,
     private val finalStateMemory: UReadOnlyMemory<JcType>,
     val method: JcTypedMethod,
 ) {

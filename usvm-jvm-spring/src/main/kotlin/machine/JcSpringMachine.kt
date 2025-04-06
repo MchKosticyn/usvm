@@ -26,7 +26,7 @@ class JcSpringMachine(
     jcMachineOptions: JcMachineOptions = JcMachineOptions(),
     jcConcreteMachineOptions: JcConcreteMachineOptions,
     private val jcSpringMachineOptions: JcSpringMachineOptions,
-    private val testObserver: JcSpringTestObserver,
+    private val testObserver: JcSpringTestObserver?,
     interpreterObserver: JcInterpreterObserver? = null,
 ) : JcConcreteMachine(cp, options, jcMachineOptions, jcConcreteMachineOptions, interpreterObserver) {
 
@@ -53,6 +53,7 @@ class JcSpringMachine(
             .toSet()
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun createObservers(
         coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
         timeStatistics: TimeStatistics<JcMethod, JcState>,
@@ -71,8 +72,10 @@ class JcSpringMachine(
             methods,
             pathSelector
         )
-        
-        @Suppress("UNCHECKED_CAST")
-        return observers + (testObserver as UMachineObserver<JcState>)
+
+        if (testObserver != null)
+            return observers + (testObserver as UMachineObserver<JcState>)
+
+        return observers
     }
 }

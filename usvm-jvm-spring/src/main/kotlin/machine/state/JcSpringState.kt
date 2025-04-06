@@ -54,22 +54,6 @@ class JcSpringState(
     internal val springMemory: JcSpringMemory
         get() = this.memory as JcSpringMemory
 
-    companion object {
-        fun defaultFromJcState(state: JcState): JcSpringState = JcSpringState(
-            state.ctx,
-            state.ownership,
-            state.entrypoint,
-            state.callStack,
-            state.pathConstraints,
-            state.memory,
-            state.models,
-            state.pathNode,
-            state.forkPoints,
-            state.methodResult,
-            state.targets,
-        )
-    }
-
     fun getPinnedValue(key: JcPinnedKey): JcPinnedValue? {
         return pinnedValues.getValue(key)
     }
@@ -93,10 +77,10 @@ class JcSpringState(
     }
 
     fun createPinnedAndReplace(
-        key: JcPinnedKey, 
-        type: JcType, 
-        scope: JcStepScope, 
-        sort: USort, 
+        key: JcPinnedKey,
+        type: JcType,
+        scope: JcStepScope,
+        sort: USort,
         nullable: Boolean = true
     ): JcPinnedValue? {
         return pinnedValues.createAndPut(key, type, scope, sort, nullable)
@@ -104,10 +88,6 @@ class JcSpringState(
 
     fun getPinnedValueKey(expr: UExpr<out USort>): JcPinnedKey? {
         return pinnedValues.getKeyOfExpr(expr)
-    }
-
-    fun hasEnoughInfoForTest(): Boolean {
-        return pinnedValues.getValue(JcPinnedKey.requestPath()) != null
     }
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {

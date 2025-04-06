@@ -45,6 +45,7 @@ import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
 import machine.SpringAnalysisMode
 import org.usvm.CoverageZone
+import testGeneration.SpringTestInfo
 import utils.typeName
 import java.io.File
 import java.io.PrintStream
@@ -98,7 +99,7 @@ private fun loadSynthBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadSynthBench()
+        loadWebPetClinicBench()
     }
 
     logTime("Analysis ALL") {
@@ -287,9 +288,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         springAnalysisMode = SpringAnalysisMode.WebMVCTest
     )
 
-    val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp)
-    val testRenderer = SpringTestRenderer(cp)
-    val testObserver = JcSpringTestObserver(testReproducer, testRenderer)
+    val testObserver = JcSpringTestObserver()
 
     val machine = JcSpringMachine(
         cp,
@@ -300,8 +299,37 @@ private fun analyzeBench(benchmark: BenchCp) {
         testObserver
     )
 
-    // TODO: use states?
     machine.analyze(method.method)
+
+    reproduceTests(testObserver.generatedTests, jcConcreteMachineOptions, cp)
+}
+
+private fun reproduceTests(
+    tests: List<SpringTestInfo>,
+    jcConcreteMachineOptions: JcConcreteMachineOptions,
+    cp: JcClasspath
+) {
+    val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp)
+    val testRenderer = SpringTestRenderer(cp)
+    val reproducingResults = mutableMapOf<JcMethod, Pair<String, Boolean>>()
+
+    for (testInfo in tests) {
+        val rendered = testRenderer.render(testInfo.test, testInfo.method, testInfo.isExceptional)
+        val reproduced = testReproducer.reproduce(testInfo.test)
+        reproducingResults[testInfo.method] = rendered to reproduced
+    }
+
+    val notReproduced = reproducingResults.filter { (_, value) -> !value.second }
+    check(notReproduced.isEmpty()) {
+        var sb = StringBuilder()
+        sb = sb.appendLine("Not reproduced tests:")
+        for ((method, value) in notReproduced) {
+            sb = sb.appendLine("$method:")
+            sb = sb.appendLine(value.first)
+        }
+
+        sb.toString()
+    }
 }
 
 private fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =

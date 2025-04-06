@@ -10,6 +10,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.api.util.JcTestStateResolver
+import org.usvm.jvm.util.toTypedMethod
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestMockObject
 import org.usvm.test.api.spring.JcMockBean
@@ -24,45 +25,44 @@ fun JcSpringState.canGenerateTest(): Boolean {
             && pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
 }
 
-fun JcSpringState.getHandlerMethod(): JcMethod {
-    val exprResolver = createExprResolver(this)
+data class SpringTestInfo(
+    val method: JcMethod,
+    val isExceptional: Boolean,
+    val test: UTest,
+)
 
-    val path = pinnedValues.getValue(JcPinnedKey.requestPath())
-        ?.let { exprResolver.resolvePinnedValue(it) }
-        ?.let { (it as UTString).value }
-
-    val requestMethod = pinnedValues.getValue(JcPinnedKey.requestMethod())
-        ?.let { exprResolver.resolvePinnedValue(it) }
-        ?.let { (it as UTString).value }
-
-    val method = handlerData.find { it.pathTemplate == path && it.allowedMethods.contains(requestMethod) }?.handler
-    check(method != null) { "Could not infer handler method of path" }
-    return method
-}
-
-fun JcSpringState.generateTest(): UTest {
-    val exprResolver = createExprResolver(this)
+internal fun JcSpringState.generateTest(): SpringTestInfo {
+    val model = models.first()
+    val exprResolver = JcSpringTestExprResolver(ctx, model, memory, entrypoint.toTypedMethod)
     val request = getSpringRequest(this, exprResolver)
     val response = getSpringResponse(this, exprResolver)
     val mocks = getSpringMocks(pinnedValues, exprResolver)
     val testClass = getGeneratedTestClass(ctx.cp)
 
-    val test = JcSpringTestBuilder(request)
+    val jcSpringTest = JcSpringTestBuilder(request)
         .withResponse(response)
         .withMocks(mocks)
         .withGeneratedTestClass(testClass)
 
-    return test
-        .build(ctx.cp)
+    val uTest = jcSpringTest.build(ctx.cp)
         .generateTestDSL { exprResolver.getInstructions() }
+
+    val reqPath = pinnedValues.getValue(JcPinnedKey.requestPath())
+        ?: error("Request path is not found in pinned values")
+    val pathString = (exprResolver.resolvePinnedValue(reqPath) as UTString).value
+    val reqMethod = pinnedValues.getValue(JcPinnedKey.requestMethod())
+        ?: error("Request method is not found in pinned values")
+    val methodString = (exprResolver.resolvePinnedValue(reqMethod) as UTString).value
+    val method = handlerData.find {
+        it.pathTemplate == pathString && it.allowedMethods.contains(methodString)
+    }?.handler
+    check(method != null) { "Could not infer handler method of path" }
+
+    return SpringTestInfo(method, isExceptional, uTest)
 }
 
 private fun getSpringExn(): SpringException {
     TODO()
-}
-
-private fun createExprResolver(state: JcSpringState): JcSpringTestExprResolver {
-    return JcSpringTestExprResolver(state)
 }
 
 private fun getGeneratedTestClass(cp: JcClasspath): JcClassOrInterface {
