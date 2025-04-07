@@ -270,7 +270,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 10.minutes,
+        timeout = 3.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
@@ -309,7 +309,7 @@ private fun reproduceTests(
     jcConcreteMachineOptions: JcConcreteMachineOptions,
     cp: JcClasspath
 ) {
-    val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp)
+    val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp, 1)
     val testRenderer = SpringTestRenderer(cp)
     val reproducingResults = mutableMapOf<JcMethod, Pair<String, Boolean>>()
 
@@ -318,6 +318,8 @@ private fun reproduceTests(
         val reproduced = testReproducer.reproduce(testInfo.test)
         reproducingResults[testInfo.method] = rendered to reproduced
     }
+
+    testReproducer.kill()
 
     val notReproduced = reproducingResults.filter { (_, value) -> !value.second }
     check(notReproduced.isEmpty()) {

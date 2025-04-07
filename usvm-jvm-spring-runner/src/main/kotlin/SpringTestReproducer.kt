@@ -12,7 +12,8 @@ import kotlin.time.Duration
 
 class SpringTestReproducer(
     private val options: JcConcreteMachineOptions,
-    private val cp: JcClasspath
+    private val cp: JcClasspath,
+    private val memoryLimit: Int = 1
 ) {
     private fun createExecutor(): UTestConcreteExecutor {
         val reproducingLocations = System.getenv("usvm.jvm.springTestDeps.paths").split(";")
@@ -23,7 +24,8 @@ class SpringTestReproducer(
             testingProjectClasspath = locations.joinToString(File.pathSeparator),
             jcClasspath = cp,
             timeout = Duration.INFINITE,
-            opts = opts
+            opts = opts,
+            memoryLimit = memoryLimit
         )
         runBlocking { executor.ensureRunnerAlive() }
         return executor
