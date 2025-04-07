@@ -130,7 +130,7 @@ class JcSpringMethodApproximationResolver (
         return false
     }
 
-    private fun getTypeFromParameter(parameter: UHeapRef) : JcType? = scope.calcOnState {
+    private fun getParameterTypeAndName(parameter: UHeapRef) : Pair<JcType, String>? = scope.calcOnState {
         // TODO: rework (ask Artur)
         this as JcSpringState
         val annotatedMethodParameterType = memory.types.typeOf((parameter as UConcreteHeapRef).address) as JcClassType
@@ -141,13 +141,16 @@ class JcSpringMethodApproximationResolver (
         val typeNameRef = memory.readField(parameterTypeRef, typeNameField.field, ctx.addressSort) as UConcreteHeapRef
         val typeName = springMemory.tryHeapRefToObject(typeNameRef) as String
         val type = ctx.cp.findTypeOrNull(typeName)
+        val parameterNameField = annotatedMethodParameterType.allInstanceFields.single {it.name == "parameterName"}
+        val parameterNameRef = memory.readField(parameter, parameterNameField.field, ctx.addressSort) as UConcreteHeapRef
+        val name = springMemory.tryHeapRefToObject(parameterNameRef) as String?
 
-        if (type == null) {
-            println("Non-concrete type is not supported for controller parameter")
+        if (type == null || name == null) {
+            println("Non-concrete type or name is not supported for controller parameter")
             return@calcOnState null
         }
 
-        return@calcOnState type
+        return@calcOnState type to name
     }
 
     private fun accessPinnedValue(
@@ -256,13 +259,39 @@ class JcSpringMethodApproximationResolver (
             val source = methodCall.arguments[4]
             return scope.calcOnState {
                 this as JcSpringState
-                val type = getTypeFromParameter(parameter)?.autoboxIfNeeded()!!
+                val type = getParameterTypeAndName(parameter)?.first?.autoboxIfNeeded()!!
                 val key = getPinnedValueKey(source)!!
                 val newSymbolicValue = createPinnedAndReplace(key, type, scope, ctx.addressSort, false)
                     ?: return@calcOnState false
                 skipMethodInvocationWithValue(methodCall, newSymbolicValue.getExpr())
 
                 return@calcOnState true
+            }
+        }
+
+        if (method.name == "resolveArgument") {
+            // Fixes cases when arg. resolver is called twice i.e. ModelAttribute and Controller sharing same path variable
+            val parameter = methodCall.arguments[0] as UConcreteHeapRef
+            return scope.calcOnState {
+                this as JcSpringState
+                val name = getParameterTypeAndName(parameter)?.second!!
+                val source = when (method.enclosingClass.simpleName) {
+                    "PathVariableMethodArgumentResolver" -> JcSpringPinnedValueSource.REQUEST_PATH
+                    "RequestHeaderMethodArgumentResolver" -> JcSpringPinnedValueSource.REQUEST_HEADER
+                    "MatrixVariableMethodArgumentResolver" -> JcSpringPinnedValueSource.REQUEST_MATRIX
+                    "RequestParamMethodArgumentResolver" -> JcSpringPinnedValueSource.REQUEST_PARAM
+                    else -> println("Warning! unsupported resolver: ${method.enclosingClass.simpleName}")
+                        .let { return@calcOnState false }
+                }
+                val key = JcPinnedKey.ofName(source, name)
+                val existingValue = getPinnedValue(key)
+
+                if (existingValue != null) {
+                    skipMethodInvocationWithValue(methodCall, existingValue.getExpr())
+                    return@calcOnState true
+                }
+
+                return@calcOnState false
             }
         }
 
@@ -523,7 +552,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldSkipPath(path: String, kind: String, controllerTypeName: String): Boolean {
-        return false
+        return "/vets.html" != path
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
