@@ -53,6 +53,8 @@ import org.usvm.collection.map.length.UMapLengthLValue
 import org.usvm.collection.map.ref.URefMapEntryLValue
 import org.usvm.collection.set.ref.URefSetEntries
 import org.usvm.collection.set.ref.refSetEntries
+import org.usvm.isAllocated
+import org.usvm.isStatic
 import org.usvm.isStaticHeapRef
 import org.usvm.isTrue
 import org.usvm.logger
@@ -87,20 +89,30 @@ abstract class JcTestStateResolver<T>(
     abstract val decoderApi: DecoderApi<T>
 
     private var resolveMode: ResolveMode = ResolveMode.ERROR
+    private var currentResolveMode = ResolveMode.ERROR
 
     fun <R> withMode(resolveMode: ResolveMode, body: JcTestStateResolver<T>.() -> R): R {
         val prevValue = this.resolveMode
         try {
             this.resolveMode = resolveMode
+            this.currentResolveMode = resolveMode
             return this.body()
         } finally {
             this.resolveMode = prevValue
+            this.currentResolveMode = prevValue
         }
     }
 
     private fun <R> withCorrectMemory(heapRef: UHeapRef, body: JcTestStateResolver<T>.() -> R): R {
-        val mode = if (heapRef is UConcreteHeapRef) ResolveMode.CURRENT else resolveMode
-        return withMode(mode) { body() }
+        val mode = if (heapRef is UConcreteHeapRef) {
+            val address = heapRef.address
+            check(address.isAllocated || address.isStatic)
+            ResolveMode.CURRENT
+        } else {
+            resolveMode
+        }
+        this.currentResolveMode = mode
+        return this.body()
     }
 
     enum class ResolveMode {
@@ -108,7 +120,7 @@ abstract class JcTestStateResolver<T>(
     }
 
     val memory: UReadOnlyMemory<JcType>
-        get() = when (resolveMode) {
+        get() = when (currentResolveMode) {
             ResolveMode.MODEL -> model
             ResolveMode.CURRENT -> finalStateMemory
             ResolveMode.ERROR -> error("You must explicitly specify type of the required memory")
@@ -386,7 +398,7 @@ abstract class JcTestStateResolver<T>(
 
     fun decodeObject(
         ref: UConcreteHeapRef, type: JcClassType, objectDecoder: ObjectDecoder
-    ): T = withCorrectMemory(ref) {
+    ): T {
         val refDecoder = TestObjectData(ref)
 
         val decodedObject = objectDecoder.createInstance(type.jcClass, refDecoder, decoderApi)
@@ -394,7 +406,7 @@ abstract class JcTestStateResolver<T>(
         saveResolvedRef(ref.address, decodedObject)
 
         objectDecoder.initializeInstance(type.jcClass, refDecoder, decodedObject, decoderApi)
-        return@withCorrectMemory decodedObject
+        return decodedObject
     }
 
     fun resolveSymbolicList(heapRef: UHeapRef): SymbolicList<T>? = withCorrectMemory(heapRef) {
