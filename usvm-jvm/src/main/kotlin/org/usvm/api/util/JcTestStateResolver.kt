@@ -53,6 +53,8 @@ import org.usvm.collection.map.length.UMapLengthLValue
 import org.usvm.collection.map.ref.URefMapEntryLValue
 import org.usvm.collection.set.ref.URefSetEntries
 import org.usvm.collection.set.ref.refSetEntries
+import org.usvm.isAllocated
+import org.usvm.isStatic
 import org.usvm.isStaticHeapRef
 import org.usvm.isTrue
 import org.usvm.logger
@@ -93,14 +95,22 @@ abstract class JcTestStateResolver<T>(
         val prevValue = this.resolveMode
         try {
             this.resolveMode = resolveMode
+            this.currentResolveMode = resolveMode
             return this.body()
         } finally {
             this.resolveMode = prevValue
+            this.currentResolveMode = prevValue
         }
     }
 
     private fun <R> withCorrectMemory(heapRef: UHeapRef, body: JcTestStateResolver<T>.() -> R): R {
-        val mode = if (heapRef is UConcreteHeapRef) ResolveMode.CURRENT else resolveMode
+        val mode = if (heapRef is UConcreteHeapRef) {
+            val address = heapRef.address
+            check(address.isAllocated || address.isStatic)
+            ResolveMode.CURRENT
+        } else {
+            resolveMode
+        }
         this.currentResolveMode = mode
         return this.body()
     }
