@@ -552,7 +552,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldSkipPath(path: String, kind: String, controllerTypeName: String): Boolean {
-        return "/vets.html" != path
+        return false
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
