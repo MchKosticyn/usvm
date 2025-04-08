@@ -501,7 +501,8 @@ open class JcConcreteMemory(
     private data class TryConcreteInvokeFail(val symbolicArguments: Boolean) : TryConcreteInvokeResult
 
     protected open fun shouldConcretizeMethod(method: JcMethod): Boolean {
-        return false
+        // TODO: for tests only (remove after testing) #CM
+        return method.humanReadableSignature == "org.usvm.samples.Encoding#concretize():void"
     }
 
     private fun tryConcreteInvokeInternal(
