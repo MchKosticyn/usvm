@@ -15,8 +15,8 @@ class JcSpringImportManager(
 
     val springUtilsName: SimpleName by lazy {
         springUtilsImported = true
-        if (add(ReflectionUtilName.USVM))
-            SimpleName(ReflectionUtilName.USVM_SIMPLE)
-        else SimpleName(ReflectionUtilName.USVM)
+        if (add(ReflectionUtilName.SPRING))
+            SimpleName(ReflectionUtilName.SPRING_SIMPLE)
+        else SimpleName(ReflectionUtilName.SPRING)
     }
 }
