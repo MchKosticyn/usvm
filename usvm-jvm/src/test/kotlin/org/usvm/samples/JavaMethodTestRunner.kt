@@ -1,6 +1,7 @@
 package org.usvm.samples
 
 import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClasspath
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 import org.usvm.CoverageZone
@@ -15,6 +16,7 @@ import org.usvm.api.util.JcTestInterpreter
 import org.usvm.api.util.JcTestResolver
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
+import org.usvm.machine.JcMachineOptions
 import org.usvm.test.util.TestRunner
 import org.usvm.test.util.checkers.AnalysisResultsNumberMatcher
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
@@ -811,10 +813,18 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
     )
 
+    open fun createMachine(
+        cp: JcClasspath,
+        options: UMachineOptions,
+        interpreterObserver: JcInterpreterObserver?
+    ): JcMachine {
+        return JcMachine(cp, options, interpreterObserver = interpreterObserver)
+    }
+
     override val runner: (KFunction<*>, UMachineOptions) -> List<JcTest> = { method, options ->
         val jcMethod = cp.getJcMethodByName(method)
 
-        JcMachine(cp, options, interpreterObserver = interpreterObserver).use { machine ->
+        createMachine(cp, options, interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
             states.map { testResolver.resolve(jcMethod, it) }
         }
