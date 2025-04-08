@@ -500,14 +500,10 @@ open class JcConcreteMemory(
 
     private data class TryConcreteInvokeFail(val symbolicArguments: Boolean) : TryConcreteInvokeResult
 
-    private fun RegisteredLocation.isProjectLocation(projectLocations: List<JcByteCodeLocation>): Boolean {
-        return projectLocations.any { it == jcLocation }
-    }
-
     protected open fun shouldConcretizeMethod(method: JcMethod): Boolean {
         return false
     }
-    
+
     private fun tryConcreteInvokeInternal(
         stmt: JcMethodCall,
         state: JcState,
@@ -538,11 +534,8 @@ open class JcConcreteMemory(
             return TryConcreteInvokeSuccess()
         }
 
-        val methodLocation = method.declaration.location
-        val projectLocations = jcConcreteMachineOptions.projectLocations
         // TODO: change on checking coverage zone #CM
-        val isProjectLocation = methodLocation.isProjectLocation(projectLocations)
-        if (isProjectLocation)
+        if (jcConcreteMachineOptions.isProjectLocation(method))
             return TryConcreteInvokeFail(false)
 
         val parameterInfos = method.parameters

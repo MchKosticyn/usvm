@@ -135,7 +135,7 @@ internal class JcConcretizer(
             val lvalue = UFieldLValue(ctx.typeToSort(fieldType), heapRef, field.field)
             val fieldValue = resolveLValue(lvalue, fieldType)
 
-            if (field.enclosingType.jcClass.name == "java.lang.ThreadLocal" && field.name == "storage") {
+            if (field.enclosingType.jcClass.isThreadLocal && field.name == "storage") {
                 concreteMemory.executor.setThreadLocalValue(instance, fieldValue)
                 continue
             }

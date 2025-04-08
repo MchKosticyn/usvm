@@ -104,14 +104,12 @@ abstract class JcTestStateResolver<T>(
     }
 
     private fun <R> withCorrectMemory(heapRef: UHeapRef, body: JcTestStateResolver<T>.() -> R): R {
-        val mode = if (heapRef is UConcreteHeapRef) {
-            val address = heapRef.address
-            check(address.isAllocated || address.isStatic)
-            ResolveMode.CURRENT
-        } else {
-            resolveMode
-        }
-        this.currentResolveMode = mode
+        this.currentResolveMode =
+            if (heapRef is UConcreteHeapRef && heapRef.address.let { it.isAllocated || it.isStatic }) {
+                ResolveMode.CURRENT
+            } else {
+                resolveMode
+            }
         return this.body()
     }
 

@@ -56,6 +56,7 @@ import org.usvm.util.onNone
 import org.usvm.util.onSome
 import utils.declaredInstanceFields
 import utils.isInstanceApproximation
+import utils.isThreadLocal
 import utils.toJcType
 import java.lang.reflect.InvocationTargetException
 
@@ -455,7 +456,7 @@ internal class Marshall internal constructor(
         }
         encoder ?: error("Failed to find encoder for type ${type.name}")
         val encodeMethod = encoder.javaClass.declaredMethods.find { it.name == "encode" }!!
-        val encoderArg = if (jcClass?.name == "java.lang.ThreadLocal") {
+        val encoderArg = if (jcClass?.isThreadLocal == true) {
             if (threadLocalHelper.checkIsPresent(obj)) threadLocalHelper.getThreadLocalValue(obj)
             else null
         } else {

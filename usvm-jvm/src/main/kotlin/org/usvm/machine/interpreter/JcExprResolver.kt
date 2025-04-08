@@ -1156,12 +1156,7 @@ class JcSimpleValueResolver(
         error("Simple expr resolver must resolve only inheritors of ${JcImmediate::class}.")
 
     fun resolveLocal(local: JcImmediate): URegisterStackLValue<*> {
-        val method = requireNotNull(scope.calcOnState {
-            if (callStack.isEmpty()) {
-                println()
-            }
-            lastEnteredMethod
-        })
+        val method = requireNotNull(scope.calcOnState { lastEnteredMethod })
         val localIdx = localToIdx(method, local)
         val sort = ctx.typeToSort(local.type)
         return URegisterStackLValue(sort, localIdx)
