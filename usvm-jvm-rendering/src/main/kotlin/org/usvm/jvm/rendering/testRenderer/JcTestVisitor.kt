@@ -188,7 +188,7 @@ open class JcTestVisitor {
     //region Calls
 
     protected fun visitCall(call: UTestCall) {
-        if (cache.add(call))
+        if (!cache.add(call))
             return
 
         visit(call)
