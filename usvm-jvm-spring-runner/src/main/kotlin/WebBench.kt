@@ -188,13 +188,13 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     check(dir.exists()) { "Generated directory ${dir.absolutePath} does not exist" }
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
-    val importAnnotation = cp.findClass("org.springframework.context.annotation.Import")
+//    val importAnnotation = cp.findClass("org.springframework.context.annotation.Import")
     val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
     val nonAbstractClasses = cp.nonAbstractClasses(benchmark.classLocations)
-    val securityConfigs = allByAnnotation(
-        nonAbstractClasses,
-        "org.springframework.security.config.annotation.web.configuration.EnableWebSecurity"
-    )
+//    val securityConfigs = allByAnnotation(
+//        nonAbstractClasses,
+//        "org.springframework.security.config.annotation.web.configuration.EnableWebSecurity"
+//    )
     val repositories = runBlocking { cp.hierarchyExt() }
         .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
         .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
@@ -221,9 +221,9 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             classNode.fields.add(field)
         }
 
-        val importAnnotationNode = AnnotationNode(importAnnotation.jvmDescriptor)
-        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) }.toList())
-        classNode.visibleAnnotations.add(importAnnotationNode)
+//        val importAnnotationNode = AnnotationNode(importAnnotation.jvmDescriptor)
+//        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) }.toList())
+//        classNode.visibleAnnotations.add(importAnnotationNode)
         classNode.write(cp, dir.resolve("$testClassFullName.class").toPath(), checkClass = true)
     }
 
@@ -231,14 +231,13 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     startSpringClass.withAsmNode { startSpringAsmNode ->
         val startSpringMethod = startSpringClass.declaredMethods.find { it.name == "startSpring" }!!
         startSpringMethod.withAsmNode { startSpringMethodAsmNode ->
-            val rawInstList = startSpringMethod.rawInstList.toMutableList()
+            val rawInstList = startSpringMethod.rawInstList.instructions.toMutableList()
             val assign = rawInstList[3] as JcRawAssignInst
             val classConstant = assign.rhv as JcRawClassConstant
             val newClassConstant = JcRawClassConstant(testClassFullName.typeName, classConstant.typeName)
             val newAssign = JcRawAssignInst(assign.owner, assign.lhv, newClassConstant)
-            rawInstList.remove(rawInstList[3])
-            rawInstList.insertAfter(rawInstList[2], newAssign)
-            val newNode = MethodNodeBuilder(startSpringMethod, rawInstList).build()
+            rawInstList[3] = newAssign
+            val newNode = MethodNodeBuilder(startSpringMethod, JcInstListImpl(rawInstList)).build()
             val asmMethods = startSpringAsmNode.methods
             val asmMethod = asmMethods.find { startSpringMethodAsmNode.isSameSignature(it) }
             check(asmMethods.replace(asmMethod, newNode))
