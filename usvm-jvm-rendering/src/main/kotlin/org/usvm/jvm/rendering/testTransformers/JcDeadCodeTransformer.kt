@@ -169,11 +169,11 @@ class JcDeadCodeTransformer: JcTestTransformer() {
     }
 
     private fun transformArraySet(stmt: UTestArraySetStatement): List<UTestInst?> {
-        return keepStatementOrFetchRoots(stmt, stmt.arrayInstance, listOf(stmt.index, stmt.setValueExpression))
+        return keepStatementOrFetchRoots(stmt, stmt.arrayInstance, listOf(stmt.arrayInstance, stmt.index, stmt.setValueExpression))
     }
 
     private fun transformFieldSet(stmt: UTestSetFieldStatement): List<UTestInst?> {
-        return keepStatementOrFetchRoots(stmt, stmt.instance, listOf(stmt.value))
+        return keepStatementOrFetchRoots(stmt, stmt.instance, listOf(stmt.instance, stmt.value))
     }
 
     private fun keepStatementOrFetchRoots(stmt: UTestStatement, instance: UTestExpression, targets: List<UTestExpression>): List<UTestInst?> {
