@@ -11,6 +11,7 @@ import org.usvm.test.api.UTestGlobalMock
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMockObject
 import org.usvm.test.api.UTestSetFieldStatement
+import org.usvm.test.api.UTestSetStaticFieldStatement
 import org.usvm.test.api.UTestStatement
 
 class JcDeadCodeTransformer: JcTestTransformer() {
@@ -68,6 +69,30 @@ class JcDeadCodeTransformer: JcTestTransformer() {
             } while (clone.size != reachable.size)
         }
 
+        override fun visit(stmt: UTestSetStaticFieldStatement) {
+            if (stmt.value in roots) return
+
+            roots.add(stmt.value)
+            reachable.add(stmt.value)
+            withReachable { super.visit(stmt) }
+        }
+
+        override fun visit(stmt: UTestSetFieldStatement) {
+            if (stmt.instance in reachable || stmt.value in reachable) {
+                withReachable { super.visit(stmt) }
+                return
+            }
+            super.visit(stmt)
+        }
+
+        override fun visit(stmt: UTestArraySetStatement) {
+            if (stmt.arrayInstance in reachable || stmt.setValueExpression in reachable) {
+                withReachable { super.visit(stmt) }
+                return
+            }
+            super.visit(stmt)
+        }
+
         override fun visit(expr: UTestExpression) {
             if (expr in reachable) return
 
@@ -85,7 +110,6 @@ class JcDeadCodeTransformer: JcTestTransformer() {
             roots.add(call)
             reachable.add(call)
             withReachable { super.visit(call) }
-
         }
 
         override fun visit(expr: UTestMockObject) {
@@ -119,11 +143,11 @@ class JcDeadCodeTransformer: JcTestTransformer() {
 
         rootFetcher = ReachabilityCollector(test, roots, reachable).prepareRootFetcher()
 
-        val callMethodExpression = transformCall(test.callMethodExpression) ?: error("call must be present in UTest")
-
         val filteredInitInstList = test.initStatements.flatMap {
             transformInstProxy(it)
         }.filterNotNull()
+
+        val callMethodExpression = transformCall(test.callMethodExpression) ?: error("call must be present in UTest")
 
         return UTest(filteredInitInstList, callMethodExpression)
     }
@@ -145,15 +169,15 @@ class JcDeadCodeTransformer: JcTestTransformer() {
     }
 
     private fun transformArraySet(stmt: UTestArraySetStatement): List<UTestInst?> {
-        return keepStatementOrFetchRoots(stmt, stmt.arrayInstance, listOf(stmt.index, stmt.setValueExpression))
+        return keepStatementOrFetchRoots(stmt, stmt.arrayInstance, listOf(stmt.arrayInstance, stmt.index, stmt.setValueExpression))
     }
 
     private fun transformFieldSet(stmt: UTestSetFieldStatement): List<UTestInst?> {
-        return keepStatementOrFetchRoots(stmt, stmt.instance, listOf(stmt.value))
+        return keepStatementOrFetchRoots(stmt, stmt.instance, listOf(stmt.instance, stmt.value))
     }
 
     private fun keepStatementOrFetchRoots(stmt: UTestStatement, instance: UTestExpression, targets: List<UTestExpression>): List<UTestInst?> {
-        if (instance in reachable) return listOf(super.transform(stmt))
-        return rootFetcher.fetchFrom(targets).map { super.transform(it) }
+        if (instance in reachable) return listOf(stmt)
+        return rootFetcher.fetchFrom(targets).toList()
     }
 }
