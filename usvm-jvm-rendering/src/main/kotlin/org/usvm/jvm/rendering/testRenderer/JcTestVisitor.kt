@@ -41,11 +41,13 @@ open class JcTestVisitor {
 
     private val cache: MutableSet<UTestInst> = Collections.newSetFromMap<UTestInst>(IdentityHashMap())
 
+    protected fun isVisited(inst: UTestInst) = cache.contains(inst)
+
     fun visit(test: UTest) {
         for (inst in test.initStatements)
             visit(inst)
 
-        visitCall(test.callMethodExpression)
+        visit(test.callMethodExpression as UTestInst)
     }
 
     open fun visit(inst: UTestInst) {
