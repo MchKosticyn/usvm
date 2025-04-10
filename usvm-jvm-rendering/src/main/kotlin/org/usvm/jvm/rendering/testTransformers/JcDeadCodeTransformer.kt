@@ -78,7 +78,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
         }
 
         override fun visit(stmt: UTestSetFieldStatement) {
-            if (stmt.instance in reachable) {
+            if (stmt.instance in reachable || stmt.value in reachable) {
                 withReachable { super.visit(stmt) }
                 return
             }
@@ -86,7 +86,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
         }
 
         override fun visit(stmt: UTestArraySetStatement) {
-            if (stmt.arrayInstance in reachable) {
+            if (stmt.arrayInstance in reachable || stmt.setValueExpression in reachable) {
                 withReachable { super.visit(stmt) }
                 return
             }
