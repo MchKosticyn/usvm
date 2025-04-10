@@ -39,7 +39,7 @@ import org.usvm.test.api.UTestStringExpression
 
 open class JcTestVisitor {
 
-    private val cache: MutableSet<UTestInst> = Collections.newSetFromMap<UTestInst>(IdentityHashMap())
+    protected val cache: MutableSet<UTestInst> = Collections.newSetFromMap<UTestInst>(IdentityHashMap())
 
     fun visit(test: UTest) {
         for (inst in test.initStatements)

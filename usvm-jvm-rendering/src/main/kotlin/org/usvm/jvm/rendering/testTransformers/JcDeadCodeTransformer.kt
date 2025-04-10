@@ -17,7 +17,9 @@ import org.usvm.test.api.UTestStatement
 class JcDeadCodeTransformer: JcTestTransformer() {
     private val roots: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
     private val reachable: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
-    private lateinit var rootFetcher: ReachabilityRootFetcher
+
+    private val rootFetcher get() = ReachabilityRootFetcher(roots)
+
     private class ReachabilityRootFetcher(val roots: MutableSet<UTestExpression>): JcTestVisitor() {
         val fetched: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
 
@@ -26,6 +28,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
             fetched.clear()
 
             for (expr in exprs) {
+                cache.clear()
                 visitExpr(expr)
             }
 
@@ -48,10 +51,9 @@ class JcDeadCodeTransformer: JcTestTransformer() {
     ) : JcTestVisitor() {
         private var marker = false
 
-        fun prepareRootFetcher(): ReachabilityRootFetcher {
+        fun prepareRootFetcher(){
             super.visit(test)
             propagateWhilePossible(test)
-            return ReachabilityRootFetcher(roots)
         }
 
         private fun propagateWhilePossible(test: UTest) {
@@ -59,6 +61,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
 
             do {
                 clone.clear()
+                cache.clear()
                 clone.addAll(reachable)
                 check(clone.size == reachable.size)
                 (test.initStatements + test.callMethodExpression).forEach { inst ->
@@ -141,7 +144,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
 
     override fun transform(test: UTest): UTest {
 
-        rootFetcher = ReachabilityCollector(test, roots, reachable).prepareRootFetcher()
+        ReachabilityCollector(test, roots, reachable).prepareRootFetcher()
 
         val filteredInitInstList = test.initStatements.flatMap {
             transformInstProxy(it)

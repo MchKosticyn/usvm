@@ -14,6 +14,7 @@ import org.usvm.test.api.UTestConstExpression
 import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClasspath
+import org.usvm.test.api.UTestInst
 
 open class JcTestRenderer(
     private val test: UTest,
@@ -53,14 +54,15 @@ open class JcTestRenderer(
 
     inner class JcExprUsageVisitor: JcTestVisitor() {
 
-        private val exprCache: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
+        private fun shouldDeclareVarCheck(expr: UTestExpression): Boolean {
+            return !preventVarDeclarationOf(expr) && cache.contains(expr) || requireVarDeclarationOf(expr)
+        }
 
-        override fun visit(expr: UTestExpression) {
-            if (!preventVarDeclarationOf(expr) && !exprCache.add(expr) || requireVarDeclarationOf(expr))
-                // Multiple usage of expression
-                shouldDeclareVar.add(expr)
+        override fun visit(inst: UTestInst) {
+            if (inst is UTestExpression && shouldDeclareVarCheck(inst))
+                shouldDeclareVar.add(inst)
 
-            super.visit(expr)
+            super.visit(inst)
         }
     }
 
