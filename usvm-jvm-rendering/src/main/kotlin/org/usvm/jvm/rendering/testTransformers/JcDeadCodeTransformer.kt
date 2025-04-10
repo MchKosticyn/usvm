@@ -25,10 +25,8 @@ class JcDeadCodeTransformer: JcTestTransformer() {
 
         fun fetchFrom(expr: UTestExpression): MutableSet<UTestExpression> = fetchFrom(listOf(expr))
         fun fetchFrom(exprs: List<UTestExpression>): MutableSet<UTestExpression> {
-            fetched.clear()
 
             for (expr in exprs) {
-                cache.clear()
                 visitExpr(expr)
             }
 
@@ -45,31 +43,14 @@ class JcDeadCodeTransformer: JcTestTransformer() {
     }
 
     private class ReachabilityCollector(
-        val test: UTest,
         val roots: MutableSet<UTestExpression>,
         val reachable: MutableSet<UTestExpression>
     ) : JcTestVisitor() {
         private var marker = false
 
-        fun prepareRootFetcher(){
-            super.visit(test)
-            propagateWhilePossible(test)
-        }
-
-        private fun propagateWhilePossible(test: UTest) {
-            val clone: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
-
-            do {
-                clone.clear()
-                cache.clear()
-                clone.addAll(reachable)
-                check(clone.size == reachable.size)
-                (test.initStatements + test.callMethodExpression).forEach { inst ->
-                    marker = false
-                    visit(inst)
-                }
-
-            } while (clone.size != reachable.size)
+        override fun visit(inst: UTestInst) {
+            marker = false
+            super.visit(inst)
         }
 
         override fun visit(stmt: UTestSetStaticFieldStatement) {
@@ -143,8 +124,10 @@ class JcDeadCodeTransformer: JcTestTransformer() {
     }
 
     override fun transform(test: UTest): UTest {
+        roots.clear()
+        reachable.clear()
 
-        ReachabilityCollector(test, roots, reachable).prepareRootFetcher()
+        propagateReachabilityIn(test)
 
         val filteredInitInstList = test.initStatements.flatMap {
             transformInstProxy(it)
@@ -153,6 +136,17 @@ class JcDeadCodeTransformer: JcTestTransformer() {
         val callMethodExpression = transformCall(test.callMethodExpression) ?: error("call must be present in UTest")
 
         return UTest(filteredInitInstList, callMethodExpression)
+    }
+
+    private fun propagateReachabilityIn(test: UTest) {
+        val clone: MutableSet<UTestExpression> = Collections.newSetFromMap(IdentityHashMap())
+
+        do {
+            clone.clear()
+            clone.addAll(reachable)
+            check(clone.size == reachable.size)
+            ReachabilityCollector(roots, reachable).visit(test)
+        } while (clone.size != reachable.size)
     }
 
     private fun transformExprs(expr: UTestExpression): List<UTestInst?>{

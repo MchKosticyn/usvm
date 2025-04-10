@@ -55,7 +55,7 @@ open class JcTestRenderer(
     inner class JcExprUsageVisitor: JcTestVisitor() {
 
         private fun shouldDeclareVarCheck(expr: UTestExpression): Boolean {
-            return !preventVarDeclarationOf(expr) && cache.contains(expr) || requireVarDeclarationOf(expr)
+            return !preventVarDeclarationOf(expr) && isVisited(expr) || requireVarDeclarationOf(expr)
         }
 
         override fun visit(inst: UTestInst) {
