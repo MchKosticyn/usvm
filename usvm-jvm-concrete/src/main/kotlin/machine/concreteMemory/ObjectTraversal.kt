@@ -88,10 +88,10 @@ internal abstract class ObjectTraversal(
                 field.getFieldValue(obj)
             } catch (e: Throwable) {
                 if (skipExceptions) {
-                    println("[WARNING] ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
+                    println("[WARNING] ObjectTraversal.traverse: ${type.typeName} failed on field ${field.name}, cause: ${e.message}")
                     continue
                 }
-                error("ObjectTraversal.traverse: ${type.name} failed on field ${field.name}, cause: ${e.message}")
+                error("ObjectTraversal.traverse: ${type.typeName} failed on field ${field.name}, cause: ${e.message}")
             }
             if (value != null)
                 traverseQueue.enqueue(value)

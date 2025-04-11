@@ -64,7 +64,7 @@ private class JcConcreteSnapshot(
     private fun cloneObject(obj: Any): Any? {
         val type = obj.javaClass
         try {
-            val jcType = type.toJcType(ctx) ?: return null
+            val jcType = type.toJcType(ctx.cp) ?: return null
             return when {
                 jcType is JcUnknownType -> null
                 type.isImmutable -> null
@@ -96,7 +96,7 @@ private class JcConcreteSnapshot(
                 else -> null
             }
         } catch (e: Throwable) {
-            println("[WARNING] cloneObject failed on class ${type.name}")
+            println("[WARNING] cloneObject failed on class ${type.typeName}")
             return null
         }
     }
@@ -290,7 +290,7 @@ private class JcConcreteSnapshotSequence(
                             val value = field.getFieldValue(clonedObj)
                             field.setFieldValue(oldObj, value)
                         } catch (e: Throwable) {
-                            error("applyBacktrack class ${type.name} failed on field ${field.name}, cause: ${e.message}")
+                            error("applyBacktrack class ${type.typeName} failed on field ${field.name}, cause: ${e.message}")
                         }
                     }
                 }

@@ -19,7 +19,7 @@ fun JcClasspath.findFieldByFullNameOrNull(fieldFullName: String): JcField? {
     return jcClass.declaredFields.find { it.name == fieldName }
 }
 
-operator fun JcClasspath.get(klass: Class<*>) = this.findClassOrNull(klass.name)
+operator fun JcClasspath.get(klass: Class<*>) = this.findClassOrNull(klass.typeName)
 
 val JcClassOrInterface.typename
     get() = TypeNameImpl.fromTypeName(this.name)
@@ -70,7 +70,7 @@ fun Class<*>.toJcType(jcClasspath: JcClasspath): JcType? {
 }
 
 fun Class<*>.toJcClassOrInterface(jcClasspath: JcClasspath): JcClassOrInterface? {
-    return jcClasspath.findClassOrNull(this.name)
+    return jcClasspath.findClassOrNull(this.typeName)
 }
 
 fun JcArrayType.toJvmType(strBuilder: StringBuilder = StringBuilder()): String {

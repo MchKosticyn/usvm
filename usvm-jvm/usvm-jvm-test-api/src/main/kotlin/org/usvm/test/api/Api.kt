@@ -49,6 +49,12 @@ class UTestMethodCall(
     override val method: JcMethod,
     override val args: List<UTestExpression>
 ) : UTestCall {
+    init {
+        check(!method.isConstructor) {
+            "Constructors should be called via `UTestConstructorCall`"
+        }
+    }
+
     override val type: JcType? = method.enclosingClass.classpath.findTypeOrNull(method.returnType)
 }
 

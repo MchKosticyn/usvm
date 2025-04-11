@@ -226,7 +226,7 @@ open class Value2DescriptorConverter(
         val jcClass =
             if (originUTestInst is UTestMock) {
                 originUTestInst.type.toJcClass() ?: jcClasspath.findClass(
-                    value::class.java.name.substringBeforeLast(
+                    value::class.java.typeName.substringBeforeLast(
                         MockHelper.MOCKED_CLASS_POSTFIX
                     )
                 )

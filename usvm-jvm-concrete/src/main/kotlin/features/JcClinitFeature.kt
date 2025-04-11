@@ -9,11 +9,11 @@ import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.impl.cfg.JcRawString
+import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.util.javaName
 import utils.isInternalType
 import utils.isLambda
-import utils.typeName
 
 object JcClinitFeature: JcInstExtFeature {
 
@@ -22,7 +22,7 @@ object JcClinitFeature: JcInstExtFeature {
                 || list.size == 0
                 || method.enclosingClass.declaration.location.isRuntime
                 || method.enclosingClass.isInternalType
-                || method.enclosingClass.name == InitHelper::class.java.name
+                || method.enclosingClass.name == InitHelper::class.java.typeName
                 || method.enclosingClass.isLambda
                 || method.enclosingClass.isSynthetic
     }
@@ -33,10 +33,10 @@ object JcClinitFeature: JcInstExtFeature {
 
         val mutableList = list.toMutableList()
         val callExpr = JcRawStaticCallExpr(
-            declaringClass = InitHelper::class.java.name.typeName,
+            declaringClass = TypeNameImpl.fromTypeName(InitHelper::class.java.typeName),
             methodName = InitHelper::afterClinit.javaName,
-            argumentTypes = listOf("java.lang.String".typeName),
-            returnType = PredefinedPrimitives.Void.typeName,
+            argumentTypes = listOf(TypeNameImpl.fromTypeName("java.lang.String")),
+            returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
             args = listOf(JcRawString(method.enclosingClass.name))
         )
 

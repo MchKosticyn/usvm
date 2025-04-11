@@ -21,7 +21,9 @@ import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.byte
 import org.jacodb.api.jvm.ext.char
 import org.jacodb.api.jvm.ext.double
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findClassOrNull
+import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.isAssignable
@@ -56,7 +58,9 @@ import org.usvm.util.onNone
 import org.usvm.util.onSome
 import utils.declaredInstanceFields
 import utils.isInstanceApproximation
+import utils.isInternalType
 import utils.isThreadLocal
+import utils.jcTypeOf
 import utils.toJcType
 import java.lang.reflect.InvocationTargetException
 
@@ -84,11 +88,9 @@ internal class Marshall internal constructor(
     private val Any?.maybe: Maybe<Any?>
         get() = Maybe.some(this)
 
-    private val usvmApiSymbolicList by lazy { ctx.cp.findClassOrNull<SymbolicList<*>>()!!.toType() }
-    private val javaList by lazy { ctx.cp.findClassOrNull<List<*>>()!!.toType() }
-    private val usvmApiSymbolicMap by lazy { ctx.cp.findClassOrNull<SymbolicMap<*, *>>()!!.toType() }
-    private val usvmApiSymbolicIdentityMap by lazy { ctx.cp.findClassOrNull<SymbolicIdentityMap<*, *>>()!!.toType() }
-    private val javaMap by lazy { ctx.cp.findClassOrNull<Map<*, *>>()!!.toType() }
+    private val usvmApiSymbolicList by lazy { ctx.cp.findClass<SymbolicList<*>>().toType() }
+    private val usvmApiSymbolicMap by lazy { ctx.cp.findClass<SymbolicMap<*, *>>().toType() }
+    private val usvmApiSymbolicIdentityMap by lazy { ctx.cp.findClass<SymbolicIdentityMap<*, *>>().toType() }
 
     //endregion
 
@@ -97,7 +99,7 @@ internal class Marshall internal constructor(
     private val encoders by lazy { loadEncoders() }
 
     private fun loadEncoders(): Map<JcClassOrInterface, Any> {
-        val objectEncoderClass = ctx.cp.findClassOrNull(ObjectEncoder::class.java.name)!!
+        val objectEncoderClass = ctx.cp.findClassOrNull(ObjectEncoder::class.java.typeName)!!
         return runBlocking {
             ctx.cp.hierarchyExt()
                 .findSubClasses(objectEncoderClass, entireHierarchy = true, includeOwn = false)
@@ -107,7 +109,7 @@ internal class Marshall internal constructor(
     }
 
     private fun loadEncoder(encoder: JcClassOrInterface): Pair<JcClassOrInterface, Any>? {
-        val target = encoder.annotation(EncoderFor::class.java.name)!!
+        val target = encoder.annotation(EncoderFor::class.java.typeName)!!
         val targetCls = target.values["value"] ?: return null
 
         targetCls as JcClassOrInterface
@@ -225,28 +227,29 @@ internal class Marshall internal constructor(
 
     //region Object To Expression Conversion
 
-    private fun typeOfObject(obj: Any): JcType? {
-        return obj.javaClass.toJcType(ctx)
-    }
-
     private fun referenceTypeToExpr(obj: Any?, type: JcRefType): UHeapRef {
         if (obj == null)
             return ctx.nullRef
 
         var address = bindings.tryPhysToVirt(obj)
         if (address == null) {
-            val objType = typeOfObject(obj)
-            val mostConcreteType = when {
-                objType is JcUnknownType -> type
-                objType != null && (objType.isAssignable(type) || type is JcTypeVariable) -> objType
-                else -> type
-            }
-            address = bindings.forceAllocate(obj, mostConcreteType)
-            when {
-                type.isAssignable(usvmApiSymbolicList) -> unmarshallSymbolicList(address, obj)
-                type.isAssignable(usvmApiSymbolicMap) -> unmarshallSymbolicMap(address, obj)
-                type.isAssignable(usvmApiSymbolicIdentityMap) -> unmarshallSymbolicIdentityMap(address, obj)
-            }
+            val isInternalType = obj.javaClass.isInternalType
+            address =
+                if (isInternalType) unmarshallInternal(obj)
+                else {
+                    val objType = ctx.cp.jcTypeOf(obj)
+                    var mostConcreteType = when {
+                        objType is JcUnknownType -> type
+                        objType != null && (objType.isAssignable(type) || type is JcTypeVariable) -> objType
+                        else -> type
+                    }
+                    mostConcreteType =
+                        if (mostConcreteType is JcTypeVariable)
+                            // TODO: need this? #CM
+                            mostConcreteType.jcClass.toType()
+                        else mostConcreteType
+                    bindings.allocate(obj, mostConcreteType)!!
+                }
         }
 
         return ctx.mkConcreteHeapRef(address)
@@ -438,6 +441,27 @@ internal class Marshall internal constructor(
         unmarshallMap(address, map, usvmApiSymbolicIdentityMap)
     }
 
+    private fun unmarshallInternal(obj: Any): UConcreteHeapAddress {
+        val existingAddress = bindings.tryPhysToVirt(obj)
+        if (existingAddress != null)
+            return existingAddress
+
+        val type = ctx.cp.jcTypeOf(obj)!!
+        val address = bindings.createVirtualAddress(obj, type)
+        when {
+            type.isAssignable(usvmApiSymbolicList) -> unmarshallSymbolicList(address, obj)
+            type.isAssignable(usvmApiSymbolicMap) -> unmarshallSymbolicMap(address, obj)
+            type.isAssignable(usvmApiSymbolicIdentityMap) -> unmarshallSymbolicIdentityMap(address, obj)
+            type is JcClassType -> {
+                unmarshallFields(address, obj, type.allInstanceFields)
+                bindings.remove(address)
+            }
+            else -> error("unmarshallInternal type is not supported for ${type.typeName}")
+        }
+
+        return address
+    }
+
     //endregion
 
     //region Encoding
@@ -462,6 +486,7 @@ internal class Marshall internal constructor(
         } else {
             obj
         }
+        JcConcreteMemoryClassLoader.startInternalsCollecting()
         val approximatedObj = try {
             encodeMethod.invoke(encoder, encoderArg)
         } catch (e: Throwable) {
@@ -470,6 +495,12 @@ internal class Marshall internal constructor(
                 exception = e.targetException
             println("Encoder $encodeMethod threw exception $exception")
             throw exception
+        }
+        val internalObjects = JcConcreteMemoryClassLoader.endInternalsCollecting()
+        internalObjects.remove(approximatedObj)
+
+        for (internalObject in internalObjects) {
+            unmarshallInternal(internalObject)
         }
         val allFields = type.allInstanceFields
         val approximationFields = allFields.filter { it.field is JcEnrichedVirtualField }

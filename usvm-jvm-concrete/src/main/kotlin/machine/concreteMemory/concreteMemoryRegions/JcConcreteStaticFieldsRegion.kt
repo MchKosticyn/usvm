@@ -12,6 +12,7 @@ import org.usvm.machine.interpreter.statics.JcStaticFieldLValue
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
 import utils.getStaticFieldValue
+import utils.isInternalType
 import utils.setStaticFieldValue
 import utils.toJavaField
 import utils.typedField
@@ -27,7 +28,9 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
     // TODO: redo #CM
     override fun read(key: JcStaticFieldLValue<Sort>): UExpr<Sort> {
         val field = key.field
-        val javaField = field.toJavaField ?: return baseRegion.read(key)
+        val javaField = field.toJavaField
+        if (field.enclosingClass.isInternalType || javaField == null)
+            return baseRegion.read(key)
 
         check(JcConcreteMemoryClassLoader.isLoaded(field.enclosingClass))
         val fieldType = field.typedField.type

@@ -3,6 +3,7 @@ package bench
 import SpringTestRenderer
 import SpringTestReproducer
 import features.JcClinitFeature
+import features.JcEncodingFeature
 import features.JcInitFeature
 import kotlinx.coroutines.runBlocking
 import org.jacodb.api.jvm.JcByteCodeLocation
@@ -44,9 +45,10 @@ import machine.JcSpringMachine
 import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
 import machine.SpringAnalysisMode
+import org.jacodb.impl.cfg.JcInstListImpl
+import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.CoverageZone
 import testGeneration.SpringTestInfo
-import utils.typeName
 import java.io.File
 import java.io.PrintStream
 import java.nio.file.Path
@@ -57,6 +59,7 @@ import kotlin.io.path.PathWalkOption
 import kotlin.io.path.div
 import kotlin.io.path.extension
 import kotlin.io.path.walk
+import kotlin.system.exitProcess
 import kotlin.system.measureNanoTime
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -99,7 +102,7 @@ private fun loadSynthBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadWebPetClinicBench()
+        loadKlawBench()
     }
 
     logTime("Analysis ALL") {
@@ -124,7 +127,7 @@ private class BenchCp(
 }
 
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature, JcInitFeature)
+    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature, JcInitFeature, JcEncodingFeature)
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
@@ -234,7 +237,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             val rawInstList = startSpringMethod.rawInstList.instructions.toMutableList()
             val assign = rawInstList[3] as JcRawAssignInst
             val classConstant = assign.rhv as JcRawClassConstant
-            val newClassConstant = JcRawClassConstant(testClassFullName.typeName, classConstant.typeName)
+            val newClassConstant = JcRawClassConstant(TypeNameImpl.fromTypeName(testClassFullName), classConstant.typeName)
             val newAssign = JcRawAssignInst(assign.owner, assign.lhv, newClassConstant)
             rawInstList[3] = newAssign
             val newNode = MethodNodeBuilder(startSpringMethod, JcInstListImpl(rawInstList)).build()
@@ -301,6 +304,8 @@ private fun analyzeBench(benchmark: BenchCp) {
     machine.analyze(method.method)
 
     reproduceTests(testObserver.generatedTests, jcConcreteMachineOptions, cp)
+
+    exitProcess(0)
 }
 
 private fun reproduceTests(
@@ -308,8 +313,8 @@ private fun reproduceTests(
     jcConcreteMachineOptions: JcConcreteMachineOptions,
     cp: JcClasspath
 ) {
-    val testReproducer = SpringTestReproducer(jcConcreteMachineOptions, cp, 1)
-    val testRenderer = SpringTestRenderer(cp)
+    val testReproducer by lazy { SpringTestReproducer(jcConcreteMachineOptions, cp, 1) }
+    val testRenderer by lazy { SpringTestRenderer(cp) }
     val reproducingResults = mutableMapOf<JcMethod, Pair<String, Boolean>>()
 
     for (testInfo in tests) {

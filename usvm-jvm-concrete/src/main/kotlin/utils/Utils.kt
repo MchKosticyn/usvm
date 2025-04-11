@@ -6,6 +6,7 @@ import org.jacodb.api.jvm.ClassSource
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
@@ -116,14 +117,24 @@ internal fun Field.setFieldValue(obj: Any, value: Any?) {
         "field $this cannot be written to object of ${obj.javaClass}"
     }
 
+    if (declaringClass.isLambda && isFinal) {
+        isAccessible = true
+        if (get(obj) == value)
+            return
+    }
+
     if (declaringClass.isForbiddenToModify)
-        throw ForbiddenModificationException(declaringClass.name)
+        throw ForbiddenModificationException(declaringClass.typeName)
 
     try {
         isAccessible = true
         set(obj, value)
     } catch (_: Throwable) {
-        setFieldValueUnsafe(obj, value)
+        try {
+            setFieldValueUnsafe(obj, value)
+        } catch (e: Throwable) {
+            println()
+        }
     }
 }
 
@@ -292,6 +303,12 @@ internal val JcMethod.isInstrumentedInit: Boolean
                 && it.callExpr.methodName == InitHelper::afterInit.javaName
     }
 
+internal val JcMethod.isInstrumentedInternalInit: Boolean
+    get() = isConstructor && rawInstList.any {
+        it is JcRawCallInst && it.callExpr is JcRawStaticCallExpr
+                && it.callExpr.methodName == InitHelper::afterInternalInit.javaName
+    }
+
 // TODO: cache?
 internal val Class<*>.notTracked: Boolean
     get() = this.isPrimitive || this.isEnum || isImmutable
@@ -379,7 +396,7 @@ private fun typeNameIsInternal(name: String): Boolean {
 }
 
 internal val Class<*>.isInternalType: Boolean
-    get() = typeNameIsInternal(name)
+    get() = !isArray && typeNameIsInternal(typeName)
 
 internal val JcClassOrInterface.isInternalType: Boolean
     get() = typeNameIsInternal(name)
@@ -402,7 +419,7 @@ private val String.inImmutableFromJavaLang: Boolean
             && this != "java.lang.StringBuffer"
 
 private val Class<*>.inImmutableWithSubtypesFromJavaLang: Boolean
-    get() = this.name.inImmutableFromJavaLang && (isFinal || !isPublic)
+    get() = this.typeName.inImmutableFromJavaLang && (isFinal || !isPublic)
 
 internal val Class<*>.isImmutable: Boolean
     get() = !isArray &&
@@ -411,7 +428,7 @@ internal val Class<*>.isImmutable: Boolean
                     || isEnum
                     || isRecord
                     || packagesWithImmutableTypes.any { packageName.startsWith(it) }
-                    || this.name.inImmutableFromJavaLang
+                    || this.typeName.inImmutableFromJavaLang
                     || isClassLoader
                     || isLogger
                     || isInternalType
@@ -431,7 +448,7 @@ internal val Class<*>.isImmutableWithSubtypes: Boolean
                     || allFields.isEmpty() && isFinal)
 
 internal val JcClassOrInterface.isImmutable: Boolean
-    get() = immutableTypes.any { this.allSuperHierarchyWithThis.any { cls -> cls.name == it.name } }
+    get() = immutableTypes.any { this.allSuperHierarchyWithThis.any { cls -> cls.name == it.typeName } }
             || isEnum
             || packagesWithImmutableTypes.any { this.packageName.startsWith(it) }
             || this.name.inImmutableFromJavaLang
@@ -474,46 +491,55 @@ class LambdaClassSource(
     }
 }
 
-fun Class<*>.toJcType(ctx: JcContext): JcType? {
+fun Class<*>.toJcType(cp: JcClasspath): JcType? {
     try {
         if (isProxy) {
             val interfaces = interfaces
             if (interfaces.size == 1)
-                return ctx.cp.findTypeOrNull(interfaces[0].typeName)
+                return cp.findTypeOrNull(interfaces[0].typeName)
 
             return null
         }
 
         if (isLambda) {
-            val cachedType = ctx.cp.findTypeOrNull(name)
+            val cachedType = cp.findTypeOrNull(typeName)
             if (cachedType != null && cachedType !is JcUnknownType)
                 return cachedType
 
             // TODO: add dynamic load of classes into jacodb
-            val db = ctx.cp.db
+            val db = cp.db
             val vfs = db.javaClass.allInstanceFields.find { it.name == "classesVfs" }!!.getFieldValue(db)!!
             val lambdasDir = System.getenv("lambdasDir")
-            val loc = ctx.cp.registeredLocations.find {
+            val loc = cp.registeredLocations.find {
                 it.jcLocation?.jarOrFolder?.absolutePath == lambdasDir
             }!!
             val addMethod = vfs.javaClass.methods.find { it.name == "addClass" }!!
-            val fileName = getLambdaCanonicalTypeName(name)
-            val source = LambdaClassSource(loc, name, fileName)
+            val fileName = getLambdaCanonicalTypeName(typeName)
+            val source = LambdaClassSource(loc, typeName, fileName)
             addMethod.invoke(vfs, source)
 
-            val type = ctx.cp.findTypeOrNull(name)
+            val type = cp.findTypeOrNull(typeName)
             check(type is JcClassType)
             JcLambdaFeature.addLambdaClass(this, type.jcClass)
             return type
         }
 
-        return ctx.cp.findTypeOrNull(this.typeName)
+        val type = cp.findTypeOrNull(this.typeName)
+        if (type !is JcClassType) return type
+
+        val jcClass = type.jcClass
+        val approximateAnnotation =
+            jcClass.annotations.find { it.matches("org.jacodb.approximation.annotation.Approximate") }
+                ?: return type
+
+        val approximatedClass = approximateAnnotation.values["value"] as JcClassOrInterface
+        return approximatedClass.toType()
     } catch (e: Throwable) {
         return null
     }
 }
 
-
+internal fun JcClasspath.jcTypeOf(obj: Any): JcType? = obj.javaClass.toJcType(this)
 
 private fun createProxy(jcClass: JcClassOrInterface): Any {
     check(jcClass.isInterface)
@@ -545,21 +571,7 @@ internal fun createDefault(type: JcType): Any? {
     }
 }
 
-val String.typeName: TypeName
-    get() = TypeNameImpl.fromTypeName(this)
-
 val JcField.typedField: JcTypedField
     get() =
         enclosingClass.toType().findFieldOrNull(name)
             ?: error("Could not find field $this in type $enclosingClass")
-
-fun JcContext.jcTypeOf(obj: Any): JcType {
-    val type = cp.findType(obj.javaClass.typeName)
-    if (type !is JcClassType) return type
-    val jcClass = type.jcClass
-    val approximateAnnotation =
-        jcClass.annotations.find { it.matches("org.jacodb.approximation.annotation.Approximate") }
-            ?: return type
-    val approximatedClass = approximateAnnotation.values["value"] as JcClassOrInterface
-    return approximatedClass.toType()
-}

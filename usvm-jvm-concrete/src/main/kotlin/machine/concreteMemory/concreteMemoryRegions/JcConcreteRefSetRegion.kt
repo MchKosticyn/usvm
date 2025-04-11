@@ -174,7 +174,7 @@ internal class JcConcreteRefSetRegion(
 
     @Suppress("UNCHECKED_CAST")
     private fun unmarshallElement(ref: UConcreteHeapRef, element: Any?) {
-        val elemType = if (element == null) ctx.cp.objectType else ctx.jcTypeOf(element)
+        val elemType = if (element == null) ctx.cp.objectType else ctx.cp.jcTypeOf(element)!!
         val elemExpr = marshall.objToExpr<USort>(element, elemType) as UHeapRef
         val lvalue = URefSetEntryLValue(ref, elemExpr, setType)
         writeToBase(lvalue, ctx.trueExpr, ctx.trueExpr)

@@ -12,6 +12,7 @@ import org.usvm.model.UModelBase
 import org.usvm.test.api.JcTestExecutorDecoderApi
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestAllocateMemoryCall
+import org.usvm.test.api.UTestConstructorCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestStaticMethodCall
@@ -44,18 +45,20 @@ private class MemoryScope(
 
     fun createUTest(): UTest {
         return withMode(ResolveMode.CURRENT) {
-            val thisInstance = resolveThisInstance()
-            val parameters = resolveParameters()
-
             resolveStatics()
+
+            val jcMethod = method.method
 
             val initStmts = this@MemoryScope.decoderApi.initializerInstructions()
 
-            val callExpr = if (method.isStatic) {
-                UTestStaticMethodCall(method.method, parameters)
-            } else {
-                UTestMethodCall(thisInstance, method.method, parameters)
+            val parameters = resolveParameters()
+
+            val callExpr = when {
+                jcMethod.isStatic -> UTestStaticMethodCall(jcMethod, parameters)
+                jcMethod.isConstructor -> UTestConstructorCall(jcMethod, parameters)
+                else -> UTestMethodCall(resolveThisInstance(), jcMethod, parameters)
             }
+
             UTest(initStmts, callExpr)
         }
     }
