@@ -119,6 +119,7 @@ class JcSpringState(
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
         println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
+        println("\u001B[34m$callStack\u001B[0m")
         val cloned = super.clone(newConstraints) as JcSpringState
         cloned.pinnedValues = pinnedValues.copy()
         cloned.mockedMethodCalls = mockedMethodCalls.copy()
