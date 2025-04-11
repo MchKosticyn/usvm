@@ -57,7 +57,7 @@ open class JcTestVisitor {
         }
     }
 
-    protected fun visitExpr(expr: UTestExpression) {
+    protected open fun visitExpr(expr: UTestExpression) {
         if (!cache.add(expr))
             return
 
@@ -73,7 +73,7 @@ open class JcTestVisitor {
             is UTestCastExpression -> visit(expr)
             is UTestCreateArrayExpression -> visit(expr)
             is UTestGetFieldExpression -> visit(expr)
-            is UTestCall -> visitCall(expr)
+            is UTestCall -> visit(expr)
             is UTestClassExpression -> visit(expr)
             is UTestBooleanExpression -> visit(expr)
             is UTestByteExpression -> visit(expr)
@@ -91,7 +91,7 @@ open class JcTestVisitor {
         }
     }
 
-    protected fun visitStmt(stmt: UTestStatement) {
+    protected open fun visitStmt(stmt: UTestStatement) {
         if (!cache.add(stmt))
             return
 
@@ -188,13 +188,6 @@ open class JcTestVisitor {
     //endregion
 
     //region Calls
-
-    protected fun visitCall(call: UTestCall) {
-        if (!cache.add(call))
-            return
-
-        visit(call)
-    }
 
     open fun visit(call: UTestCall) {
         when (call) {
