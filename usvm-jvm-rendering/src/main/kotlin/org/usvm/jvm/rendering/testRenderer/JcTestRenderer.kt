@@ -58,11 +58,11 @@ open class JcTestRenderer(
             return !preventVarDeclarationOf(expr) && isVisited(expr) || requireVarDeclarationOf(expr)
         }
 
-        override fun visit(inst: UTestInst) {
-            if (inst is UTestExpression && shouldDeclareVarCheck(inst))
-                shouldDeclareVar.add(inst)
+        override fun visitExpr(expr: UTestExpression) {
+            if (shouldDeclareVarCheck(expr))
+                shouldDeclareVar.add(expr)
 
-            super.visit(inst)
+            super.visitExpr(expr)
         }
     }
 
