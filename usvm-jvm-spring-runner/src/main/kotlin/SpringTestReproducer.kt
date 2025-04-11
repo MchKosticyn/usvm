@@ -5,8 +5,6 @@ import org.usvm.instrumentation.executor.UTestConcreteExecutor
 import org.usvm.instrumentation.executor.UTestExecutionOptions
 import org.usvm.instrumentation.instrumentation.NoInstrumentationFactory
 import org.usvm.instrumentation.rd.InstrumentedProcess
-import org.usvm.instrumentation.testcase.api.UTestExecutionFailedResult
-import org.usvm.instrumentation.testcase.api.UTestExecutionInitFailedResult
 import org.usvm.instrumentation.testcase.api.UTestExecutionSuccessResult
 import org.usvm.test.api.UTest
 import java.io.File
