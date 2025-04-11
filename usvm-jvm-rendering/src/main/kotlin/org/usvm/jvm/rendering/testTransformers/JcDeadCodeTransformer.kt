@@ -53,6 +53,18 @@ class JcDeadCodeTransformer: JcTestTransformer() {
             super.visit(inst)
         }
 
+        override fun visit(expr: UTestExpression) {
+            if (expr in reachable) return
+
+            if (marker) {
+                reachable.add(expr)
+                withReachable { super.visit(expr) }
+                return
+            }
+
+            super.visit(expr)
+        }
+
         override fun visit(stmt: UTestSetStaticFieldStatement) {
             if (stmt.value in roots) return
 
@@ -75,18 +87,6 @@ class JcDeadCodeTransformer: JcTestTransformer() {
                 return
             }
             super.visit(stmt)
-        }
-
-        override fun visit(expr: UTestExpression) {
-            if (expr in reachable) return
-
-            if (marker) {
-                reachable.add(expr)
-                withReachable { super.visit(expr) }
-                return
-            }
-
-            super.visit(expr)
         }
 
         override fun visit(call: UTestCall) {

@@ -57,7 +57,7 @@ open class JcTestVisitor {
         }
     }
 
-    protected fun visitExpr(expr: UTestExpression) {
+    protected open fun visitExpr(expr: UTestExpression) {
         if (!cache.add(expr))
             return
 
@@ -91,7 +91,7 @@ open class JcTestVisitor {
         }
     }
 
-    protected fun visitStmt(stmt: UTestStatement) {
+    protected open fun visitStmt(stmt: UTestStatement) {
         if (!cache.add(stmt))
             return
 
