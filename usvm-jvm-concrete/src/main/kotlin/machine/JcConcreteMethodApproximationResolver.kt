@@ -62,7 +62,7 @@ open class JcConcreteMethodApproximationResolver(
         val enclosingClass = methodCall.method.enclosingClass
         val className = enclosingClass.name
 
-        if (className == InitHelper::class.java.name) {
+        if (className == InitHelper::class.java.typeName) {
             scope.doWithState { skipMethodInvocationWithValue(methodCall, ctx.voidValue) }
             return true
         }
@@ -85,7 +85,7 @@ open class JcConcreteMethodApproximationResolver(
                 val memory = memory as JcConcreteMemory
                 val method = memory.tryHeapRefToObject(methodArg) ?: return@calcOnState false
                 method as java.lang.reflect.Method
-                val declaringClass = ctx.cp.findTypeOrNull(method.declaringClass.name) ?: return@calcOnState false
+                val declaringClass = ctx.cp.findTypeOrNull(method.declaringClass.typeName) ?: return@calcOnState false
                 declaringClass as JcClassType
                 val jcMethod = declaringClass.declaredMethods.find {
                     it.name == method.name
@@ -134,7 +134,7 @@ open class JcConcreteMethodApproximationResolver(
                 val memory = memory as JcConcreteMemory
                 val field = memory.tryHeapRefToObject(fieldArg) ?: return@calcOnState false
                 field as java.lang.reflect.Field
-                val declaringClass = ctx.cp.findTypeOrNull(field.declaringClass.name) ?: return@calcOnState false
+                val declaringClass = ctx.cp.findTypeOrNull(field.declaringClass.typeName) ?: return@calcOnState false
                 declaringClass as JcClassType
                 val fields = declaringClass.declaredFields + declaringClass.fields
                 val jcField = fields.find { it.name == field.name } ?: return@calcOnState false
@@ -156,7 +156,7 @@ open class JcConcreteMethodApproximationResolver(
                 val memory = memory as JcConcreteMemory
                 val field = memory.tryHeapRefToObject(fieldArg) ?: return@calcOnState false
                 field as java.lang.reflect.Field
-                val declaringClass = ctx.cp.findTypeOrNull(field.declaringClass.name) ?: return@calcOnState false
+                val declaringClass = ctx.cp.findTypeOrNull(field.declaringClass.typeName) ?: return@calcOnState false
                 declaringClass as JcClassType
                 val fields = declaringClass.declaredFields + declaringClass.fields
                 val jcField = fields.find { it.name == field.name } ?: return@calcOnState false

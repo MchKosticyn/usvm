@@ -322,7 +322,7 @@ open class JcConcreteMemory(
                         enclosingClass.isEnum && method.isConstructor ||
                         // Case for method, which exists only in approximations
                         method is JcEnrichedVirtualMethod && !method.isClassInitializer && method.toJavaMethod == null ||
-                        enclosingClass.isInternalType && enclosingClass.name != InitHelper::class.java.name ||
+                        enclosingClass.isInternalType && enclosingClass.name != InitHelper::class.java.typeName ||
                         shouldNotInvoke(method)
                 )
     }
@@ -487,7 +487,7 @@ open class JcConcreteMemory(
             state.newStmt(JcConcreteInvocationResult(result, stmt))
         } else {
             // Exception thrown
-            val jcType = ctx.jcTypeOf(exception)
+            val jcType = ctx.cp.jcTypeOf(exception)!!
             println("Exception ${exception.javaClass} with message ${exception.message}")
             val exceptionObj = allocateObject(exception, jcType)
             state.throwExceptionWithoutStackFrameDrop(exceptionObj, jcType)
@@ -553,7 +553,7 @@ open class JcConcreteMemory(
             // TODO: support this case:
             //  A <: B
             //  A.ctor is called symbolically, but B.ctor called concretelly #CM
-            if (method.isConstructor && thisObj?.javaClass?.name != thisType.name)
+            if (method.isConstructor && thisObj?.javaClass?.typeName != thisType.name)
                 return TryConcreteInvokeFail(false)
 
             parameters = arguments.drop(1)

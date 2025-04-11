@@ -20,6 +20,8 @@ import org.usvm.util.allInstanceFields
 import utils.LambdaInvocationHandler
 import utils.approximationMethod
 import utils.createDefault
+import utils.isLambda
+import utils.isProxy
 import utils.isThreadLocal
 import utils.setArrayValue
 import utils.setFieldValue
@@ -111,7 +113,7 @@ internal class JcConcretizer(
         if (bindings.isMutableWithEffect())
             bindings.effectStorage.addObjectToEffectRec(obj)
 
-        if (Proxy.isProxyClass(obj.javaClass))
+        if (obj.javaClass.isProxy)
             initLambdaIfNeeded(ref, obj)
 
         for (field in bindings.symbolicFields(obj)) {
@@ -159,7 +161,7 @@ internal class JcConcretizer(
             resolveThreadLocal(ref, heapRef, type)
         } else {
             val resolved = super.resolveObject(ref, heapRef, type) ?: return null
-            if (Proxy.isProxyClass(resolved.javaClass) && heapRef is UConcreteHeapRef)
+            if (resolved.javaClass.isProxy && heapRef is UConcreteHeapRef)
                 initLambdaIfNeeded(heapRef, resolved)
             resolved
         }

@@ -1,36 +1,47 @@
 package machine
 
+import com.sun.jdi.VirtualMachine
 import features.JcLambdaFeature
 import machine.concreteMemory.JcConcreteEffectStorage
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcClasspathFeature
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
+import org.jacodb.approximation.ApproximationClassName
 import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.impl.bytecode.JcMethodImpl
 import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.JcFeaturesChain
+import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.types.MethodInfo
 import org.jacodb.impl.types.ParameterInfo
 import org.usvm.concrete.api.internal.InitHelper
+import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.toByteArray
+import org.usvm.util.javaName
+import utils.isInstrumentedClinit
+import utils.isInstrumentedInit
+import utils.isInstrumentedInternalInit
+import utils.isLambdaTypeName
+import utils.setStaticFieldValue
+import utils.staticFields
 import java.io.File
+import java.lang.instrument.Instrumentation
 import java.net.URI
 import java.net.URL
 import java.nio.ByteBuffer
 import java.security.CodeSource
 import java.security.SecureClassLoader
-import java.util.*
+import java.util.Collections
+import java.util.Enumeration
+import java.util.IdentityHashMap
+import java.util.LinkedList
+import java.util.Queue
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
-import org.usvm.jvm.util.replace
-import org.usvm.util.javaName
-import utils.isInstrumentedClinit
-import utils.isInstrumentedInit
-import utils.isLambdaTypeName
-import utils.setStaticFieldValue
-import utils.staticFields
 
 /**
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
@@ -173,8 +184,26 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
             null
         }
 
+    private var _internalObjects: MutableSet<Any>? = null
+
+    private val afterInternalInitAction: java.util.function.Function<Any, Void?> =
+        java.util.function.Function { newObj: Any ->
+            _internalObjects?.add(newObj)
+            null
+        }
+
+    fun startInternalsCollecting() {
+        _internalObjects = Collections.newSetFromMap(IdentityHashMap())
+    }
+
+    fun endInternalsCollecting(): MutableSet<Any> {
+        val result = _internalObjects!!
+        _internalObjects = null
+        return result
+    }
+
     private fun initInitHelper(type: Class<*>) {
-        check(type.name == InitHelper::class.java.name)
+        check(type.typeName == InitHelper::class.java.typeName)
         // Forcing `<clinit>` of `InitHelper`
         type.declaredFields.first().get(null)
         // Initializing static fields
@@ -185,12 +214,17 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         staticFields
             .find { it.name == InitHelper::afterInitAction.javaName }!!
             .setStaticFieldValue(afterInitAction)
+        staticFields
+            .find { it.name == InitHelper::afterInternalInitAction.javaName }!!
+            .setStaticFieldValue(afterInternalInitAction)
     }
 
     override fun loadClass(name: String?): Class<*> {
         if (name == null)
             throw ClassNotFoundException()
 
+        if (name.contains("net.javacrumbs.shedlock.spring.aop.MethodProxyLockConfiguration\$\$SpringCGLIB\$\$0"))
+            println()
         val loadedClass = loadedClasses[name]
         if (loadedClass != null)
             return loadedClass
@@ -247,32 +281,60 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         defineClassRecursively(jcClass, hashSetOf())
             ?: error("Can't define class $jcClass")
 
-    private fun JcClasspath.featuresChainWithoutApproximations(): JcFeaturesChain {
+    private class JcCpWithoutApproximations(val cp: JcClasspath) : JcClasspath by cp {
+        override val features: List<JcClasspathFeature> by lazy {
+            cp.featuresWithoutApproximations()
+        }
+    }
+
+    private class JcClassWithoutApproximations(
+        private val cls: JcClassOrInterface, private val cp: JcCpWithoutApproximations
+    ) : JcClassOrInterface by cls {
+        override val classpath: JcClasspath get() = cp
+    }
+
+    private val cpWithoutApproximations by lazy { JcCpWithoutApproximations(cp) }
+
+    private fun JcMethod.methodWithoutApproximations(): JcMethod {
+        val parameters = parameters.map {
+            ParameterInfo(it.type.typeName, it.index, it.access, it.name, emptyList())
+        }
+        val info = MethodInfo(name, description, signature, access, emptyList(), emptyList(), parameters)
+
+        val cp = cpWithoutApproximations
+        check(cp.cp === enclosingClass.classpath) { "Classpath mismatch" }
+
+        val featuresChain = JcFeaturesChain(cp.features)
+        val cls = JcClassWithoutApproximations(enclosingClass, cp)
+        return JcMethodImpl(info, featuresChain, cls)
+    }
+
+    private fun JcClasspath.featuresWithoutApproximations(): List<JcClasspathFeature> {
         val featuresChainField = this.javaClass.getDeclaredField("featuresChain")
         featuresChainField.isAccessible = true
         val featuresChain = featuresChainField.get(this) as JcFeaturesChain
-        val features = featuresChain.features.filterNot { it is Approximations }
-        return JcFeaturesChain(features)
+        return featuresChain.features.filterNot { it is Approximations || it is ClasspathCache }
     }
 
     private fun getBytecode(jcClass: JcClassOrInterface): ByteArray {
-        val instrumentedMethods = jcClass.declaredMethods.filter { it.isInstrumentedClinit || it.isInstrumentedInit }
+        val instrumentedMethods = jcClass.declaredMethods.filter {
+            it.isInstrumentedClinit || it.isInstrumentedInit || it.isInstrumentedInternalInit
+        }
+
+        if (jcClass.name.contains("LibSLRuntime"))
+            println()
         if (instrumentedMethods.isEmpty())
             return jcClass.bytecode()
 
         return jcClass.withAsmNode { asmNode ->
             for (method in instrumentedMethods) {
                 val isApproximated = method is JcEnrichedVirtualMethod
+                        || Approximations.findOriginalByApproximationOrNull(ApproximationClassName(jcClass.name)) != null
                 if (isApproximated && asmNode.methods.none { it.name == method.name && it.desc == method.description })
                     continue
 
                 val rawInstList = if (isApproximated) {
-                    val parameters = method.parameters.map {
-                        ParameterInfo(it.type.typeName, it.index, it.access, it.name, emptyList())
-                    }
-                    val info = MethodInfo(method.name, method.description, method.signature, method.access, emptyList(), emptyList(), parameters)
-                    val featuresChain = jcClass.classpath.featuresChainWithoutApproximations()
-                    val newMethod = JcMethodImpl(info, featuresChain, jcClass)
+                    val newMethod = method.methodWithoutApproximations()
                     newMethod.rawInstList
                 } else { method.rawInstList }
 
@@ -305,7 +367,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
 
             val bytecode = getBytecode(jcClass)
             val loadedClass = defineClass(className, bytecode)
-            if (loadedClass.name == InitHelper::class.java.name)
+            if (loadedClass.typeName == InitHelper::class.java.typeName)
                 initInitHelper(loadedClass)
 
             return@getOrPut loadedClass

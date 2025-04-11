@@ -76,6 +76,7 @@ dependencies {
 
     testSamplesWithApproximations(samples.output)
     testSamplesWithApproximations(project(":usvm-jvm:usvm-jvm-api"))
+    testSamplesWithApproximations(project(":usvm-jvm-concrete:usvm-jvm-concrete-api"))
     testSamplesWithApproximations(approximationsRepo, "tests", approximationsVersion)
 }
 

@@ -31,14 +31,17 @@ class SpringTestReproducer(
         return executor
     }
 
-    private val executor = createExecutor()
+    private var executor: UTestConcreteExecutor? = null
 
     fun reproduce(test: UTest): Boolean {
-        val result = executor.executeSync(test)
+        if (executor == null)
+            executor = createExecutor()
+
+        val result = executor!!.executeSync(test)
         return result is UTestExecutionSuccessResult
     }
 
     fun kill() {
-        executor.close()
+        executor?.close()
     }
 }

@@ -152,8 +152,8 @@ internal class JcConcreteRefMapRegion<ValueSort : USort>(
     @Suppress("UNCHECKED_CAST")
     private fun unmarshallEntry(ref: UConcreteHeapRef, key: Any?, value: Any?) {
         // TODO: not efficient, implement via memset
-        val keyType = if (key == null) ctx.cp.objectType else ctx.jcTypeOf(key)
-        val valueType = if (value == null) ctx.cp.objectType else ctx.jcTypeOf(value)
+        val keyType = if (key == null) ctx.cp.objectType else ctx.cp.jcTypeOf(key)!!
+        val valueType = if (value == null) ctx.cp.objectType else ctx.cp.jcTypeOf(value)!!
         val keyExpr = marshall.objToExpr<USort>(key, keyType) as UHeapRef
         val lvalue = URefMapEntryLValue(valueSort, ref, keyExpr, mapType)
         val rvalue = marshall.objToExpr<USort>(value, valueType) as UExpr<ValueSort>

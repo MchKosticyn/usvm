@@ -1,18 +1,20 @@
 package org.usvm.samples
 
+import features.JcEncodingFeature
 import machine.JcConcreteMachine
 import org.jacodb.api.jvm.JcClasspath
 import org.junit.jupiter.api.Test
 import org.usvm.UMachineOptions
-import org.usvm.api.JcTest
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
 import org.usvm.samples.approximations.ApproximationsTestRunner
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
-import org.usvm.util.getJcMethodByName
-import kotlin.reflect.KFunction
 
 class EncodingTest : ApproximationsTestRunner() {
+
+    override val cp by lazy {
+        JacoDBContainer(jacodbCpKey, classpath, listOf(JcEncodingFeature)).cp
+    }
 
     override fun createMachine(
         cp: JcClasspath,

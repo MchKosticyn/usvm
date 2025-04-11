@@ -36,7 +36,7 @@ class JcSpringHttpCookie(
     companion object {
         fun ofCookieObject(cookie: Any, cp: JcClasspath): JcSpringHttpCookie {
             val cookieClass = cookie.javaClass
-            check(cookieClass.name.endsWith("Cookie"))
+            check(cookieClass.typeName.endsWith("Cookie"))
             val name = cookieClass.getMethod("getName").invoke(cookie) as String
             val value = cookieClass.getMethod("getValue").invoke(cookie) as String
             return JcSpringHttpCookie(UTString(name, cp.stringType), UTString(value, cp.stringType))

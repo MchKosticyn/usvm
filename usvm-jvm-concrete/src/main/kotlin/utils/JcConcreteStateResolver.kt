@@ -31,7 +31,7 @@ abstract class JcConcreteStateResolver<T>(
         if (type == ctx.classType) {
             val clazz = concreteMemory.tryHeapRefToObject(ref) as Class<*>?
                 ?: return super.resolveObject(ref, heapRef, type)
-            return decoderApi.createClassConst(ctx.cp.findType(clazz.name))
+            return decoderApi.createClassConst(ctx.cp.findType(clazz.typeName))
         }
 
         return super.resolveObject(ref, heapRef, type)

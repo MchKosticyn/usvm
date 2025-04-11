@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.JcTypeVariable
 import org.usvm.NULL_ADDRESS
 import org.usvm.UConcreteHeapAddress
 import org.usvm.api.util.Reflection.allocateInstance
@@ -17,6 +18,7 @@ import utils.getFieldValue
 import utils.isEnum
 import utils.isEnumArray
 import utils.isInternalType
+import utils.isProxy
 import utils.isSolid
 import utils.notTracked
 import utils.notTrackedWithSubtypes
@@ -203,7 +205,7 @@ internal class JcConcreteMemoryBindings private constructor(
             val value = try {
                 field.getFieldValue(obj)
             } catch (e: Throwable) {
-                println("[WARNING] symbolicFields: ${type.name} failed on field ${field.name}, cause: ${e.message}")
+                println("[WARNING] symbolicFields: ${type.typeName} failed on field ${field.name}, cause: ${e.message}")
                 continue
             }
             if (value != null && !checkConcreteness(value))
@@ -253,6 +255,14 @@ internal class JcConcreteMemoryBindings private constructor(
         return ctx.addressCounter.freshAllocatedAddress()
     }
 
+    internal fun createVirtualAddress(obj: Any, type: JcType): UConcreteHeapAddress {
+        check(physToVirt[obj] == null)
+        val address = createNewAddress(type, false)
+        physToVirt[obj] = address
+        typeConstraints.allocate(address, type)
+        return address
+    }
+
     private fun internIfNeeded(obj: Any): Any {
         return when (obj) {
             is String -> obj.intern()
@@ -291,10 +301,6 @@ internal class JcConcreteMemoryBindings private constructor(
 
     fun allocate(obj: Any, type: JcType): UConcreteHeapAddress? {
         return allocateIfShould(obj, type)
-    }
-
-    fun forceAllocate(obj: Any, type: JcType): UConcreteHeapAddress {
-        return allocate(obj, type, false)
     }
 
     fun allocateDefaultConcrete(type: JcType): UConcreteHeapAddress? {
@@ -400,7 +406,7 @@ internal class JcConcreteMemoryBindings private constructor(
 
     internal fun readInvocationHandler(address: UConcreteHeapAddress): LambdaInvocationHandler {
         val obj = virtToPhys(address)
-        check(Proxy.isProxyClass(obj.javaClass))
+        check(obj.javaClass.isProxy)
         return Proxy.getInvocationHandler(obj) as LambdaInvocationHandler
     }
 
@@ -686,7 +692,8 @@ internal class JcConcreteMemoryBindings private constructor(
         isNew: Boolean = false
     ) {
         val obj = virtToPhys.remove(address) ?: return
-        if (isSymbolic && !obj.javaClass.isInternalType)
+        check(!obj.javaClass.isInternalType)
+        if (isSymbolic)
             symbolicChange(obj, isNew)
     }
 

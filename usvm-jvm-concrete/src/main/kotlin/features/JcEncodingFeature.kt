@@ -12,32 +12,25 @@ import org.jacodb.api.jvm.cfg.JcRawThis
 import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.util.javaName
-import utils.isLambda
-import utils.notTracked
+import utils.isInternalType
 
-object JcInitFeature: JcInstExtFeature {
-
-    private fun shouldNotTransform(method: JcMethod): Boolean {
+object JcEncodingFeature: JcInstExtFeature {
+    private fun shouldTransform(method: JcMethod): Boolean {
         val type = method.enclosingClass
-        return !method.isConstructor
-                || type.isInterface
-                || type.isAbstract
-                || type.declaration.location.isRuntime
-                || type.name == InitHelper::class.java.typeName
-                || type.isLambda
-                || type.isSynthetic
-                || type.notTracked
+        return method.isConstructor && type.isInternalType && !type.isAbstract
     }
 
     override fun transformRawInstList(method: JcMethod, list: JcInstList<JcRawInst>): JcInstList<JcRawInst> {
-        if (shouldNotTransform(method))
+        if (method.enclosingClass.name.contains("LibSLRuntime"))
+            println()
+        if (!shouldTransform(method))
             return list
 
         val mutableList = list.toMutableList()
         val typeName = TypeNameImpl.fromTypeName(method.enclosingClass.name)
         val callExpr = JcRawStaticCallExpr(
             declaringClass = TypeNameImpl.fromTypeName(InitHelper::class.java.typeName),
-            methodName = InitHelper::afterInit.javaName,
+            methodName = InitHelper::afterInternalInit.javaName,
             argumentTypes = listOf(TypeNameImpl.fromTypeName("java.lang.Object")),
             returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
             args = listOf(JcRawThis(typeName))
