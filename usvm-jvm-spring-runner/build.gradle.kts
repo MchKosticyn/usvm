@@ -85,6 +85,9 @@ tasks.register<JavaExec>("runWebBench") {
     val lambdaDir = generatedDir.resolve("lambdas")
     createOrClear(lambdaDir)
     environment("lambdasDir", lambdaDir.absolutePath)
+    val generatedTypesDirFile = generatedDir.resolve("runtimeTypes")
+    createOrClear(generatedTypesDirFile)
+    environment("generatedTypesDir", generatedTypesDirFile.absolutePath)
 
     val usvmApiJarPath = usvmApiJarConfiguration.resolvedConfiguration.files.single()
     environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)

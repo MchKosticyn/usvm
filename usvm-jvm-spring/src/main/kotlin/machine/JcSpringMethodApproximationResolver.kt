@@ -142,10 +142,7 @@ class JcSpringMethodApproximationResolver (
         val typeName = springMemory.tryHeapRefToObject(typeNameRef) as String
         val type = ctx.cp.findTypeOrNull(typeName)
         val parameterNameField = annotatedMethodParameterType.allInstanceFields.single {it.name == "parameterName"}
-        val a = memory.readField(parameter, parameterNameField.field, ctx.addressSort)
-        if (a is UNullRef)
-            println()
-        val parameterNameRef = a as UConcreteHeapRef
+        val parameterNameRef = memory.readField(parameter, parameterNameField.field, ctx.addressSort) as UConcreteHeapRef
         val name = springMemory.tryHeapRefToObject(parameterNameRef) as String?
 
         if (type == null || name == null) {

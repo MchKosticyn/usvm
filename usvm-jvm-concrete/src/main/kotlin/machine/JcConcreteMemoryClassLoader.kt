@@ -1,6 +1,5 @@
 package machine
 
-import com.sun.jdi.VirtualMachine
 import features.JcLambdaFeature
 import machine.concreteMemory.JcConcreteEffectStorage
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -29,7 +28,6 @@ import utils.isLambdaTypeName
 import utils.setStaticFieldValue
 import utils.staticFields
 import java.io.File
-import java.lang.instrument.Instrumentation
 import java.net.URI
 import java.net.URL
 import java.nio.ByteBuffer
@@ -223,8 +221,6 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (name == null)
             throw ClassNotFoundException()
 
-        if (name.contains("net.javacrumbs.shedlock.spring.aop.MethodProxyLockConfiguration\$\$SpringCGLIB\$\$0"))
-            println()
         val loadedClass = loadedClasses[name]
         if (loadedClass != null)
             return loadedClass
@@ -273,7 +269,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         }
     }
 
-    private fun typeIsRuntimeGenerated(jcClass: JcClassOrInterface): Boolean {
+    private fun typeIsRuntimeGenerated(jcClass: JcClassOrInterface): Boolean { // TODO: remove #CM
         return jcClass.name == "org.mockito.internal.creation.bytebuddy.inject.MockMethodDispatcher"
     }
 
@@ -321,8 +317,6 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
             it.isInstrumentedClinit || it.isInstrumentedInit || it.isInstrumentedInternalInit
         }
 
-        if (jcClass.name.contains("LibSLRuntime"))
-            println()
         if (instrumentedMethods.isEmpty())
             return jcClass.bytecode()
 

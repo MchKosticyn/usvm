@@ -245,6 +245,7 @@ internal class JcConcreteMemoryBindings private constructor(
         check(!virtToPhys.containsKey(address))
         virtToPhys[address] = obj
         physToVirt[obj] = address
+        check(type !is JcTypeVariable)
         typeConstraints.allocate(address, type)
     }
 
