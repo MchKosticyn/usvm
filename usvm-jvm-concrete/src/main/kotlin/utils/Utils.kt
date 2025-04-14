@@ -130,11 +130,7 @@ internal fun Field.setFieldValue(obj: Any, value: Any?) {
         isAccessible = true
         set(obj, value)
     } catch (_: Throwable) {
-        try {
-            setFieldValueUnsafe(obj, value)
-        } catch (e: Throwable) {
-            println()
-        }
+        setFieldValueUnsafe(obj, value)
     }
 }
 
@@ -575,3 +571,12 @@ val JcField.typedField: JcTypedField
     get() =
         enclosingClass.toType().findFieldOrNull(name)
             ?: error("Could not find field $this in type $enclosingClass")
+
+private val runtimeGeneratedTypes = setOf(
+    "org.mockito.internal.creation.bytebuddy.inject.MockMethodDispatcher"
+)
+
+internal val String.typeIsRuntimeGenerated: Boolean get() {
+    // TODO: add lambda predicate #CM
+    return runtimeGeneratedTypes.contains(this) || this.contains("\$\$SpringCGLIB\$\$")
+}

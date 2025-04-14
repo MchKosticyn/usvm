@@ -21,8 +21,6 @@ object JcEncodingFeature: JcInstExtFeature {
     }
 
     override fun transformRawInstList(method: JcMethod, list: JcInstList<JcRawInst>): JcInstList<JcRawInst> {
-        if (method.enclosingClass.name.contains("LibSLRuntime"))
-            println()
         if (!shouldTransform(method))
             return list
 

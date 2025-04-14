@@ -28,7 +28,6 @@ import org.jacodb.impl.jacodb
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.FieldNode
-import org.objectweb.asm.Type
 import org.usvm.PathSelectionStrategy
 import org.usvm.SolverType
 import org.usvm.UMachineOptions
@@ -187,8 +186,8 @@ fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: St
 private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val cp = benchmark.cp
 
-    val dir = File(System.getenv("generatedDir"))
-    check(dir.exists()) { "Generated directory ${dir.absolutePath} does not exist" }
+    val generatedDirFile = File(System.getenv("generatedDir"))
+    check(generatedDirFile.exists()) { "Generated directory ${generatedDirFile.absolutePath} does not exist" }
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
 //    val importAnnotation = cp.findClass("org.springframework.context.annotation.Import")
@@ -227,7 +226,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 //        val importAnnotationNode = AnnotationNode(importAnnotation.jvmDescriptor)
 //        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) }.toList())
 //        classNode.visibleAnnotations.add(importAnnotationNode)
-        classNode.write(cp, dir.resolve("$testClassFullName.class").toPath(), checkClass = true)
+        classNode.write(cp, generatedDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
     }
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
@@ -246,17 +245,21 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             check(asmMethods.replace(asmMethod, newNode))
         }
         startSpringAsmNode.name = "NewStartSpring"
-        startSpringAsmNode.write(cp, dir.resolve("NewStartSpring.class").toPath(), checkClass = true)
+        startSpringAsmNode.write(cp, generatedDirFile.resolve("NewStartSpring.class").toPath(), checkClass = true)
     }
     val lambdasDirFile = File(System.getenv("lambdasDir"))
+    val generatedTypesDirFile = File(System.getenv("generatedTypesDir"))
     runBlocking {
-        benchmark.db.load(dir)
+        benchmark.db.load(generatedDirFile)
         benchmark.db.load(lambdasDirFile)
+        benchmark.db.load(generatedTypesDirFile)
         benchmark.db.awaitBackgroundJobs()
     }
-    val newCpFiles = benchmark.cpFiles + dir + lambdasDirFile
-    val newClasses = benchmark.classes + dir + lambdasDirFile
-    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies)
+    val newCpFiles = benchmark.cpFiles + generatedDirFile + lambdasDirFile + generatedTypesDirFile
+    // TODO: add lambdas to dependencies? #CM
+    val newClasses = benchmark.classes + generatedDirFile + lambdasDirFile
+    val newDependencies = benchmark.dependencies + generatedTypesDirFile
+    return loadBench(benchmark.db, newCpFiles, newClasses, newDependencies)
 }
 
 private fun analyzeBench(benchmark: BenchCp) {

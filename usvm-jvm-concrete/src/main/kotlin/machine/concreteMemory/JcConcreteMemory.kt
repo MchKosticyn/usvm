@@ -316,6 +316,7 @@ open class JcConcreteMemory(
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
+        // TODO: add lambdas? #CM
         val enclosingClass = method.enclosingClass
         return !(
                 method.isConstructor && enclosingClass.isAbstract ||
