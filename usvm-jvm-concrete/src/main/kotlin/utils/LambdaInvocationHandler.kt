@@ -3,11 +3,11 @@ package utils
 import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.approximation.JcEnrichedVirtualMethod
-import org.usvm.api.util.Reflection.invoke
+import org.usvm.jvm.util.invoke
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 
-internal class LambdaInvocationHandler : InvocationHandler {
+class LambdaInvocationHandler : InvocationHandler {
 
     private var methodName: String? = null
     private var actualMethod: JcMethod? = null

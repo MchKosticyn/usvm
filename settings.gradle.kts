@@ -25,18 +25,12 @@ include("usvm-python:usvm-python-runner")
 findProject(":usvm-python:usvm-python-runner")?.name = "usvm-python-runner"
 include("usvm-python:usvm-python-commons")
 findProject(":usvm-python:usvm-python-commons")?.name = "usvm-python-commons"
-include("usvm-jvm:usvm-jvm-utils")
-findProject(":usvm-jvm:usvm-jvm-utils")?.name = "usvm-jvm-utils"
-include("usvm-jvm:usvm-jvm-utils")
-findProject(":usvm-jvm:usvm-jvm-utils")?.name = "usvm-jvm-utils"
 include("usvm-jvm-concrete")
 include("usvm-jvm-spring")
 include("usvm-jvm-spring-runner")
 include("usvm-jvm-concrete:usvm-jvm-concrete-api")
-findProject(":usvm-jvm-concrete:usvm-jvm-concrete-api")?.name = "usvm-jvm-concrete-api"
-include("usvm-jvm-concrete:usvm-jvm-concrete-api")
-findProject(":usvm-jvm-concrete:usvm-jvm-concrete-api")?.name = "usvm-jvm-concrete-api"
 include("usvm-jvm-spring:usvm-jvm-spring-test-api")
+include("usvm-jvm-concrete:agent")
 
 // Actually, `includeBuild("../jacodb")` is enough, but there is a bug in IDEA when path is a symlink.
 // As a workaround, we convert it to a real absolute path.

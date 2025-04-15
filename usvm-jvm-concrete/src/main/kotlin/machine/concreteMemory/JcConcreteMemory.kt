@@ -25,7 +25,7 @@ import org.usvm.UExpr
 import org.usvm.UIndexedMocker
 import org.usvm.USort
 import org.usvm.api.util.JcTestStateResolver.ResolveMode
-import org.usvm.api.util.Reflection.invoke
+import org.usvm.jvm.util.invoke
 import org.usvm.collection.array.UArrayRegion
 import org.usvm.collection.array.UArrayRegionId
 import org.usvm.collection.array.length.UArrayLengthsRegion
@@ -68,7 +68,7 @@ import org.usvm.memory.UMemory
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.URegistersStack
-import org.usvm.util.name
+import org.usvm.jvm.util.name
 import org.usvm.util.onNone
 import org.usvm.util.onSome
 import org.usvm.utils.applySoftConstraints

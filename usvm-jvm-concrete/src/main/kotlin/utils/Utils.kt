@@ -12,14 +12,11 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
-import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.RegisteredLocation
-import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchy
 import org.jacodb.api.jvm.ext.findFieldOrNull
-import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
@@ -29,24 +26,22 @@ import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
 import org.jacodb.impl.features.classpaths.JcUnknownType
-import org.jacodb.impl.types.TypeNameImpl
-import org.usvm.api.util.Reflection.allocateInstance
-import org.usvm.api.util.Reflection.toJavaExecutable
+import org.usvm.jvm.util.allocateInstance
+import org.usvm.jvm.util.toJavaExecutable
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.jvm.util.setFieldValue as setFieldValueUnsafe
-import org.usvm.machine.JcContext
-import org.usvm.util.allFields
-import org.usvm.util.allInstanceFields
-import org.usvm.util.javaName
-import org.usvm.util.name
+import org.usvm.jvm.util.allFields
+import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.javaName
+import org.usvm.jvm.util.name
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 import java.nio.ByteBuffer
 
-internal val Class<*>.safeDeclaredFields: List<Field>
+private val Class<*>.safeDeclaredFields: List<Field>
     get() {
         return try {
             declaredFields.toList()
@@ -54,11 +49,6 @@ internal val Class<*>.safeDeclaredFields: List<Field>
             emptyList()
         }
     }
-
-// TODO: cache?
-@Suppress("RecursivePropertyAccessor")
-internal val Class<*>.allFields: List<Field>
-    get() = safeDeclaredFields + (superclass?.allFields ?: emptyList())
 
 internal val JcClassType.declaredInstanceFields: List<JcTypedField>
     get() = declaredFields.filter { !it.isStatic }
@@ -578,5 +568,5 @@ private val runtimeGeneratedTypes = setOf(
 
 internal val String.typeIsRuntimeGenerated: Boolean get() {
     // TODO: add lambda predicate #CM
-    return runtimeGeneratedTypes.contains(this) || this.contains("\$\$SpringCGLIB\$\$")
+    return runtimeGeneratedTypes.contains(this) || this.contains("CGLIB\$\$")
 }

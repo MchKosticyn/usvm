@@ -52,8 +52,8 @@ import org.usvm.isFalse
 import org.usvm.isTrue
 import org.usvm.machine.JcContext
 import org.usvm.util.Maybe
-import org.usvm.util.allInstanceFields
-import org.usvm.util.name
+import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.name
 import org.usvm.util.onNone
 import org.usvm.util.onSome
 import utils.declaredInstanceFields

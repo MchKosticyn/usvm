@@ -123,7 +123,7 @@ import org.usvm.memory.UWritableMemory
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.util.allocHeapRef
-import org.usvm.util.enumValuesField
+import org.usvm.jvm.util.enumValuesField
 import org.usvm.util.write
 import org.usvm.utils.logAssertFailure
 

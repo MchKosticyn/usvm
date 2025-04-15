@@ -16,7 +16,7 @@ import org.usvm.jvm.util.toTypedMethod
 import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.state.JcState
 import org.usvm.mkSizeExpr
-import org.usvm.util.allInstanceFields
+import org.usvm.jvm.util.allInstanceFields
 import utils.LambdaInvocationHandler
 import utils.approximationMethod
 import utils.createDefault

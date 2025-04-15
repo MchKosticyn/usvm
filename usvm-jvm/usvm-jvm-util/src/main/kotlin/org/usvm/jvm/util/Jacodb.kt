@@ -3,11 +3,16 @@ package org.usvm.jvm.util
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.*
+import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.jacodb.impl.types.JcClassTypeImpl
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.tree.MethodNode
 import java.lang.reflect.Constructor
+import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
+import kotlin.reflect.jvm.javaField
+import kotlin.reflect.jvm.javaMethod
 
 val JcClasspath.stringType: JcType
     get() = findClassOrNull("java.lang.String")!!.toType()
@@ -40,54 +45,8 @@ val JcInst.enclosingClass
 val JcInst.enclosingMethod
     get() = this.location.method
 
-fun JcType.toJavaClass(classLoader: ClassLoader): Class<*> =
-    when (this) {
-        is JcPrimitiveType -> toJavaClass()
-        is JcArrayType -> findClassInLoader(toJvmType(), classLoader)
-        is JcClassType -> this.jcClass.toJavaClass(classLoader)
-        else -> findClassInLoader(typeName, classLoader)
-    }
-
-private fun JcPrimitiveType.toJavaClass(): Class<*> {
-    val cp = this.classpath
-    return when (this) {
-        cp.boolean -> Boolean::class.java
-        cp.byte -> Byte::class.java
-        cp.short -> Short::class.java
-        cp.int -> Int::class.java
-        cp.long -> Long::class.java
-        cp.float -> Float::class.java
-        cp.double -> Double::class.java
-        cp.char -> Char::class.java
-        cp.void -> Void::class.java
-        else -> error("Not primitive type")
-
-    }
-}
-
 fun Class<*>.toJcType(jcClasspath: JcClasspath): JcType? {
     return jcClasspath.findTypeOrNull(this.typeName)
-}
-
-fun Class<*>.toJcClassOrInterface(jcClasspath: JcClasspath): JcClassOrInterface? {
-    return jcClasspath.findClassOrNull(this.typeName)
-}
-
-fun JcArrayType.toJvmType(strBuilder: StringBuilder = StringBuilder()): String {
-    strBuilder.append('[')
-    when (elementType) {
-        is JcArrayType -> (elementType as JcArrayType).toJvmType(strBuilder)
-        elementType.classpath.boolean -> strBuilder.append("Z")
-        elementType.classpath.byte -> strBuilder.append("B")
-        elementType.classpath.short -> strBuilder.append("S")
-        elementType.classpath.int -> strBuilder.append("I")
-        elementType.classpath.long -> strBuilder.append("J")
-        elementType.classpath.float -> strBuilder.append("F")
-        elementType.classpath.double -> strBuilder.append("D")
-        elementType.classpath.char -> strBuilder.append("C")
-        else -> strBuilder.append("L${elementType.toStringType()};")
-    }
-    return strBuilder.toString()
 }
 
 fun JcType.toJcClass(): JcClassOrInterface? =
@@ -95,17 +54,6 @@ fun JcType.toJcClass(): JcClassOrInterface? =
         is JcRefType -> jcClass
         is JcPrimitiveType -> null
         else -> error("Unexpected type")
-    }
-
-fun JcClassOrInterface.toJavaClass(classLoader: ClassLoader): Class<*> =
-    findClassInLoader(name, classLoader)
-
-
-fun findClassInLoader(name: String, classLoader: ClassLoader): Class<*> =
-    try {
-        Class.forName(name, true, classLoader)
-    } catch (e: Throwable) {
-        throw ClassNotFoundException("Something gone wrong with $name loading. Exception: ${e::class.java.name}")
     }
 
 fun JcField.toJavaField(classLoader: ClassLoader): Field? =
@@ -126,6 +74,12 @@ val JcClassOrInterface.allDeclaredFields
 
 fun TypeName.toJcType(jcClasspath: JcClasspath): JcType? = jcClasspath.findTypeOrNull(typeName)
 fun TypeName.toJcClassOrInterface(jcClasspath: JcClasspath): JcClassOrInterface? = jcClasspath.findClassOrNull(typeName)
+
+fun JcMethod.toJavaExecutable(classLoader: ClassLoader): Executable? {
+    val type = enclosingClass.toType().toJavaClass(classLoader)
+    return (type.methods + type.declaredMethods).find { it.jcdbSignature == this.jcdbSignature }
+        ?: (type.constructors + type.declaredConstructors).find { it.jcdbSignature == this.jcdbSignature }
+}
 
 fun JcMethod.toJavaMethod(classLoader: ClassLoader): Method {
     val klass = Class.forName(enclosingClass.name, false, classLoader)
@@ -166,3 +120,29 @@ fun JcMethod.isSameSignature(mn: MethodNode): Boolean =
 
 val JcMethod.toTypedMethod: JcTypedMethod
     get() = this.enclosingClass.toType().declaredMethods.first { typed -> typed.method == this }
+
+val JcClassOrInterface.enumValuesField: JcTypedField
+    get() = toType().findFieldOrNull("\$VALUES") ?: error("No \$VALUES field found for the enum type $this")
+
+val JcClassType.name: String
+    get() = if (this is JcClassTypeImpl) name else jcClass.name
+
+val JcClassType.outerClassInstanceField: JcTypedField?
+    get() = fields.singleOrNull { it.name == "this\$0" }
+
+@Suppress("RecursivePropertyAccessor")
+val JcClassType.allFields: List<JcTypedField>
+    get() = declaredFields + (superType?.allFields ?: emptyList())
+
+@Suppress("RecursivePropertyAccessor")
+val JcClassOrInterface.allFields: List<JcField>
+    get() = declaredFields + (superClass?.allFields ?: emptyList())
+
+val JcClassType.allInstanceFields: List<JcTypedField>
+    get() = allFields.filter { !it.isStatic }
+
+val kotlin.reflect.KProperty<*>.javaName: String
+    get() = this.javaField?.name ?: error("No java name for field $this")
+
+val kotlin.reflect.KFunction<*>.javaName: String
+    get() = this.javaMethod?.name ?: error("No java name for method $this")

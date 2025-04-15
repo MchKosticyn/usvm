@@ -11,7 +11,7 @@ import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.impl.cfg.JcRawString
 import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.concrete.api.internal.InitHelper
-import org.usvm.util.javaName
+import org.usvm.jvm.util.javaName
 import utils.isInternalType
 import utils.isLambda
 

@@ -4,6 +4,7 @@ import SpringTestRenderer
 import SpringTestReproducer
 import features.JcClinitFeature
 import features.JcEncodingFeature
+import features.JcGeneratedTypesFeature
 import features.JcInitFeature
 import kotlinx.coroutines.runBlocking
 import org.jacodb.api.jvm.JcByteCodeLocation
@@ -126,7 +127,7 @@ private class BenchCp(
 }
 
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature, JcInitFeature, JcEncodingFeature)
+    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature, JcInitFeature, JcEncodingFeature, JcGeneratedTypesFeature)
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
