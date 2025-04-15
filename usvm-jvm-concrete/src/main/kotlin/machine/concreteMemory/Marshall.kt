@@ -238,16 +238,11 @@ internal class Marshall internal constructor(
                 if (isInternalType) unmarshallInternal(obj)
                 else {
                     val objType = ctx.cp.jcTypeOf(obj)
-                    var mostConcreteType = when {
+                    val mostConcreteType = when {
                         objType is JcUnknownType -> type
                         objType != null && (objType.isAssignable(type) || type is JcTypeVariable) -> objType
                         else -> type
                     }
-                    mostConcreteType =
-                        if (mostConcreteType is JcTypeVariable)
-                            // TODO: need this? #CM
-                            mostConcreteType.jcClass.toType()
-                        else mostConcreteType
                     bindings.allocate(obj, mostConcreteType)!!
                 }
         }
