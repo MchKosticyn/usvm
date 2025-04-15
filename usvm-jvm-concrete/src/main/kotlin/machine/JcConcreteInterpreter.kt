@@ -10,7 +10,7 @@ import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.void
 import org.usvm.UConcreteHeapRef
 import org.usvm.api.targets.JcTarget
-import org.usvm.api.util.Reflection.toJavaClass
+import org.usvm.jvm.util.toJavaClass
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.machine.JcApplicationGraph

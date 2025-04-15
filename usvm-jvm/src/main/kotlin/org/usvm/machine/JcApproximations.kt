@@ -107,8 +107,8 @@ import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.newStmt
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
-import org.usvm.util.allInstanceFields
-import org.usvm.util.javaName
+import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.javaName
 import java.util.ArrayList
 import java.util.TreeMap
 

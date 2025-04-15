@@ -43,7 +43,7 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.types.single
-import org.usvm.util.allInstanceFields
+import org.usvm.jvm.util.allInstanceFields
 import org.usvm.util.classesOfLocations
 import utils.toJcType
 import java.util.ArrayList

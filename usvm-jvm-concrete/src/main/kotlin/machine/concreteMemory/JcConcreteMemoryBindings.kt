@@ -7,7 +7,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypeVariable
 import org.usvm.NULL_ADDRESS
 import org.usvm.UConcreteHeapAddress
-import org.usvm.api.util.Reflection.allocateInstance
+import org.usvm.jvm.util.allocateInstance
 import org.usvm.constraints.UTypeConstraints
 import org.usvm.machine.JcContext
 import utils.ForbiddenModificationException

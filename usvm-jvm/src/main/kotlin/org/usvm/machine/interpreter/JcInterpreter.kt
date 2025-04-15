@@ -75,8 +75,8 @@ import org.usvm.memory.UMemory
 import org.usvm.memory.URegisterStackLValue
 import org.usvm.targets.UTargetsSet
 import org.usvm.types.singleOrNull
-import org.usvm.util.name
-import org.usvm.util.outerClassInstanceField
+import org.usvm.jvm.util.name
+import org.usvm.jvm.util.outerClassInstanceField
 import org.usvm.util.write
 import org.usvm.utils.ensureSat
 import org.usvm.utils.logAssertFailure

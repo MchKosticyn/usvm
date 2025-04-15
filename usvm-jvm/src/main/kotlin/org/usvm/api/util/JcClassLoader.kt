@@ -5,6 +5,7 @@ import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
 import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findTypeOrNull
+import org.usvm.jvm.util.JcClassLoaderExt
 import java.nio.ByteBuffer
 import java.security.CodeSource
 import java.security.SecureClassLoader
@@ -12,8 +13,8 @@ import java.security.SecureClassLoader
 /**
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
  */
-object JcClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
-    fun loadClass(jcClass: JcClassOrInterface): Class<*> = defineClassRecursively(jcClass)
+object JcClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()), JcClassLoaderExt {
+    override fun loadClass(jcClass: JcClassOrInterface): Class<*> = defineClassRecursively(jcClass)
 
     private fun defineClass(name: String, code: ByteArray): Class<*> {
         return defineClass(name, ByteBuffer.wrap(code), null as CodeSource?)
@@ -53,4 +54,3 @@ object JcClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
         }
     }
 }
-

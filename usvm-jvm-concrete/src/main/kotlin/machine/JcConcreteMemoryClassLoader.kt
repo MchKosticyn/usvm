@@ -1,5 +1,6 @@
 package machine
 
+import features.JcGeneratedTypesFeature
 import features.JcLambdaFeature
 import machine.concreteMemory.JcConcreteEffectStorage
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -18,15 +19,18 @@ import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.types.MethodInfo
 import org.jacodb.impl.types.ParameterInfo
 import org.usvm.concrete.api.internal.InitHelper
+import org.usvm.jvm.concrete.JcConcreteClassLoader
+import org.usvm.jvm.util.JcClassLoaderExt
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.toByteArray
-import org.usvm.util.javaName
+import org.usvm.jvm.util.javaName
 import utils.isInstrumentedClinit
 import utils.isInstrumentedInit
 import utils.isInstrumentedInternalInit
 import utils.isLambdaTypeName
 import utils.setStaticFieldValue
 import utils.staticFields
+import utils.typeIsRuntimeGenerated
 import java.io.File
 import java.net.URI
 import java.net.URL
@@ -45,10 +49,9 @@ import java.util.jar.JarFile
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
  */
 // TODO: make this 'class'
-object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()) {
+object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()), JcConcreteClassLoader, JcClassLoaderExt {
 
     lateinit var cp: JcClasspath
-    private val loadedClasses = hashMapOf<String, Class<*>>()
     private val initializedStatics = hashSetOf<Class<*>>()
     private var effectStorage: JcConcreteEffectStorage? = null
 
@@ -169,7 +172,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     private val afterClinitAction: java.util.function.Function<String, Void?> =
         java.util.function.Function { className: String ->
             val storage = effectStorage ?: return@Function null
-            val clazz = loadedClasses[className] ?: return@Function null
+            val clazz = findLoadedClass(className) ?: return@Function null
             initializedStatics.add(clazz)
             storage.addStatics(clazz)
             null
@@ -221,9 +224,9 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (name == null)
             throw ClassNotFoundException()
 
-        val loadedClass = loadedClasses[name]
-        if (loadedClass != null)
-            return loadedClass
+        val loaded = findLoadedClass(name)
+        if (loaded != null)
+            return loaded
 
         if (name.isLambdaTypeName)
             return loadLambdaClass(name)
@@ -233,18 +236,25 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     }
 
     fun isLoaded(jcClass: JcClassOrInterface): Boolean {
-        return loadedClasses.containsKey(jcClass.name)
+        return findLoadedClass(jcClass.name) != null
     }
 
     private fun loadLambdaClass(name: String): Class<*> {
-        val type = JcLambdaFeature.lambdaClassByName(name) ?: super.loadClass(name)
-        loadedClasses[name] = type
-        return type
+        return JcLambdaFeature.lambdaClassByName(name) ?: super.loadClass(name)
     }
 
-    fun loadClass(jcClass: JcClassOrInterface): Class<*> {
-        if (jcClass.name.isLambdaTypeName)
-            return loadLambdaClass(jcClass.name)
+    override fun addTypeBytes(name: String, typeBytes: ByteArray) {
+        if (!name.typeIsRuntimeGenerated)
+            return
+
+        val className = name.replace('/', '.')
+        JcGeneratedTypesFeature.addGeneratedTypeBytes(className, typeBytes)
+    }
+
+    override fun loadClass(jcClass: JcClassOrInterface): Class<*> {
+        val name = jcClass.name
+        if (name.isLambdaTypeName)
+            return loadLambdaClass(name)
 
         return defineClassRecursively(jcClass)
     }
@@ -346,25 +356,27 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         visited: MutableSet<JcClassOrInterface>
     ): Class<*>? {
         val className = jcClass.name
-        return loadedClasses.getOrPut(className) {
-            if (!visited.add(jcClass))
-                return null
+        val loaded = findLoadedClass(className)
+        if (loaded != null)
+            return loaded
 
-            if (jcClass.declaration.location.isRuntime || typeIsRuntimeGenerated(jcClass))
-                return@getOrPut super.loadClass(className)
+        if (!visited.add(jcClass))
+            return null
 
-            if (jcClass is JcUnknownClass)
-                throw ClassNotFoundException(className)
+        if (jcClass.declaration.location.isRuntime || typeIsRuntimeGenerated(jcClass))
+            return super.loadClass(className)
 
-            val notVisitedSupers = jcClass.allSuperHierarchySequence.filterNot { it in visited }
-            notVisitedSupers.forEach { defineClassRecursively(it, visited) }
+        if (jcClass is JcUnknownClass)
+            throw ClassNotFoundException(className)
 
-            val bytecode = getBytecode(jcClass)
-            val loadedClass = defineClass(className, bytecode)
-            if (loadedClass.typeName == InitHelper::class.java.typeName)
-                initInitHelper(loadedClass)
+        val notVisitedSupers = jcClass.allSuperHierarchySequence.filterNot { it in visited }
+        notVisitedSupers.forEach { defineClassRecursively(it, visited) }
 
-            return@getOrPut loadedClass
-        }
+        val bytecode = getBytecode(jcClass)
+        val loadedClass = defineClass(className, bytecode)
+        if (loadedClass.typeName == InitHelper::class.java.typeName)
+            initInitHelper(loadedClass)
+
+        return loadedClass
     }
 }

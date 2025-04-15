@@ -5,7 +5,7 @@ import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.impl.features.classpaths.JcUnknownType
-import org.usvm.api.util.Reflection.allocateInstance
+import org.usvm.jvm.util.allocateInstance
 import org.usvm.machine.JcContext
 import utils.allInstanceFields
 import utils.allInstanceFieldsAreFinal
