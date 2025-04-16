@@ -76,6 +76,7 @@ import utils.getStaticFieldValue
 import utils.isExceptionCtor
 import utils.isInstanceApproximation
 import utils.isInternalType
+import utils.isLambdaTypeName
 import utils.isStaticApproximation
 import utils.jcTypeOf
 import utils.setStaticFieldValue
@@ -313,10 +314,11 @@ open class JcConcreteMemory(
 
     protected open fun shouldNotInvoke(method: JcMethod): Boolean {
         return forbiddenInvocations.contains(method.humanReadableSignature)
+                // Should not invoke lambdas, because it may contain forbidden method inside it
+                || method.enclosingClass.name.isLambdaTypeName
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
-        // TODO: add lambdas? #CM
         val enclosingClass = method.enclosingClass
         return !(
                 method.isConstructor && enclosingClass.isAbstract ||

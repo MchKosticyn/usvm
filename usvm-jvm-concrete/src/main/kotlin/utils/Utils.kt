@@ -1,6 +1,6 @@
 package utils
 
-import features.JcLambdaFeature
+import features.JcGeneratedTypesFeature
 import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.ClassSource
 import org.jacodb.api.jvm.JcArrayType
@@ -248,11 +248,6 @@ internal val Class<*>.isProxy: Boolean
 internal val String.isLambdaTypeName: Boolean
     get() = contains("\$\$Lambda\$")
 
-internal fun getLambdaCanonicalTypeName(typeName: String): String {
-    check(typeName.isLambdaTypeName)
-    return typeName.split('/')[0]
-}
-
 internal val Class<*>.isLambda: Boolean
     get() = typeName.isLambdaTypeName
 
@@ -479,35 +474,15 @@ class LambdaClassSource(
 
 fun Class<*>.toJcType(cp: JcClasspath): JcType? {
     try {
+        if (isHidden)
+            JcGeneratedTypesFeature.addHiddenClass(typeName, this)
+
         if (isProxy) {
             val interfaces = interfaces
             if (interfaces.size == 1)
                 return cp.findTypeOrNull(interfaces[0].typeName)
 
             return null
-        }
-
-        if (isLambda) {
-            val cachedType = cp.findTypeOrNull(typeName)
-            if (cachedType != null && cachedType !is JcUnknownType)
-                return cachedType
-
-            // TODO: add dynamic load of classes into jacodb
-            val db = cp.db
-            val vfs = db.javaClass.allInstanceFields.find { it.name == "classesVfs" }!!.getFieldValue(db)!!
-            val lambdasDir = System.getenv("lambdasDir")
-            val loc = cp.registeredLocations.find {
-                it.jcLocation?.jarOrFolder?.absolutePath == lambdasDir
-            }!!
-            val addMethod = vfs.javaClass.methods.find { it.name == "addClass" }!!
-            val fileName = getLambdaCanonicalTypeName(typeName)
-            val source = LambdaClassSource(loc, typeName, fileName)
-            addMethod.invoke(vfs, source)
-
-            val type = cp.findTypeOrNull(typeName)
-            check(type is JcClassType)
-            JcLambdaFeature.addLambdaClass(this, type.jcClass)
-            return type
         }
 
         val type = cp.findTypeOrNull(this.typeName)
