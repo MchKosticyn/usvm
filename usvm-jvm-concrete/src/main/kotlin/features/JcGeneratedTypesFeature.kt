@@ -10,17 +10,28 @@ import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.impl.bytecode.JcClassOrInterfaceImpl
 import org.jacodb.impl.features.JcFeaturesChain
 import org.jacodb.impl.features.classpaths.AbstractJcResolvedResult
+import utils.isLambdaTypeName
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
-// TODO: unify with lambda feature
 object JcGeneratedTypesFeature: JcClasspathExtFeature {
 
     private val generatedTypeBytes = ConcurrentHashMap<String, ByteArray>()
 
-    private val generatedTypes = ConcurrentHashMap<String, JcClassOrInterface>()
+    private val generatedTypes = HashMap<String, JcClassOrInterface>()
+
+    private val hiddenClasses = HashMap<String, Class<*>>()
 
     fun addGeneratedTypeBytes(name: String, bytes: ByteArray) {
         generatedTypeBytes[name] = bytes
+    }
+
+    fun addHiddenClass(name: String, clazz: Class<*>) {
+        hiddenClasses[name] = clazz
+    }
+
+    fun getHiddenClass(name: String): Class<*>? {
+        return hiddenClasses[name]
     }
 
     private object GeneratedLocation: RegisteredLocation {
@@ -44,12 +55,38 @@ object JcGeneratedTypesFeature: JcClasspathExtFeature {
         return JcClassOrInterfaceImpl(cp, source, featuresChain)
     }
 
+    private fun getLambdaByteCode(className: String): ByteArray? {
+        val lambdaDir = File(System.getenv("lambdaDir"))
+        check(lambdaDir.exists())
+        val file = lambdaDir.resolve(className.replace('.', '/') + ".class")
+        return if (file.exists()) file.readBytes() else null
+    }
+
+    private fun getLambdaCanonicalTypeName(typeName: String): String {
+        check(typeName.isLambdaTypeName)
+        return typeName.split('/')[0]
+    }
+
+    private val String.isLambdaRealName: Boolean get() =
+        isLambdaTypeName && split('/').size == 2
+
     override fun tryFindClass(classpath: JcClasspath, name: String): JcResolvedClassResult? {
-        val bytecode = generatedTypeBytes[name] ?: return null
-        val jcClass = generatedTypes.computeIfAbsent(name) {
-            defineJcClass(classpath, name, bytecode)
+        val existingJcClass = generatedTypes[name]
+        if (existingJcClass != null)
+            return AbstractJcResolvedResult.JcResolvedClassResultImpl(name, existingJcClass)
+
+        if (name.isLambdaTypeName) {
+            check(name.isLambdaRealName)
+            val canonicalName = getLambdaCanonicalTypeName(name)
+            val bytecode = getLambdaByteCode(canonicalName) ?: return null
+            val jcClass = defineJcClass(classpath, name, bytecode)
+            generatedTypes[canonicalName] = jcClass
+            generatedTypes[name] = jcClass
+            return AbstractJcResolvedResult.JcResolvedClassResultImpl(name, jcClass)
         }
 
+        val bytecode = generatedTypeBytes[name] ?: return null
+        val jcClass = defineJcClass(classpath, name, bytecode)
         return AbstractJcResolvedResult.JcResolvedClassResultImpl(name, jcClass)
     }
 }

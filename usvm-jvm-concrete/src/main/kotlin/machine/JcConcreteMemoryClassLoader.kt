@@ -1,7 +1,6 @@
 package machine
 
 import features.JcGeneratedTypesFeature
-import features.JcLambdaFeature
 import machine.concreteMemory.JcConcreteEffectStorage
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
@@ -240,7 +239,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     }
 
     private fun loadLambdaClass(name: String): Class<*> {
-        return JcLambdaFeature.lambdaClassByName(name) ?: super.loadClass(name)
+        return JcGeneratedTypesFeature.getHiddenClass(name) ?: super.loadClass(name)
     }
 
     override fun addTypeBytes(name: String, typeBytes: ByteArray) {

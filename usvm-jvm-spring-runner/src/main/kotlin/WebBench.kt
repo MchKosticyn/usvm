@@ -39,7 +39,6 @@ import org.usvm.logger
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.util.classpathWithApproximations
-import features.JcLambdaFeature
 import machine.JcConcreteMachineOptions
 import machine.JcSpringMachine
 import machine.JcSpringMachineOptions
@@ -127,7 +126,7 @@ private class BenchCp(
 }
 
 private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcLambdaFeature, JcClinitFeature, JcInitFeature, JcEncodingFeature, JcGeneratedTypesFeature)
+    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcClinitFeature, JcInitFeature, JcEncodingFeature, JcGeneratedTypesFeature)
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
@@ -187,8 +186,8 @@ fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: St
 private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val cp = benchmark.cp
 
-    val generatedDirFile = File(System.getenv("generatedDir"))
-    check(generatedDirFile.exists()) { "Generated directory ${generatedDirFile.absolutePath} does not exist" }
+    val springDirFile = File(System.getenv("springDir"))
+    check(springDirFile.exists()) { "Generated directory ${springDirFile.absolutePath} does not exist" }
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
 //    val importAnnotation = cp.findClass("org.springframework.context.annotation.Import")
@@ -227,7 +226,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 //        val importAnnotationNode = AnnotationNode(importAnnotation.jvmDescriptor)
 //        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) }.toList())
 //        classNode.visibleAnnotations.add(importAnnotationNode)
-        classNode.write(cp, generatedDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
+        classNode.write(cp, springDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
     }
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
@@ -246,21 +245,15 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
             check(asmMethods.replace(asmMethod, newNode))
         }
         startSpringAsmNode.name = "NewStartSpring"
-        startSpringAsmNode.write(cp, generatedDirFile.resolve("NewStartSpring.class").toPath(), checkClass = true)
+        startSpringAsmNode.write(cp, springDirFile.resolve("NewStartSpring.class").toPath(), checkClass = true)
     }
-    val lambdasDirFile = File(System.getenv("lambdasDir"))
-    val generatedTypesDirFile = File(System.getenv("generatedTypesDir"))
     runBlocking {
-        benchmark.db.load(generatedDirFile)
-        benchmark.db.load(lambdasDirFile)
-        benchmark.db.load(generatedTypesDirFile)
+        benchmark.db.load(springDirFile)
         benchmark.db.awaitBackgroundJobs()
     }
-    val newCpFiles = benchmark.cpFiles + generatedDirFile + lambdasDirFile + generatedTypesDirFile
-    // TODO: add lambdas to dependencies? #CM
-    val newClasses = benchmark.classes + generatedDirFile + lambdasDirFile
-    val newDependencies = benchmark.dependencies + generatedTypesDirFile
-    return loadBench(benchmark.db, newCpFiles, newClasses, newDependencies)
+    val newCpFiles = benchmark.cpFiles + springDirFile
+    val newClasses = benchmark.classes + springDirFile
+    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies)
 }
 
 private fun analyzeBench(benchmark: BenchCp) {
@@ -276,7 +269,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 3.minutes,
+        timeout = 2.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
