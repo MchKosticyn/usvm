@@ -334,14 +334,18 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mocks not yet supported")
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
+        val instanceUnderSpy = expr.fields.entries.firstOrNull { (field, _) ->
+            field.isSpy
+        }?.value
+
         val type = expr.type as JcClassType
-        val mockCreationExpression = renderMockCreationExpression(expr)
+        val mockCreationExpression = renderMockCreationExpression(type, instanceUnderSpy)
         val emptyFields = expr.fields.isEmpty()
         val emptyMethods = expr.methods.isEmpty()
         if (emptyFields && emptyMethods)
             return mockCreationExpression
 
-        val varNamePrefix = mockVarNamePrefix(expr)
+        val varNamePrefix = if (instanceUnderSpy != null) "spy" else "mocked"
         val varExpr = renderVarDeclaration(type, mockCreationExpression, varNamePrefix)
         exprCache[expr] = varExpr
 
@@ -365,29 +369,18 @@ open class JcTestBlockRenderer protected constructor(
         return varExpr
     }
 
-    private fun mockVarNamePrefix(expr: UTestMockObject): String {
-        if (expr.fields.keys.any { it.isSpy })
-            return "spy"
-
-        return "mocked"
-    }
-
-    private fun renderMockCreationExpression(expr: UTestMockObject): Expression {
-        val spyFieldValue = expr.fields.entries.firstOrNull { (field, _) ->
-            field.isSpy
-        }?.value
-
-        return when (spyFieldValue) {
+    private fun renderMockCreationExpression(type: JcClassType, instanceUnderSpy: UTestExpression?): Expression {
+        return when (instanceUnderSpy) {
             null -> {
-                mockitoMockMethodCall(expr.type as JcClassType)
+                mockitoMockMethodCall(type)
             }
 
             is UTestNullExpression -> {
-                mockitoSpyClassMethodCall(expr.type as JcClassType)
+                mockitoSpyClassMethodCall(type)
             }
 
             else -> {
-                val instanceToSpy = renderExpression(spyFieldValue)
+                val instanceToSpy = renderExpression(instanceUnderSpy)
                 mockitoSpyInstanceMethodCall(instanceToSpy)
             }
         }
