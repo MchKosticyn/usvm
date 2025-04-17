@@ -101,7 +101,7 @@ private fun loadSynthBench(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadKlawBench()
+        loadWebPetClinicBench()
     }
 
     logTime("Analysis ALL") {
@@ -269,9 +269,10 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 2.minutes,
+        timeout = 1.minutes,
         solverType = SolverType.YICES,
-        loopIterationLimit = 2,
+        // TODO: redo
+//        loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
     )
@@ -298,7 +299,11 @@ private fun analyzeBench(benchmark: BenchCp) {
         testObserver
     )
 
-    machine.analyze(method.method)
+    try {
+        machine.analyze(method.method)
+    } catch (e: Throwable) {
+        logger.error(e) { "Machine failed" }
+    }
 
     reproduceTests(testObserver.generatedTests, jcConcreteMachineOptions, cp)
 
