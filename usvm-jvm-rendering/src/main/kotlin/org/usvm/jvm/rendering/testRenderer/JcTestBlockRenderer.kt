@@ -335,13 +335,14 @@ open class JcTestBlockRenderer protected constructor(
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
         val type = expr.type as JcClassType
-        val mockCreationExpression = mockitoMockMethodCall(type)
+        val mockCreationExpression = renderMockCreationExpression(expr)
         val emptyFields = expr.fields.isEmpty()
         val emptyMethods = expr.methods.isEmpty()
         if (emptyFields && emptyMethods)
             return mockCreationExpression
 
-        val varExpr = renderVarDeclaration(type, mockCreationExpression, "mocked")
+        val varNamePrefix = mockVarNamePrefix(expr)
+        val varExpr = renderVarDeclaration(type, mockCreationExpression, varNamePrefix)
         exprCache[expr] = varExpr
 
         for ((field, fieldValue) in expr.fields) {
@@ -362,6 +363,34 @@ open class JcTestBlockRenderer protected constructor(
         }
 
         return varExpr
+    }
+
+    private fun mockVarNamePrefix(expr: UTestMockObject): String {
+        if (expr.fields.keys.any { it.isSpy })
+            return "spy"
+
+        return "mocked"
+    }
+
+    private fun renderMockCreationExpression(expr: UTestMockObject): Expression {
+        val spyFieldValue = expr.fields.entries.firstOrNull { (field, _) ->
+            field.isSpy
+        }?.value
+
+        return when (spyFieldValue) {
+            null -> {
+                mockitoMockMethodCall(expr.type as JcClassType)
+            }
+
+            is UTestNullExpression -> {
+                mockitoSpyClassMethodCall(expr.type as JcClassType)
+            }
+
+            else -> {
+                val instanceToSpy = renderExpression(spyFieldValue)
+                mockitoSpyInstanceMethodCall(instanceToSpy)
+            }
+        }
     }
 
     private fun renderMockObjectMethod(
