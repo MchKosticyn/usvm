@@ -183,10 +183,28 @@ abstract class JcCodeRenderer<T: Node>(
 
     val mockitoClass: ClassOrInterfaceType by lazy { renderClass("org.mockito.Mockito") }
 
-    fun mockitoMockMethodCall(classToSpy: JcClassType): MethodCallExpr {
+    protected val JcField.isSpy: Boolean get() = name == "\$isSpyGenerated239"
+
+    fun mockitoMockMethodCall(classToMock: JcClassType): MethodCallExpr {
         return MethodCallExpr(
             TypeExpr(mockitoClass),
             "mock",
+            NodeList(renderClassExpression(classToMock))
+        )
+    }
+
+    fun mockitoSpyInstanceMethodCall(instanceToSpy: Expression): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "spy",
+            NodeList(instanceToSpy)
+        )
+    }
+
+    fun mockitoSpyClassMethodCall(classToSpy: JcClassType): MethodCallExpr {
+        return MethodCallExpr(
+            TypeExpr(mockitoClass),
+            "spy",
             NodeList(renderClassExpression(classToSpy))
         )
     }
