@@ -334,14 +334,19 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mocks not yet supported")
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
+        val instanceUnderSpy = expr.fields.entries.firstOrNull { (field, _) ->
+            field.isSpy
+        }?.value
+
         val type = expr.type as JcClassType
-        val mockCreationExpression = mockitoMockMethodCall(type)
+        val mockCreationExpression = renderMockCreationExpression(type, instanceUnderSpy)
         val emptyFields = expr.fields.isEmpty()
         val emptyMethods = expr.methods.isEmpty()
         if (emptyFields && emptyMethods)
             return mockCreationExpression
 
-        val varExpr = renderVarDeclaration(type, mockCreationExpression, "mocked")
+        val varNamePrefix = if (instanceUnderSpy != null) "spy" else "mocked"
+        val varExpr = renderVarDeclaration(type, mockCreationExpression, varNamePrefix)
         exprCache[expr] = varExpr
 
         for ((field, fieldValue) in expr.fields) {
@@ -362,6 +367,23 @@ open class JcTestBlockRenderer protected constructor(
         }
 
         return varExpr
+    }
+
+    private fun renderMockCreationExpression(type: JcClassType, instanceUnderSpy: UTestExpression?): Expression {
+        return when (instanceUnderSpy) {
+            null -> {
+                mockitoMockMethodCall(type)
+            }
+
+            is UTestNullExpression -> {
+                mockitoSpyClassMethodCall(type)
+            }
+
+            else -> {
+                val instanceToSpy = renderExpression(instanceUnderSpy)
+                mockitoSpyInstanceMethodCall(instanceToSpy)
+            }
+        }
     }
 
     private fun renderMockObjectMethod(
