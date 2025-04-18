@@ -20,11 +20,11 @@ import org.usvm.jvm.util.allInstanceFields
 import utils.LambdaInvocationHandler
 import utils.approximationMethod
 import utils.createDefault
-import utils.isLambda
 import utils.isProxy
 import utils.isThreadLocal
 import utils.setArrayValue
 import utils.setFieldValue
+import utils.toJavaField
 import java.lang.reflect.Proxy
 
 internal class JcConcretizer(
@@ -143,7 +143,9 @@ internal class JcConcretizer(
             }
 
             check(field.field !is JcEnrichedVirtualField)
-            decoderApi.setField(field.field, instance, fieldValue)
+            val javaField = field.field.toJavaField
+                ?: error("resolveThreadLocal: can not find field $field")
+            javaField.setFieldValue(instance, fieldValue)
         }
 
         return instance
