@@ -7,10 +7,12 @@ import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.UMachineOptions
 import org.usvm.UPathSelector
 import org.usvm.machine.JcInterpreterObserver
+import org.usvm.machine.JcLoopTracker
 import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcState
+import org.usvm.ps.LoopLimiterPs
 import org.usvm.statistics.CoverageStatistics
 import org.usvm.statistics.TimeStatistics
 import org.usvm.statistics.distances.CallGraphStatistics
@@ -45,6 +47,7 @@ open class JcConcreteMachine(
             coverageStatistics,
             callGraphStatistics
         )
-        return JcConcreteMemoryPathSelector(ps)
+        // TODO: hack, redo #PS
+        return LoopLimiterPs(JcConcreteMemoryPathSelector(ps), JcLoopTracker(), 2)
     }
 }

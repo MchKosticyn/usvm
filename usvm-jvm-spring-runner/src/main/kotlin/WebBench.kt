@@ -271,7 +271,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         exceptionsPropagation = false,
         timeout = 1.minutes,
         solverType = SolverType.YICES,
-        // TODO: redo
+        // TODO: hack #PS
 //        loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
