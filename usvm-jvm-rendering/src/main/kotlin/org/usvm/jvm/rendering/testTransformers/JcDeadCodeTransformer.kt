@@ -50,6 +50,7 @@ class JcDeadCodeTransformer: JcTestTransformer() {
 
         override fun visit(inst: UTestInst) {
             marker = false
+            super.clearVisited()
             super.visit(inst)
         }
 
