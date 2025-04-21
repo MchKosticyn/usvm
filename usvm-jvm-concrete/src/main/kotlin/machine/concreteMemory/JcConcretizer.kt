@@ -17,6 +17,7 @@ import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.state.JcState
 import org.usvm.mkSizeExpr
 import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.setFieldValue
 import utils.LambdaInvocationHandler
 import utils.approximationMethod
 import utils.createDefault
@@ -34,6 +35,8 @@ internal class JcConcretizer(
     override val decoderApi: JcTestInterpreterDecoderApi = JcTestInterpreterDecoderApi(ctx, JcConcreteMemoryClassLoader)
 
     private val concreteMemory = state.memory as JcConcreteMemory
+
+    private val isCurrentResolveMode get() = currentResolveMode == ResolveMode.CURRENT
 
     override fun tryCreateObjectInstance(ref: UConcreteHeapRef, heapRef: UHeapRef): Any? {
         if (heapRef is UConcreteHeapRef) {
@@ -69,7 +72,7 @@ internal class JcConcretizer(
 
     override fun resolveArray(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcArrayType): Any? {
         val addressInModel = ref.address
-        if (heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
+        if (isCurrentResolveMode && heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
             val array = resolveConcreteArray(heapRef, type)
             saveResolvedRef(addressInModel, array)
             return array
@@ -153,7 +156,8 @@ internal class JcConcretizer(
 
     override fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): Any? {
         val addressInModel = ref.address
-        if (heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
+
+        if (isCurrentResolveMode && heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
             val obj = resolveConcreteObject(heapRef, type)
             saveResolvedRef(addressInModel, obj)
             return obj
