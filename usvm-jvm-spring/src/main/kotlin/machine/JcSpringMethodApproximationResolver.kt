@@ -28,6 +28,7 @@ import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.objectType
+import org.jacodb.api.jvm.ext.toType
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UNullRef
@@ -145,19 +146,19 @@ class JcSpringMethodApproximationResolver (
 
         val annotations = parameter
             .javaClass.superclass.superclass
-            .declaredMethods.single { it.name == "getParameterAnnotations" }
-            .invoke(parameter) as Array<*>
+            .declaredMethods.find { it.name == "getParameterAnnotations" && it.parameters.isEmpty() }
+            ?.invoke(parameter) as Array<*>
 
         val keys = annotations.mapNotNull { annotation ->
             val name = annotation?.javaClass
-                ?.declaredMethods?.single { it.name == "name" }
+                ?.declaredMethods?.find { it.name == "name" && it.parameters.isEmpty() }
                 ?.invoke(annotation) ?: return@mapNotNull null
 
             val annotationType = annotation.javaClass
-                .declaredMethods.single { it.name == "annotationType" }
+                .declaredMethods.find { it.name == "annotationType" && it.parameters.isEmpty() }
                 ?.invoke(annotation).let { annotationType ->
                     annotationType?.javaClass
-                        ?.declaredMethods?.single {it.name == "getName"}
+                        ?.declaredMethods?.find { it.name == "getName" && it.parameters.isEmpty() }
                         ?.invoke(annotationType)
                 }
 
@@ -692,9 +693,9 @@ class JcSpringMethodApproximationResolver (
         entrypoint: JcClassOrInterface
     ): TreeMap<String, ArrayList<String>> {
         val fieldTypes = TreeMap<String, ArrayList<String>>()
-
-        for (field in entrypoint.allFields) {
-            val type = field.typedField.type.autoboxIfNeeded()
+               
+        for (field in entrypoint.toType().allFields) {
+            val type = field.type.autoboxIfNeeded()
             val name = field.name
 
             if (type is JcClassType) {
