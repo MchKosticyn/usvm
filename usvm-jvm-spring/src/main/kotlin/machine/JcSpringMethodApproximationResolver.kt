@@ -23,29 +23,30 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.boolean
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.objectType
+import org.jacodb.api.jvm.ext.toType
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UNullRef
-import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
-import org.usvm.api.readField
 import org.usvm.api.util.JcTestStateResolver
 import org.usvm.api.writeField
+import org.usvm.jvm.util.allFields
+import org.usvm.jvm.util.name
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.state.skipMethodInvocationWithValue
-import org.usvm.types.single
-import org.usvm.jvm.util.allInstanceFields
 import org.usvm.util.classesOfLocations
 import utils.toJcType
+import utils.typedField
 import java.util.ArrayList
 import java.util.TreeMap
 
@@ -96,6 +97,10 @@ class JcSpringMethodApproximationResolver (
             if (approximatePinnedValueStorage(methodCall)) return true
         }
 
+        if (className == "org.springframework.web.bind.ServletRequestDataBinder") {
+            if (approximateServletRequestDataBinder(methodCall)) return true
+        }
+
         return false
     }
 
@@ -127,30 +132,75 @@ class JcSpringMethodApproximationResolver (
             if (approximateMockHttpRequest(methodCall)) return true
         }
 
+        if (className == "org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver") {
+            if (approximateArgumentResolver(methodCall)) return true
+        }
+
         return false
     }
 
-    private fun getParameterTypeAndName(parameter: UHeapRef) : Pair<JcType, String>? = scope.calcOnState {
-        // TODO: rework (ask Artur)
+    private fun getPinnedKeyOfParameter(parameterRef: UConcreteHeapRef) : JcPinnedKey? = scope.calcOnState {
         this as JcSpringState
-        val annotatedMethodParameterType = memory.types.typeOf((parameter as UConcreteHeapRef).address) as JcClassType
-        val parameterTypeField = annotatedMethodParameterType.allInstanceFields.single {it.name == "parameterType"}
-        val parameterTypeRef = memory.readField(parameter, parameterTypeField.field, ctx.addressSort) as UConcreteHeapRef
-        val typeType = memory.types.getTypeStream(parameterTypeRef).single() as JcClassType
-        val typeNameField = typeType.allInstanceFields.single {it.name == "name"}
-        val typeNameRef = memory.readField(parameterTypeRef, typeNameField.field, ctx.addressSort) as UConcreteHeapRef
-        val typeName = springMemory.tryHeapRefToObject(typeNameRef) as String
-        val type = ctx.cp.findTypeOrNull(typeName)
-        val parameterNameField = annotatedMethodParameterType.allInstanceFields.single {it.name == "parameterName"}
-        val parameterNameRef = memory.readField(parameter, parameterNameField.field, ctx.addressSort) as UConcreteHeapRef
-        val name = springMemory.tryHeapRefToObject(parameterNameRef) as String?
+        val memory = memory as JcSpringMemory
+        val parameter = memory.tryHeapRefToObject(parameterRef) ?: return@calcOnState null
 
-        if (type == null || name == null) {
-            println("Non-concrete type or name is not supported for controller parameter")
+        val annotations = parameter
+            .javaClass.superclass.superclass
+            .declaredMethods.find { it.name == "getParameterAnnotations" && it.parameters.isEmpty() }
+            ?.invoke(parameter) as Array<*>
+
+        val keys = annotations.mapNotNull { annotation ->
+            val name = annotation?.javaClass
+                ?.declaredMethods?.find { it.name == "name" && it.parameters.isEmpty() }
+                ?.invoke(annotation) ?: return@mapNotNull null
+
+            val annotationType = annotation.javaClass
+                .declaredMethods.find { it.name == "annotationType" && it.parameters.isEmpty() }
+                ?.invoke(annotation).let { annotationType ->
+                    annotationType?.javaClass
+                        ?.declaredMethods?.find { it.name == "getName" && it.parameters.isEmpty() }
+                        ?.invoke(annotationType)
+                }
+
+            val source = when (annotationType) {
+                "org.springframework.web.bind.annotation.PathVariable" -> JcSpringPinnedValueSource.REQUEST_PATH_VARIABLE
+                "org.springframework.web.bind.annotation.RequestHeader" -> JcSpringPinnedValueSource.REQUEST_HEADER
+                "org.springframework.web.bind.annotation.MatrixVariable" -> JcSpringPinnedValueSource.REQUEST_MATRIX
+                "org.springframework.web.bind.annotation.RequestParam" -> JcSpringPinnedValueSource.REQUEST_PARAM
+                else -> println("Warning! unsupported resolver: $annotationType").let { return@calcOnState null }
+            }
+
+            source to name as String
+        }
+
+        check(keys.isNotEmpty()) { "No parameter annotations" }
+        if (keys.size > 1) {
+            println("Warning! Multiple annotations on one parameter")
+        }
+
+        val key = keys[0]
+        return@calcOnState JcPinnedKey.ofName(key.first, key.second)
+    }
+
+
+    private fun getParameterType(parameterRef: UConcreteHeapRef) : JcType? = scope.calcOnState {
+        this as JcSpringState
+        val memory = memory as JcSpringMemory
+        val parameter = memory.tryHeapRefToObject(parameterRef) ?: return@calcOnState null
+
+        val clazz = parameter
+            .javaClass.superclass.superclass
+            .declaredMethods.single { it.name == "getParameterType" }
+            .invoke(parameter) as Class<*>
+
+        val type = clazz.toJcType(ctx.cp)
+
+        if (type == null) {
+            println("Warning! Type was not found")
             return@calcOnState null
         }
 
-        return@calcOnState type to name
+        return@calcOnState type
     }
 
     private fun accessPinnedValue(
@@ -249,6 +299,24 @@ class JcSpringMethodApproximationResolver (
         return false
     }
 
+    private fun approximateServletRequestDataBinder(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "_getFieldTypes") {
+            val entrypointArgument = arguments[0] as UConcreteHeapRef
+            scope.doWithState {
+                val memory = memory as JcConcreteMemory
+                val entrypoint = memory.tryHeapRefToObject(entrypointArgument) as Class<*>
+                val description = getFieldTypes(ctx.cp.findClass(entrypoint.name))
+                val type = description.javaClass
+                val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
+                val heapRef = memory.tryAllocateConcrete(description, jcType)!!
+                skipMethodInvocationWithValue(methodCall, heapRef)
+            }
+            return true
+        }
+
+        return false
+    }
+
     private fun approximateArgumentResolverStatic(methodCall: JcMethodCall): Boolean = with(methodCall) {
         /* AbstractNamedValueMethodArgumentResolver
          * Web data binder convert is too hard to execute symbolically
@@ -259,7 +327,7 @@ class JcSpringMethodApproximationResolver (
             val source = methodCall.arguments[4]
             return scope.calcOnState {
                 this as JcSpringState
-                val type = getParameterTypeAndName(parameter)?.first?.autoboxIfNeeded()!!
+                val type = getParameterType(parameter)?.autoboxIfNeeded()!!
                 val key = getPinnedValueKey(source)!!
                 val newSymbolicValue = createPinnedAndReplace(key, type, scope, ctx.addressSort, false)
                     ?: return@calcOnState false
@@ -269,21 +337,16 @@ class JcSpringMethodApproximationResolver (
             }
         }
 
+        return@with false
+    }
+
+    private fun approximateArgumentResolver(methodCall: JcMethodCall): Boolean = with(methodCall) {
         if (method.name == "resolveArgument") {
             // Fixes cases when arg. resolver is called twice i.e. ModelAttribute and Controller sharing same path variable
-            val parameter = methodCall.arguments[0] as UConcreteHeapRef
+            val parameter = methodCall.arguments[1] as UConcreteHeapRef
             return scope.calcOnState {
                 this as JcSpringState
-                val name = getParameterTypeAndName(parameter)?.second!!
-                val source = when (method.enclosingClass.simpleName) {
-                    "PathVariableMethodArgumentResolver" -> JcSpringPinnedValueSource.REQUEST_PATH
-                    "RequestHeaderMethodArgumentResolver" -> JcSpringPinnedValueSource.REQUEST_HEADER
-                    "MatrixVariableMethodArgumentResolver" -> JcSpringPinnedValueSource.REQUEST_MATRIX
-                    "RequestParamMethodArgumentResolver" -> JcSpringPinnedValueSource.REQUEST_PARAM
-                    else -> println("Warning! unsupported resolver: ${method.enclosingClass.simpleName}")
-                        .let { return@calcOnState false }
-                }
-                val key = JcPinnedKey.ofName(source, name)
+                val key = getPinnedKeyOfParameter(parameter)!!
                 val existingValue = getPinnedValue(key)
 
                 if (existingValue != null) {
@@ -621,11 +684,30 @@ class JcSpringMethodApproximationResolver (
         stateToFill.handlerData = handlerData
 
         return handlerData
-            .filterNot {shouldSkipPath(it.pathTemplate, it.handler.name, it.controller.name)}
+            .filterNot { shouldSkipPath(it.pathTemplate, it.handler.name, it.controller.name) }
             .map { arrayListOf<Any>(it.controller.name, it.handler.name, it.pathTemplate, it.uriVariablesCount, it.allowedMethods.first()) }
             .let { ArrayList(it) }
     }
 
+    private fun getFieldTypes(
+        entrypoint: JcClassOrInterface
+    ): TreeMap<String, ArrayList<String>> {
+        val fieldTypes = TreeMap<String, ArrayList<String>>()
+               
+        for (field in entrypoint.toType().allFields) {
+            val type = field.type.autoboxIfNeeded()
+            val name = field.name
+
+            if (type is JcClassType) {
+                val typeArgumentsName = type.typeArguments.map { it.typeName }
+                fieldTypes[name] = ArrayList(listOf(type.name) + typeArgumentsName)
+            } else {
+                fieldTypes[name] = arrayListOf(type.typeName)
+            }
+        }
+
+        return fieldTypes
+    }
 
     private fun approximateSpringBootStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         if (method.name == "deduceFromClasspath") {

@@ -89,7 +89,7 @@ abstract class JcTestStateResolver<T>(
     abstract val decoderApi: DecoderApi<T>
 
     private var resolveMode: ResolveMode = ResolveMode.ERROR
-    private var currentResolveMode = ResolveMode.ERROR
+    protected var currentResolveMode = ResolveMode.ERROR
 
     fun <R> withMode(resolveMode: ResolveMode, body: JcTestStateResolver<T>.() -> R): R {
         val prevValue = this.resolveMode
@@ -213,7 +213,10 @@ abstract class JcTestStateResolver<T>(
             return@withCorrectMemory decoderApi.createNullConst(type)
         }
 
-        val obj = tryCreateObjectInstance(ref, heapRef)
+        val obj = if (currentResolveMode == ResolveMode.CURRENT) {
+            tryCreateObjectInstance(ref, heapRef)
+        } else null
+
         if (obj != null) {
             saveResolvedRef(ref.address, obj)
             return@withCorrectMemory obj
