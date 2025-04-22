@@ -17,7 +17,6 @@ import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.state.JcState
 import org.usvm.mkSizeExpr
 import org.usvm.jvm.util.allInstanceFields
-import org.usvm.jvm.util.setFieldValue
 import utils.LambdaInvocationHandler
 import utils.approximationMethod
 import utils.createDefault
@@ -36,17 +35,16 @@ internal class JcConcretizer(
 
     private val concreteMemory = state.memory as JcConcreteMemory
 
-    private val isCurrentResolveMode get() = currentResolveMode == ResolveMode.CURRENT
+    override var resolveMode: ResolveMode = ResolveMode.CURRENT
 
-    override fun tryCreateObjectInstance(ref: UConcreteHeapRef, heapRef: UHeapRef): Any? {
-        if (heapRef is UConcreteHeapRef) {
-            check(heapRef == ref)
+    override fun <R> withMode(resolveMode: ResolveMode, body: JcTestStateResolver<Any?>.() -> R): R {
+        check(resolveMode == ResolveMode.CURRENT && this.resolveMode == ResolveMode.CURRENT)
+        return body()
+    }
+
+    override fun tryCreateObjectInstance(heapRef: UHeapRef): Any? {
+        if (heapRef is UConcreteHeapRef)
             return bindings.tryFullyConcrete(heapRef.address)
-        }
-
-        val addressInModel = ref.address
-        if (bindings.contains(addressInModel))
-            return bindings.tryFullyConcrete(addressInModel)
 
         return null
     }
@@ -72,17 +70,13 @@ internal class JcConcretizer(
 
     override fun resolveArray(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcArrayType): Any? {
         val addressInModel = ref.address
-        if (isCurrentResolveMode && heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
+        if (heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
             val array = resolveConcreteArray(heapRef, type)
             saveResolvedRef(addressInModel, array)
             return array
         }
 
-        val array = super.resolveArray(ref, heapRef, type)
-        if (array != null && !bindings.contains(addressInModel))
-            bindings.allocate(addressInModel, array, type)
-
-        return array
+        return super.resolveArray(ref, heapRef, type)
     }
 
     private fun initLambdaIfNeeded(heapRef: UConcreteHeapRef, obj: Any) {
@@ -157,13 +151,13 @@ internal class JcConcretizer(
     override fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): Any? {
         val addressInModel = ref.address
 
-        if (isCurrentResolveMode && heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
+        if (heapRef is UConcreteHeapRef && bindings.contains(heapRef.address)) {
             val obj = resolveConcreteObject(heapRef, type)
             saveResolvedRef(addressInModel, obj)
             return obj
         }
 
-        val obj = if (type.jcClass.isThreadLocal) {
+        return if (type.jcClass.isThreadLocal) {
             resolveThreadLocal(ref, heapRef, type)
         } else {
             val resolved = super.resolveObject(ref, heapRef, type) ?: return null
@@ -171,11 +165,6 @@ internal class JcConcretizer(
                 initLambdaIfNeeded(heapRef, resolved)
             resolved
         }
-
-        if (!bindings.contains(addressInModel))
-            bindings.allocate(addressInModel, obj, type)
-
-        return obj
     }
 
     override fun allocateClassInstance(type: JcClassType): Any =

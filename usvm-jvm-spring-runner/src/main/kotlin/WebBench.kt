@@ -229,6 +229,8 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
         classNode.write(cp, springDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
     }
 
+    System.setProperty("generatedTestClass", testClassFullName.replace('/', '.'))
+
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
     startSpringClass.withAsmNode { startSpringAsmNode ->
         val startSpringMethod = startSpringClass.declaredMethods.find { it.name == "startSpring" }!!
@@ -269,10 +271,9 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 1.minutes,
+        timeout = 2.minutes,
         solverType = SolverType.YICES,
-        // TODO: hack #PS
-//        loopIterationLimit = 2,
+        loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
     )

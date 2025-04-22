@@ -36,6 +36,7 @@ private fun <Method, Statement, Target, State> createPathSelector(
     cfgStatisticsFactory: () -> CfgStatistics<Method, Statement>? = { null },
     callGraphStatisticsFactory: () -> CallGraphStatistics<Method>? = { null },
     loopStatisticFactory: () -> StateLoopTracker<*, Statement, State>? = { null },
+    wrappingPathSelector: (UPathSelector<State>) -> UPathSelector<State> = { it }
 ): UPathSelector<State>
     where Target : UTarget<Statement, Target>,
           State : UState<*, Method, Statement, *, Target, State> {
@@ -107,7 +108,8 @@ private fun <Method, Statement, Target, State> createPathSelector(
 
     selectors.singleOrNull()?.let { selector ->
         val mergingSelector = createMergingPathSelector(initialStates, selector, options, cfgStatisticsFactory)
-        val resultSelector = mergingSelector.wrapIfRequired(options, loopStatisticFactory)
+        val wrappedPs = wrappingPathSelector(mergingSelector)
+        val resultSelector = wrappedPs.wrapIfRequired(options, loopStatisticFactory)
         resultSelector.add(initialStates.toList())
         return resultSelector
     }
@@ -120,7 +122,8 @@ private fun <Method, Statement, Target, State> createPathSelector(
             val selector = InterleavedPathSelector(selectors)
 
             val mergingSelector = createMergingPathSelector(initialStates, selector, options, cfgStatisticsFactory)
-            val resultSelector = mergingSelector.wrapIfRequired(options, loopStatisticFactory)
+            val wrappingPs = wrappingPathSelector(mergingSelector)
+            val resultSelector = wrappingPs.wrapIfRequired(options, loopStatisticFactory)
             resultSelector.add(initialStates.toList())
 
             resultSelector
@@ -130,7 +133,8 @@ private fun <Method, Statement, Target, State> createPathSelector(
             // Here we should wrap all selectors independently since they work in parallel.
             val wrappedSelectors = selectors.map { selector ->
                 val mergingSelector = createMergingPathSelector(initialStates, selector, options, cfgStatisticsFactory)
-                mergingSelector.wrapIfRequired(options, loopStatisticFactory)
+                val wrappingPs = wrappingPathSelector(mergingSelector)
+                wrappingPs.wrapIfRequired(options, loopStatisticFactory)
             }
 
             wrappedSelectors.first().add(initialStates.toList())
@@ -153,6 +157,7 @@ fun <Method, Statement, Target, State> createPathSelector(
     cfgStatisticsFactory: () -> CfgStatistics<Method, Statement>? = { null },
     callGraphStatisticsFactory: () -> CallGraphStatistics<Method>? = { null },
     loopStatisticFactory: () -> StateLoopTracker<*, Statement, State>? = { null },
+    wrappingPathSelector: (UPathSelector<State>) -> UPathSelector<State> = { it }
 ): UPathSelector<State> where Target : UTarget<Statement, Target>, State : UState<*, Method, Statement, *, Target, State> =
     createPathSelector(
         listOf(initialState),
@@ -161,7 +166,8 @@ fun <Method, Statement, Target, State> createPathSelector(
         coverageStatisticsFactory,
         cfgStatisticsFactory,
         callGraphStatisticsFactory,
-        loopStatisticFactory
+        loopStatisticFactory,
+        wrappingPathSelector
     )
 
 fun <Method, Statement, Target, State> createPathSelector(
@@ -173,6 +179,7 @@ fun <Method, Statement, Target, State> createPathSelector(
     cfgStatisticsFactory: () -> CfgStatistics<Method, Statement>? = { null },
     callGraphStatisticsFactory: () -> CallGraphStatistics<Method>? = { null },
     loopStatisticFactory: () -> StateLoopTracker<*, Statement, State>? = { null },
+    wrappingPathSelector: (UPathSelector<State>) -> UPathSelector<State> = { it }
 ): UPathSelector<State> where Target : UTarget<Statement, Target>, State : UState<*, Method, Statement, *, Target, State> {
     if (options.timeout == Duration.INFINITE || initialStates.size == 1) {
         return createPathSelector(
@@ -182,7 +189,8 @@ fun <Method, Statement, Target, State> createPathSelector(
             coverageStatisticsFactory,
             cfgStatisticsFactory,
             callGraphStatisticsFactory,
-            loopStatisticFactory
+            loopStatisticFactory,
+            wrappingPathSelector
         )
     }
 
@@ -199,7 +207,8 @@ fun <Method, Statement, Target, State> createPathSelector(
             coverageStatisticsFactory,
             cfgStatisticsFactory,
             callGraphStatisticsFactory,
-            loopStatisticFactory
+            loopStatisticFactory,
+            wrappingPathSelector
         )
 
     val coverageStatistics = coverageStatisticsFactory()

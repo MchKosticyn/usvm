@@ -4,7 +4,6 @@ import machine.state.pinnedValues.JcPinnedKey.Companion.responseContent
 import machine.state.pinnedValues.JcPinnedKey.Companion.responseStatus
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
-import org.usvm.api.util.JcTestStateResolver
 import org.usvm.test.api.UTestNullExpression
 import org.usvm.test.api.spring.JcSpringHttpCookie
 import org.usvm.test.api.spring.JcSpringHttpHeader
@@ -21,7 +20,6 @@ class JcSpringPinnedValuesResponse(
     private fun collectAndResolve(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
         return pinnedValues.collectAndResolve(
             exprResolver,
-            JcTestStateResolver.ResolveMode.CURRENT,
             pinnedValueSource,
             exprResolver.ctx
         )
@@ -33,7 +31,7 @@ class JcSpringPinnedValuesResponse(
         check(status != null)
         return status
     }
-    
+
     override fun getCookies(): List<JcSpringHttpCookie> {
         val cookies = collectAndResolve(JcSpringPinnedValueSource.RESPONSE_COOKIE)
         return cookies.mapNotNull { (key, value) -> JcSpringHttpCookie(key, value as UTString) }
@@ -45,8 +43,8 @@ class JcSpringPinnedValuesResponse(
             return null
         check(content is UTString)
         return content
-    } 
-    
+    }
+
     override fun getHeaders(): List<JcSpringHttpHeader> {
         val headers = collectAndResolve(JcSpringPinnedValueSource.RESPONSE_COOKIE)
         return headers.mapNotNull { (key, value) -> JcSpringHttpHeader(key, value as UTStringArray) }

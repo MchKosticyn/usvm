@@ -36,7 +36,6 @@ import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
-import org.usvm.api.util.JcTestStateResolver
 import org.usvm.api.writeField
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
@@ -44,7 +43,6 @@ import org.usvm.machine.JcMethodCall
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.jvm.util.allFields
 import org.usvm.util.classesOfLocations
-import org.usvm.jvm.util.name
 import org.usvm.jvm.util.toJavaClass
 import utils.toJcType
 import java.util.ArrayList
@@ -231,12 +229,10 @@ class JcSpringMethodApproximationResolver (
         return key to type
     }
 
-    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState, mode: JcTestStateResolver.ResolveMode): JcPinnedValue? {
+    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
         val memory = state.memory as JcSpringMemory
         val concretizer = memory.getConcretizer(state)
-        val result = concretizer.withMode(mode) {
-            concretizer.resolveExpr(value.getExpr(), value.getType())
-        } ?: return null
+        val result = concretizer.resolveExpr(value.getExpr(), value.getType()) ?: return null
         if (result.toString().isEmpty()) return null
         val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
         val expr = memory.objectToExpr(arrayOf(result.toString()), stringArrayType)
@@ -285,7 +281,7 @@ class JcSpringMethodApproximationResolver (
                 val headers = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_HEADER)
                 val parameters = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_PARAM)
                 (headers + parameters)
-                    .map { it.key to pinnedValueToStringArray(it.value, this, JcTestStateResolver.ResolveMode.MODEL) }
+                    .map { it.key to pinnedValueToStringArray(it.value, this) }
                     .forEach { (key, value) ->
                         if (value == null) removePinnedValue(key)
                         else setPinnedValue(key, value.getExpr(), value.getType())
@@ -698,7 +694,7 @@ class JcSpringMethodApproximationResolver (
 
     private fun getFieldTypes(entrypoint: JcClassOrInterface): TreeMap<String, ArrayList<Any>> {
         val fieldTypes = TreeMap<String, ArrayList<Any>>()
-               
+
         for (field in entrypoint.toType().allFields) {
             val type = field.type.autoboxIfNeeded()
             val name = field.name
