@@ -38,15 +38,15 @@ import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
 import org.usvm.api.util.JcTestStateResolver
 import org.usvm.api.writeField
-import org.usvm.jvm.util.allFields
-import org.usvm.jvm.util.name
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.state.skipMethodInvocationWithValue
+import org.usvm.jvm.util.allFields
 import org.usvm.util.classesOfLocations
+import org.usvm.jvm.util.name
+import org.usvm.jvm.util.toJavaClass
 import utils.toJcType
-import utils.typedField
 import java.util.ArrayList
 import java.util.TreeMap
 
@@ -190,8 +190,8 @@ class JcSpringMethodApproximationResolver (
 
         val clazz = parameter
             .javaClass.superclass.superclass
-            .declaredMethods.single { it.name == "getParameterType" }
-            .invoke(parameter) as Class<*>
+            .declaredMethods.find { it.name == "getParameterType"  && it.parameters.isEmpty() }
+            ?.invoke(parameter) as Class<*>
 
         val type = clazz.toJcType(ctx.cp)
 
@@ -689,21 +689,20 @@ class JcSpringMethodApproximationResolver (
             .let { ArrayList(it) }
     }
 
-    private fun getFieldTypes(
-        entrypoint: JcClassOrInterface
-    ): TreeMap<String, ArrayList<String>> {
-        val fieldTypes = TreeMap<String, ArrayList<String>>()
+    private fun collectTypeWithGenerics(type: JcType): ArrayList<Any> {
+        val typeItself = type.toJavaClass(JcConcreteMemoryClassLoader)
+        val generics = if (type !is JcClassType) arrayListOf()
+        else type.typeArguments.map { collectTypeWithGenerics(it) }
+        return arrayListOf(typeItself, generics)
+    }
+
+    private fun getFieldTypes(entrypoint: JcClassOrInterface): TreeMap<String, ArrayList<Any>> {
+        val fieldTypes = TreeMap<String, ArrayList<Any>>()
                
         for (field in entrypoint.toType().allFields) {
             val type = field.type.autoboxIfNeeded()
             val name = field.name
-
-            if (type is JcClassType) {
-                val typeArgumentsName = type.typeArguments.map { it.typeName }
-                fieldTypes[name] = ArrayList(listOf(type.name) + typeArgumentsName)
-            } else {
-                fieldTypes[name] = arrayListOf(type.typeName)
-            }
+            fieldTypes[name] = collectTypeWithGenerics(type)
         }
 
         return fieldTypes
