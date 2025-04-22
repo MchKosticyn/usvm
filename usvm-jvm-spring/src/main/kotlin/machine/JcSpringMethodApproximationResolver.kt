@@ -302,12 +302,10 @@ class JcSpringMethodApproximationResolver (
     private fun approximateServletRequestDataBinder(methodCall: JcMethodCall): Boolean = with(methodCall) {
         if (method.name == "_getFieldTypes") {
             val entrypointArgument = arguments[0] as UConcreteHeapRef
-            val classLoaderArgument = arguments[1] as UConcreteHeapRef
             scope.doWithState {
                 val memory = memory as JcConcreteMemory
                 val entrypoint = memory.tryHeapRefToObject(entrypointArgument) as Class<*>
-                val classLoader = memory.tryHeapRefToObject(classLoaderArgument) as ClassLoader
-                val description = getFieldTypes(ctx.cp.findClass(entrypoint.name), classLoader)
+                val description = getFieldTypes(ctx.cp.findClass(entrypoint.name))
                 val type = description.javaClass
                 val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
                 val heapRef = memory.tryAllocateConcrete(description, jcType)!!
@@ -691,20 +689,20 @@ class JcSpringMethodApproximationResolver (
             .let { ArrayList(it) }
     }
 
-    private fun collectTypeWithGenerics(type: JcType, classLoader: ClassLoader): Any {
-        val typeItself = type.toJavaClass(classLoader)
+    private fun collectTypeWithGenerics(type: JcType): ArrayList<Any> {
+        val typeItself = type.toJavaClass(JcConcreteMemoryClassLoader)
         val generics = if (type !is JcClassType) arrayListOf()
-        else type.typeArguments.map { collectTypeWithGenerics(it, classLoader) }
+        else type.typeArguments.map { collectTypeWithGenerics(it) }
         return arrayListOf(typeItself, generics)
     }
 
-    private fun getFieldTypes(entrypoint: JcClassOrInterface, classLoader: ClassLoader): TreeMap<String, Any> {
-        val fieldTypes = TreeMap<String, Any>()
+    private fun getFieldTypes(entrypoint: JcClassOrInterface): TreeMap<String, ArrayList<Any>> {
+        val fieldTypes = TreeMap<String, ArrayList<Any>>()
                
         for (field in entrypoint.toType().allFields) {
             val type = field.type.autoboxIfNeeded()
             val name = field.name
-            fieldTypes[name] = collectTypeWithGenerics(type, classLoader)
+            fieldTypes[name] = collectTypeWithGenerics(type)
         }
 
         return fieldTypes
