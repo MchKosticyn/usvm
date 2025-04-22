@@ -43,6 +43,8 @@ open class JcTestVisitor {
 
     protected fun isVisited(inst: UTestInst) = cache.contains(inst)
 
+    protected fun clearVisited() = cache.clear()
+
     fun visit(test: UTest) {
         for (inst in test.initStatements)
             visit(inst)

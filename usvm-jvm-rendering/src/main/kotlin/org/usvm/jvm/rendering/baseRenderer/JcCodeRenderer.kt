@@ -34,7 +34,9 @@ import org.jacodb.api.jvm.JcUnboundWildcard
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.util.toTypedMethod
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
 import org.jacodb.impl.types.JcTypeVariableImpl
+import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.jvm.rendering.baseRenderer.JcTypeVariableExt.isRecursive
 
 
@@ -183,7 +185,10 @@ abstract class JcCodeRenderer<T: Node>(
 
     val mockitoClass: ClassOrInterfaceType by lazy { renderClass("org.mockito.Mockito") }
 
-    protected val JcField.isSpy: Boolean get() = name == "\$isSpyGenerated239"
+    protected val JcField.isSpy: Boolean
+        get() = this is JcVirtualField &&
+                name == "\$isSpyGenerated239" &&
+                type == TypeNameImpl.fromTypeName("java.lang.Object")
 
     fun mockitoMockMethodCall(classToMock: JcClassType): MethodCallExpr {
         return MethodCallExpr(
