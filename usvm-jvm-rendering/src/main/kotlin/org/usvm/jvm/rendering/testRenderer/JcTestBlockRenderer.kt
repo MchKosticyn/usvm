@@ -350,6 +350,8 @@ open class JcTestBlockRenderer protected constructor(
         exprCache[expr] = varExpr
 
         for ((field, fieldValue) in expr.fields) {
+            if (field.isSpy) continue
+
             val renderedFieldValue = renderExpression(fieldValue)
             renderSetFieldStatement(varExpr, field, renderedFieldValue)
         }

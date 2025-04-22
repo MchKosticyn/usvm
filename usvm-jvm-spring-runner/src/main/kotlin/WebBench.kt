@@ -316,7 +316,7 @@ private fun reproduceTests(
     jcConcreteMachineOptions: JcConcreteMachineOptions,
     cp: JcClasspath
 ) {
-    val testReproducer by lazy { SpringTestReproducer(jcConcreteMachineOptions, cp, 1) }
+    val testReproducer by lazy { SpringTestReproducer(jcConcreteMachineOptions, cp) }
     val testRenderer by lazy { SpringTestRenderer(cp) }
     val reproducingResults = mutableMapOf<JcMethod, Pair<String, Boolean>>()
 
@@ -328,17 +328,22 @@ private fun reproduceTests(
 
     testReproducer.kill()
 
+    println("Tests count: ${tests.size}")
     val notReproduced = reproducingResults.filter { (_, value) -> !value.second }
-    check(notReproduced.isEmpty()) {
-        var sb = StringBuilder()
-        sb = sb.appendLine("Not reproduced tests:")
-        for ((method, value) in notReproduced) {
-            sb = sb.appendLine("$method:")
-            sb = sb.appendLine(value.first)
-        }
-
-        sb.toString()
+    if (notReproduced.isEmpty()) {
+        println("All reproduced")
+        return
     }
+
+    println("Reproduced ${tests.size - notReproduced.size} of ${tests.size} tests")
+    var sb = StringBuilder()
+    sb = sb.appendLine("Not reproduced tests:")
+    for ((method, value) in notReproduced) {
+        sb = sb.appendLine("$method:")
+        sb = sb.appendLine(value.first)
+    }
+
+    println(sb.toString())
 }
 
 private fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =

@@ -13,7 +13,7 @@ import kotlin.time.Duration
 class SpringTestReproducer(
     private val options: JcConcreteMachineOptions,
     private val cp: JcClasspath,
-    private val memoryLimit: Int = 1
+    private val memoryLimit: Int = 3
 ) {
     private fun createExecutor(): UTestConcreteExecutor {
         val reproducingLocations = System.getenv("usvm.jvm.springTestDeps.paths").split(";")
