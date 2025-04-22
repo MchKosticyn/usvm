@@ -20,7 +20,6 @@ import org.usvm.test.api.spring.UTAny
 import org.usvm.test.api.spring.UTString
 import org.usvm.test.api.spring.UTStringArray
 
-
 class JcSpringPinnedValuesRequest(
     private val pinnedValues: JcSpringPinnedValues,
     private val exprResolver: JcSpringTestExprResolver,
@@ -43,7 +42,6 @@ class JcSpringPinnedValuesRequest(
     private fun collectAndResolve(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
         return pinnedValues.collectAndResolve(
             exprResolver,
-            JcTestStateResolver.ResolveMode.MODEL,
             pinnedValueSource,
             exprResolver.ctx
         ).filter { it.value !is UTestNullExpression }
@@ -52,11 +50,9 @@ class JcSpringPinnedValuesRequest(
     private fun getStringPinnedValue(key: JcSimplePinnedKey): UTString {
         val methodExpr = pinnedValues.getValue(key)
         check(methodExpr != null)
-        return exprResolver.withMode(JcTestStateResolver.ResolveMode.MODEL) {
-            val method = exprResolver.resolvePinnedValue(methodExpr)
-            check(method is UTString)
-            method
-        }
+        val method = exprResolver.resolvePinnedValue(methodExpr)
+        check(method is UTString)
+        return method
     }
 
     private fun withJsonSerialize(target: UTAny): UTAny {

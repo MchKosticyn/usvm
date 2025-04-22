@@ -31,13 +31,7 @@ class LoopLimiterPs<Stmt, Method, Loop : Any, State : UState<*, Method, Stmt, *,
         states.forEach { addSingleState(it) }
     }
 
-    /**
-     * Add state and register it loop stats.
-     *
-     * Note: it is important that [state] must be initial or
-     * somehow related to the [lastPeekedState] (e.g. forked from it).
-     * */
-    private fun addSingleState(state: State) {
+    private fun updateStats(state: State): Unit? {
         val stats = loopStatistic.updateStats(lastPeekedStateStats, state)
 
         val iterations = stats.maxLoopIteration
@@ -45,19 +39,29 @@ class LoopLimiterPs<Stmt, Method, Loop : Any, State : UState<*, Method, Stmt, *,
             logger.debug {
                 "Drop state ${state.id} | iteration limit exceeded $iterations at ${state.lastEnteredMethod} ${state.currentStatement}"
             }
-            return
+            return null
         }
 
         stateStats[state] = stats
+        return Unit
+    }
 
+    /**
+     * Add state and register it loop stats.
+     *
+     * Note: it is important that [state] must be initial or
+     * somehow related to the [lastPeekedState] (e.g. forked from it).
+     * */
+    private fun addSingleState(state: State) {
+        updateStats(state) ?: return
         underlyingPs.add(listOf(state))
     }
 
     override fun update(state: State) {
         check(state === lastPeekedState) { "Try to update not peeked state" }
 
-        underlyingPs.remove(state)
-        addSingleState(state)
+        val updateResult = updateStats(state)
+        if (updateResult == null) underlyingPs.remove(state) else underlyingPs.update(state)
     }
 
     override fun remove(state: State) {

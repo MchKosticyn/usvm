@@ -91,10 +91,10 @@ class SpringMockBeanBuilder(
             return current
 
         val testClassType = (testClass.type as JcClassType).jcClass
-        val mockBeanField = testClassType.declaredFields.find { it.type == type }
+        val mockBeanField = testClassType.declaredFields.find { it.type.typeName == type.typeName }
             ?: JcSpringTestClassesFeature.addMockBeanField(type)
 
-        check(testClassType.declaredFields.find { it.type == type } != null)
+        check(testClassType.declaredFields.find { it.type.typeName == type.typeName } != null)
 
         val mockBean = UTestGetFieldExpression(
             testClass,

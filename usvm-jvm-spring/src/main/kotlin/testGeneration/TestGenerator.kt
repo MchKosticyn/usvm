@@ -9,6 +9,7 @@ import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.toType
+import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.usvm.api.util.JcTestStateResolver
 import org.usvm.jvm.util.toTypedMethod
 import org.usvm.test.api.UTest
@@ -66,9 +67,10 @@ private fun getSpringExn(): SpringException {
 }
 
 private fun getGeneratedTestClass(cp: JcClasspath): JcClassOrInterface {
-    // TODO hardcoded
-    val cl = cp.findClassOrNull("org.usvm.spring.benchmarks.StartSpringTestClass") //TODO: get it from state? (it is generated in runtime)
-    check(cl != null)
+    val testClassName = System.getProperty("generatedTestClass")
+    check(testClassName.isNotEmpty()) { "Generated test class name must not be empty" }
+    val cl = cp.findClassOrNull(testClassName)
+    check(cl != null && cl !is JcUnknownClass)
     return cl
 }
 
@@ -84,21 +86,20 @@ fun getSpringMocks(
     exprResolver: JcSpringTestExprResolver
 ): List<JcMockBean> {
     // TODO: Also fields #AA
-    return exprResolver.withMode(JcTestStateResolver.ResolveMode.MODEL) {
-        val mocks = pinnedValues.getValuesOfSource<JcObjectPinnedKey<JcMethod>>(JcSpringPinnedValueSource.MOCK_RESULT)
-        val distinctMocks = mocks.entries.mapNotNull { it.key.getObj()?.enclosingClass }.distinct()
-        val testMockObjects = distinctMocks.map { type ->
-            val distinctMethods = mocks.entries
-                .filter { it.key.getObj()?.enclosingClass == type }
-                .groupBy({ it.key.getObj()!! }, { exprResolver.resolvePinnedValue(it.value) })
-            UTestMockObject(
-                type.toType(),
-                mapOf(),
-                distinctMethods
-            )
-        }
-        testMockObjects.map { JcMockBean(it) }
+    val mocks = pinnedValues.getValuesOfSource<JcObjectPinnedKey<JcMethod>>(JcSpringPinnedValueSource.MOCK_RESULT)
+    val distinctMocks = mocks.entries.mapNotNull { it.key.getObj()?.enclosingClass }.distinct()
+    val testMockObjects = distinctMocks.map { type ->
+        val distinctMethods = mocks.entries
+            .filter { it.key.getObj()?.enclosingClass == type }
+            .groupBy({ it.key.getObj()!! }, { exprResolver.resolvePinnedValue(it.value) })
+        UTestMockObject(
+            type.toType(),
+            mapOf(),
+            distinctMethods
+        )
     }
+
+    return testMockObjects.map { JcMockBean(it) }
 }
 
 private fun getSpringRequest(
