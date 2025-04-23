@@ -122,4 +122,12 @@ public class Engine {
     public static boolean typeIs(Object a, Class<?> type) {
         return a.getClass() == type;
     }
+
+    public static boolean typeIsArray(Object a) {
+        return a.getClass().isArray();
+    }
+
+    public static Class<?> arrayElementType(Object a) {
+        return a.getClass().componentType();
+    }
 }

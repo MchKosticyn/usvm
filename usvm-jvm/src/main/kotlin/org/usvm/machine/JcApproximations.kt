@@ -72,6 +72,7 @@ import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapMergeInto
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapPut
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapRemove
 import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapSize
+import org.usvm.api.evalTypeEquals
 import org.usvm.api.initializeArray
 import org.usvm.api.initializeArrayLength
 import org.usvm.api.makeNullableSymbolicRefSubtype
@@ -109,6 +110,7 @@ import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.javaName
+import org.usvm.jvm.util.stringType
 import java.util.ArrayList
 import java.util.TreeMap
 
@@ -409,7 +411,29 @@ open class JcMethodApproximationResolver(
             return true
         }
 
+        if (method.name == "getLength") {
+            val arrayRef = arguments[0].asExpr(ctx.addressSort)
+            exprResolver.resolveGetArrayLength(methodCall, arrayRef)
+            return true
+        }
+
         return false
+    }
+
+    private fun JcExprResolver.resolveGetArrayLength(methodCall: JcMethodCall, arrayRef: UHeapRef) = scope.doWithState {
+        checkNullPointer(arrayRef) ?: return@doWithState
+
+        val possibleElementTypes = ctx.primitiveTypes + ctx.cp.objectType
+        val possibleArrayTypes = possibleElementTypes.map { ctx.cp.arrayTypeOf(it) }
+        val arrayTypeConstraints: List<Pair<UBoolExpr, (JcState) -> Unit>> = possibleArrayTypes.mapNotNull { type ->
+            val length = readArrayLength(arrayRef, type)
+            memory.types.evalIsSubtype(arrayRef, type) to { state ->
+                if (addLengthBounds(length) != null)
+                    state.skipMethodInvocationWithValue(methodCall, length)
+            }
+        }
+        val unknownArrayType = ctx.mkAnd(arrayTypeConstraints.map { ctx.mkNot(it.first) })
+        scope.forkMulti(arrayTypeConstraints + (unknownArrayType to allocateException(ctx.illegalArgumentExceptionType)))
     }
 
     private fun approximateUnsafeVirtualMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
@@ -996,6 +1020,35 @@ open class JcMethodApproximationResolver(
                     memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
                 }
                 scope.calcOnState { objectTypeEquals(ref, classRefTypeRepresentative) }
+            }
+            dispatchUsvmApiMethod(Engine::typeIsArray) {
+                val ref = it.arguments[0].asExpr(ctx.addressSort)
+                scope.calcOnState {
+                    val possibleElementTypes = ctx.primitiveTypes + ctx.cp.objectType
+                    val possibleArrayTypes = possibleElementTypes.map { ctx.cp.arrayTypeOf(it) }
+                    possibleArrayTypes.map { type -> memory.types.evalIsSubtype(ref, type) }.reduce(ctx::mkOr)
+                }
+            }
+            dispatchUsvmApiMethod(Engine::arrayElementType) {
+                val ref = it.arguments[0].asExpr(ctx.addressSort)
+                scope.calcOnState {
+                    mapTypeStreamNotNull(ref) { _, types ->
+                        val type = types.singleOrNull() ?: return@mapTypeStreamNotNull null
+                        if (type !is JcArrayType) {
+                            return@mapTypeStreamNotNull ctx.nullRef
+                        }
+                        exprResolver.simpleValueResolver.resolveClassRef(type.elementType)
+                    } ?: run {
+                        val possibleElementTypes = ctx.primitiveTypes + ctx.cp.objectType + ctx.stringType
+                        val mock = scope.makeSymbolicRef(ctx.classType) ?: error("unable to crate mock for Class type")
+                        val defaultCase = ctx.mkIte(memory.types.evalIsSubtype(ref, ctx.cp.objectType), mock, ctx.nullRef)
+                        possibleElementTypes.fold(defaultCase) { acc, type ->
+                            val cond = memory.types.evalTypeEquals(ref, ctx.cp.arrayTypeOf(type))
+                            val classRef = exprResolver.simpleValueResolver.resolveClassRef(type)
+                            ctx.mkIte(cond, classRef, acc)
+                        }
+                    }
+                }
             }
             dispatchMkRef(Engine::makeSymbolic) {
                 val classRef = it.arguments.single().asExpr(ctx.addressSort)
