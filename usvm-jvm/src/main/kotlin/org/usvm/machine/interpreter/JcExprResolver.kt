@@ -333,19 +333,26 @@ open class JcExprResolver(
         }
     }
 
-    override fun visitJcLengthExpr(expr: JcLengthExpr): UExpr<out USort>? = with(ctx) {
-        val ref = resolveJcExpr(expr.array)?.asExpr(addressSort) ?: return null
-        checkNullPointer(ref) ?: return null
-        val arrayDescriptor = arrayDescriptorOf(expr.array.type as JcArrayType)
-        val lengthRef = UArrayLengthLValue(ref, arrayDescriptor, sizeSort)
-        val length = scope.calcOnState { memory.read(lengthRef).asExpr(sizeSort) }
+    internal fun addLengthBounds(length: UExpr<USizeSort>): Unit? = with(ctx) {
         assertHardMaxArrayLength(length) ?: return null
 
         scope.assert(mkBvSignedLessOrEqualExpr(mkBv(0), length))
             .logAssertFailure { "JcExprResolver: array length >= 0" }
             ?: return null
+    }
 
-        length
+    internal fun readArrayLength(arrayRef: UHeapRef, type: JcArrayType): UExpr<USizeSort> = with(ctx) {
+        val arrayDescriptor = arrayDescriptorOf(type)
+        val lengthRef = UArrayLengthLValue(arrayRef, arrayDescriptor, sizeSort)
+        scope.calcOnState { memory.read(lengthRef).asExpr(sizeSort) }
+    }
+
+    override fun visitJcLengthExpr(expr: JcLengthExpr): UExpr<out USort>? = with(ctx) {
+        val ref = resolveJcExpr(expr.array)?.asExpr(addressSort) ?: return null
+        checkNullPointer(ref) ?: return null
+        val length = readArrayLength(ref, expr.array.type as JcArrayType)
+        addLengthBounds(length) ?: return null
+        return length
     }
 
     override fun visitJcNewArrayExpr(expr: JcNewArrayExpr): UExpr<out USort>? = with(ctx) {
