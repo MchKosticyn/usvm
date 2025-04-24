@@ -6,7 +6,6 @@ import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
 import org.jacodb.api.jvm.ext.constructors
 import org.jacodb.api.jvm.ext.findClass
-import org.usvm.api.util.JcTestStateResolver
 import org.usvm.test.api.UTestConstructorCall
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestNullExpression
@@ -31,12 +30,13 @@ class JcSpringPinnedValuesRequest(
         val uriVariableNames = Regex("\\{([^}]*)}").findAll(path.value)
             .map { UTString(it.groupValues[1], stringType) }
             .toList()
-
         val placeholder = UTestStringExpression("0", stringType)
 
-        return uriVariableNames.map {
+        val completedUriVariables = uriVariableNames.map {
             uriVariables[it] ?: placeholder
-        }.also { assert(it.size == uriVariables.size) }
+        }
+        check(completedUriVariables.size == uriVariables.size)
+        return completedUriVariables
     }
 
     private fun collectAndResolve(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {

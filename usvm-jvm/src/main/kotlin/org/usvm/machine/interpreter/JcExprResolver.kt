@@ -334,9 +334,10 @@ open class JcExprResolver(
     }
 
     internal fun addLengthBounds(length: UExpr<USizeSort>): Unit? = with(ctx) {
-        assertHardMaxArrayLength(length) ?: return null
+        val lengthLeThanMaxLength = mkBvSignedLessOrEqualExpr(length, mkBv(options.arrayMaxSize))
+        val lengthGeThenZero = mkBvSignedLessOrEqualExpr(mkBv(0), length)
 
-        scope.assert(mkBvSignedLessOrEqualExpr(mkBv(0), length))
+        scope.assert(lengthLeThanMaxLength and lengthGeThenZero)
             .logAssertFailure { "JcExprResolver: array length >= 0" }
             ?: return null
     }
@@ -542,8 +543,9 @@ open class JcExprResolver(
             val heapRef = expr.asExpr(ctx.addressSort)
             val isExpr = scope.calcOnState { memory.types.evalIsSubtype(heapRef, type) }
             scope.assert(isExpr)
-                .logAssertFailure { "JcExprResolver: subtype constraint ${type.typeName}" }
-                ?: return false
+                .logAssertFailure {
+                    "JcExprResolver: subtype constraint ${type.typeName}"
+                } ?: return false
         }
 
         return true
@@ -762,7 +764,7 @@ open class JcExprResolver(
         val lengthRef = UArrayLengthLValue(arrayRef, arrayDescriptor, sizeSort)
         val length = scope.calcOnState { memory.read(lengthRef).asExpr(sizeSort) }
 
-        assertHardMaxArrayLength(length) ?: return null
+        addLengthBounds(length) ?: return null
 
         checkArrayIndex(idx, length) ?: return null
 

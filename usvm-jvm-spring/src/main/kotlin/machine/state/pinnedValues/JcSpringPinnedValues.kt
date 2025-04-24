@@ -39,10 +39,10 @@ abstract class JcSpringRawPinnedValues<V> (
 
 class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) {
     fun createAndPut(
-        key: JcPinnedKey, 
-        type: JcType, 
-        scope: JcStepScope, 
-        sort: USort, 
+        key: JcPinnedKey,
+        type: JcType,
+        scope: JcStepScope,
+        sort: USort,
         nullable: Boolean = true
     ): JcPinnedValue? {
         val newValueExpr = scope.calcOnState {
@@ -65,10 +65,10 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) 
     }
 
     fun createIfAbsent(
-        key: JcPinnedKey, 
-        type: JcType, 
-        scope: JcStepScope, 
-        sort: USort, 
+        key: JcPinnedKey,
+        type: JcType,
+        scope: JcStepScope,
+        sort: USort,
         nullable: Boolean = true
     ): JcPinnedValue? {
         val existingValue = getValue(key)
