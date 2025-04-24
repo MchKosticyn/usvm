@@ -123,6 +123,10 @@ public class Engine {
         return a.getClass() == type;
     }
 
+    public static boolean typeIsSubtype(Object a, Class<?> type) {
+        return type.isAssignableFrom(a.getClass());
+    }
+
     public static boolean typeIsArray(Object a) {
         return a.getClass().isArray();
     }

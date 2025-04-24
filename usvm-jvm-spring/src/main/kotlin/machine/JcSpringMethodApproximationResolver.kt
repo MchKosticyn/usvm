@@ -33,6 +33,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UNullRef
 import org.usvm.USort
+import org.usvm.USymbol
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
@@ -46,7 +47,6 @@ import org.usvm.util.classesOfLocations
 import org.usvm.jvm.util.toJavaClass
 import utils.toJcType
 import java.util.ArrayList
-import java.util.TreeMap
 
 data class HandlerMethodData(
     val pathTemplate: String,
@@ -323,8 +323,14 @@ class JcSpringMethodApproximationResolver (
             val source = methodCall.arguments[4]
             return scope.calcOnState {
                 this as JcSpringState
+                if (source is UNullRef) {
+                    skipMethodInvocationWithValue(methodCall, ctx.nullRef)
+                    return@calcOnState true
+                }
+
+                check(source is USymbol)
+                val key = getPinnedKeyOfParameter(parameter) ?: error("approximateArgumentResolverStatic: not found key")
                 val type = getParameterType(parameter)?.autoboxIfNeeded()!!
-                val key = getPinnedValueKey(source)!!
                 val newSymbolicValue = createPinnedAndReplace(key, type, scope, ctx.addressSort, false)
                     ?: return@calcOnState false
                 skipMethodInvocationWithValue(methodCall, newSymbolicValue.getExpr())
@@ -692,8 +698,8 @@ class JcSpringMethodApproximationResolver (
         return arrayListOf(typeItself, generics)
     }
 
-    private fun getFieldTypes(entrypoint: JcClassOrInterface): TreeMap<String, ArrayList<Any>> {
-        val fieldTypes = TreeMap<String, ArrayList<Any>>()
+    private fun getFieldTypes(entrypoint: JcClassOrInterface): HashMap<String, ArrayList<Any>> {
+        val fieldTypes = HashMap<String, ArrayList<Any>>()
 
         for (field in entrypoint.toType().allFields) {
             val type = field.type.autoboxIfNeeded()
@@ -722,7 +728,13 @@ class JcSpringMethodApproximationResolver (
         if (method.name == "_println") {
             scope.doWithState {
                 val memory = memory as JcConcreteMemory
-                val messageExpr = methodCall.arguments[0].asExpr(ctx.addressSort) as UConcreteHeapRef
+                val messageExpr = methodCall.arguments[0].asExpr(ctx.addressSort)
+                if (messageExpr !is UConcreteHeapRef) {
+                    skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+                    println("\u001B[36m _println: unable to print \u001B[0m")
+                    return@doWithState
+                }
+
                 val message = memory.tryHeapRefToObject(messageExpr) as String
                 println("\u001B[36m$message\u001B[0m")
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)

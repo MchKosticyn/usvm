@@ -1,5 +1,6 @@
 package machine
 
+import io.ksmt.utils.asExpr
 import machine.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
@@ -8,6 +9,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.void
+import org.jacodb.impl.features.classpaths.JcUnknownMethod
 import org.usvm.UConcreteHeapRef
 import org.usvm.api.targets.JcTarget
 import org.usvm.jvm.util.toJavaClass
@@ -16,19 +18,25 @@ import org.usvm.constraints.UPathConstraints
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
+import org.usvm.machine.JcDynamicMethodCallInst
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.JcMethodApproximationResolver
+import org.usvm.machine.JcMethodCall
 import org.usvm.machine.JcMethodCallBaseInst
+import org.usvm.machine.JcVirtualMethodCallInst
 import org.usvm.machine.interpreter.JcExprResolver
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.interpreter.JcStepScope
+import org.usvm.machine.interpreter.findLambdaCallSite
+import org.usvm.machine.interpreter.makeLambdaCallSiteCall
 import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.memory.UMemory
 import org.usvm.targets.UTargetsSet
+import org.usvm.util.findMethod
 
 open class JcConcreteInterpreter(
     ctx: JcContext,
@@ -56,6 +64,17 @@ open class JcConcreteInterpreter(
             memory = memory,
             targets = targets
         )
+    }
+
+    private fun tryConcreteInvoke(
+        scope: JcStepScope,
+        stmt: JcMethodCall,
+        exprResolver: JcExprResolver
+    ): Boolean {
+        return scope.calcOnState {
+            val memory = memory as JcConcreteMemory
+            memory.tryConcreteInvoke(stmt, this, exprResolver, jcConcreteMachineOptions)
+        }
     }
 
     override fun callMethod(
@@ -98,16 +117,39 @@ open class JcConcreteInterpreter(
             }
 
             is JcConcreteMethodCallInst -> {
-                val success = scope.calcOnState {
-                    val memory = memory as JcConcreteMemory
-                    memory.tryConcreteInvoke(stmt, this, exprResolver, jcConcreteMachineOptions)
-                }
-
-                if (success)
+                if (tryConcreteInvoke(scope, stmt, exprResolver))
                     return
 
                 super.callMethod(scope, stmt, exprResolver)
             }
+
+            is JcVirtualMethodCallInst -> {
+                val instance = stmt.arguments[0].asExpr(ctx.addressSort)
+                if (instance !is UConcreteHeapRef)
+                    return super.callMethod(scope, stmt, exprResolver)
+
+                val callSite = findLambdaCallSite(stmt, scope, instance)
+                if (callSite != null) {
+                    val lambdaCall = stmt.makeLambdaCallSiteCall(scope, callSite)
+                    return callMethod(scope, lambdaCall, exprResolver)
+                }
+
+                val type = scope.calcOnState { memory.types.typeOf(instance.address) }
+                val typedMethod = type.findMethod(method = stmt.method)
+                    ?: return super.callMethod(scope, stmt, exprResolver)
+
+                val method = typedMethod.method
+                if (method is JcUnknownMethod)
+                    return super.callMethod(scope, stmt, exprResolver)
+
+                val call = stmt.toConcreteMethodCall(method)
+                if (tryConcreteInvoke(scope, call, exprResolver))
+                    return
+
+                return super.callMethod(scope, stmt, exprResolver)
+            }
+
+            is JcDynamicMethodCallInst -> TODO("dynamic call")
 
             else -> super.callMethod(scope, stmt, exprResolver)
         }

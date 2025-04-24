@@ -288,7 +288,7 @@ private fun JcVirtualMethodCallInst.makeConcreteCallsForPossibleTypes(
     return typeConstraintsWithBlockOnStates
 }
 
-private fun findLambdaCallSite(
+fun findLambdaCallSite(
     methodCall: JcVirtualMethodCallInst,
     scope: JcStepScope,
     ref: UConcreteHeapRef,
@@ -308,7 +308,7 @@ private fun findLambdaCallSite(
     return callSite
 }
 
-private fun JcVirtualMethodCallInst.makeLambdaCallSiteCall(
+fun JcVirtualMethodCallInst.makeLambdaCallSiteCall(
     scope: JcStepScope,
     callSite: JcLambdaCallSite,
 ): JcConcreteMethodCallInst {

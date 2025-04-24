@@ -99,10 +99,12 @@ import kotlin.reflect.KFunction2
 import org.usvm.api.makeNullableSymbolicRefWithSameType
 import org.usvm.api.makeSymbolicRefSubtype
 import org.usvm.api.mapTypeStreamNotNull
+import org.usvm.api.objectTypeSubtype
 import org.usvm.api.readArrayIndex
 import org.usvm.api.readArrayLength
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.collection.array.UArrayIndexLValue
 import org.usvm.getIntValue
 import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.newStmt
@@ -112,7 +114,6 @@ import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.javaName
 import org.usvm.jvm.util.stringType
 import java.util.ArrayList
-import java.util.TreeMap
 
 open class JcMethodApproximationResolver(
     protected val ctx: JcContext,
@@ -417,9 +418,25 @@ open class JcMethodApproximationResolver(
             return true
         }
 
+        if (method.name == "get") {
+            val arrayRef = arguments[0].asExpr(ctx.addressSort)
+            val index = arguments[1].asExpr(ctx.sizeSort)
+            exprResolver.resolveGetArrayElem(methodCall, arrayRef, index)
+            return true
+        }
+
+        if (method.name == "set") {
+            val arrayRef = arguments[0].asExpr(ctx.addressSort)
+            val index = arguments[1].asExpr(ctx.sizeSort)
+            val value = arguments[2].asExpr(ctx.addressSort)
+            exprResolver.resolveSetArrayElem(methodCall, arrayRef, index, value)
+            return true
+        }
+
         return false
     }
 
+    // TODO: move to java-stdlib-appoximations
     private fun JcExprResolver.resolveGetArrayLength(methodCall: JcMethodCall, arrayRef: UHeapRef) = scope.doWithState {
         checkNullPointer(arrayRef) ?: return@doWithState
 
@@ -430,6 +447,59 @@ open class JcMethodApproximationResolver(
             memory.types.evalIsSubtype(arrayRef, type) to { state ->
                 if (addLengthBounds(length) != null)
                     state.skipMethodInvocationWithValue(methodCall, length)
+            }
+        }
+        val unknownArrayType = ctx.mkAnd(arrayTypeConstraints.map { ctx.mkNot(it.first) })
+        scope.forkMulti(arrayTypeConstraints + (unknownArrayType to allocateException(ctx.illegalArgumentExceptionType)))
+    }
+
+    private fun JcExprResolver.resolveGetArrayElem(methodCall: JcMethodCall, arrayRef: UHeapRef, index: UExpr<USizeSort>) = scope.doWithState {
+        checkNullPointer(arrayRef) ?: return@doWithState
+
+        val possibleElementTypes = ctx.primitiveTypes + ctx.cp.objectType
+        val possibleArrayTypes = possibleElementTypes.map { ctx.cp.arrayTypeOf(it) }
+        val arrayTypeConstraints: List<Pair<UBoolExpr, (JcState) -> Unit>> = possibleArrayTypes.mapNotNull { type ->
+            val length = readArrayLength(arrayRef, type)
+            memory.types.evalIsSubtype(arrayRef, type) to { state ->
+                if (addLengthBounds(length) != null) {
+                    if (checkArrayIndex(index, length) != null) {
+                        val arrayDescriptor = ctx.arrayDescriptorOf(type)
+                        val elementType = requireNotNull(type.ifArrayGetElementType)
+                        val cellSort = ctx.typeToSort(elementType)
+                        val lvalue = UArrayIndexLValue(cellSort, arrayRef, index, arrayDescriptor)
+                        val elem = memory.read(lvalue)
+                        state.skipMethodInvocationWithValue(methodCall, elem)
+                    }
+                }
+            }
+        }
+        val unknownArrayType = ctx.mkAnd(arrayTypeConstraints.map { ctx.mkNot(it.first) })
+        scope.forkMulti(arrayTypeConstraints + (unknownArrayType to allocateException(ctx.illegalArgumentExceptionType)))
+    }
+
+    private fun JcExprResolver.resolveSetArrayElem(
+        methodCall: JcMethodCall,
+        arrayRef: UHeapRef,
+        index: UExpr<USizeSort>,
+        value: UExpr<out USort>
+    ) = scope.doWithState {
+        checkNullPointer(arrayRef) ?: return@doWithState
+
+        val possibleElementTypes = ctx.primitiveTypes + ctx.cp.objectType
+        val possibleArrayTypes = possibleElementTypes.map { ctx.cp.arrayTypeOf(it) }
+        val arrayTypeConstraints: List<Pair<UBoolExpr, (JcState) -> Unit>> = possibleArrayTypes.mapNotNull { type ->
+            val length = readArrayLength(arrayRef, type)
+            memory.types.evalIsSubtype(arrayRef, type) to { state ->
+                if (addLengthBounds(length) != null) {
+                    if (checkArrayIndex(index, length) != null) {
+                        val arrayDescriptor = ctx.arrayDescriptorOf(type)
+                        val elementType = requireNotNull(type.ifArrayGetElementType)
+                        val cellSort = ctx.typeToSort(elementType)
+                        val lvalue = UArrayIndexLValue(cellSort, arrayRef, index, arrayDescriptor)
+                        memory.write(lvalue, value)
+                        state.skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+                    }
+                }
             }
         }
         val unknownArrayType = ctx.mkAnd(arrayTypeConstraints.map { ctx.mkNot(it.first) })
@@ -1028,6 +1098,13 @@ open class JcMethodApproximationResolver(
                     val possibleArrayTypes = possibleElementTypes.map { ctx.cp.arrayTypeOf(it) }
                     possibleArrayTypes.map { type -> memory.types.evalIsSubtype(ref, type) }.reduce(ctx::mkOr)
                 }
+            }
+            dispatchUsvmApiMethod(Engine::typeIsSubtype) {
+                val (ref, classRef) = it.arguments.map { it.asExpr(ctx.addressSort) }
+                val classRefTypeRepresentative = scope.calcOnState {
+                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
+                }
+                scope.calcOnState { objectTypeSubtype(ref, classRefTypeRepresentative) }
             }
             dispatchUsvmApiMethod(Engine::arrayElementType) {
                 val ref = it.arguments[0].asExpr(ctx.addressSort)

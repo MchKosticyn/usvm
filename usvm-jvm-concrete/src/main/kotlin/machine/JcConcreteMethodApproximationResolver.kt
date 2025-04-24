@@ -17,6 +17,7 @@ import org.usvm.api.readArrayIndex
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.concrete.api.internal.InitHelper
+import org.usvm.jvm.util.isSameSignatures
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
@@ -88,7 +89,7 @@ open class JcConcreteMethodApproximationResolver(
                 val declaringClass = ctx.cp.findTypeOrNull(method.declaringClass.typeName) ?: return@calcOnState false
                 declaringClass as JcClassType
                 val jcMethod = declaringClass.declaredMethods.find {
-                    it.name == method.name
+                    method.isSameSignatures(it.method)
                 } ?: return@calcOnState false
                 val arguments: List<UExpr<out USort>>
                 if (args == null) {

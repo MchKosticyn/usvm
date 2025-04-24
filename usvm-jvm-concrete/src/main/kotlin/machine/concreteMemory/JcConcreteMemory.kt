@@ -320,6 +320,7 @@ open class JcConcreteMemory(
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
         val enclosingClass = method.enclosingClass
+        // TODO: do not invoke abstract methods?
         return !(
                 method.isConstructor && enclosingClass.isAbstract ||
                         enclosingClass.isEnum && method.isConstructor ||
