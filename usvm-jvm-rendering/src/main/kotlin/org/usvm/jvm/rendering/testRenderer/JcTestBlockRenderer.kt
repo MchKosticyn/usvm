@@ -338,34 +338,27 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderMockObject(expr: UTestMockObject): Expression {
         val type = expr.type as JcClassType
 
-        var mockToReturn: Expression? = null
         val hasStaticMethods = expr.methods.any { (method) -> method.isStatic }
         if (hasStaticMethods) {
             val staticMock = renderMockedStaticVarDeclaration(type.jcClass)
             renderMockObjectInternals(staticMock, emptyMap(), expr.methods.filter { (method) -> method.isStatic })
-            mockToReturn = staticMock
         }
 
         val emptyFields = expr.fields.filter {(field) -> !field.isSpy}.isEmpty()
         val instanceMethods = expr.methods.filter { (method) -> !method.isStatic }
         val noInstanceMethods = instanceMethods.isEmpty()
-        val noInstanceMocking = emptyFields && noInstanceMethods
-
-
-        if (noInstanceMocking && mockToReturn != null)
-            return mockToReturn
 
         val instanceUnderSpy = expr.fields.entries.firstOrNull { (field, _) ->
             field.isSpy
         }?.value
-        mockToReturn = renderInstanceMockCreationExpressions(type, instanceUnderSpy)
+        val mockExpr = renderInstanceMockCreationExpressions(type, instanceUnderSpy)
 
-        if (noInstanceMocking) {
-            return mockToReturn
+        if (emptyFields && noInstanceMethods) {
+            return mockExpr
         }
 
         val mockVarNamePrefix = if (instanceUnderSpy != null) "spy" else "mocked"
-        val mockVar = renderVarDeclaration(type, mockToReturn, mockVarNamePrefix)
+        val mockVar = renderVarDeclaration(type, mockExpr, mockVarNamePrefix)
         exprCache[expr] = mockVar
 
         renderMockObjectInternals(mockVar, expr.fields, instanceMethods)
