@@ -11,6 +11,7 @@ import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcState
+import org.usvm.ps.StateLoopTracker
 import org.usvm.statistics.CoverageStatistics
 import org.usvm.statistics.TimeStatistics
 import org.usvm.statistics.distances.CallGraphStatistics
@@ -35,16 +36,20 @@ open class JcConcreteMachine(
 
     override fun createPathSelector(
         initialStates: Map<JcMethod, JcState>,
+        options: UMachineOptions,
         timeStatistics: TimeStatistics<JcMethod, JcState>,
         coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
         callGraphStatistics: CallGraphStatistics<JcMethod>,
+        loopStatisticFactory: () -> StateLoopTracker<*, JcInst, JcState>?,
         wrappingPathSelector: (UPathSelector<JcState>) -> UPathSelector<JcState>
     ): UPathSelector<JcState> {
         return super.createPathSelector(
             initialStates,
+            options,
             timeStatistics,
             coverageStatistics,
-            callGraphStatistics
+            callGraphStatistics,
+            loopStatisticFactory
         ) { wrappingPathSelector(JcConcreteMemoryPathSelector(it)) }
     }
 }

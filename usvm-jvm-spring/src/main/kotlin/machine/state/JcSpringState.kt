@@ -10,6 +10,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.PathNode
 import org.usvm.UCallStack
+import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.api.targets.JcTarget
@@ -86,8 +87,13 @@ class JcSpringState(
         return pinnedValues.createAndPut(key, type, scope, sort, nullable)
     }
 
-    fun getPinnedValueKey(expr: UExpr<out USort>): JcPinnedKey? {
-        return pinnedValues.getKeyOfExpr(expr)
+    internal val path: String? get() {
+        val pathValue = getPinnedValue(JcPinnedKey.requestPath()) ?: return null
+        val pathExpr = pathValue.getExpr() as? UConcreteHeapRef
+            ?: error("Unexpected symbolic path")
+        val pathString = springMemory.tryHeapRefToObject(pathExpr) as? String
+            ?: error("Unexpected symbolic path")
+        return pathString
     }
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
