@@ -18,6 +18,7 @@ import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.type.PrimitiveType
 import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
@@ -63,6 +64,7 @@ import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.usvm.test.internal.toTyped
 
@@ -334,44 +336,65 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderGlobalMock(expr: UTestGlobalMock): Expression = TODO("global mocks not yet supported")
 
     open fun renderMockObject(expr: UTestMockObject): Expression {
+        val type = expr.type as JcClassType
+
+        var mockToReturn: Expression? = null
+        val hasStaticMethods = expr.methods.any { (method) -> method.isStatic }
+        if (hasStaticMethods) {
+            val staticMock = renderMockedStaticVarDeclaration(type.jcClass)
+            renderMockObjectInternals(staticMock, emptyMap(), expr.methods.filter { (method) -> method.isStatic })
+            mockToReturn = staticMock
+        }
+
+        val emptyFields = expr.fields.filter {(field) -> !field.isSpy}.isEmpty()
+        val instanceMethods = expr.methods.filter { (method) -> !method.isStatic }
+        val noInstanceMethods = instanceMethods.isEmpty()
+        val noInstanceMocking = emptyFields && noInstanceMethods
+
+
+        if (noInstanceMocking && mockToReturn != null)
+            return mockToReturn
+
         val instanceUnderSpy = expr.fields.entries.firstOrNull { (field, _) ->
             field.isSpy
         }?.value
+        mockToReturn = renderInstanceMockCreationExpressions(type, instanceUnderSpy)
 
-        val type = expr.type as JcClassType
-        val mockCreationExpression = renderMockCreationExpression(type, instanceUnderSpy)
-        val emptyFields = expr.fields.isEmpty()
-        val emptyMethods = expr.methods.isEmpty()
-        if (emptyFields && emptyMethods)
-            return mockCreationExpression
+        if (noInstanceMocking) {
+            return mockToReturn
+        }
 
-        val varNamePrefix = if (instanceUnderSpy != null) "spy" else "mocked"
-        val varExpr = renderVarDeclaration(type, mockCreationExpression, varNamePrefix)
-        exprCache[expr] = varExpr
+        val mockVarNamePrefix = if (instanceUnderSpy != null) "spy" else "mocked"
+        val mockVar = renderVarDeclaration(type, mockToReturn, mockVarNamePrefix)
+        exprCache[expr] = mockVar
 
-        for ((field, fieldValue) in expr.fields) {
+        renderMockObjectInternals(mockVar, expr.fields, instanceMethods)
+
+        return mockVar
+    }
+
+    private fun renderMockObjectInternals(mockVar: NameExpr, fields: Map<JcField, UTestExpression>, methods: Map<JcMethod, List<UTestExpression>>) {
+        for ((field, fieldValue) in fields) {
             if (field.isSpy) continue
 
             val renderedFieldValue = renderExpression(fieldValue)
-            renderSetFieldStatement(varExpr, field, renderedFieldValue)
+            renderSetFieldStatement(mockVar, field, renderedFieldValue)
         }
 
-        for ((method, mockValues) in expr.methods) {
+        for ((method, mockValues) in methods) {
             if (mockValues.isEmpty())
                 continue
 
             if (method.returnType.typeName == PredefinedPrimitives.Void)
                 continue
 
-            val mockInitialization = renderMockObjectMethod(varExpr, method, mockValues)
+            val mockInitialization = renderMockObjectMethod(mockVar, method, mockValues)
 
             addExpression(mockInitialization)
         }
-
-        return varExpr
     }
 
-    private fun renderMockCreationExpression(type: JcClassType, instanceUnderSpy: UTestExpression?): Expression {
+    private fun renderInstanceMockCreationExpressions(type: JcClassType, instanceUnderSpy: UTestExpression?): Expression {
         return when (instanceUnderSpy) {
             null -> {
                 mockitoMockMethodCall(type)
@@ -411,7 +434,7 @@ open class JcTestBlockRenderer protected constructor(
 
         val mockWhenCall =
             if (method.isStatic)
-                renderMockObjectStaticMethodWhenCall(method, args)
+                renderMockObjectStaticMethodWhenCall(mockVar, method, args)
             else
                 renderMockObjectInstanceMethodWhenCall(mockVar, method, args)
 
@@ -435,14 +458,12 @@ open class JcTestBlockRenderer protected constructor(
         args: List<Expression>
     ): Expression {
         val methodCall = renderMethodCall(method, mockVar, args)
-        return mockitoWhenMethodCall(methodCall)
+        return mockitoWhenMethodCall(TypeExpr(mockitoClass), methodCall)
     }
 
-    private fun renderMockObjectStaticMethodWhenCall(method: JcMethod, args: List<Expression>): Expression {
-        val mockStaticUtil = renderMockedStaticVarDeclaration(method.enclosingClass)
+    private fun renderMockObjectStaticMethodWhenCall(mockVar: NameExpr, method: JcMethod, args: List<Expression>): Expression {
         val mockedMethodRef = LambdaExpr(NodeList(), renderStaticMethodCall(method, args))
-
-        return mockitoWhenMethodCall(mockedMethodRef, mockStaticUtil)
+        return mockitoWhenMethodCall(mockVar, mockedMethodRef)
     }
 
     private fun renderMockedStaticVarDeclaration(mockedClass: JcClassOrInterface): NameExpr {
