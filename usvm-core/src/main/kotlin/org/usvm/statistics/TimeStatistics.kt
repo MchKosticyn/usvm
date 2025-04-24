@@ -7,9 +7,9 @@ import kotlin.time.Duration
 /**
  * Maintains information about time spent on machine processes.
  */
-class TimeStatistics<Method, State : UState<*, Method, *, *, *, State>> : UMachineObserver<State> {
+open class TimeStatistics<Method, State : UState<*, Method, *, *, *, State>> : UMachineObserver<State> {
     private val stopwatch = RealTimeStopwatch()
-    private val methodStopwatch = RealTimeStopwatch()
+    protected val methodStopwatch = RealTimeStopwatch()
 
     private val methodTimes = mutableMapOf<Method, Duration>()
 

@@ -77,13 +77,6 @@ class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) 
         return createAndPut(key, type, scope, sort, nullable)
     }
 
-    fun getKeyOfExpr(value: UExpr<out USort>): JcPinnedKey? {
-        val pair = pinnedValues.entries.firstOrNull { it.value.getExpr() == value }
-        if (pair == null)
-            return null
-        return pair.key
-    }
-
     fun copy(): JcSpringPinnedValues {
         return JcSpringPinnedValues().also { it.pinnedValues = pinnedValues }
     }

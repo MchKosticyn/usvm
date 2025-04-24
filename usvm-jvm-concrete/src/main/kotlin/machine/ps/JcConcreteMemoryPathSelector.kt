@@ -19,14 +19,18 @@ internal class JcConcreteMemoryPathSelector(
         return selector.isEmpty()
     }
 
+    private fun fixState(state: JcState) {
+        fixedState = state
+        println("picked state: ${state.id}")
+        val memory = state.memory as JcConcreteMemory
+        memory.reset()
+    }
+
     override fun peek(): JcState {
         if (fixedState != null)
             return fixedState as JcState
         val state = selector.peek()
-        fixedState = state
-        val memory = state.memory as JcConcreteMemory
-        println("picked state: ${state.id}")
-        memory.reset()
+        fixState(state)
         return state
     }
 
@@ -45,8 +49,9 @@ internal class JcConcreteMemoryPathSelector(
         removedStateIds.add(state.id)
         selector.remove(state)
         if (state.callStack.isNotEmpty()) {
-            fixedState = lastAddedStates.firstOrNull { !removedStateIds.contains(it.id) }
-            (fixedState?.memory as? JcConcreteMemory)?.reset()
+            val newState = lastAddedStates.firstOrNull { !removedStateIds.contains(it.id) }
+            if (newState != null)
+                fixState(newState)
         } else {
             fixedState = null
         }

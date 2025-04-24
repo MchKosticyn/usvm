@@ -18,6 +18,7 @@ import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
 import org.usvm.machine.state.lastStmt
+import org.usvm.ps.StateLoopTracker
 import org.usvm.ps.createPathSelector
 import org.usvm.statistics.CompositeUMachineObserver
 import org.usvm.statistics.CoverageStatistics
@@ -63,9 +64,11 @@ open class JcMachine(
 
     protected open fun createPathSelector(
         initialStates: Map<JcMethod, JcState>,
+        options: UMachineOptions,
         timeStatistics: TimeStatistics<JcMethod, JcState>,
         coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
         callGraphStatistics: CallGraphStatistics<JcMethod>,
+        loopStatisticFactory: () -> StateLoopTracker<*, JcInst, JcState>? = { null },
         wrappingPathSelector: (UPathSelector<JcState>) -> UPathSelector<JcState> = { it }
     ): UPathSelector<JcState> {
         return createPathSelector(
@@ -156,6 +159,8 @@ open class JcMachine(
         }
     }
 
+    protected open fun createTimeStatistics(): TimeStatistics<JcMethod, JcState> = TimeStatistics()
+
     fun analyze(methods: List<JcMethod>, targets: List<JcTarget> = emptyList()): List<JcState> {
         logger.debug("{}.analyze({})", this, methods)
         val interpreter = createInterpreter()
@@ -180,10 +185,11 @@ open class JcMachine(
                 )
             }
 
-        val timeStatistics = TimeStatistics<JcMethod, JcState>()
+        val timeStatistics = createTimeStatistics()
 
         val pathSelector = createPathSelector(
             initialStates,
+            options,
             timeStatistics,
             coverageStatistics,
             callGraphStatistics
