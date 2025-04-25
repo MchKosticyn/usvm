@@ -29,22 +29,24 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
     constructor(
         controller: JcClassType,
         cu: CompilationUnit,
-        cp: JcClasspath
+        cp: JcClasspath,
+        inlineUsvmUtils: Boolean = false
     ) : this(
         controller,
         cu,
-        JcSpringImportManager(cu),
+        JcSpringImportManager(cu, inlineUsvmUtils),
         cp
     )
 
     constructor(
         controller: JcClassType,
         packageName: String,
-        cp: JcClasspath
+        cp: JcClasspath,
+        inlineUsvmUtils: Boolean = false
     ) : this(
         controller,
         packageName,
-        JcSpringImportManager(),
+        JcSpringImportManager(null, inlineUsvmUtils),
         cp
     )
 

@@ -60,8 +60,8 @@ object JcTestFileRendererFactory {
         shouldInlineUsvmUtils: Boolean
     ): JcTestFileRenderer {
         return when (testClassInfo) {
-            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(testClassInfo.clazz.toType(), cu, cp)
-            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(cu, cp)
+            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(testClassInfo.clazz.toType(), cu, cp, shouldInlineUsvmUtils)
+            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(cu, cp, shouldInlineUsvmUtils)
             is JcTestClassInfo.Unsafe -> JcUnsafeTestFileRenderer(cu, cp, shouldInlineUsvmUtils)
             is JcTestClassInfo.Base -> JcTestFileRenderer(cu, cp)
         }
@@ -74,8 +74,8 @@ object JcTestFileRendererFactory {
         shouldInlineUsvmUtils: Boolean
     ): JcTestFileRenderer {
         return when (testClassInfo) {
-            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(testClassInfo.clazz.toType(), packageName, cp)
-            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(packageName, cp)
+            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(testClassInfo.clazz.toType(), packageName, cp, shouldInlineUsvmUtils)
+            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(packageName, cp, shouldInlineUsvmUtils)
             is JcTestClassInfo.Unsafe -> JcUnsafeTestFileRenderer(packageName, cp, shouldInlineUsvmUtils)
             is JcTestClassInfo.Base -> JcTestFileRenderer(packageName, cp)
         }
