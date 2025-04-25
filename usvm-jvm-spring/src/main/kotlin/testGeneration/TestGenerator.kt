@@ -10,7 +10,6 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.usvm.api.util.JcTestStateResolver
 import org.usvm.jvm.util.toTypedMethod
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestMockObject
