@@ -2,10 +2,7 @@ package org.usvm.util
 
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
-import org.jacodb.api.jvm.ext.findFieldOrNull
-import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.jacodb.impl.types.JcClassTypeImpl
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.USort

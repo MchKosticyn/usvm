@@ -11,9 +11,10 @@ class JcSpringTimeStatistics: TimeStatistics<JcMethod, JcState>() {
 
     fun getTimeSpentOnPath(path: String) = pathTimes.getOrDefault(path, Duration.ZERO)
 
-    override fun onState(parent: JcState, forks: Sequence<JcState>) {
+    override fun onMethodStopwatchStopped(parent: JcState) {
         val parentSpringState = parent as JcSpringState
         val path = parentSpringState.path ?: return
         pathTimes.merge(path, methodStopwatch.elapsed) { current, elapsed -> current + elapsed }
+        super.onMethodStopwatchStopped(parent)
     }
 }

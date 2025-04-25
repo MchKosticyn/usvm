@@ -39,12 +39,16 @@ open class TimeStatistics<Method, State : UState<*, Method, *, *, *, State>> : U
         methodStopwatch.start()
     }
 
-    override fun onState(parent: State, forks: Sequence<State>) {
-        check(methodStopwatch.isRunning) { "Method stopwatch was not running after machine step" }
-        methodStopwatch.stop()
+    protected open fun onMethodStopwatchStopped(parent: State) {
         // TODO: measure time for all visited methods, not only for entrypoints
         val entrypoint = parent.entrypoint
         methodTimes.merge(entrypoint, methodStopwatch.elapsed) { current, elapsed -> current + elapsed }
+    }
+
+    override fun onState(parent: State, forks: Sequence<State>) {
+        check(methodStopwatch.isRunning) { "Method stopwatch was not running after machine step" }
+        methodStopwatch.stop()
+        onMethodStopwatchStopped(parent)
         methodStopwatch.reset()
     }
 }
