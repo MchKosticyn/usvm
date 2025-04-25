@@ -79,7 +79,7 @@ open class JcMachine(
             { coverageStatistics },
             { transparentCfgStatistics() },
             { callGraphStatistics },
-            { JcLoopTracker() },
+            loopStatisticFactory,
             wrappingPathSelector
         )
     }
@@ -192,7 +192,8 @@ open class JcMachine(
             options,
             timeStatistics,
             coverageStatistics,
-            callGraphStatistics
+            callGraphStatistics,
+            { JcLoopTracker() }
         )
 
         val statesCollector =

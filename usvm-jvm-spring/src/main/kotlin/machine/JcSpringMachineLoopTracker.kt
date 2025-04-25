@@ -6,7 +6,7 @@ import org.usvm.machine.state.JcState
 import org.usvm.ps.StateLoopTracker
 
 internal class JcSpringMachineLoopTracker(
-    private val jcTracker: StateLoopTracker<JcLoopTracker.LoopInfo, JcInst, JcState>
+    private val jcTracker: JcLoopTracker
 ) : StateLoopTracker<JcLoopTracker.LoopInfo, JcInst, JcState> {
 
     override fun findLoopEntrance(statement: JcInst): JcLoopTracker.LoopInfo? {
