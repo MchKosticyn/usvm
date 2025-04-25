@@ -13,10 +13,17 @@ open class JcSpringUnitTestFileRenderer: JcUnsafeTestFileRenderer {
 
     protected constructor(packageName: String, importManager: JcSpringImportManager, cp: JcClasspath) : super(packageName, importManager, cp)
 
-    constructor(cu: CompilationUnit, cp: JcClasspath) : this(cu, JcSpringImportManager(cu), cp)
+    constructor(cu: CompilationUnit, cp: JcClasspath, inlineUsvmUtils: Boolean = false) : this(
+        cu,
+        JcSpringImportManager(cu, inlineUsvmUtils),
+        cp
+    )
 
-    constructor(packageName: String, cp: JcClasspath) : this(packageName, JcSpringImportManager(), cp)
-
+    constructor(packageName: String, cp: JcClasspath, inlineUsvmUtils: Boolean = false) : this(
+        packageName,
+        JcSpringImportManager(null, inlineUsvmUtils),
+        cp
+    )
 
     override fun classRendererFor(declaration: ClassOrInterfaceDeclaration): JcSpringUnitTestClassRenderer {
         return JcSpringUnitTestClassRenderer(declaration, importManager, identifiersManager, cp)
