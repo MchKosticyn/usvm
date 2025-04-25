@@ -216,9 +216,9 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    fun mockitoWhenMethodCall(methodCall: Expression, mockStaticReceiver: Expression? = null): MethodCallExpr {
+    fun mockitoWhenMethodCall(receiver: Expression, methodCall: Expression): MethodCallExpr {
         return MethodCallExpr(
-            mockStaticReceiver ?: TypeExpr(mockitoClass),
+            receiver,
             "when",
             NodeList(methodCall)
         )

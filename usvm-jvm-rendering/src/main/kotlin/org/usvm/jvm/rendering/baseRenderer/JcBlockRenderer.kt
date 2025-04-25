@@ -67,6 +67,13 @@ open class JcBlockRenderer private constructor(
     }
 
     fun addExpression(expr: Expression) {
+        if (expr is NameExpr) {
+            check(expr in vars) {
+                "addExpression call on raw NameExpr $expr"
+            }
+            return
+        }
+
         statements.add(ExpressionStmt(expr))
     }
 
