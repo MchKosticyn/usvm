@@ -64,9 +64,9 @@ import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.usvm.test.internal.toTyped
+import partitionByKey
 
 open class JcTestBlockRenderer protected constructor(
     override val methodRenderer: JcTestRenderer,
@@ -338,42 +338,40 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderMockObject(expr: UTestMockObject): Expression {
         val type = expr.type as JcClassType
 
-        val hasStaticMethods = expr.methods.any { (method) -> method.isStatic }
-        if (hasStaticMethods) {
+        val (staticMethods, instanceMethods) = expr.methods.partitionByKey { method -> method.isStatic }
+        if (!staticMethods.isEmpty()) {
             val staticMock = renderMockedStaticVarDeclaration(type.jcClass)
-            renderMockObjectInternals(staticMock, emptyMap(), expr.methods.filter { (method) -> method.isStatic })
+            renderMockObjectMethods(staticMock, staticMethods)
         }
 
-        val emptyFields = expr.fields.filter {(field) -> !field.isSpy}.isEmpty()
-        val instanceMethods = expr.methods.filter { (method) -> !method.isStatic }
-        val noInstanceMethods = instanceMethods.isEmpty()
+        val (spyFields, instanceFields) = expr.fields.partitionByKey { field -> field.isSpy }
+        check(spyFields.size <= 1) {
+            "multiple spy fields found"
+        }
+        val instanceUnderSpy = spyFields.entries.singleOrNull()?.value
 
-        val instanceUnderSpy = expr.fields.entries.firstOrNull { (field, _) ->
-            field.isSpy
-        }?.value
         val mockExpr = renderInstanceMockCreationExpressions(type, instanceUnderSpy)
 
-        if (emptyFields && noInstanceMethods) {
+        if (instanceFields.isEmpty() && instanceMethods.isEmpty()) {
             return mockExpr
         }
 
         val mockVarNamePrefix = if (instanceUnderSpy != null) "spy" else "mocked"
         val mockVar = renderVarDeclaration(type, mockExpr, mockVarNamePrefix)
+
         exprCache[expr] = mockVar
 
-        renderMockObjectInternals(mockVar, expr.fields, instanceMethods)
-
-        return mockVar
-    }
-
-    private fun renderMockObjectInternals(mockVar: NameExpr, fields: Map<JcField, UTestExpression>, methods: Map<JcMethod, List<UTestExpression>>) {
-        for ((field, fieldValue) in fields) {
-            if (field.isSpy) continue
-
+        for ((field, fieldValue) in instanceFields) {
             val renderedFieldValue = renderExpression(fieldValue)
             renderSetFieldStatement(mockVar, field, renderedFieldValue)
         }
 
+        renderMockObjectMethods(mockVar, instanceMethods)
+
+        return mockVar
+    }
+
+    private fun renderMockObjectMethods(mockVar: NameExpr, methods: Map<JcMethod, List<UTestExpression>>) {
         for ((method, mockValues) in methods) {
             if (mockValues.isEmpty())
                 continue
@@ -381,7 +379,7 @@ open class JcTestBlockRenderer protected constructor(
             if (method.returnType.typeName == PredefinedPrimitives.Void)
                 continue
 
-            val mockInitialization = renderMockObjectMethod(mockVar, method, mockValues)
+            val mockInitialization = renderSingleMockObjectMethod(mockVar, method, mockValues)
 
             addExpression(mockInitialization)
         }
@@ -404,7 +402,7 @@ open class JcTestBlockRenderer protected constructor(
         }
     }
 
-    private fun renderMockObjectMethod(
+    private fun renderSingleMockObjectMethod(
         mockVar: NameExpr,
         method: JcMethod,
         mockValues: List<UTestExpression>
