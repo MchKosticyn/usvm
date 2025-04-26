@@ -97,11 +97,5 @@ class JcTestInterpreter(
 
         override fun allocateClassInstance(type: JcClassType): Any =
             type.allocateInstance(classLoader)
-
-        override fun allocateString(value: Any?): Any = when (value) {
-            is CharArray -> String(value)
-            is ByteArray -> String(value)
-            else -> String()
-        }
     }
 }

@@ -169,10 +169,4 @@ internal class JcConcretizer(
 
     override fun allocateClassInstance(type: JcClassType): Any =
         createDefault(type) ?: error("createDefault: can not create instance of ${type.jcClass.name}")
-
-    override fun allocateString(value: Any?): Any = when (value) {
-        is CharArray -> String(value)
-        is ByteArray -> String(value)
-        else -> String()
-    }
 }

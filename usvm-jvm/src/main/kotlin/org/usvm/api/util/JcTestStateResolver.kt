@@ -53,8 +53,7 @@ import org.usvm.collection.map.length.UMapLengthLValue
 import org.usvm.collection.map.ref.URefMapEntryLValue
 import org.usvm.collection.set.ref.URefSetEntries
 import org.usvm.collection.set.ref.refSetEntries
-import org.usvm.isAllocated
-import org.usvm.isStatic
+import org.usvm.isAllocatedConcreteHeapRef
 import org.usvm.isStaticHeapRef
 import org.usvm.isTrue
 import org.usvm.logger
@@ -278,9 +277,9 @@ abstract class JcTestStateResolver<T>(
             return resolveAllocatedClass(ref)
         }
 
-        if (type.jcClass == ctx.stringType.jcClass && ref.address <= INITIAL_STATIC_ADDRESS) {
+        if (type.jcClass == ctx.stringType.jcClass) {
             // Note that non-negative addresses are possible only for the result value.
-            return resolveAllocatedString(ref)
+            return resolveString(ref, heapRef)
         }
 
         val anyEnumAncestor = type.getEnumAncestorOrNull()
@@ -369,22 +368,52 @@ abstract class JcTestStateResolver<T>(
         return decoderApi.createClassConst(classType)
     }
 
-    abstract fun allocateString(value: T): T
-
-    fun resolveAllocatedString(ref: UConcreteHeapRef): T {
+    private fun resolveStringFromBytes(stringRef: UHeapRef): String? {
         val valueField = ctx.stringValueField
-        val strValueLValue = UFieldLValue(ctx.typeToSort(valueField.type), ref, valueField.field)
+        val strValueLValue = UFieldLValue(ctx.addressSort, stringRef, valueField.field)
+        val bytesRef = memory.read(strValueLValue).asExpr(ctx.addressSort)
+        val bytesModelRef = evaluateInModel(bytesRef) as UConcreteHeapRef
+        if (bytesModelRef.address == NULL_ADDRESS)
+            return null
 
-        val strValue = if (isStaticHeapRef(ref)) {
-            withMode(ResolveMode.CURRENT) {
-                val expr = memory.read(strValueLValue)
-                resolveExpr(expr, valueField.type)
-            }
-        } else {
-            resolveLValue(strValueLValue, valueField.type)
+        val bytesCurrentRef = if (resolveMode == ResolveMode.CURRENT) bytesRef else bytesModelRef
+        val byteArrayType = ctx.cp.arrayTypeOf(ctx.cp.byte)
+        check(valueField.type == byteArrayType)
+        val arrayDescriptor = ctx.arrayDescriptorOf(byteArrayType)
+        val lengthRef = UArrayLengthLValue(stringRef, arrayDescriptor, ctx.sizeSort)
+        val resolvedLength = resolvePrimitiveInt(memory.read(lengthRef))
+
+        val length = clipArrayLength(resolvedLength)
+
+        val cellSort = ctx.byteSort
+        val stringBytes = ByteArray(length) { idx ->
+            val elemRef = UArrayIndexLValue(cellSort, bytesCurrentRef, ctx.mkSizeExpr(idx), arrayDescriptor)
+            val element = memory.read(elemRef)
+            resolvePrimitiveByte(element)
         }
 
-        return allocateString(strValue)
+        return String(stringBytes)
+    }
+
+    fun resolveString(ref: UConcreteHeapRef, heapRef: UHeapRef): T {
+        val currentRef = if (resolveMode == ResolveMode.CURRENT) heapRef else ref
+
+        val string =
+            if (isStaticHeapRef(currentRef) || isAllocatedConcreteHeapRef(currentRef)) {
+                withMode(ResolveMode.CURRENT) {
+                    resolveStringFromBytes(currentRef)
+                }
+            } else {
+                resolveStringFromBytes(currentRef)
+            }
+
+        if (string == null)
+            return decoderApi.createStringConst("")
+
+        val result = decoderApi.createStringConst(string)
+        saveResolvedRef(ref.address, result)
+
+        return result
     }
 
     fun decodeObject(
