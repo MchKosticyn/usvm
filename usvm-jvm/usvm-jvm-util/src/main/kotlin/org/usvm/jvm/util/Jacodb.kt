@@ -115,6 +115,9 @@ private fun Array<Class<*>>.toJcdbFormat(): String =
 fun Method.isSameSignatures(jcMethod: JcMethod) =
     jcdbSignature == jcMethod.jcdbSignature
 
+fun Constructor<*>.isSameSignatures(jcMethod: JcMethod) =
+    jcdbSignature == jcMethod.jcdbSignature
+
 fun JcMethod.isSameSignature(mn: MethodNode): Boolean =
     withAsmNode { it.isSameSignature(mn) }
 

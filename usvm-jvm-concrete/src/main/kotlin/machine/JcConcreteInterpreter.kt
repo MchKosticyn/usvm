@@ -99,6 +99,12 @@ open class JcConcreteInterpreter(
                 }
             }
 
+            is JcReflectionConstructorInvokeResult -> {
+                scope.doWithState {
+                    skipMethodInvocationWithValue(stmt, stmt.result)
+                }
+            }
+
             is JcBoxMethodCall -> {
                 scope.doWithState {
                     val result = stmt.resultExpr
