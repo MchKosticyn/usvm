@@ -131,6 +131,7 @@ class JcSpringMemory(
             "org.springframework.security.core.context.ThreadLocalSecurityContextHolderStrategy#lambda\$getDeferredContext\$0(org.springframework.security.core.context.SecurityContext):org.springframework.security.core.context.SecurityContext",
             "org.springframework.security.core.context.ThreadLocalSecurityContextHolderStrategy#getDeferredContext():java.util.function.Supplier",
 
+            "org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodArgumentResolver\$EmptyBodyCheckingHttpInputMessage#hasBody():boolean",
             "org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter#read(java.lang.reflect.Type,java.lang.Class,org.springframework.http.HttpInputMessage):java.lang.Object",
             "org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter#readJavaType(com.fasterxml.jackson.databind.JavaType,org.springframework.http.HttpInputMessage):java.lang.Object",
             "com.fasterxml.jackson.databind.ObjectReader#readValue(java.io.InputStream):java.lang.Object",
