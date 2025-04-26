@@ -94,6 +94,11 @@ class JcSpringPinnedValuesRequest(
         return withJsonSerialize(exprResolver.resolvePinnedValue(body))
     }
 
+    override fun getContentType(): UTAny? {
+        val contentType = pinnedValues.getValue(JcPinnedKey.requestContentType()) ?: return null
+        return exprResolver.resolvePinnedValue(contentType)
+    }
+
     override fun getParameters(): List<JcSpringHttpParameter> {
         val parametersRaw = collectAndResolve(JcSpringPinnedValueSource.REQUEST_PARAM)
         return parametersRaw.mapNotNull { (key, value) -> JcSpringHttpParameter(key, value as UTStringArray) }
