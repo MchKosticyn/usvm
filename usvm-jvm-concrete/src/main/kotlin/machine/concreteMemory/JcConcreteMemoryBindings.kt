@@ -250,7 +250,7 @@ internal class JcConcreteMemoryBindings private constructor(
     }
 
     private fun createNewAddress(type: JcType, static: Boolean): UConcreteHeapAddress {
-        if (type.isEnum || type.isEnumArray || static)
+        if (type.isEnum || type.isEnumArray || type == ctx.classType || static)
             return ctx.addressCounter.freshStaticAddress()
 
         return ctx.addressCounter.freshAllocatedAddress()

@@ -30,7 +30,6 @@ class JcSpringTestExprResolver(
     }
 
     override fun allocateClassInstance(type: JcClassType) = UTestAllocateMemoryCall(type.jcClass)
-    override fun allocateString(value: UTestExpression) = value
     fun resolvePinnedValue(value: JcPinnedValue) = resolveExpr(value.getExpr(), value.getType())
     fun getInstructions() = decoderApi.initializerInstructions()
 }

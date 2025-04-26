@@ -65,7 +65,4 @@ private class MemoryScope(
 
     override fun allocateClassInstance(type: JcClassType): UTestExpression =
         UTestAllocateMemoryCall(type.jcClass)
-
-    // todo: looks incorrect
-    override fun allocateString(value: UTestExpression): UTestExpression = value
 }
