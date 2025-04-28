@@ -11,21 +11,19 @@ import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
+import org.usvm.jvm.util.name
 import org.usvm.jvm.util.toJcType
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 import org.usvm.machine.interpreter.transformers.springjpa.query.CommonInfo
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.OrderCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.QueryCtx
-import org.usvm.util.name
+import org.usvm.machine.interpreter.transformers.springjpa.query.Order
+import org.usvm.machine.interpreter.transformers.springjpa.query.Query
 
-class SelectCtx(
-    val orders: List<OrderCtx>,
-    val query: QueryCtx
+class Select(
+    val orders: List<Order>,
+    val query: Query
 ) {
-    fun addOrder(order: List<OrderCtx>) {
-        orders.toMutableList().addAll(order)
-    }
+    fun addOrder(order: List<Order>) = orders.toMutableList().addAll(order)
 
     fun genInst(
         cp: JcClasspath,
@@ -44,13 +42,13 @@ class SelectCtx(
     private fun wrapResult(ctx: MethodCtx, method: JcMethod, ordered: JcLocalVar): JcLocalVar {
         // simple wrapper
         getWrapperType(ctx.common, method.returnType)?.also {
-            return ctx.genCtx.generateNewWithInit("wrapperRes", it, listOf(ordered))
+            return ctx.genCtx.generateNewWithInit("wrapper_res", it, listOf(ordered))
         }
 
         // page
         getPage(ctx, method, ordered)?.also { return it }
 
-        val list = ctx.genCtx.generateNewWithInit("listForFirst", ctx.common.listType, listOf(ordered))
+        val list = ctx.genCtx.generateNewWithInit("list_for_first", ctx.common.listType, listOf(ordered))
         val first = ctx.newVar(method.returnType.toJcType(ctx.cp)!!)
         val firstF = ctx.common.listType.declaredMethods.single { it.name == "first" }
             .let { VirtualMethodRefImpl.of(ctx.common.listType, it) }
@@ -63,7 +61,7 @@ class SelectCtx(
     private fun getPage(ctx: MethodCtx, method: JcMethod, ordered: JcLocalVar): JcLocalVar? {
         if (method.returnType.typeName != ctx.common.pageType.name) return null
 
-        val listWrap = ctx.genCtx.generateNewWithInit("fstWrapper", ctx.common.listType, listOf(ordered))
+        val listWrap = ctx.genCtx.generateNewWithInit("fst_wrapper", ctx.common.listType, listOf(ordered))
         val pagable = method.parameters.single {
             it.type.typeName == "org.springframework.data.domain.Pageable"
         }.toArgument
@@ -80,8 +78,8 @@ class SelectCtx(
 
     private fun getWrapperType(info: CommonInfo, type: TypeName): JcClassType? {
         return when (type.typeName) {
-            "java.util.Set" -> info.setType
-            "java.util.List" -> info.listType
+            JAVA_SET -> info.setType
+            JAVA_LIST -> info.listType
             // TODO: more collections
             else -> null
         }
@@ -92,11 +90,9 @@ class SelectCtx(
         repo: JcClassOrInterface,
         method: JcMethod,
     ): List<JcMethod> {
-
         val info = CommonInfo(cp, query, repo, method, method)
         val queryLambdas = query.getLambdas(info)
         val orderLambas = orders.flatMap { it.getLambdas(info) }
-
         return queryLambdas.toPersistentList().addAll(orderLambas)
     }
 }

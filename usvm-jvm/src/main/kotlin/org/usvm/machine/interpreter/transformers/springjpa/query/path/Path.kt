@@ -2,15 +2,13 @@ package org.usvm.machine.interpreter.transformers.springjpa.query.path
 
 import org.usvm.machine.interpreter.transformers.springjpa.query.CommonInfo
 
-class PathCtx(
-    val root: GeneralPathCtx,
-    val cont: SimplePathCtx?,
+class Path(
+    val root: GeneralPath,
+    val cont: SimplePath?,
     var alias: String?
 ) {
 
-    fun isSimple(): Boolean {
-        return root.isSimple()
-    }
+    fun isSimple() = root.isSimple()
 
     override fun toString(): String {
         val rootName = root.toString()
@@ -26,5 +24,4 @@ class PathCtx(
         if (alias == null) return null
         return alias!! to toString()
     }
-
 }

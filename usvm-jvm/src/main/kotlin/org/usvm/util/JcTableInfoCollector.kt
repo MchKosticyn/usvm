@@ -9,6 +9,7 @@ import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.toType
+import org.usvm.jvm.util.genericTypes
 import org.usvm.jvm.util.toJcClassOrInterface
 
 class JcTableInfoCollector(

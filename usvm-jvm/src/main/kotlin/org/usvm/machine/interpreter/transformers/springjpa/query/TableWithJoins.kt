@@ -3,12 +3,12 @@ package org.usvm.machine.interpreter.transformers.springjpa.query
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
-import org.usvm.machine.interpreter.transformers.springjpa.query.join.JoinCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.table.TableCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.join.Join
+import org.usvm.machine.interpreter.transformers.springjpa.query.table.Table
 
-class TableWithJoinsCtx(
-    val root: TableCtx,
-    val joins: List<JoinCtx>
+class TableWithJoins(
+    val root: Table,
+    val joins: List<Join>
 ) {
 
     fun getLambdas(info: CommonInfo): List<JcMethod> {
@@ -28,6 +28,6 @@ class TableWithJoinsCtx(
 
     fun genInst(ctx: MethodCtx): JcLocalVar {
         val rootTbl = root.genInst(ctx)
-        return joins.foldIndexed(rootTbl) { ix, acc, join -> join.genJoin(ctx, "\$j$ix", acc) }
+        return joins.foldIndexed(rootTbl) { ix, acc, join -> join.genJoin(ctx, "\$j_$ix", acc) }
     }
 }

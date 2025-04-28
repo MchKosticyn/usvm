@@ -6,8 +6,8 @@ import org.usvm.machine.interpreter.transformers.springjpa.query.CommonInfo
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
 
 abstract class SortSpec(
-    var dir: Boolean = true, // true -  ASC, false - DESC
-    var nulls: Boolean = true // true - LAST, false - FIRST
+    var isAscending: Boolean = true, // true -  ASC, false - DESC
+    var isNullsLast: Boolean = true // true - LAST, false - FIRST
 ) {
 
     abstract fun getLambdas(info: CommonInfo): List<JcMethod>

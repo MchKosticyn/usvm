@@ -11,12 +11,12 @@ import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.api.jvm.ext.toType
 import org.objectweb.asm.Opcodes
+import org.usvm.jvm.util.jvmDescriptor
 import org.usvm.jvm.util.typename
 import org.usvm.util.JcTableInfoCollector
 import org.usvm.util.Relation
 import org.usvm.util.TableInfo
 import org.usvm.util.getSetFieldName
-import org.usvm.util.jvmDescriptor
 
 class RelationMap<T> {
     private val data: MutableMap<String, T> = hashMapOf()

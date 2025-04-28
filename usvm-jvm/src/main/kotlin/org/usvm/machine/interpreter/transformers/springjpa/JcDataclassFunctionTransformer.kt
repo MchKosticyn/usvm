@@ -6,6 +6,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.cfg.JcArgument
 import org.jacodb.api.jvm.cfg.JcArrayAccess
 import org.jacodb.api.jvm.cfg.JcAssignInst
@@ -27,6 +28,7 @@ import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
 import org.jacodb.api.jvm.ext.boolean
+import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
@@ -35,15 +37,13 @@ import org.jacodb.impl.cfg.VirtualMethodRefImpl
 import org.jacodb.impl.types.JcTypedFieldImpl
 import org.jacodb.impl.types.JcTypedMethodImpl
 import org.jacodb.impl.types.substition.JcSubstitutorImpl
+import org.usvm.jvm.util.name
 import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.typename
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
 import org.usvm.util.Relation
 import org.usvm.util.TableInfo
 import org.usvm.util.getTableName
-import org.usvm.util.name
-import org.usvm.util.typedField
-
 
 abstract class JcDataclassFunctionTransformer(
     val dataclassTransformer: JcDataclassTransformer,
@@ -56,6 +56,9 @@ abstract class JcDataclassFunctionTransformer(
     val filterType = cp.findType(FILTER_TABLE) as JcClassType
     val cTyp = cp.findType(JAVA_CLASS) as JcClassType
 }
+
+private val JcField.typedField: JcTypedField
+    get() = enclosingClass.toType().declaredFields.single { it.name == name }
 
 open class JcInitTransformer(
     dataclassTransformer: JcDataclassTransformer,
@@ -132,11 +135,11 @@ open class JcInitTransformer(
         val fieldName = rel.origField.name
 
         val method = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single()
-        val lambdaVar = generateLambda(cp, "${fieldName}Lambda", method)
+        val lambdaVar = generateLambda(cp, "${fieldName}_lambda", method)
 
-        val filterVar = generateNewWithInit("${fieldName}Single", filterType, listOf(arg, lambdaVar))
+        val filterVar = generateNewWithInit("${fieldName}_single", filterType, listOf(arg, lambdaVar))
 
-        val fstVal = nextLocalVar("${fieldName}Fst", cp.objectType)
+        val fstVal = nextLocalVar("${fieldName}_fst", cp.objectType)
         val fstMethod = VirtualMethodRefImpl.of(
             filterType, filterType.declaredMethods.single { it.name == "firstEnsure" }
         )
@@ -146,7 +149,7 @@ open class JcInitTransformer(
         val relField = rel.origField
         val relType = relField.type.toJcType(cp)!!
 
-        val castedFstVal = nextLocalVar("${fstVal.name}Casted", relType)
+        val castedFstVal = nextLocalVar("${fstVal.name}_casted", relType)
         val cast = JcCastExpr(relType, fstVal)
         addInstruction { loc -> JcAssignInst(loc, castedFstVal, cast) }
 
@@ -194,27 +197,27 @@ open class JcInitTransformer(
 
         val fieldName = rel.origField.name
 
-        val btwVar = nextLocalVar("${fieldName}Btw", itableType)
+        val btwVar = nextLocalVar("${fieldName}_btw", itableType)
         val btwTable = cp.findType(DATABASES).let { it as JcClassType }.declaredFields
             .single { it.name == rel.joinTable.name }
         val btw = JcFieldRef(null, btwTable)
         addInstruction { loc -> JcAssignInst(loc, btwVar, btw) }
 
         val pred = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single { it.generatedBtwFilter }
-        val predVar = generateLambda(cp, "${fieldName}Lambda", pred)
+        val predVar = generateLambda(cp, "${fieldName}_lambda", pred)
 
-        val filterVar = generateNewWithInit("${fieldName}Filter", filterType, listOf(btwVar, predVar))
+        val filterVar = generateNewWithInit("${fieldName}_filter", filterType, listOf(btwVar, predVar))
 
         val sel = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single { it.generatedBtwSelect }
-        val selVar = generateLambda(cp, "${fieldName}Sel", sel)
+        val selVar = generateLambda(cp, "${fieldName}_sel", sel)
 
-        val typeVar = nextLocalVar("${fieldName}MapType", cTyp)
+        val typeVar = nextLocalVar("${fieldName}_map_type", cTyp)
         val type = JcClassConstant(sel.returnType.toJcType(cp)!!, cTyp)
         addInstruction { loc -> JcAssignInst(loc, typeVar, type) }
 
-        val mapVar = generateNewWithInit("${fieldName}Map", mapType, listOf(filterVar, selVar, typeVar))
+        val mapVar = generateNewWithInit("${fieldName}_map", mapType, listOf(filterVar, selVar, typeVar))
 
-        val setVar = generateNewWithInit("${fieldName}Set", setType, listOf(mapVar))
+        val setVar = generateNewWithInit("${fieldName}_set", setType, listOf(mapVar))
 
         val relField = dataclassTransformer.relationSets.get(clazz, rel.origField)
         val fieldRef = JcFieldRef(thisVal, relField.typedField)
@@ -235,7 +238,7 @@ open class JcInitTransformer(
             }
         }
 
-        return generateNewWithInit("${fieldName}Wrapper", type, listOf(tblVar))
+        return generateNewWithInit("${fieldName}_wrapper", type, listOf(tblVar))
     }
 }
 

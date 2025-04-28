@@ -18,8 +18,8 @@ import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethodImpl
 import org.jacodb.impl.types.AnnotationInfo
 import org.jacodb.impl.types.ParameterInfo
 import org.objectweb.asm.Opcodes
+import org.usvm.jvm.util.typeName
 import org.usvm.util.blancAnnotation
-import org.usvm.util.typeName
 
 fun getterName(field: JcField): String {
     return "\$get_${field.name}"

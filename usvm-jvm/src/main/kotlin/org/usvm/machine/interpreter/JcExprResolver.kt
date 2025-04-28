@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KExpr
+import io.ksmt.sort.KBoolSort
 import io.ksmt.utils.asExpr
 import io.ksmt.utils.cast
 import io.ksmt.utils.uncheckedCast
@@ -85,6 +86,7 @@ import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
+import org.usvm.UAddressSort
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -537,7 +539,7 @@ open class JcExprResolver(
 
         if (!assertIsSubtype(expr, value.type)) return null
 
-        checkArrayStoreException(lValue.ref, expr) ?: return null
+        ensureNoArrayStoreException(lValue.ref, expr) ?: return null
 
         return expr
     }
@@ -587,12 +589,8 @@ open class JcExprResolver(
     }
 
     fun ensureExprCorrectness(expr: UExpr<*>, type: JcType): Unit? {
-        if (type !is JcClassType) {
+        if (type !is JcClassType || !type.jcClass.isEnum) {
             return Unit
-        }
-
-        if (!type.jcClass.isEnum) {
-                return Unit
         }
 
         return ensureStaticFieldsInitialized(type.jcClass.toType(), classInitializerAnalysisRequired = true) {
@@ -782,7 +780,38 @@ open class JcExprResolver(
         UArrayIndexLValue(cellSort, arrayRef, idx, arrayDescriptor)
     }
 
-    private fun checkArrayStoreException(
+    fun checkIsArrayRvalueSubtypeOf(
+        baseArrayRef: UHeapRef,
+        rvalueRef: KExpr<UAddressSort>
+    ) = scope.calcOnState {
+        val elementTypeConstraints = mapTypeStream(baseArrayRef) { arrayRef, types ->
+            // The type stored in ULValue is array descriptor and for object arrays it equals just to Object,
+            // so we need to retrieve the real array type with another way
+            val arrayType = types.commonSuperType
+                ?: error("No type found for array $arrayRef")
+
+            val elementType = arrayType.ifArrayGetElementType
+            // Super type is not Array type (e.g. Object).
+            // When we can't verify a type, treat this check as no exception possible
+                ?: return@mapTypeStream ctx.trueExpr
+
+            memory.types.evalIsSubtype(rvalueRef, elementType)
+        } ?: ctx.trueExpr // We can't extract types for array ref -> treat this check as no exception possible
+
+        val arrayTypeConstraints = mapTypeStream(rvalueRef) { _, types ->
+            val elementType = types.singleOrNull()
+            // When we can't verify a type, treat this check as no exception possible
+                ?: return@mapTypeStream ctx.trueExpr
+
+            val arrayType = ctx.cp.arrayTypeOf(elementType)
+
+            memory.types.evalIsSupertype(baseArrayRef, arrayType)
+        } ?: ctx.trueExpr
+
+        ctx.mkAnd(elementTypeConstraints, arrayTypeConstraints)
+    }
+
+    private fun ensureNoArrayStoreException(
         baseArrayRef: UHeapRef,
         value: UExpr<out USort>
     ): Unit? {
@@ -794,36 +823,10 @@ open class JcExprResolver(
         val rvalueRef = value.asExpr(ctx.addressSort)
 
         // ArrayStoreException happens if we write a value that is not a subtype of the element type
-        val isRvalueSubtypeOf = scope.calcOnState {
-            val elementTypeConstraints = mapTypeStream(baseArrayRef) { arrayRef, types ->
-                // The type stored in ULValue is array descriptor and for object arrays it equals just to Object,
-                // so we need to retrieve the real array type with another way
-                val arrayType = types.commonSuperType
-                    ?: error("No type found for array $arrayRef")
-
-                val elementType = arrayType.ifArrayGetElementType
-                // Super type is not Array type (e.g. Object).
-                // When we can't verify a type, treat this check as no exception possible
-                    ?: return@mapTypeStream ctx.trueExpr
-
-                memory.types.evalIsSubtype(rvalueRef, elementType)
-            } ?: ctx.trueExpr // We can't extract types for array ref -> treat this check as no exception possible
-
-            val arrayTypeConstraints = mapTypeStream(rvalueRef) { _, types ->
-                val elementType = types.singleOrNull()
-                // When we can't verify a type, treat this check as no exception possible
-                    ?: return@mapTypeStream ctx.trueExpr
-
-                val arrayType = ctx.cp.arrayTypeOf(elementType)
-
-                memory.types.evalIsSupertype(baseArrayRef, arrayType)
-            } ?: ctx.trueExpr
-
-            ctx.mkAnd(elementTypeConstraints, arrayTypeConstraints)
-        }
+        val isRvalueSubtypeOf = checkIsArrayRvalueSubtypeOf(baseArrayRef, rvalueRef)
 
         return scope.assert(isRvalueSubtypeOf)
-            .logAssertFailure { "Jc implicit exception: Check ArrayStoreException" }
+            .logAssertFailure { "Jc implicit exception in JcExprResolver: Check ArrayStoreException" }
     }
 
     // endregion

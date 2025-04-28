@@ -10,10 +10,10 @@ import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.usvm.util.TableInfo
 
 // ... FROM SomeTable AS st
-class TableRootCtx(
+class TableRoot(
     val entityName: EntityNameCtx,
     alias: String?
-) : TableCtx(alias) {
+) : Table(alias) {
 
     // Name of class (may contain points: java.lang.Boolean)
     // TODO: polymorphism like FROM java.lang.Object
@@ -41,7 +41,6 @@ class TableRootCtx(
     }
 
     override fun collectNames(info: CommonInfo): Map<String, List<JcField>> {
-        //return mapOf(entityName.name to getTbl(info).origFieldsInOrder())
         return mapOf(entityName.name to getTbl(info).columnsInOrder().map { it.origField })
     }
 

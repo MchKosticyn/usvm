@@ -2,7 +2,6 @@ package org.usvm.machine.interpreter.transformers.springjpa.query
 
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcType
-import org.springframework.util.StringUtils
 import org.usvm.machine.interpreter.transformers.springjpa.getNextType
 import java.beans.Introspector
 import java.util.Objects
@@ -13,6 +12,8 @@ private fun split(text: String, keyword: String): Array<String> {
     val pattern = Pattern.compile(String.format("(%s)(?=(\\p{Lu}|\\P{InBASIC_LATIN}))", keyword))
     return pattern.split(text)
 }
+
+private fun hasText(str: String) = str.isNotEmpty() && str.any { it != ' ' };
 
 class JPANameVisitor {
 
@@ -71,13 +72,12 @@ class Subject(val subj: String?) {
     private fun returnMaxRes(): Int? {
         val grp = subj?.let { LIMITED_QUERY_TEMPLATE.matcher(it) }
         if (grp == null || !grp.find()) return null
-        if (StringUtils.hasText(grp.group(4))) return grp.group(4).toInt()
+        if (hasText(grp.group(4))) return grp.group(4).toInt()
         return 1
     }
 
-    private fun match(pattern: Pattern): Boolean {
-        return subj?.let { pattern.matcher(it).find() } ?: false
-    }
+    private fun match(pattern: Pattern) =
+        subj?.let { pattern.matcher(it).find() } ?: false
 }
 
 class Predicate(val pred: String, type: JcType) {
@@ -95,7 +95,7 @@ class Predicate(val pred: String, type: JcType) {
         val parts = split(p, ORDER_BY)
         assert(parts.size < 3)
 
-        nodes = split(parts[0], "Or").filter(StringUtils::hasText)
+        nodes = split(parts[0], "Or").filter { hasText(it) }
             .map { OrPart(it, alwaysIgnoreCase, type) }
         orderBySource = OrderBySource(if (parts.size == 2) parts[1] else "", type)
     }
@@ -117,13 +117,10 @@ class OrPart(
     type: JcType
 ) : Iterable<Part> {
 
-    val parts = split(source, "And").filter(StringUtils::hasText)
+    val parts = split(source, "And").filter { hasText(it) }
         .map { Part(it, ignoreCase, type) }
 
-    override fun iterator(): Iterator<Part> {
-        return parts.iterator()
-    }
-
+    override fun iterator() = parts.iterator()
 }
 
 class Part(source: String, ignoreCase: Boolean, type: JcType) {
@@ -141,7 +138,7 @@ class Part(source: String, ignoreCase: Boolean, type: JcType) {
             case = IgnoreCase.Always
             source.substring(0, matcher.start()) + source.substring(matcher.end(), source.length);
         } else {
-            case = if (ignoreCase) IgnoreCase.WhenPos else IgnoreCase.Never
+            case = if (ignoreCase) IgnoreCase.WhenPossible else IgnoreCase.Never
             source
         }
 
@@ -150,7 +147,7 @@ class Part(source: String, ignoreCase: Boolean, type: JcType) {
     }
 
     enum class IgnoreCase {
-        Always, Never, WhenPos
+        Always, Never, WhenPossible
     }
 
     enum class PartType(val keywords: List<String>, val numOfArgs: Int) {
@@ -233,7 +230,7 @@ class Part(source: String, ignoreCase: Boolean, type: JcType) {
 
         constructor(name: String, type: JcType, base: List<PropPath>) : this(type) {
             val decap = Introspector.decapitalize(name)
-            val prop = Prop.lookupProperty(type, decap) ?: Prop.lookupProperty(type, StringUtils.uncapitalize(name))!!
+            val prop = Prop.lookupProperty(type, decap) ?: Prop.lookupProperty(type, name.lowercase())!!
 
             this.name = prop.path
             this.propType = prop.type
@@ -295,19 +292,16 @@ class Part(source: String, ignoreCase: Boolean, type: JcType) {
             }
 
             fun create(source: String, base: Stack<PropPath>): PropPath {
-
                 val prev = base.peek()
                 val prop = create(source, prev.type.getNextType, base)
                 prev.next = prop
                 return prop
             }
 
-            fun create(source: String, type: JcType, base: Stack<PropPath>): PropPath {
-                return create(source, type, "", base);
-            }
+            fun create(source: String, type: JcType, base: Stack<PropPath>) =
+                create(source, type, "", base);
 
             fun create(source: String, type: JcType, tail: String, base: Stack<PropPath>): PropPath {
-
                 if (base.size > 1000) {
                     throw IllegalArgumentException(PARSE_DEPTH_EXCEEDED)
                 }
@@ -321,7 +315,7 @@ class Part(source: String, ignoreCase: Boolean, type: JcType) {
                 base.toList().reversed().forEach { newBase.add(it) }
                 newBase.add(curr)
 
-                if (StringUtils.hasText(tail)) {
+                if (hasText(tail)) {
                     curr.next = create(tail, curr.propType, newBase)
                 }
 
@@ -340,7 +334,6 @@ class Part(source: String, ignoreCase: Boolean, type: JcType) {
             }
 
             private fun getProp(type: JcType, name: List<String>): JcType? {
-
                 if (name.size == 1) {
                     return type
                 }
@@ -350,9 +343,7 @@ class Part(source: String, ignoreCase: Boolean, type: JcType) {
             }
         }
 
-        override fun hashCode(): Int {
-            return Objects.hash(path, type)
-        }
+        override fun hashCode() = Objects.hash(path, type)
     }
 }
 
@@ -360,7 +351,6 @@ class OrderBySource(
     clause: String,
     val type: JcType
 ) {
-
 
     val BLOCK_SPLIT = "(?<=Asc|Desc)(?=\\p{Lu})"
     val DIRECTION_SPLIT = Pattern.compile("(.+?)(Asc|Desc)?$")
@@ -390,7 +380,6 @@ class OrderBySource(
     }
 
     class Order(val prop: String, d: String?, val type: JcType) {
-
         val actualProp = Part.PropPath.from(prop, type)
         val dir = d == null || d == "" || d == "Asc"
     }

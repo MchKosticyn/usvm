@@ -22,6 +22,7 @@ import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
+import org.usvm.jvm.util.genericTypes
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 import org.usvm.machine.interpreter.transformers.springjpa.DATABASES
 import org.usvm.machine.interpreter.transformers.springjpa.DATABASE_UTILS
@@ -33,6 +34,7 @@ import org.usvm.machine.interpreter.transformers.springjpa.IWRAPPER
 import org.usvm.machine.interpreter.transformers.springjpa.JAVA_BIG_DECIMAL
 import org.usvm.machine.interpreter.transformers.springjpa.JAVA_BIG_INT
 import org.usvm.machine.interpreter.transformers.springjpa.JAVA_BOOL
+import org.usvm.machine.interpreter.transformers.springjpa.JAVA_CLASS
 import org.usvm.machine.interpreter.transformers.springjpa.JAVA_DOUBLE
 import org.usvm.machine.interpreter.transformers.springjpa.JAVA_FLOAT
 import org.usvm.machine.interpreter.transformers.springjpa.JAVA_INTEGER
@@ -53,15 +55,14 @@ import org.usvm.machine.interpreter.transformers.springjpa.isGeneratedGetter
 import org.usvm.machine.interpreter.transformers.springjpa.methodRef
 import org.usvm.machine.interpreter.transformers.springjpa.parameterName
 import org.usvm.machine.interpreter.transformers.springjpa.putArgumentsToArray
-import org.usvm.machine.interpreter.transformers.springjpa.query.path.PathCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.path.Path
 import org.usvm.machine.interpreter.transformers.springjpa.staticMethodRef
 import org.usvm.machine.interpreter.transformers.springjpa.toArgument
 import org.usvm.util.JcTableInfoCollector
-import org.usvm.util.genericTypes
 
 data class CommonInfo(
     val cp: JcClasspath,
-    val query: QueryCtx,
+    val query: Query,
     val repo: JcClassOrInterface,
     val method: JcMethod,
     val origMethod: JcMethod
@@ -80,7 +81,6 @@ data class CommonInfo(
     val origMethodArguments = origMethod.parameters.mapIndexed { ix, p -> p.parameterName to ix }.toMap()
     val origReturnGeneric = origMethod.signature?.let { it.genericTypes[0] } ?: origMethod.returnType.typeName
 
-    //val selectAliases = query.collectSelAliases() // TODO: it names columns for subqueries
     val aliases = query.collectAliases(this) // alias to full name
     val positions = query.collectRowPositions(this) // Foo.bar <-> (columnName <-> origField and index in row)
 
@@ -113,12 +113,7 @@ data class CommonInfo(
     val bigDecimalType = cp.findType(JAVA_BIG_DECIMAL) as JcClassType
     val byteArrType = cp.arrayTypeOf(cp.byte, false, listOf()) // TODO: check nullability = false
     val objectArrType = cp.arrayTypeOf(cp.objectType, false, listOf())
-    val classType = cp.findType("java.lang.Class")
-
-    val booleanValue = boolType.declaredMethods.single { it.name == "booleanValue" }
-    val castToBool = boolType.declaredMethods.single {
-        it.isStatic && it.name == "valueOf" && it.parameters.first().type.typeName == "boolean"
-    }
+    val classType = cp.findType(JAVA_CLASS)
 
     val jcTrue = JcBool(true, cp.boolean)
     val jcFalse = JcBool(false, cp.boolean)
@@ -151,7 +146,7 @@ class NamesManager(val method: JcMethod) {
 
 class MethodCtx(
     val cp: JcClasspath,
-    query: QueryCtx,
+    query: Query,
     repo: JcClassOrInterface,
     val method: JcMethod,
     origMethod: JcMethod,
@@ -171,47 +166,30 @@ class MethodCtx(
         return methodArgs!!
     }
 
-    fun columns(path: PathCtx): Map<String, Pair<JcField, Int>> {
+    fun columns(path: Path): Map<String, Pair<JcField, Int>> {
         val fullName = path.applyAliases(common)
         return common.positions[fullName]!!
     }
 
-    fun applyAliases(alias: String): String {
-        return common.aliases.getOrDefault(alias, alias)
-    }
+    fun applyAliases(alias: String) = common.aliases.getOrDefault(alias, alias)
 
-    fun getLambdaName(): String {
-        return names.getLambdaName()
-    }
+    fun getLambdaName() = names.getLambdaName()
 
-    fun getMethodName(): String {
-        return names.getMethodName()
-    }
+    fun getMethodName() = names.getMethodName()
 
-    fun getVarName(): String {
-        return names.getVarName()
-    }
+    fun getVarName() = names.getVarName()
 
-    fun getPredicateName(): String {
-        return names.getPredicateName()
-    }
+    fun getPredicateName() = names.getPredicateName()
 
+    fun newVar(type: JcType) = genCtx.nextLocalVar(common.names.getVarName(), type)
 
-    fun newVar(type: JcType): JcLocalVar {
-        return genCtx.nextLocalVar(common.names.getVarName(), type)
-    }
+    fun typeConst(type: JcType) = JcClassConstant(type, common.classType)
 
-    fun typeConst(type: JcType): JcValue {
-        return JcClassConstant(type, common.classType)
-    }
-
-    fun genStaticCall(name: String, methodName: String, args: List<JcValue>): JcLocalVar {
-        return genCtx.generateStaticCall(name, methodName, common.utilsType, args)
-    }
+    fun genStaticCall(name: String, methodName: String, args: List<JcValue>) =
+        genCtx.generateStaticCall(name, methodName, common.utilsType, args)
 
     private var currObj: JcLocalVar? = null
     fun genObj(name: String): JcLocalVar {
-
         currObj?.also { return it }
 
         val aliased = applyAliases(name)
@@ -233,22 +211,11 @@ class MethodCtx(
         val call = JcStaticCallExpr(statInit.staticMethodRef, listOf(newRow))
         genCtx.addInstruction { loc -> JcAssignInst(loc, res, call) }
 
-//        val res = newVar(origClass.toType())
-//        val obj = JcNewExpr(origClass.toType())
-//        genCtx.addInstruction { loc -> JcAssignInst(loc, res, obj) }
-//
-//        val init = origClass.declaredMethods.single { it.generatedFetchInit }
-//
-//        val initCall = JcSpecialCallExpr(init.toTypedMethod.methodRef, res, listOf(newRow))
-//        genCtx.addInstruction { loc -> JcCallInst(loc, initCall) }
-
         currObj = res
         return res
     }
 
-    fun genField(root: String, fields: List<String>): JcLocalVar {
-        return genComplexField(root, fields)
-    }
+    fun genField(root: String, fields: List<String>) = genComplexField(root, fields)
 
     private fun genComplexField(root: String, fields: List<String>): JcLocalVar {
         val obj = genObj(root)
@@ -258,7 +225,6 @@ class MethodCtx(
             val v = newVar(getter.returnType)
             val call = JcSpecialCallExpr(getter.methodRef, acc, listOf())
             genCtx.addInstruction { loc -> JcAssignInst(loc, v, call) }
-
             v
         }
     }

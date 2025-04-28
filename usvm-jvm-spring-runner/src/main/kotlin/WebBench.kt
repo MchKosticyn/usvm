@@ -42,11 +42,6 @@ import org.usvm.machine.interpreter.transformers.springjpa.JcDataclassTransforme
 import org.usvm.machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import org.usvm.machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import org.usvm.machine.interpreter.transformers.springjpa.JcRepositoryTransformer
-import org.usvm.machine.state.concreteMemory.getLambdaCanonicalTypeName
-import org.usvm.machine.state.concreteMemory.isInternalType
-import org.usvm.machine.state.concreteMemory.isLambda
-import org.usvm.machine.state.concreteMemory.javaName
-import org.usvm.machine.state.concreteMemory.notTracked
 import org.usvm.util.JcTableInfoCollector
 import org.usvm.util.classpathWithApproximations
 import machine.JcConcreteMachineOptions
@@ -135,8 +130,33 @@ private class BenchCp(
     }
 }
 
-private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcClinitFeature, JcInitFeature, JcEncodingFeature, JcGeneratedTypesFeature)
+private fun loadBench(
+    db: JcDatabase,
+    cpFiles: List<File>,
+    classes: List<File>,
+    dependencies: List<File>,
+    isPureClasspath: Boolean = true,
+    tablesInfo: JcTableInfoCollector? = null
+    ) = runBlocking {
+    val features = mutableListOf(
+        UnknownClasses,
+        JcStringConcatTransformer,
+        JcClinitFeature,
+        JcInitFeature,
+        JcEncodingFeature,
+        JcGeneratedTypesFeature
+    )
+
+    if (!isPureClasspath) {
+        val dbFeatures = listOf(
+            JcRepositoryCrudTransformer,
+            JcRepositoryQueryTransformer,
+            JcRepositoryTransformer,
+            JcDataclassTransformer(tablesInfo!!)
+        )
+        features.addAll(dbFeatures)
+    }
+
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
@@ -241,7 +261,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 
     System.setProperty("generatedTestClass", testClassFullName.replace('/', '.'))
 
-    val tablesInfo = DatabaseGenerator(cp, dir, repositories).generateJPADatabase()
+    val tablesInfo = DatabaseGenerator(cp, springDirFile.toPath(), repositories).generateJPADatabase()
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
     startSpringClass.withAsmNode { startSpringAsmNode ->
@@ -283,7 +303,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 3.minutes,
+        timeout = 1.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests

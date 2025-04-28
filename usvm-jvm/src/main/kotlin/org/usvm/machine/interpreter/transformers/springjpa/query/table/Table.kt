@@ -7,7 +7,7 @@ import org.usvm.machine.interpreter.transformers.springjpa.query.CommonInfo
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.usvm.util.TableInfo
 
-abstract class TableCtx(
+abstract class Table(
     val alias: String?
 ) {
     abstract fun getAlisas(info: CommonInfo): Pair<String, String>?

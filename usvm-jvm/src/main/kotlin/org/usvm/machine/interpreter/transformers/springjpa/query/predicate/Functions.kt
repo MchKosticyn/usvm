@@ -16,46 +16,46 @@ import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.int
 import org.usvm.machine.interpreter.transformers.springjpa.compare
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.ExpressionCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.Expression
 import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.LNull
-import org.usvm.machine.interpreter.transformers.springjpa.query.path.PathCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.path.SimplePathCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.path.Path
+import org.usvm.machine.interpreter.transformers.springjpa.query.path.SimplePath
 import org.usvm.machine.interpreter.transformers.springjpa.toBoolean
 import org.usvm.machine.interpreter.transformers.springjpa.toInt
 
 abstract class Function : PredicateCtx() {
 
-    class IsNull(val expression: ExpressionCtx) : Function() {
+    class IsNull(val expression: Expression) : Function() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             TODO("Not yet implemented")
         }
     }
 
-    class IsEmpty(val expression: ExpressionCtx) : Function() {
+    class IsEmpty(val expression: Expression) : Function() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             TODO("Not yet implemented")
         }
     }
 
-    class IsTrue(val expression: ExpressionCtx) : Function() {
+    class IsTrue(val expression: Expression) : Function() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             return expression.genInst(ctx)
         }
     }
 
-    class IsDistinct(val expression: ExpressionCtx, val from: ExpressionCtx) : Function() {
+    class IsDistinct(val expression: Expression, val from: Expression) : Function() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             TODO("Not yet implemented")
         }
     }
 
-    class Member(val expression: ExpressionCtx, val of: PathCtx) : Function() {
+    class Member(val expression: Expression, val of: Path) : Function() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             TODO("Not yet implemented")
         }
     }
 
-    class In(val expression: ExpressionCtx, val list: ListCtx) : Function() {
+    class In(val expression: Expression, val list: ListCtx) : Function() {
         class ListCtx()
 
         override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -63,16 +63,16 @@ abstract class Function : PredicateCtx() {
         }
     }
 
-    class Between(val expression: ExpressionCtx, val left: ExpressionCtx, val right: ExpressionCtx) : Function() {
+    class Between(val expression: Expression, val left: Expression, val right: Expression) : Function() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             TODO("Not yet implemented")
         }
     }
 
     class Like(
-        val expression: ExpressionCtx,
-        val pattern: ExpressionCtx,
-        val escape: ExpressionCtx?,
+        val expression: Expression,
+        val pattern: Expression,
+        val escape: Expression?,
         val caseSenc: Boolean
     ) : Function() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -85,7 +85,7 @@ abstract class Function : PredicateCtx() {
         }
     }
 
-    class Compare(val left: ExpressionCtx, val right: ExpressionCtx, val operator: Operator) : Function() {
+    class Compare(val left: Expression, val right: Expression, val operator: Operator) : Function() {
         enum class Operator {
             Equal, NotEqual, Greater, GreaterEqual, Less, LessEqual
         }
@@ -134,7 +134,7 @@ abstract class Function : PredicateCtx() {
         }
     }
 
-    class ExistCollection(val quantifier: ColQuantifierCtx, val path: SimplePathCtx) : Function() {
+    class ExistCollection(val quantifier: ColQuantifierCtx, val path: SimplePath) : Function() {
         class ColQuantifierCtx()
 
         override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -142,7 +142,7 @@ abstract class Function : PredicateCtx() {
         }
     }
 
-    class Exist(val expression: ExpressionCtx) : Function() {
+    class Exist(val expression: Expression) : Function() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             TODO("Not yet implemented")
         }

@@ -1,44 +1,30 @@
 package org.usvm.machine.interpreter.transformers.springjpa.query.path
 
-import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.usvm.machine.interpreter.transformers.springjpa.query.CommonInfo
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.ExpressionCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.Expression
 
-class GeneralPathCtx(
-    val path: SimplePathCtx,
+class GeneralPath(
+    val path: SimplePath,
     val index: Index?
 ) {
-    class Index(val ix: ExpressionCtx, val cont: GeneralPathCtx?)
+    class Index(val ix: Expression, val cont: GeneralPath?)
 
-    fun isSimple(): Boolean {
-        return path.isSimple()
-    }
+    fun isSimple() = path.isSimple()
 
-    override fun toString(): String {
-        return path.flat()
-    }
+    override fun toString() = path.flat()
 
-    fun applyAliases(common: CommonInfo): String {
-        return path.applyAliases(common)
-    }
+    fun applyAliases(common: CommonInfo) = path.applyAliases(common)
 
-    // TODO: you cant indexing in path when in join target or similar
-
-    // TODO: indexing
-    fun fullPath(): SimplePathCtx {
+    // TODO: indexing (you cant indexing in path when in join target or similar)
+    fun fullPath(): SimplePath {
         return path
     }
 
-    fun genInst(ctx: MethodCtx): JcLocalVar {
-        return if (isSimple()) genObj(ctx) else genField(ctx)
-    }
+    fun genInst(ctx: MethodCtx) =
+        if (isSimple()) genObj(ctx) else genField(ctx)
 
-    private fun genObj(ctx: MethodCtx): JcLocalVar {
-        return ctx.genObj(path.applyAliases(ctx.common))
-    }
+    private fun genObj(ctx: MethodCtx) = ctx.genObj(path.applyAliases(ctx.common))
 
-    private fun genField(ctx: MethodCtx): JcLocalVar {
-        return ctx.genField(ctx.applyAliases(path.root), path.cont)
-    }
+    private fun genField(ctx: MethodCtx) = ctx.genField(ctx.applyAliases(path.root), path.cont)
 }

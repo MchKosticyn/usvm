@@ -9,11 +9,11 @@ import org.usvm.machine.interpreter.transformers.springjpa.JAVA_OBJ_ARR
 import org.usvm.machine.interpreter.transformers.springjpa.JcBodyFillerFeature
 import org.usvm.machine.interpreter.transformers.springjpa.JcMethodBuilder
 import org.usvm.machine.interpreter.transformers.springjpa.REPOSITORY_LAMBDA
-import org.usvm.machine.interpreter.transformers.springjpa.query.type.TypeCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.type.Type
 import org.usvm.machine.interpreter.transformers.springjpa.repositoryLambda
 
-abstract class ExprOrPredCtx {
-    abstract val type: TypeCtx
+abstract class ExprOrPred {
+    abstract val type: Type
     abstract fun genInst(ctx: MethodCtx): JcLocalVar
 
     private var cached: JcMethod? = null
@@ -34,10 +34,8 @@ abstract class ExprOrPredCtx {
     }
 }
 
-class ToMethodFeature(val info: CommonInfo, val expr: ExprOrPredCtx, val methodName: String) : JcBodyFillerFeature() {
-    override fun condition(method: JcMethod): Boolean {
-        return method.repositoryLambda && method.name == methodName
-    }
+class ToMethodFeature(val info: CommonInfo, val expr: ExprOrPred, val methodName: String) : JcBodyFillerFeature() {
+    override fun condition(method: JcMethod) = method.repositoryLambda && method.name == methodName
 
     override fun JcSingleInstructionTransformer.BlockGenerationContext.generateBody(method: JcMethod) {
         val ctx = MethodCtx(info.cp, info.query, info.repo, method, info.origMethod, this)

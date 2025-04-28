@@ -47,15 +47,15 @@ import org.jacodb.impl.cfg.TypedMethodRefImpl
 import org.jacodb.impl.cfg.TypedStaticMethodRefImpl
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
 import org.jacodb.impl.types.AnnotationInfo
+import org.usvm.jvm.util.genericTypes
 import org.usvm.jvm.util.getTypename
+import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
+import org.usvm.jvm.util.typeName
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
 import org.usvm.util.contains
-import org.usvm.util.genericTypes
-import org.usvm.util.isVoid
 import org.usvm.util.nameEquals
-import org.usvm.util.typeName
 
 // region GeneratedFunctions
 

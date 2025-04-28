@@ -21,17 +21,17 @@ import org.objectweb.asm.Type
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
+import org.usvm.jvm.util.genericTypes
 import org.usvm.jvm.util.isSameSignature
+import org.usvm.jvm.util.jvmDescriptor
 import org.usvm.jvm.util.replace
+import org.usvm.jvm.util.typeName
 import org.usvm.jvm.util.write
 import org.usvm.machine.interpreter.transformers.springjpa.APPROX_NAME
 import org.usvm.machine.interpreter.transformers.springjpa.BASE_TABLE_MANAGER
 import org.usvm.machine.interpreter.transformers.springjpa.NO_ID_TABLE_MANAGER
 import org.usvm.util.JcTableInfoCollector
 import org.usvm.util.TableInfo
-import org.usvm.util.genericTypes
-import org.usvm.util.jvmDescriptor
-import org.usvm.util.typeName
 import java.nio.file.Path
 
 class DatabaseGenerator(

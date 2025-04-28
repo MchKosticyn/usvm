@@ -9,12 +9,12 @@ import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcNeqExpr
 import org.jacodb.api.jvm.ext.boolean
 import org.usvm.machine.interpreter.transformers.springjpa.compare
-import org.usvm.machine.interpreter.transformers.springjpa.query.ExprOrPredCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.ExprOrPred
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.ExpressionCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.Expression
 import org.usvm.machine.interpreter.transformers.springjpa.query.type.Primitive
 
-abstract class PredicateCtx : ExprOrPredCtx() {
+abstract class PredicateCtx : ExprOrPred() {
 
     override val type = Primitive.Bool()
 
@@ -107,7 +107,7 @@ abstract class PredicateCtx : ExprOrPredCtx() {
         }
     }
 
-    class BoolExpr(val expression: ExpressionCtx) : PredicateCtx() {
+    class BoolExpr(val expression: Expression) : PredicateCtx() {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             return expression.genInst(ctx)
         }

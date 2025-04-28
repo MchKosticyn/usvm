@@ -8,13 +8,13 @@ import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.ext.findType
 import org.usvm.machine.interpreter.transformers.springjpa.JAVA_CLASS
 import org.usvm.machine.interpreter.transformers.springjpa.generateNewWithInit
-import org.usvm.machine.interpreter.transformers.springjpa.query.selectfun.SelectFunCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.selectfun.SelectFuntion
 
 
-class QueryCtx(
-    val from: FromCtx?,
-    val where: WhereCtx?,
-    val select: SelectFunCtx?
+class Query(
+    val from: From?,
+    val where: Where?,
+    val select: SelectFuntion?
 ) {
 
     fun collectRowPositions(info: CommonInfo): Map<String, Map<String, Pair<JcField, Int>>> {
@@ -30,12 +30,10 @@ class QueryCtx(
             from?.getLambdas(info) ?: listOf(),
             where?.getLambdas(info) ?: listOf(),
             select?.getLambdas(info) ?: listOf()
-        )
-            .flatten()
+        ).flatten()
     }
 
-    fun genInst(ctx: MethodCtx, orders: List<OrderCtx>): JcLocalVar {
-
+    fun genInst(ctx: MethodCtx, orders: List<Order>): JcLocalVar {
         val methodArgs = ctx.getMethodArgs()
         val fromRes = from?.genInst(ctx)!! // TODO: no FROM part
         val whereFun = where?.getLambdaVar(ctx)
@@ -43,11 +41,9 @@ class QueryCtx(
 
         val filtred = whereFun?.let {
             ctx.genCtx.generateNewWithInit("res_filtred", ctx.common.filterType, listOf(fromRes, it, methodArgs))
-        }
-            ?: fromRes
+        } ?: fromRes
 
         val ordered = orders.fold(filtred) { p, order -> order.applyOrder(p, ctx) }
-
 
         val retType = ctx.cp.findType(ctx.common.origReturnGeneric)
         val classType = ctx.cp.findType(JAVA_CLASS)
@@ -61,10 +57,6 @@ class QueryCtx(
             if (select.isDistinct)
                 ctx.genCtx.generateNewWithInit("dis", ctx.common.distinctType, listOf(mapped))
             else mapped
-//        val afterAggregator =
-//            if (select.aggregator != null)
-//
-//                else afterDistinct
 
         return afterDistinct
     }

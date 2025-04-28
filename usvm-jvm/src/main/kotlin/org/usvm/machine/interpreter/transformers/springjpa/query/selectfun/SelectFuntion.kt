@@ -20,7 +20,7 @@ import org.usvm.machine.interpreter.transformers.springjpa.query.CommonInfo
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.usvm.machine.interpreter.transformers.springjpa.repositoryLambda
 
-class SelectFunCtx(
+class SelectFuntion(
     val isDistinct: Boolean,
     val selections: List<SelectionCtx>
 ) {
@@ -34,9 +34,7 @@ class SelectFunCtx(
             .associate { p -> p }
     }
 
-    fun getLambdas(info: CommonInfo): List<JcMethod> {
-        return listOf(getSelector(info))
-    }
+    fun getLambdas(info: CommonInfo) = listOf(getSelector(info))
 
     var cachedSelector: JcMethod? = null
     fun getSelector(info: CommonInfo): JcMethod {
@@ -61,17 +59,15 @@ class SelectFunCtx(
         return lambda
     }
 
-    class SelectFuture(val info: CommonInfo, val select: SelectFunCtx, val name: String) : JcBodyFillerFeature() {
+    class SelectFuture(val info: CommonInfo, val select: SelectFuntion, val name: String) : JcBodyFillerFeature() {
 
-        override fun condition(method: JcMethod): Boolean {
-            return method.name == name && method.repositoryLambda
-        }
+        override fun condition(method: JcMethod) = method.name == name && method.repositoryLambda
 
         override fun BlockGenerationContext.generateBody(method: JcMethod) {
             val ctx = MethodCtx(info.cp, info.query, info.repo, method, info.origMethod, this)
 
             val selVars = select.selections.map { it.genInst(ctx) }
-            if (ctx.common.origReturnGeneric != "java.lang.Object[]") {
+            if (ctx.common.origReturnGeneric != JAVA_OBJ_ARR) {
                 ctx.genCtx.addInstruction { loc -> JcReturnInst(loc, selVars.single()) }
             } else {
                 val res = ctx.genCtx.generateObjectArray(ctx.cp, ctx.names.getVarName(), selVars.size)

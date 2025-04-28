@@ -21,27 +21,27 @@ import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
+import org.usvm.jvm.util.genericTypes
+import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.toJcType
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 import org.usvm.machine.interpreter.transformers.springjpa.query.JPAQueryVisitor
-import org.usvm.util.genericTypes
 import org.usvm.util.getTableName
-import org.usvm.util.isVoid
 
 
 object JcRepositoryTransformer : JcClassExtFeature {
 
-    private val visitedCtx: MutableMap<String, SelectCtx> = mutableMapOf()
+    private val visitedCtx: MutableMap<String, Select> = mutableMapOf()
 
     private fun visitedName(method: JcMethod): String {
         return "${method.enclosingClass.name}.${method.name}"
     }
 
-    fun addCtx(method: JcMethod, ctx: SelectCtx) {
+    fun addCtx(method: JcMethod, ctx: Select) {
         visitedCtx[visitedName(method)] = ctx
     }
 
-    fun getCtx(method: JcMethod): SelectCtx? {
+    fun getCtx(method: JcMethod): Select? {
         return visitedCtx[visitedName(method)]
     }
 
@@ -59,7 +59,7 @@ object JcRepositoryTransformer : JcClassExtFeature {
                     .let { HqlParser(it) }
                     .statement()
 
-                val parserRes = JPAQueryVisitor().visit(queryCtx) as SelectCtx
+                val parserRes = JPAQueryVisitor().visit(queryCtx) as Select
                 addCtx(it, parserRes)
 
                 val repo = it.enclosingClass
@@ -132,7 +132,8 @@ object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
 
         val genType = if (!method.isVoid) {
             val classType = cp.findType(JAVA_CLASS)
-            val generic = method.returnType.toJcType(cp)!!
+            val generic = method.signature?.genericTypes?.single()?.let { cp.findType(it) }
+                ?: method.returnType.toJcType(cp)!!
             val v = nextLocalVar("generic_type", classType)
             val cl = JcClassConstant(generic, classType)
             addInstruction { loc -> JcAssignInst(loc, v, cl) }

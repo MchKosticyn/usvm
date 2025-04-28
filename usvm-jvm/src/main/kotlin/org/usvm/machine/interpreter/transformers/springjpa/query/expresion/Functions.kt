@@ -3,15 +3,15 @@ package org.usvm.machine.interpreter.transformers.springjpa.query.expresion
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.usvm.machine.interpreter.transformers.springjpa.query.Parameter
-import org.usvm.machine.interpreter.transformers.springjpa.query.function.FunctionCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.path.PathCtx
-import org.usvm.machine.interpreter.transformers.springjpa.query.path.SimplePathCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.function.Function
+import org.usvm.machine.interpreter.transformers.springjpa.query.path.Path
+import org.usvm.machine.interpreter.transformers.springjpa.query.path.SimplePath
 import org.usvm.machine.interpreter.transformers.springjpa.query.type.Primitive
-import org.usvm.machine.interpreter.transformers.springjpa.query.type.TypeCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.type.Type
 
-class TypeOfParam(val param: Parameter) : ExpressionCtx() {
+class TypeOfParameter(val param: Parameter) : Expression() {
 
-    override val type: TypeCtx
+    override val type: Type
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -19,9 +19,9 @@ class TypeOfParam(val param: Parameter) : ExpressionCtx() {
     }
 }
 
-class TypeOfPath(val path: PathCtx) : ExpressionCtx() {
+class TypeOfPath(val path: Path) : Expression() {
 
-    override val type: TypeCtx
+    override val type: Type
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -29,7 +29,7 @@ class TypeOfPath(val path: PathCtx) : ExpressionCtx() {
     }
 }
 
-class Id(val path: PathCtx, val cont: SimplePathCtx?) : ExpressionCtx() {
+class Id(val path: Path, val cont: SimplePath?) : Expression() {
 
     override val type = Primitive.Bool()
 
@@ -38,9 +38,9 @@ class Id(val path: PathCtx, val cont: SimplePathCtx?) : ExpressionCtx() {
     }
 }
 
-class Version(val path: PathCtx) : ExpressionCtx() {
+class Version(val path: Path) : Expression() {
 
-    override val type: TypeCtx
+    override val type: Type
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -48,20 +48,9 @@ class Version(val path: PathCtx) : ExpressionCtx() {
     }
 }
 
-class NaturalId(val path: PathCtx, val cont: SimplePathCtx?) : ExpressionCtx() {
+class NaturalId(val path: Path, val cont: SimplePath?) : Expression() {
 
-    override val type: TypeCtx
-        get() = TODO("Not yet implemented")
-
-    override fun genInst(ctx: MethodCtx): JcLocalVar {
-        TODO("Not yet implemented")
-    }
-}
-
-
-class FunctionExpr(val function: FunctionCtx) : ExpressionCtx() {
-
-    override val type: TypeCtx
+    override val type: Type
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -70,7 +59,18 @@ class FunctionExpr(val function: FunctionCtx) : ExpressionCtx() {
 }
 
 
-class Minus(val expr: ExpressionCtx) : ExpressionCtx() {
+class FunctionExpr(val function: Function) : Expression() {
+
+    override val type: Type
+        get() = TODO("Not yet implemented")
+
+    override fun genInst(ctx: MethodCtx): JcLocalVar {
+        TODO("Not yet implemented")
+    }
+}
+
+
+class Minus(val expr: Expression) : Expression() {
 
     override val type = expr.type
 
@@ -79,8 +79,8 @@ class Minus(val expr: ExpressionCtx) : ExpressionCtx() {
     }
 }
 
-class ToDuration(val expr: ExpressionCtx, val datetime: Datetime) : ExpressionCtx() {
-    override val type: TypeCtx
+class ToDuration(val expr: Expression, val datetime: Datetime) : Expression() {
+    override val type: Type
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -88,8 +88,8 @@ class ToDuration(val expr: ExpressionCtx, val datetime: Datetime) : ExpressionCt
     }
 }
 
-class FromDuration(val expr: ExpressionCtx, val datetime: Datetime) : ExpressionCtx() {
-    override val type: TypeCtx
+class FromDuration(val expr: Expression, val datetime: Datetime) : Expression() {
+    override val type: Type
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -97,7 +97,7 @@ class FromDuration(val expr: ExpressionCtx, val datetime: Datetime) : Expression
     }
 }
 
-class BinOperator(val left: ExpressionCtx, val right: ExpressionCtx, val operator: Operator) : ExpressionCtx() {
+class BinOperator(val left: Expression, val right: Expression, val operator: Operator) : Expression() {
 
     override val type = left.type
 

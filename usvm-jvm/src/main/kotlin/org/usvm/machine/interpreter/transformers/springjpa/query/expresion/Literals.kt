@@ -24,14 +24,14 @@ import org.usvm.machine.interpreter.transformers.springjpa.methodRef
 import org.usvm.machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.usvm.machine.interpreter.transformers.springjpa.query.type.Null
 import org.usvm.machine.interpreter.transformers.springjpa.query.type.Primitive
-import org.usvm.machine.interpreter.transformers.springjpa.query.type.TypeCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.type.Type
 import java.time.LocalDateTime
 
 enum class Datetime {
     Year, Month, Day, Week, Quarter, Hour, Minute, Second, Nanosecond, Epoch
 }
 
-class LString(val value: String) : ExpressionCtx() {
+class LString(val value: String) : Expression() {
 
     override val type = Primitive.String()
 
@@ -43,7 +43,7 @@ class LString(val value: String) : ExpressionCtx() {
     }
 }
 
-class LNull : ExpressionCtx() {
+class LNull : Expression() {
 
     override val type = Null()
 
@@ -55,7 +55,7 @@ class LNull : ExpressionCtx() {
     }
 }
 
-class LBool(val value: Boolean) : ExpressionCtx() {
+class LBool(val value: Boolean) : Expression() {
 
     override val type = Primitive.Bool()
 
@@ -67,19 +67,11 @@ class LBool(val value: Boolean) : ExpressionCtx() {
     }
 }
 
-class LInt(val value: Int) : ExpressionCtx() {
+class LInt(val value: Int) : Expression() {
 
     override val type = Primitive.Int()
 
-//    override fun genInst(ctx: MethodCtx): JcLocalVar = with(ctx) {
-//        val v = newVar(common.integerType)
-//        val i = JcInt(value, common.integerType)
-//        genCtx.addInstruction { loc -> JcAssignInst(loc, v, i) }
-//        return v
-//    }
-
     override fun genInst(ctx: MethodCtx): JcLocalVar = with(ctx) {
-
         val intV = newVar(cp.int)
         val i = JcInt(value, cp.int)
         genCtx.addInstruction { loc -> JcAssignInst(loc, intV, i) }
@@ -96,7 +88,7 @@ class LInt(val value: Int) : ExpressionCtx() {
     }
 }
 
-class LLong(val value: Long) : ExpressionCtx() {
+class LLong(val value: Long) : Expression() {
 
     override val type = Primitive.Long()
 
@@ -108,7 +100,7 @@ class LLong(val value: Long) : ExpressionCtx() {
     }
 }
 
-class LBigInt(val value: String) : ExpressionCtx() {
+class LBigInt(val value: String) : Expression() {
 
     override val type = Primitive.BigInt()
 
@@ -126,7 +118,7 @@ class LBigInt(val value: String) : ExpressionCtx() {
     }
 }
 
-class LFloat(val value: Float) : ExpressionCtx() {
+class LFloat(val value: Float) : Expression() {
 
     override val type = Primitive.Float()
 
@@ -138,7 +130,7 @@ class LFloat(val value: Float) : ExpressionCtx() {
     }
 }
 
-class LDouble(val value: Double) : ExpressionCtx() {
+class LDouble(val value: Double) : Expression() {
 
     override val type = Primitive.Double()
 
@@ -150,7 +142,7 @@ class LDouble(val value: Double) : ExpressionCtx() {
     }
 }
 
-class LBigDecimal(val value: String) : ExpressionCtx() {
+class LBigDecimal(val value: String) : Expression() {
 
     override val type = Primitive.BigDecimal()
 
@@ -168,7 +160,7 @@ class LBigDecimal(val value: String) : ExpressionCtx() {
     }
 }
 
-class LBinary(val bins: ByteArray) : ExpressionCtx() {
+class LBinary(val bins: ByteArray) : Expression() {
 
     override val type = Primitive.Binary()
 
@@ -188,9 +180,9 @@ class LBinary(val bins: ByteArray) : ExpressionCtx() {
     }
 }
 
-class LTime(val time: LocalDateTime) : ExpressionCtx() {
+class LTime(val time: LocalDateTime) : Expression() {
 
-    override val type: TypeCtx
+    override val type: Type
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {

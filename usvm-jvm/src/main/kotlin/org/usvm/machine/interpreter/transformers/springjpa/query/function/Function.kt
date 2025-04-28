@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter.transformers.springjpa.query.function
 
-open class FunctionCtx {
+// TODO:
+open class Function {
 
 }
 

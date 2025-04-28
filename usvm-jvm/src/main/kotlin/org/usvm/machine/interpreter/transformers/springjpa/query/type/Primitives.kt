@@ -3,7 +3,7 @@ package org.usvm.machine.interpreter.transformers.springjpa.query.type
 import org.jacodb.api.jvm.JcType
 import org.usvm.machine.interpreter.transformers.springjpa.query.CommonInfo
 
-abstract class Primitive : TypeCtx() {
+abstract class Primitive : Type() {
     class String : Primitive() {
         override fun getType(info: CommonInfo): JcType = info.strType
     }

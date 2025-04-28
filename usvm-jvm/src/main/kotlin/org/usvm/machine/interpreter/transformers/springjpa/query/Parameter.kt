@@ -8,14 +8,14 @@ import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
 import org.usvm.jvm.util.toJcType
-import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.ExpressionCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.expresion.Expression
 import org.usvm.machine.interpreter.transformers.springjpa.query.type.Param
-import org.usvm.machine.interpreter.transformers.springjpa.query.type.TypeCtx
+import org.usvm.machine.interpreter.transformers.springjpa.query.type.Type
 import org.usvm.machine.interpreter.transformers.springjpa.toArgument
 
 
-// Argument from original function
-abstract class Parameter : ExpressionCtx() {
+// Argument from original toplevel-function
+abstract class Parameter : Expression() {
 
     abstract fun position(info: CommonInfo): Int
 
@@ -39,19 +39,15 @@ abstract class Parameter : ExpressionCtx() {
         return casted
     }
 
-    override val type: TypeCtx = Param(this)
+    override val type: Type = Param(this)
 }
 
 // Simple name
 class Colon(val name: String) : Parameter() {
-    override fun position(info: CommonInfo): Int {
-        return info.origMethodArguments[name]!!
-    }
+    override fun position(info: CommonInfo) = info.origMethodArguments[name]!!
 }
 
 // ?3
 class Positional(val pos: Int) : Parameter() {
-    override fun position(info: CommonInfo): Int {
-        return pos
-    }
+    override fun position(info: CommonInfo) = pos
 }
