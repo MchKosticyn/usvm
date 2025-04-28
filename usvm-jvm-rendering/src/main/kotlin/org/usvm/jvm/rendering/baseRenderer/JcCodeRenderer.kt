@@ -316,7 +316,8 @@ abstract class JcCodeRenderer<T: Node>(
     //endregion
 
     fun shouldRenderMethodCallAsPrivate(method: JcMethod): Boolean {
-        return !method.isPublic
+        // TODO: check isPackagePrivate somehow else
+        return !method.isPublic && !method.isPackagePrivate
     }
 
     open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
@@ -408,11 +409,13 @@ abstract class JcCodeRenderer<T: Node>(
     //region Fields
 
     protected open fun shouldRenderGetFieldAsPrivate(field: JcField): Boolean {
-        return !field.isPublic
+        // TODO: check isPackagePrivate somehow else
+        return !field.isPublic && !field.isPackagePrivate
     }
 
     protected open fun shouldRenderSetFieldAsPrivate(field: JcField): Boolean {
-        return !field.isPublic || field.isFinal
+        // TODO: check isPackagePrivate somehow else
+        return (!field.isPublic && !field.isPackagePrivate) || field.isFinal
     }
 
     open fun renderGetPrivateStaticField(field: JcField): Expression {
