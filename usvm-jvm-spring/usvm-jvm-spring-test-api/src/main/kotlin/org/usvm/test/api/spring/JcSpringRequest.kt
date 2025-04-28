@@ -6,6 +6,7 @@ interface JcSpringRequest {
     fun getMethod(): JcSpringRequestMethod
     fun getPath(): UTString
     fun getContent(): UTAny?
+    fun getContentType(): UTAny?
     fun getParameters(): List<JcSpringHttpParameter>
     fun getUriVariables(): List<UTAny>
 }

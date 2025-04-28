@@ -30,6 +30,18 @@ data class JcReflectionInvokeResult(
     override val originalInst: JcInst = returnSite
 }
 
+data class JcReflectionConstructorInvokeResult(
+    private val methodCall: JcMethodCall,
+    val invokeMethod: JcTypedMethod,
+    val result: UExpr<out USort>
+) : JcMethodCallBaseInst, JcMethodCall {
+    override val location = methodCall.location
+    override val method = methodCall.method
+    override val arguments = methodCall.arguments
+    override val returnSite = methodCall.returnSite
+    override val originalInst: JcInst = returnSite
+}
+
 data class JcBoxMethodCall(
     private val methodCall: JcMethodCall,
     val resultExpr: UExpr<out USort>,

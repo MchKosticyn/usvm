@@ -80,11 +80,29 @@ class SpringRequestBuilder private constructor(
     }
 
     fun addContent(content: UTAny): SpringRequestBuilder {
-        val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "content", listOf("java.lang.String"))
+        val method = cp.findJcMethod(
+            MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS,
+            "content",
+            listOf("java.lang.String")
+        )
         reqDSL = UTestMethodCall(
             instance = reqDSL,
             method = method,
             args = listOf(content),
+        )
+        return this
+    }
+
+    fun addContentType(contentType: UTAny): SpringRequestBuilder {
+        val method = cp.findJcMethod(
+            MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS,
+            "contentType",
+            listOf("org.springframework.http.MediaType")
+        )
+        reqDSL = UTestMethodCall(
+            instance = reqDSL,
+            method = method,
+            args = listOf(contentType),
         )
         return this
     }

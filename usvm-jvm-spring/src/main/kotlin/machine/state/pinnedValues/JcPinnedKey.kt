@@ -17,6 +17,7 @@ abstract class JcPinnedKey(
         fun responseStatus(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.RESPONSE_STATUS)
         fun responseContent(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.RESPONSE_CONTENT)
         fun requestBody(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_BODY)
+        fun requestContentType(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_CONTENT_TYPE)
         fun mockCallResult(method: JcMethod) = JcObjectPinnedKey(JcSpringPinnedValueSource.MOCK_RESULT, method)
     }
 
