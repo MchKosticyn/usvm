@@ -33,6 +33,7 @@ open class JcTestClassRenderer : JcClassRenderer {
 
     protected open fun createTestRenderer(
         test: UTest,
+        testInfo: JcTestInfo,
         identifiersManager: JcIdentifiersManager,
         name: SimpleName,
         testAnnotation: AnnotationExpr,
@@ -48,11 +49,12 @@ open class JcTestClassRenderer : JcClassRenderer {
         )
     }
 
-    fun addTest(test: UTest, namePrefix: String? = null): JcTestRenderer {
+    fun addTest(test: UTest, testInfo: JcTestInfo): JcTestRenderer {
         val renderer = createTestRenderer(
             test,
+            testInfo,
             JcIdentifiersManager(identifiersManager),
-            identifiersManager[namePrefix ?: "test"],
+            identifiersManager[testInfo.testNamePrefix],
             testAnnotationJUnit
         )
 

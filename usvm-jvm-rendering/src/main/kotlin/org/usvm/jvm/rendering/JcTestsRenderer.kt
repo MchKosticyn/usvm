@@ -53,7 +53,7 @@ class JcTestsRenderer {
                 val transformedTest = transformers.fold(test) { currentTest, transformer ->
                     transformer.transform(currentTest)
                 }
-                testClassRenderer.addTest(transformedTest, testInfo.testNamePrefix)
+                testClassRenderer.addTest(transformedTest, testInfo)
             }
 
             val renderedCu = fileRenderer.render()

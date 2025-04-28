@@ -7,6 +7,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.jvm.rendering.spring.JcSpringImportManager
+import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.test.api.UTest
 
@@ -29,6 +30,7 @@ open class JcSpringUnitTestClassRenderer : JcUnsafeTestClassRenderer {
 
     override fun createTestRenderer(
         test: UTest,
+        testInfo: JcTestInfo,
         identifiersManager: JcIdentifiersManager,
         name: SimpleName,
         testAnnotation: AnnotationExpr,
