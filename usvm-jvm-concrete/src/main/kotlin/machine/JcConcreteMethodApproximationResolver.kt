@@ -3,9 +3,12 @@ package machine
 import io.ksmt.utils.asExpr
 import machine.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.ext.autoboxIfNeeded
+import org.jacodb.api.jvm.ext.constructors
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
 import org.usvm.UConcreteHeapRef
@@ -26,6 +29,8 @@ import org.usvm.machine.JcMethodCall
 import org.usvm.machine.state.JcState
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
+import utils.toJcType
+import java.lang.reflect.Executable
 
 open class JcConcreteMethodApproximationResolver(
     ctx: JcContext,
@@ -56,6 +61,10 @@ open class JcConcreteMethodApproximationResolver(
             if (approximateFieldMethod(methodCall)) return true
         }
 
+        if (className == "java.lang.reflect.Constructor") {
+            if (approximateConstructorMethod(methodCall)) return true
+        }
+
         return false
     }
 
@@ -71,48 +80,87 @@ open class JcConcreteMethodApproximationResolver(
         return false
     }
 
+    private fun prepareParameters(
+        jcMethod: JcTypedMethod,
+        thisArg: UExpr<out USort>,
+        argsArg: UExpr<out USort>,
+    ): List<UExpr<out USort>>? {
+        return scope.calcOnState {
+            val memory = memory as JcConcreteMemory
+            val args =
+                if (argsArg is UNullRef) null
+                else argsArg as UConcreteHeapRef
+            val argsArrayType = ctx.cp.arrayTypeOf(ctx.cp.objectType)
+            val descriptor = ctx.arrayDescriptorOf(argsArrayType)
+
+            val arguments = if (args == null) {
+                emptyList()
+            } else {
+                jcMethod.parameters.mapIndexed { index, jcParameter ->
+                    val idx = memory.objectToExpr(index, ctx.cp.int)
+                    val value = memory.readArrayIndex(args, idx, descriptor, ctx.addressSort).asExpr(ctx.addressSort)
+                    val type = jcParameter.type
+                    unboxIfNeeded(value, type) ?: return@calcOnState null
+                }
+            }
+            val parameters =
+                if (jcMethod.isStatic) arguments
+                else listOf(thisArg) + arguments
+            return@calcOnState parameters
+        }
+    }
+
     private fun approximateMethodMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         val methodName = method.name
         if (methodName == "invoke") {
-            val success = scope.calcOnState {
+            return scope.calcOnState {
                 val methodArg = arguments[0] as UConcreteHeapRef
                 val thisArg = arguments[1]
                 val argsArg = arguments[2]
-                val args =
-                    if (argsArg is UNullRef) null
-                    else argsArg as UConcreteHeapRef
-                val argsArrayType = ctx.cp.arrayTypeOf(ctx.cp.objectType)
-                val descriptor = ctx.arrayDescriptorOf(argsArrayType)
+
                 val memory = memory as JcConcreteMemory
                 val method = memory.tryHeapRefToObject(methodArg) ?: return@calcOnState false
                 method as java.lang.reflect.Method
-                val declaringClass = ctx.cp.findTypeOrNull(method.declaringClass.typeName) ?: return@calcOnState false
+                val declaringClass = method.declaringClass.toJcType(ctx.cp) ?: return@calcOnState false
                 declaringClass as JcClassType
+
                 val jcMethod = declaringClass.declaredMethods.find {
                     method.isSameSignatures(it.method)
                 } ?: return@calcOnState false
-                val arguments: List<UExpr<out USort>>
-                if (args == null) {
-                    arguments = emptyList()
-                } else {
-                    arguments = jcMethod.parameters.mapIndexed { index, jcParameter ->
-                        val idx = memory.objectToExpr(index, ctx.cp.int)
-                        val value = memory.readArrayIndex(args, idx, descriptor, ctx.addressSort).asExpr(ctx.addressSort)
-                        val type = jcParameter.type
-                        unboxIfNeeded(value, type) ?: return@calcOnState false
-                    }
-                }
-                val parameters =
-                    if (jcMethod.isStatic) arguments
-                    else listOf(thisArg) + arguments
+
+                val parameters = prepareParameters(jcMethod, thisArg, argsArg) ?: return@calcOnState false
                 val postProcessInst = JcReflectionInvokeResult(methodCall, jcMethod)
                 newStmt(JcConcreteMethodCallInst(methodCall.location, jcMethod.method, parameters, postProcessInst))
                 return@calcOnState true
             }
-
-            return success
         }
+        return false
+    }
 
+    private fun approximateConstructorMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        val methodName = method.name
+        if (methodName == "newInstance") {
+            return scope.calcOnState {
+                val memory = memory as JcConcreteMemory
+                val constructorArg = arguments[0] as UConcreteHeapRef
+                val argsArg = arguments[1]
+
+                val constructor = memory.tryHeapRefToObject(constructorArg) as java.lang.reflect.Constructor<*>
+                val clazz = constructor.declaringClass
+                val type = clazz.toJcType(ctx.cp) ?: return@calcOnState false
+                type as JcClassType
+                val thisArg = memory.allocConcrete(type)
+
+                val jcMethod = type.constructors.find {
+                    constructor.isSameSignatures(it.method)
+                } ?: return@calcOnState false
+
+                val parameters = prepareParameters(jcMethod, thisArg, argsArg) ?: return@calcOnState false
+                val postProcessInst = JcReflectionConstructorInvokeResult(methodCall, jcMethod, thisArg)
+                newStmt(JcConcreteMethodCallInst(methodCall.location, jcMethod.method, parameters, postProcessInst))
+                return@calcOnState true
+            }
+        }
         return false
     }
 

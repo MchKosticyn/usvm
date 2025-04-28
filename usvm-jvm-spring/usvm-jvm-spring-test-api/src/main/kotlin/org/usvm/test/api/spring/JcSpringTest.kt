@@ -94,6 +94,7 @@ open class JcSpringTest internal constructor(
         request.getParameters().forEach { builder.addParameter(it) }
         request.getHeaders().forEach { builder.addHeader(it) }
         request.getContent()?.let { builder.addContent(it) }
+        request.getContentType()?.let { builder.addContentType(it) }
 
         return builder.getDSL() to builder.getInitDSL()
     }
