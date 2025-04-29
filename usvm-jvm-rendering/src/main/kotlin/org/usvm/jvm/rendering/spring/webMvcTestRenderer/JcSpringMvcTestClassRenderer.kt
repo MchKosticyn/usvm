@@ -155,10 +155,10 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
     }
 
     private fun isSecured(method: JcMethod): Boolean {
-        val methodAnnotations = method.allAnnotations().map { annotation -> annotation.name }
-        if (methodAnnotations.any { it in securityAnnotationsNames }) return true
+        val methodAnnotations = method.allAnnotations()
+        if (methodAnnotations.any { it.name in securityAnnotationsNames }) return true
 
-        val controllerAnnotations = method.enclosingClass.allAnnotations().map { annotation -> annotation.name }
-        return controllerAnnotations.any { it in securityAnnotationsNames }
+        val controllerAnnotations = method.enclosingClass.allAnnotations()
+        return controllerAnnotations.any { it.name in securityAnnotationsNames }
     }
 }

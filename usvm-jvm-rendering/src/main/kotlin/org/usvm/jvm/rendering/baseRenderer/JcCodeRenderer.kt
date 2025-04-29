@@ -102,8 +102,16 @@ abstract class JcCodeRenderer<T: Node>(
         return classOrInterface
     }
 
+    fun packagePrivateIsPublic(type: JcClassType): Boolean {
+        return true
+    }
+
+    fun shouldRenderClassTypeAsPrivate(type: JcClassType): Boolean {
+        return !type.isPublic && !(type.isPackagePrivate && packagePrivateIsPublic(type))
+    }
+
     fun renderClass(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
-        check(type.isPublic) { "Rendering private classes is not supported" }
+        check(!shouldRenderClassTypeAsPrivate(type)) { "Rendering private classes is not supported" }
         check(!type.jcClass.isAnonymous) { "Rendering anonymous classes is not supported" }
 
         return when {
@@ -315,9 +323,12 @@ abstract class JcCodeRenderer<T: Node>(
 
     //endregion
 
+    fun packagePrivateIsPublic(method: JcMethod): Boolean {
+        return true
+    }
+
     fun shouldRenderMethodCallAsPrivate(method: JcMethod): Boolean {
-        // TODO: check isPackagePrivate somehow else
-        return !method.isPublic && !method.isPackagePrivate
+        return !method.isPublic && !(method.isPackagePrivate && packagePrivateIsPublic(method))
     }
 
     open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
@@ -408,14 +419,16 @@ abstract class JcCodeRenderer<T: Node>(
 
     //region Fields
 
+    protected open fun packagePrivateIsPublic(field: JcField): Boolean {
+        return true
+    }
+
     protected open fun shouldRenderGetFieldAsPrivate(field: JcField): Boolean {
-        // TODO: check isPackagePrivate somehow else
-        return !field.isPublic && !field.isPackagePrivate
+        return !field.isPublic && !(field.isPackagePrivate && packagePrivateIsPublic(field))
     }
 
     protected open fun shouldRenderSetFieldAsPrivate(field: JcField): Boolean {
-        // TODO: check isPackagePrivate somehow else
-        return (!field.isPublic && !field.isPackagePrivate) || field.isFinal
+        return (!field.isPublic && !(field.isPackagePrivate && packagePrivateIsPublic(field))) || field.isFinal
     }
 
     open fun renderGetPrivateStaticField(field: JcField): Expression {
