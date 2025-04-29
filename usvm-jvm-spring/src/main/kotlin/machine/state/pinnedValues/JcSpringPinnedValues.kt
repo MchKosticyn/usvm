@@ -3,7 +3,6 @@ package machine.state.pinnedValues
 import io.ksmt.utils.asExpr
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.PredefinedPrimitive
-import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.api.makeNullableSymbolicRef
 import org.usvm.api.makeSymbolicPrimitive

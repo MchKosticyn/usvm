@@ -616,8 +616,8 @@ class JcSpringMethodApproximationResolver (
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun shouldSkipPath(path: String, kind: String, controllerTypeName: String): Boolean {
-        return false
+    private fun shouldAnalyzePath(path: String, kind: String, controllerTypeName: String): Boolean {
+        return true
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
@@ -684,7 +684,7 @@ class JcSpringMethodApproximationResolver (
     private fun allControllerPaths(stateToFill: JcSpringState): ArrayList<ArrayList<Any>> {
         val handlerData =
             getHandlerData()
-            .filterNot { shouldSkipPath(it.pathTemplate, it.handler.name, it.controller.name) }
+            .filter { shouldAnalyzePath(it.pathTemplate, it.handler.name, it.controller.name) }
         stateToFill.handlerData = handlerData
 
         return handlerData

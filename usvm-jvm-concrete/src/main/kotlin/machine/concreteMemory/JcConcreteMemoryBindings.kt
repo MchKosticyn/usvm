@@ -271,16 +271,17 @@ internal class JcConcreteMemoryBindings private constructor(
         }
     }
 
-    private fun allocate(obj: Any, type: JcType, static: Boolean): UConcreteHeapAddress {
-        val interned = internIfNeeded(obj)
+    private fun allocate(obj: Any, type: JcType, static: Boolean, intern: Boolean = true): UConcreteHeapAddress {
+        var toAllocate = obj
         if (interningTypes.contains(type)) {
-            val address = tryPhysToVirt(interned)
+            toAllocate = if (intern) internIfNeeded(obj) else obj
+            val address = tryPhysToVirt(obj)
             if (address != null)
                 return address
         }
 
         val address = createNewAddress(type, static)
-        allocate(address, interned, type)
+        allocate(address, toAllocate, type)
         return address
     }
 
@@ -295,7 +296,7 @@ internal class JcConcreteMemoryBindings private constructor(
         if (shouldAllocate(type)) {
             val obj = createDefault(type) ?: return null
             transitiveConcretes[obj] = Unit
-            return allocate(obj, type, static)
+            return allocate(obj, type, static, false)
         }
         return null
     }
