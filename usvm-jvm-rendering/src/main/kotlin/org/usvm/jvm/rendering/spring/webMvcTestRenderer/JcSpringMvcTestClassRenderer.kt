@@ -13,19 +13,16 @@ import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.NormalAnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
-import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.impl.features.InMemoryHierarchy
-import org.jacodb.impl.features.InMemoryHierarchyReq
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
 import org.usvm.jvm.rendering.spring.JcSpringImportManager
+import org.usvm.jvm.util.allAnnotations
 import org.usvm.test.api.UTest
-import java.util.IdentityHashMap
 
 class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
 
@@ -144,31 +141,24 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
     }
 
     companion object {
-        private val securedAnnotationName = "org.springframework.security.access.annotation.Secured"
-
-        private val cpToAnnotations = IdentityHashMap<JcClasspath, Set<JcClassOrInterface>>()
-
-        private fun securityAnnotationInheritorsIn(cp: JcClasspath): Set<JcClassOrInterface> {
-            return cpToAnnotations.getOrPut(cp) {
-                val securedAnnotation = cp.findTypeOrNull(securedAnnotationName) as? JcClassType
-
-                if (securedAnnotation == null)
-                    return emptySet()
-
-                val securedAnnotationInheritors =
-                    (InMemoryHierarchy.syncQuery(cp, InMemoryHierarchyReq(securedAnnotationName))
-                        .map { cp.toJcClass(it) }).toList()
-                (securedAnnotationInheritors + securedAnnotation.jcClass).toSet()
-            }
-        }
+        private val securityAnnotationsNames = listOf(
+            "org.springframework.security.access.annotation.Secured",
+            /*
+                TODO: support?
+                    "org.springframework.security.access.prepost.PreAuthorize",
+                    "org.springframework.security.access.prepost.PostAuthorize",
+                    "org.springframework.security.access.prepost.PreFilter",
+                    "org.springframework.security.access.prepost.PostFilter",
+                    "javax.annotation.security.RolesAllowed"
+             */
+        )
     }
 
     private fun isSecured(method: JcMethod): Boolean {
-        val cp = method.enclosingClass.classpath
-        val securityAnnotations = securityAnnotationInheritorsIn(cp)
+        val methodAnnotations = method.allAnnotations().map { annotation -> annotation.name }
+        if (methodAnnotations.any { it in securityAnnotationsNames }) return true
 
-        return method.annotations.any {
-                annotation -> annotation.jcClass in securityAnnotations
-        }
+        val controllerAnnotations = method.enclosingClass.allAnnotations().map { annotation -> annotation.name }
+        return controllerAnnotations.any { it in securityAnnotationsNames }
     }
 }

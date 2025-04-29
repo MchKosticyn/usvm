@@ -1,5 +1,6 @@
 package org.usvm.jvm.util
 
+import java.lang.annotation.Inherited
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.*
@@ -8,6 +9,8 @@ import org.objectweb.asm.tree.MethodNode
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Method
+import java.util.LinkedList
+import java.util.Queue
 
 fun JcClasspath.stringType(): JcType {
     return findClassOrNull("java.lang.String")!!.toType()
@@ -164,3 +167,76 @@ fun Method.isSameSignatures(jcMethod: JcMethod) =
 
 fun JcMethod.isSameSignature(mn: MethodNode): Boolean =
     withAsmNode { it.isSameSignature(mn) }
+
+fun JcMethod.allAnnotations(): Set<JcClassOrInterface> {
+    val visited = HashSet<JcClassOrInterface>()
+
+    for (ann in annotations) {
+        val annotationClass = ann.jcClass
+        if (annotationClass != null && visited.add(annotationClass)) {
+            visited.addAll(annotationClass.annotations.mapNotNull { it.jcClass })
+        }
+    }
+    return visited
+}
+
+fun JcClassOrInterface.allAnnotations(): Set<JcClassOrInterface> {
+    val directAnnotations = this.directAnnotations()
+
+    if (this.isAnnotation)
+        return directAnnotations
+
+    val queue: Queue<JcClassOrInterface> = LinkedList()
+
+    val allAnnotations = HashSet<JcClassOrInterface>(directAnnotations)
+    val visited = HashSet<JcClassOrInterface>(directAnnotations + this)
+
+    queue.addAll(interfaces)
+    if (superClass != null && superClass != classpath.objectClass)
+        queue.add(superClass)
+
+    while (queue.isNotEmpty()) {
+        val current = queue.poll() ?: continue
+        val currentDirectAnnotations = current.directAnnotations()
+
+        visited.addAll(currentDirectAnnotations + current)
+        allAnnotations.addAll(currentDirectAnnotations.filter { it.annotations.any { a -> a.name == Inherited::class.java.name } })
+
+        check(!current.isAnnotation) {
+            "not-an-annotation expected"
+        }
+
+        queue.addAll(current.interfaces.filter { !visited.add(it) })
+
+        val curSuper = current.superClass
+        if (curSuper == null || curSuper == classpath.objectClass || !visited.add(curSuper))
+            continue
+
+        queue.add(curSuper)
+
+    }
+
+    return allAnnotations
+}
+
+private fun JcClassOrInterface.directAnnotations(): Set<JcClassOrInterface> {
+    val visited = HashSet<JcClassOrInterface>()
+
+    val queue: Queue<JcClassOrInterface> = LinkedList()
+    queue.add(this)
+
+    while (queue.isNotEmpty()) {
+        val current = queue.poll() ?: continue
+
+        for (ann in current.annotations) {
+            val annotationClass = ann.jcClass
+
+            if (annotationClass == null || !visited.add(annotationClass))
+                continue
+
+            queue.add(annotationClass)
+
+        }
+    }
+    return visited
+}
