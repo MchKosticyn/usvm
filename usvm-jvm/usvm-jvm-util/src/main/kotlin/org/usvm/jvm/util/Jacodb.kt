@@ -207,10 +207,10 @@ fun JcClassOrInterface.allAnnotations(): Set<JcAnnotation> {
         if (this.isAnnotation)
             continue
 
-        queue.addAll(current.interfaces.filter { !visited.add(it) })
+        queue.addAll(current.interfaces.filter { it !in visited })
 
         val curSuper = current.superClass
-        if (curSuper == null || curSuper == classpath.objectClass || !visited.add(curSuper))
+        if (curSuper == null || curSuper == classpath.objectClass || curSuper in visited)
             continue
 
         queue.add(curSuper)
