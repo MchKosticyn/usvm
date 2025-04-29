@@ -1,9 +1,6 @@
 package machine
 
 import io.ksmt.utils.asExpr
-import isDeserializationMethod
-import isSpringController
-import isSpringRepository
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.concreteMemory.JcConcreteMemory
 import machine.state.JcSpringState
@@ -45,6 +42,8 @@ import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.jvm.util.allFields
 import org.usvm.util.classesOfLocations
 import org.usvm.jvm.util.toJavaClass
+import util.isDeserializationMethod
+import util.isSpringController
 import utils.toJcType
 import java.util.ArrayList
 
@@ -110,9 +109,9 @@ class JcSpringMethodApproximationResolver (
             if (approximateSpringBootMethod(methodCall)) return true
         }
 
-        if (enclosingClass.isSpringRepository) {
-            if (approximateSpringRepositoryMethod(methodCall)) return true
-        }
+//        if (enclosingClass.isSpringRepository) {
+//            if (approximateSpringRepositoryMethod(methodCall)) return true
+//        }
 
         if (enclosingClass.annotations.any { it.name == "org.springframework.stereotype.Service" }) {
             if (approximateSpringServiceMethod(methodCall)) return true

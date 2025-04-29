@@ -149,3 +149,31 @@ val kotlin.reflect.KProperty<*>.javaName: String
 
 val kotlin.reflect.KFunction<*>.javaName: String
     get() = this.javaMethod?.name ?: error("No java name for method $this")
+
+val JcField.typedField: JcTypedField
+    get() =
+        enclosingClass.toType().findFieldOrNull(name)
+            ?: error("Could not find field $this in type $enclosingClass")
+
+fun JcMethod.isSame(other: JcMethod) =
+    this.name == other.name && this.description == other.description && this.signature == other.signature
+
+val JcMethod.isVoid: Boolean get() = returnType.typeName == "void"
+
+val String.typeName: TypeName
+    get() = TypeNameImpl.fromTypeName(this)
+
+val JcClassOrInterface.jvmDescriptor : String get() = "L${name.replace('.','/')};"
+
+val String.fromJvmDescriptor : String get() {
+    var s = if (this.startsWith("[")) this.drop(1).plus("[]") else this
+    s = s.replace("/", ".")
+    return if (s.startsWith("L")) s.drop(1) else s
+}
+
+val String.genericTypes : List<String> get() = this
+    .substringAfter("<")
+    .substringBefore(">")
+    .split(";")
+    .filter{ it.isNotEmpty() }
+    .map { it.fromJvmDescriptor }

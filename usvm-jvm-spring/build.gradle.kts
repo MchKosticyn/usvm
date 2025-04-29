@@ -1,4 +1,5 @@
 plugins {
+    antlr
     id("usvm.kotlin-conventions")
 }
 
@@ -15,4 +16,11 @@ dependencies {
 
     implementation(Libs.jacodb_core)
     implementation(Libs.jacodb_api_jvm)
+    implementation(Libs.jacodb_approximations)
+
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.2.0")
+    antlr(Libs.antlr)
 }
+
+tasks.getByName("compileTestKotlin").dependsOn("generateTestGrammarSource")
+tasks.getByName("compileKotlin").dependsOn("generateGrammarSource")

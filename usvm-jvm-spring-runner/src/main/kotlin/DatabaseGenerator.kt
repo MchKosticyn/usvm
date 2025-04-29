@@ -1,5 +1,8 @@
 package bench
 
+import machine.interpreter.transformers.springjpa.APPROX_NAME
+import machine.interpreter.transformers.springjpa.BASE_TABLE_MANAGER
+import machine.interpreter.transformers.springjpa.NO_ID_TABLE_MANAGER
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.TypeName
@@ -27,11 +30,8 @@ import org.usvm.jvm.util.jvmDescriptor
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.typeName
 import org.usvm.jvm.util.write
-import org.usvm.machine.interpreter.transformers.springjpa.APPROX_NAME
-import org.usvm.machine.interpreter.transformers.springjpa.BASE_TABLE_MANAGER
-import org.usvm.machine.interpreter.transformers.springjpa.NO_ID_TABLE_MANAGER
-import org.usvm.util.JcTableInfoCollector
-import org.usvm.util.TableInfo
+import util.JcTableInfoCollector
+import util.TableInfo
 import java.nio.file.Path
 
 class DatabaseGenerator(

@@ -1,9 +1,7 @@
 @file:Suppress("PropertyName", "HasPlatformType")
 
 plugins {
-    antlr
     id("usvm.kotlin-conventions")
-    id("org.springframework.boot") version "3.2.0"
 }
 
 val samples by sourceSets.creating {
@@ -49,8 +47,6 @@ dependencies {
     implementation(Libs.ksmt_cvc5)
     implementation(Libs.ksmt_symfpu)
 
-    antlr(Libs.antlr)
-
     testImplementation(Libs.mockk)
     testImplementation(Libs.junit_jupiter_params)
     testImplementation(Libs.logback)
@@ -78,14 +74,6 @@ dependencies {
     samplesImplementation(project("usvm-jvm-api"))
 
     testImplementation(project(":usvm-jvm-instrumentation"))
-}
-
-val springVersion = "3.2.0"
-
-dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springVersion")
-    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:$springVersion")
 }
 
 val `sample-approximationsCompileOnly`: Configuration by configurations.getting
@@ -156,8 +144,6 @@ tasks {
 }
 
 tasks.getByName("compileTestKotlin").finalizedBy("testJar")
-tasks.getByName("compileTestKotlin").dependsOn("generateTestGrammarSource")
-tasks.getByName("compileKotlin").dependsOn("generateGrammarSource")
 
 tasks.withType<Test> {
     environment(

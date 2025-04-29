@@ -14,6 +14,8 @@ import java.util.concurrent.ConcurrentHashMap
 private const val USVM_API_JAR_PATH = "usvm.jvm.api.jar.path"
 private const val USVM_APPROXIMATIONS_JAR_PATH = "usvm.jvm.approximations.jar.path"
 
+const val DUMMY_FIELD_ANNOT = "org.usvm.api.decoder.DummyField"
+
 private val classpathApproximations: MutableMap<JcClasspath, Set<String>> = ConcurrentHashMap()
 
 // TODO: use another way to detect internal classes (e.g. special bytecode location type)

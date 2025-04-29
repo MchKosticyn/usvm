@@ -182,7 +182,7 @@ object Libs {
     val kotlinx_serialization_json = dep(
         group = "org.jetbrains.kotlinx",
         name = "kotlinx-serialization-json",
-        version = Versions.kotlinx_serializationc
+        version = Versions.kotlinx_serialization
     )
 
     val antlr = dep(

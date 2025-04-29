@@ -8,6 +8,7 @@ import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.collections.immutable.internal.MutabilityOwnership
+import org.usvm.jvm.util.typedField
 import org.usvm.machine.interpreter.statics.JcStaticFieldLValue
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
@@ -15,7 +16,6 @@ import utils.getStaticFieldValue
 import utils.isInternalType
 import utils.setStaticFieldValue
 import utils.toJavaField
-import utils.typedField
 
 internal class JcConcreteStaticFieldsRegion<Sort : USort>(
     private val regionId: JcStaticFieldRegionId<Sort>,

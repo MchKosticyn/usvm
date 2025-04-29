@@ -69,6 +69,7 @@ import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.URegistersStack
 import org.usvm.jvm.util.name
+import org.usvm.jvm.util.typedField
 import org.usvm.util.onNone
 import org.usvm.util.onSome
 import org.usvm.utils.applySoftConstraints
@@ -82,7 +83,6 @@ import utils.jcTypeOf
 import utils.setStaticFieldValue
 import utils.toJavaField
 import utils.toJavaMethod
-import utils.typedField
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ExecutionException
 

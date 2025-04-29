@@ -71,7 +71,6 @@ import org.usvm.machine.interpreter.JcFixedInheritorsNumberTypeSelector
 import org.usvm.machine.interpreter.JcTypeStreamPrioritization
 import org.usvm.machine.interpreter.statics.JcStaticFieldLValue
 import org.usvm.machine.interpreter.statics.extractInitialStatics
-import org.usvm.machine.interpreter.transformers.springjpa.dummyAnnot
 import org.usvm.machine.state.localIdx
 import org.usvm.memory.ULValue
 import org.usvm.memory.UReadOnlyMemory
@@ -80,6 +79,7 @@ import org.usvm.mkSizeExpr
 import org.usvm.model.UModelBase
 import org.usvm.sizeSort
 import org.usvm.types.first
+import org.usvm.util.DUMMY_FIELD_ANNOT
 
 abstract class JcTestStateResolver<T>(
     val ctx: JcContext,
@@ -331,7 +331,7 @@ abstract class JcTestStateResolver<T>(
                 val fields = cls.declaredFields.filterNot {
                     it.isStatic
                             || cls.isAbstract && it.field is JcEnrichedVirtualField
-                            || it.field.annotations.contains(JcAnnotationImpl(dummyAnnot, cls.classpath))
+                            || it.field.annotations.find {it.name == DUMMY_FIELD_ANNOT } != null
                 }
 
                 for (field in fields) {
