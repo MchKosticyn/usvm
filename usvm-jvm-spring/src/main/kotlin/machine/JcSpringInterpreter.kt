@@ -57,31 +57,6 @@ class JcSpringInterpreter(
         )
     }
 
-    private val injectedFields = mutableMapOf<JcField, MutableSet<UConcreteHeapAddress>>()
-
-    private fun injectSymbolicValue(
-        scope: JcStepScope,
-        field: JcTypedField,
-        lValue: UFieldLValue<JcField, UAddressSort>
-    ) {
-        val jcField = field.field
-        val alreadyInjected = injectedFields.getOrPut(jcField) { mutableSetOf() }
-        val concreteAddresses = mutableSetOf<UConcreteHeapAddress>()
-        val instance = handleRefForWrite(lValue.ref, ctx.trueExpr) { concreteAddresses.add(it) }
-        if (instance != null && instance is UConcreteHeapRef)
-            concreteAddresses.add(instance.address)
-
-        val toInject = concreteAddresses - alreadyInjected
-        if (toInject.isEmpty()) return
-
-        val symbolicValue = scope.makeSymbolicRef(field.type) ?: return
-        for (address in toInject) {
-            val key = UFieldLValue(lValue.sort, ctx.mkConcreteHeapRef(address), jcField)
-            scope.doWithState { memory.write(key, symbolicValue, ctx.trueExpr) }
-        }
-        alreadyInjected.addAll(toInject)
-    }
-
     override fun createExprResolver(
         ctx: JcContext,
         scope: JcStepScope,
@@ -98,8 +73,7 @@ class JcSpringInterpreter(
             localToIdx,
             mkTypeRef,
             mkStringConstRef,
-            classInitializerAnalysisAlwaysRequiredForType,
-            ::injectSymbolicValue
+            classInitializerAnalysisAlwaysRequiredForType
         )
     }
 }

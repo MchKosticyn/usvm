@@ -380,7 +380,7 @@ abstract class JcTestStateResolver<T>(
         val byteArrayType = ctx.cp.arrayTypeOf(ctx.cp.byte)
         check(valueField.type == byteArrayType)
         val arrayDescriptor = ctx.arrayDescriptorOf(byteArrayType)
-        val lengthRef = UArrayLengthLValue(stringRef, arrayDescriptor, ctx.sizeSort)
+        val lengthRef = UArrayLengthLValue(bytesCurrentRef, arrayDescriptor, ctx.sizeSort)
         val resolvedLength = resolvePrimitiveInt(memory.read(lengthRef))
 
         val length = clipArrayLength(resolvedLength)

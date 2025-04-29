@@ -470,7 +470,7 @@ open class JcConcreteMemory(
             try {
                 println("Result $resultObj")
             } catch (e: Throwable) {
-                println("unable to print method invocation result")
+                println("unable to print method invocation result: $e")
             }
             if (method.isConstructor) {
                 check(thisObj != null && resultObj != null)
@@ -506,7 +506,7 @@ open class JcConcreteMemory(
 
     protected open fun shouldConcretizeMethod(method: JcMethod): Boolean {
         // TODO: for tests only (remove after testing) #CM
-        return method.humanReadableSignature == "org.usvm.samples.Encoding#concretize():void"
+        return method.humanReadableSignature == "org.usvm.samples.Strings#concretize():void"
     }
 
     private fun tryConcreteInvokeInternal(

@@ -39,7 +39,6 @@ import org.jacodb.impl.types.JcTypeVariableImpl
 import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.jvm.rendering.baseRenderer.JcTypeVariableExt.isRecursive
 
-
 abstract class JcCodeRenderer<T: Node>(
     open val importManager: JcImportManager,
     internal val identifiersManager: JcIdentifiersManager,

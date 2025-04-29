@@ -7,11 +7,9 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcParameter
-import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.ext.findType
-import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestGetFieldExpression
 import org.usvm.test.api.UTestInst
@@ -78,8 +76,11 @@ class SpringMockBeanBuilder(
         }
     }
 
-    private fun addMockField(type: JcType, field: JcField, value: UTestExpression): UTestStatement {
-        val mockBean = findMockBean(type)
+    private fun addMockField(
+        mockBean: UTestExpression,
+        field: JcField,
+        value: UTestExpression
+    ): UTestStatement {
         val setFieldStatement = UTestSetFieldStatement(mockBean, field, value)
         initStatements.add(setFieldStatement)
         return setFieldStatement
@@ -105,14 +106,17 @@ class SpringMockBeanBuilder(
         return mockBean
     }
 
-    private fun addMockMethod(type: JcType, method: JcMethod, values: List<UTestExpression>): UTestExpression {
+    private fun addMockMethod(
+        mockBean: UTestExpression,
+        method: JcMethod,
+        values: List<UTestExpression>
+    ): UTestExpression {
         check (!method.isStatic) { "no static method mocks expected in mockBean" }
 
         val mockedMethodCallArgs = anyMatchersForParametersOf(method)
-        val mockedObject = findMockBean(type)
 
         val mockedMethodCall = UTestMethodCall(
-            mockedObject,
+            mockBean,
             method,
             mockedMethodCallArgs
         )
@@ -131,9 +135,9 @@ class SpringMockBeanBuilder(
     }
 
     fun addMock(mock: JcMockBean): SpringMockBeanBuilder {
-        val type = mock.type
-        mock.fields.forEach { (field, value) -> addMockField(type, field, value) }
-        mock.methods.forEach { (method, values) -> addMockMethod(type, method, values) }
+        val mockBean = findMockBean(mock.type)
+        mock.fields.forEach { (field, value) -> addMockField(mockBean, field, value) }
+        mock.methods.forEach { (method, values) -> addMockMethod(mockBean, method, values) }
 
         return this
     }
