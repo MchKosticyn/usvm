@@ -174,9 +174,10 @@ fun JcMethod.allAnnotations(): Set<JcClassOrInterface> {
     for (ann in annotations) {
         val annotationClass = ann.jcClass
         if (annotationClass != null && visited.add(annotationClass)) {
-            visited.addAll(annotationClass.annotations.mapNotNull { it.jcClass })
+            visited.addAll(annotationClass.allAnnotations())
         }
     }
+
     return visited
 }
 
@@ -235,7 +236,6 @@ private fun JcClassOrInterface.directAnnotations(): Set<JcClassOrInterface> {
                 continue
 
             queue.add(annotationClass)
-
         }
     }
     return visited
