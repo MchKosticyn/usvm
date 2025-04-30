@@ -32,7 +32,7 @@ import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
 import org.objectweb.asm.Opcodes
-import org.usvm.jvm.util.genericTypes
+import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 
 abstract class CommonJoin(
@@ -65,7 +65,7 @@ abstract class CommonJoin(
         val rootClass = info.collector.getTableByPartName(alias(path.root)).single().origClass
         val targetClass = path.cont.fold(rootClass) { clazz, fieldName ->
             val field = clazz.declaredFields.single { it.name == fieldName }
-            val type = field.signature?.let { it.genericTypes[0] } ?: field.type.typeName
+            val type = field.signature?.let { it.genericTypesFromSignature[0] } ?: field.type.typeName
             info.cp.findClass(type)
         }
         val columns = info.collector.collectTable(targetClass).origFieldsInOrder()
@@ -181,7 +181,7 @@ abstract class CommonJoin(
 
             val rootSer = (obj.type as JcClassType).declaredMethods.single { it.method.generatedStaticSerializer }
                 .let { ctx.genCtx.generateLambda(ctx.cp, "root_serializer", it.method) }
-            val targetSer = field.typeName.genericTypes[0].let { ctx.cp.findType(it) as JcClassType }
+            val targetSer = field.typeName.genericTypesFromSignature[0].let { ctx.cp.findType(it) as JcClassType }
                 .declaredMethods.single { it.method.generatedStaticSerializer }
                 .let { ctx.genCtx.generateLambda(ctx.cp, "target_serializer", it.method) }
             val onMethod = join.genOnMethod(ctx)

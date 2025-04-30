@@ -9,7 +9,7 @@ import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.toType
-import org.usvm.jvm.util.genericTypes
+import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.toJcClassOrInterface
 
 class JcTableInfoCollector(
@@ -85,7 +85,7 @@ class JcTableInfoCollector(
                 return@forEach
             }
 
-            val subClass = field.signature?.genericTypes?.let { cp.findClass(it[0]) }
+            val subClass = field.signature?.genericTypesFromSignature?.let { cp.findClass(it[0]) }
                 ?: cp.findClass(field.type.typeName)
 
             val subTable = collectTable(subClass)
@@ -126,7 +126,7 @@ class JcTableInfoCollector(
     }
 
     fun findSubTable(field: JcField): TableInfo.TableWithIdInfo? {
-        val subClass = field.signature?.genericTypes?.get(0)?.let { cp.findClass(it) }
+        val subClass = field.signature?.genericTypesFromSignature?.get(0)?.let { cp.findClass(it) }
             ?: field.type.toJcClassOrInterface(cp)!!
         return tablesInfo.get(getTableName(subClass))
     }
@@ -214,7 +214,7 @@ sealed class Relation(
     }
 
     fun relatedDataclass(cp: JcClasspath): JcClassOrInterface {
-        return origField.signature?.let { cp.findClass(it.genericTypes[0]) }
+        return origField.signature?.let { cp.findClass(it.genericTypesFromSignature[0]) }
             ?: origField.type.toJcClassOrInterface(cp)!!
     }
 

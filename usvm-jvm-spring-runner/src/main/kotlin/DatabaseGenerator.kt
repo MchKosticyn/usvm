@@ -24,7 +24,7 @@ import org.objectweb.asm.Type
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
-import org.usvm.jvm.util.genericTypes
+import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.isSameSignature
 import org.usvm.jvm.util.jvmDescriptor
 import org.usvm.jvm.util.replace
@@ -63,7 +63,7 @@ class DatabaseGenerator(
     fun generateJPADatabase(): JcTableInfoCollector {
 
         repositories.forEach { repo ->
-            val genericTypes = repo.signature!!.genericTypes
+            val genericTypes = repo.signature!!.genericTypesFromSignature
             val dataClass = cp.findClass(genericTypes[0])
 
             tableInfoCollector.collectTable(dataClass)

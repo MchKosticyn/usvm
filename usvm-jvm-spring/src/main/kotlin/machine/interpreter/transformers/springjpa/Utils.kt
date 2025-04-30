@@ -48,7 +48,7 @@ import org.jacodb.impl.cfg.TypedStaticMethodRefImpl
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
 import org.jacodb.impl.types.AnnotationInfo
 import org.usvm.api.decoder.DummyField
-import org.usvm.jvm.util.genericTypes
+import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.getTypename
 import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.toJcClass
@@ -251,12 +251,12 @@ val JcParameter.toArgument: JcArgument
 val JcParameter.toRawArgument: JcRawArgument
     get() = JcRawArgument(index, name!!, type)
 
-val dummyAnnot = AnnotationInfo(DummyField().javaClass.name, true, listOf(), null, null)
+val dummyAnnot = AnnotationInfo(DummyField::class.java.name, true, listOf(), null, null)
 
 // returns value type of Map, element type of Collection and just type otherwise
 val JcType.getNextType: JcType
     get() {
-        return toJcClass()?.signature?.genericTypes?.get(
+        return toJcClass()?.signature?.genericTypesFromSignature?.get(
             if (typeName == JAVA_MAP) 1 else 0
         )?.let { this.classpath.findType(it) }
             ?: this

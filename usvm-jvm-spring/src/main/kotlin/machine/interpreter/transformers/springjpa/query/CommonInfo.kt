@@ -56,7 +56,7 @@ import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
-import org.usvm.jvm.util.genericTypes
+import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 import util.JcTableInfoCollector
 
@@ -70,7 +70,7 @@ data class CommonInfo(
     val collector: JcTableInfoCollector
         get() {
             return JcTableInfoCollector(cp).also {
-                val dataClass = cp.findClass(repo.signature!!.genericTypes[0])
+                val dataClass = cp.findClass(repo.signature!!.genericTypesFromSignature[0])
                 it.collectTable(dataClass)
                 it.dropNotOrigFields()
             }
@@ -79,7 +79,7 @@ data class CommonInfo(
     val names = NamesManager(method)
 
     val origMethodArguments = origMethod.parameters.mapIndexed { ix, p -> p.parameterName to ix }.toMap()
-    val origReturnGeneric = origMethod.signature?.let { it.genericTypes[0] } ?: origMethod.returnType.typeName
+    val origReturnGeneric = origMethod.signature?.let { it.genericTypesFromSignature[0] } ?: origMethod.returnType.typeName
 
     val aliases = query.collectAliases(this) // alias to full name
     val positions = query.collectRowPositions(this) // Foo.bar <-> (columnName <-> origField and index in row)

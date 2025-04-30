@@ -330,7 +330,7 @@ abstract class JcTestStateResolver<T>(
                 val fields = cls.declaredFields.filterNot {
                     it.isStatic
                             || cls.isAbstract && it.field is JcEnrichedVirtualField
-                            || it.field.annotations.any { it.name == DummyField().javaClass.name }
+                            || it.field.annotations.any { it.name == DummyField::class.java.name }
                 }
 
                 for (field in fields) {

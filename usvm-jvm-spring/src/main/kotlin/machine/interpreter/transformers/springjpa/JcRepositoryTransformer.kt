@@ -22,7 +22,7 @@ import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
-import org.usvm.jvm.util.genericTypes
+import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.toJcType
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
@@ -116,7 +116,7 @@ object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
 
         val repo = method.enclosingClass
         val cp = repo.classpath
-        val clazz = cp.findClass(repo.signature!!.genericTypes[0])
+        val clazz = cp.findClass(repo.signature!!.genericTypesFromSignature[0])
 
         if (method.isSaveUpdDel) {
             generateSaveUpdDel(cp, method, clazz)
@@ -133,7 +133,7 @@ object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
 
         val genType = if (!method.isVoid) {
             val classType = cp.findType(JAVA_CLASS)
-            val generic = method.signature?.genericTypes?.single()?.let { cp.findType(it) }
+            val generic = method.signature?.genericTypesFromSignature?.single()?.let { cp.findType(it) }
                 ?: method.returnType.toJcType(cp)!!
             val v = nextLocalVar("generic_type", classType)
             val cl = JcClassConstant(generic, classType)
