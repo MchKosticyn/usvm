@@ -21,7 +21,6 @@ object Versions {
     const val sarif4k = "0.5.0"
     const val shadow = "8.3.3"
     const val slf4j = "1.6.1"
-    const val antlr = "4.10.1"
 
     // versions for jvm samples
     object Samples {
@@ -183,12 +182,6 @@ object Libs {
         group = "org.jetbrains.kotlinx",
         name = "kotlinx-serialization-json",
         version = Versions.kotlinx_serialization
-    )
-
-    val antlr = dep(
-        group = "org.antlr",
-        name = "antlr4",
-        version = Versions.antlr
     )
 
     // https://github.com/mockk/mockk

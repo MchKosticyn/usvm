@@ -165,15 +165,9 @@ val String.typeName: TypeName
 
 val JcClassOrInterface.jvmDescriptor : String get() = "L${name.replace('.','/')};"
 
-val String.fromJvmDescriptor : String get() {
-    var s = if (this.startsWith("[")) this.drop(1).plus("[]") else this
-    s = s.replace("/", ".")
-    return if (s.startsWith("L")) s.drop(1) else s
-}
-
 val String.genericTypes : List<String> get() = this
     .substringAfter("<")
     .substringBefore(">")
     .split(";")
     .filter{ it.isNotEmpty() }
-    .map { it.fromJvmDescriptor }
+    .map { "${it};".jcdbName() }

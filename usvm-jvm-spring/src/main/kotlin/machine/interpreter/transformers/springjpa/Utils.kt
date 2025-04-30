@@ -47,6 +47,7 @@ import org.jacodb.impl.cfg.TypedMethodRefImpl
 import org.jacodb.impl.cfg.TypedStaticMethodRefImpl
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
 import org.jacodb.impl.types.AnnotationInfo
+import org.usvm.api.decoder.DummyField
 import org.usvm.jvm.util.genericTypes
 import org.usvm.jvm.util.getTypename
 import org.usvm.jvm.util.isVoid
@@ -54,7 +55,6 @@ import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.typeName
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
-import org.usvm.util.DUMMY_FIELD_ANNOT
 import util.contains
 import util.nameEquals
 
@@ -251,7 +251,7 @@ val JcParameter.toArgument: JcArgument
 val JcParameter.toRawArgument: JcRawArgument
     get() = JcRawArgument(index, name!!, type)
 
-val dummyAnnot = AnnotationInfo(DUMMY_FIELD_ANNOT, true, listOf(), null, null)
+val dummyAnnot = AnnotationInfo(DummyField().javaClass.name, true, listOf(), null, null)
 
 // returns value type of Map, element type of Collection and just type otherwise
 val JcType.getNextType: JcType

@@ -27,7 +27,6 @@ import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
 import org.jacodb.approximation.JcEnrichedVirtualField
-import org.jacodb.impl.bytecode.JcAnnotationImpl
 import org.usvm.INITIAL_INPUT_ADDRESS
 import org.usvm.INITIAL_STATIC_ADDRESS
 import org.usvm.NULL_ADDRESS
@@ -40,6 +39,7 @@ import org.usvm.api.SymbolicIdentityMap
 import org.usvm.api.SymbolicList
 import org.usvm.api.SymbolicMap
 import org.usvm.api.decoder.DecoderApi
+import org.usvm.api.decoder.DummyField
 import org.usvm.api.decoder.ObjectData
 import org.usvm.api.decoder.ObjectDecoder
 import org.usvm.api.internal.SymbolicIdentityMapImpl
@@ -79,7 +79,6 @@ import org.usvm.mkSizeExpr
 import org.usvm.model.UModelBase
 import org.usvm.sizeSort
 import org.usvm.types.first
-import org.usvm.util.DUMMY_FIELD_ANNOT
 
 abstract class JcTestStateResolver<T>(
     val ctx: JcContext,
@@ -331,7 +330,7 @@ abstract class JcTestStateResolver<T>(
                 val fields = cls.declaredFields.filterNot {
                     it.isStatic
                             || cls.isAbstract && it.field is JcEnrichedVirtualField
-                            || it.field.annotations.find {it.name == DUMMY_FIELD_ANNOT } != null
+                            || it.field.annotations.any { it.name == DummyField().javaClass.name }
                 }
 
                 for (field in fields) {
