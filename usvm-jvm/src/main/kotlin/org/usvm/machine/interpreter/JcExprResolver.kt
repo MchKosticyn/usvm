@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KExpr
+import io.ksmt.sort.KBoolSort
 import io.ksmt.utils.asExpr
 import io.ksmt.utils.cast
 import io.ksmt.utils.uncheckedCast
@@ -85,6 +86,7 @@ import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
+import org.usvm.UAddressSort
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -92,6 +94,7 @@ import org.usvm.UHeapRef
 import org.usvm.UNullRef
 import org.usvm.USort
 import org.usvm.api.initializeArray
+import org.usvm.api.mapTypeStream
 import org.usvm.collection.array.UArrayIndexLValue
 import org.usvm.collection.array.length.UArrayLengthLValue
 import org.usvm.collection.field.UFieldLValue
@@ -122,6 +125,7 @@ import org.usvm.memory.URegisterStackLValue
 import org.usvm.memory.UWritableMemory
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
+import org.usvm.types.singleOrNull
 import org.usvm.util.allocHeapRef
 import org.usvm.jvm.util.enumValuesField
 import org.usvm.util.write
@@ -533,9 +537,11 @@ open class JcExprResolver(
         val lValue = resolveArrayAccess(value.array, value.index) ?: return null
         val expr = scope.calcOnState { memory.read(lValue) }
 
-        if (assertIsSubtype(expr, value.type)) return expr
+        if (!assertIsSubtype(expr, value.type)) return null
 
-        return null
+        ensureNoArrayStoreException(lValue.ref, expr) ?: return null
+
+        return expr
     }
 
     protected fun assertIsSubtype(expr: KExpr<out USort>, type: JcType): Boolean {
@@ -771,7 +777,56 @@ open class JcExprResolver(
         val elementType = requireNotNull(array.type.ifArrayGetElementType)
         val cellSort = typeToSort(elementType)
 
-        return UArrayIndexLValue(cellSort, arrayRef, idx, arrayDescriptor)
+        UArrayIndexLValue(cellSort, arrayRef, idx, arrayDescriptor)
+    }
+
+    fun checkIsArrayRvalueSubtypeOf(
+        baseArrayRef: UHeapRef,
+        rvalueRef: KExpr<UAddressSort>
+    ) = scope.calcOnState {
+        val elementTypeConstraints = mapTypeStream(baseArrayRef) { arrayRef, types ->
+            // The type stored in ULValue is array descriptor and for object arrays it equals just to Object,
+            // so we need to retrieve the real array type with another way
+            val arrayType = types.commonSuperType
+                ?: error("No type found for array $arrayRef")
+
+            val elementType = arrayType.ifArrayGetElementType
+            // Super type is not Array type (e.g. Object).
+            // When we can't verify a type, treat this check as no exception possible
+                ?: return@mapTypeStream ctx.trueExpr
+
+            memory.types.evalIsSubtype(rvalueRef, elementType)
+        } ?: ctx.trueExpr // We can't extract types for array ref -> treat this check as no exception possible
+
+        val arrayTypeConstraints = mapTypeStream(rvalueRef) { _, types ->
+            val elementType = types.singleOrNull()
+            // When we can't verify a type, treat this check as no exception possible
+                ?: return@mapTypeStream ctx.trueExpr
+
+            val arrayType = ctx.cp.arrayTypeOf(elementType)
+
+            memory.types.evalIsSupertype(baseArrayRef, arrayType)
+        } ?: ctx.trueExpr
+
+        ctx.mkAnd(elementTypeConstraints, arrayTypeConstraints)
+    }
+
+    private fun ensureNoArrayStoreException(
+        baseArrayRef: UHeapRef,
+        value: UExpr<out USort>
+    ): Unit? {
+        // ArrayStoreException is possible only for references
+        if (value.sort != ctx.addressSort) {
+            return Unit
+        }
+
+        val rvalueRef = value.asExpr(ctx.addressSort)
+
+        // ArrayStoreException happens if we write a value that is not a subtype of the element type
+        val isRvalueSubtypeOf = checkIsArrayRvalueSubtypeOf(baseArrayRef, rvalueRef)
+
+        return scope.assert(isRvalueSubtypeOf)
+            .logAssertFailure { "Jc implicit exception in JcExprResolver: Check ArrayStoreException" }
     }
 
     // endregion

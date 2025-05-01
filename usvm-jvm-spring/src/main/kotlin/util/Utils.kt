@@ -1,7 +1,8 @@
+package util
+
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.isSubClassOf
 
 internal val JcClassOrInterface.isSpringFilter: Boolean

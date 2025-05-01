@@ -18,6 +18,7 @@ import org.usvm.collection.field.UFieldsRegion
 import org.usvm.collection.field.UFieldsRegionId
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.isTrue
+import org.usvm.jvm.util.typedField
 import org.usvm.machine.JcContext
 import utils.getFieldValue
 import utils.isInternalType
@@ -25,7 +26,6 @@ import utils.toJavaField
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.mapWithStaticAsConcrete
 import utils.handleRefForWrite
-import utils.typedField
 
 internal class JcConcreteFieldRegion<Sort : USort>(
     private val regionId: UFieldsRegionId<JcField, Sort>,

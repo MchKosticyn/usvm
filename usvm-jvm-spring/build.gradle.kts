@@ -1,4 +1,5 @@
 plugins {
+    antlr
     id("usvm.kotlin-conventions")
 }
 
@@ -15,4 +16,11 @@ dependencies {
 
     implementation(Libs.jacodb_core)
     implementation(Libs.jacodb_api_jvm)
+    implementation(Libs.jacodb_approximations)
+
+    implementation("org.hibernate.orm:hibernate-core:6.3.1.Final")
+    antlr(dep("org.antlr", "antlr4", "4.10.1"))
 }
+
+tasks.getByName("compileTestKotlin").dependsOn("generateTestGrammarSource")
+tasks.getByName("compileKotlin").dependsOn("generateGrammarSource")

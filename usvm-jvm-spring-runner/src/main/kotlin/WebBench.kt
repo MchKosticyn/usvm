@@ -38,12 +38,17 @@ import org.usvm.jvm.util.write
 import org.usvm.logger
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
+import util.JcTableInfoCollector
 import org.usvm.util.classpathWithApproximations
 import machine.JcConcreteMachineOptions
 import machine.JcSpringMachine
 import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
 import machine.SpringAnalysisMode
+import machine.interpreter.transformers.springjpa.JcDataclassTransformer
+import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
+import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
+import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
 import org.jacodb.impl.cfg.JcInstListImpl
 import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.CoverageZone
@@ -125,8 +130,33 @@ private class BenchCp(
     }
 }
 
-private fun loadBench(db: JcDatabase, cpFiles: List<File>, classes: List<File>, dependencies: List<File>) = runBlocking {
-    val features = listOf(UnknownClasses, JcStringConcatTransformer, JcClinitFeature, JcInitFeature, JcEncodingFeature, JcGeneratedTypesFeature)
+private fun loadBench(
+    db: JcDatabase,
+    cpFiles: List<File>,
+    classes: List<File>,
+    dependencies: List<File>,
+    isPureClasspath: Boolean = true,
+    tablesInfo: JcTableInfoCollector? = null
+    ) = runBlocking {
+    val features = mutableListOf(
+        UnknownClasses,
+        JcStringConcatTransformer,
+        JcClinitFeature,
+        JcInitFeature,
+        JcEncodingFeature,
+        JcGeneratedTypesFeature
+    )
+
+    if (!isPureClasspath) {
+        val dbFeatures = listOf(
+            JcRepositoryCrudTransformer,
+            JcRepositoryQueryTransformer,
+            JcRepositoryTransformer,
+            JcDataclassTransformer(tablesInfo!!)
+        )
+        features.addAll(dbFeatures)
+    }
+
     val cp = db.classpathWithApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
@@ -161,7 +191,7 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
     }
 
     db.awaitBackgroundJobs()
-    loadBench(db, cpFiles, classes, dependencies)
+    loadBench(db, cpFiles, classes, dependencies, true)
 }
 
 private fun loadWebAppBenchCp(classes: Path, dependencies: Path): BenchCp =
@@ -178,7 +208,7 @@ private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp 
             .toList()
     )
 
-private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.','/')};"
+private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.', '/')};"
 
 fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: String) =
     allClasses.filter { it.annotations.any { annotation -> annotation.name == annotationName } }
@@ -231,6 +261,8 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 
     System.setProperty("generatedTestClass", testClassFullName.replace('/', '.'))
 
+    val tablesInfo = DatabaseGenerator(cp, springDirFile.toPath(), repositories).generateJPADatabase()
+
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
     startSpringClass.withAsmNode { startSpringAsmNode ->
         val startSpringMethod = startSpringClass.declaredMethods.find { it.name == "startSpring" }!!
@@ -255,7 +287,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     }
     val newCpFiles = benchmark.cpFiles + springDirFile
     val newClasses = benchmark.classes + springDirFile
-    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies)
+    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies, false, tablesInfo)
 }
 
 private fun analyzeBench(benchmark: BenchCp) {
@@ -271,7 +303,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 3.minutes,
+        timeout = 1.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests

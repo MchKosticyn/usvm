@@ -3,7 +3,6 @@ package org.usvm.jvm.util
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.*
-import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.types.JcClassTypeImpl
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.tree.MethodNode
@@ -149,3 +148,39 @@ val kotlin.reflect.KProperty<*>.javaName: String
 
 val kotlin.reflect.KFunction<*>.javaName: String
     get() = this.javaMethod?.name ?: error("No java name for method $this")
+
+val JcField.typedField: JcTypedField
+    get() =
+        enclosingClass.toType().findFieldOrNull(name)
+            ?: error("Could not find field $this in type $enclosingClass")
+
+fun JcMethod.isSame(other: JcMethod) =
+    this.name == other.name && this.description == other.description && this.signature == other.signature
+
+val JcMethod.isVoid: Boolean get() = returnType.typeName == "void"
+
+val String.typeName: TypeName
+    get() = TypeNameImpl.fromTypeName(this)
+
+val JcClassOrInterface.jvmDescriptor : String get() = "L${name.replace('.','/')};"
+
+val String.genericTypesFromSignature : List<String> get() {
+    val str = this.substringAfter("<").substringBefore(">")
+    val res = mutableListOf<String>()
+
+    var startIx = 0
+    var nextIx: Int
+    while (startIx < str.length) {
+        nextIx = str.indexOf(";", startIx)
+
+        if (nextIx == -1) {
+            res.add(str.substring(startIx))
+            break
+        } else {
+            res.add(str.substring(startIx, nextIx + 1))
+            startIx = nextIx + 1
+        }
+    }
+
+    return res.map { it.jcdbName() }
+}
