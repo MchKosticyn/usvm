@@ -465,33 +465,7 @@ open class JcInterpreter(
         val rvalueRef = rvalue.asExpr(ctx.addressSort)
 
         // ArrayStoreException happens if we write a value that is not a subtype of the element type
-        val isRvalueSubtypeOf = scope.calcOnState {
-            val elementTypeConstraints = mapTypeStream(lvalue.ref) { arrayRef, types ->
-                // The type stored in ULValue is array descriptor and for object arrays it equals just to Object,
-                // so we need to retrieve the real array type with another way
-                val arrayType = types.commonSuperType
-                    ?: error("No type found for array $arrayRef")
-
-                val elementType = arrayType.ifArrayGetElementType
-                // Super type is not Array type (e.g. Object).
-                // When we can't verify a type, treat this check as no exception possible
-                    ?: return@mapTypeStream ctx.trueExpr
-
-                memory.types.evalIsSubtype(rvalueRef, elementType)
-            } ?: ctx.trueExpr // We can't extract types for array ref -> treat this check as no exception possible
-
-            val arrayTypeConstraints = mapTypeStream(rvalueRef) { _, types ->
-                val elementType = types.singleOrNull()
-                    // When we can't verify a type, treat this check as no exception possible
-                    ?: return@mapTypeStream ctx.trueExpr
-
-                val arrayType = ctx.cp.arrayTypeOf(elementType)
-
-                memory.types.evalIsSupertype(lvalue.ref, arrayType)
-            } ?: ctx.trueExpr
-
-            ctx.mkAnd(elementTypeConstraints, arrayTypeConstraints)
-        }
+        val isRvalueSubtypeOf = exprResolver.checkIsArrayRvalueSubtypeOf(lvalue.ref, rvalueRef)
 
         return if (options.forkOnImplicitExceptions) {
             scope.fork(

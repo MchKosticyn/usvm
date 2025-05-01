@@ -36,6 +36,7 @@ internal class JcConcreteCallSiteLambdaRegion(
                     if (method is JcEnrichedVirtualMethod)
                         method.approximationMethod ?: error("cannot find enriched method")
                     else method
+
                 invocationHandler.init(actualMethod, lambda.callSiteMethodName, args)
             }.onNone {
                 bindings.remove(address)

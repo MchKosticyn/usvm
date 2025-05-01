@@ -1,10 +1,5 @@
 package machine.state.memory
 
-import isArgumentResolverMethod
-import isHttpRequestMethod
-import isServletRequestMethod
-import isSpringFilterChainMethod
-import isSpringFilterMethod
 import machine.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
@@ -12,6 +7,11 @@ import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UTypeConstraints
 import org.usvm.machine.JcContext
+import util.isArgumentResolverMethod
+import util.isHttpRequestMethod
+import util.isServletRequestMethod
+import util.isSpringFilterChainMethod
+import util.isSpringFilterMethod
 
 class JcSpringMemory(
     ctx: JcContext,

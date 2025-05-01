@@ -532,11 +532,6 @@ internal fun createDefault(type: JcType): Any? {
     }
 }
 
-val JcField.typedField: JcTypedField
-    get() =
-        enclosingClass.toType().findFieldOrNull(name)
-            ?: error("Could not find field $this in type $enclosingClass")
-
 private val runtimeGeneratedTypes = setOf(
     "org.mockito.internal.creation.bytebuddy.inject.MockMethodDispatcher"
 )

@@ -39,6 +39,7 @@ import org.usvm.api.SymbolicIdentityMap
 import org.usvm.api.SymbolicList
 import org.usvm.api.SymbolicMap
 import org.usvm.api.decoder.DecoderApi
+import org.usvm.api.decoder.DummyField
 import org.usvm.api.decoder.ObjectData
 import org.usvm.api.decoder.ObjectDecoder
 import org.usvm.api.internal.SymbolicIdentityMapImpl
@@ -326,7 +327,11 @@ abstract class JcTestStateResolver<T>(
                 break
             } else {
                 // TODO: think about it! #CM
-                val fields = cls.declaredFields.filterNot { it.isStatic || cls.isAbstract && it.field is JcEnrichedVirtualField }
+                val fields = cls.declaredFields.filterNot {
+                    it.isStatic
+                            || cls.isAbstract && it.field is JcEnrichedVirtualField
+                            || it.field.annotations.any { it.name == DummyField::class.java.name }
+                }
 
                 for (field in fields) {
                     check(field.field !is JcEnrichedVirtualField) {

@@ -75,6 +75,8 @@ import org.usvm.api.collection.ObjectMapCollectionApi.symbolicObjectMapSize
 import org.usvm.api.evalTypeEquals
 import org.usvm.api.initializeArray
 import org.usvm.api.initializeArrayLength
+import org.usvm.api.internal.SymbolicListImpl
+import org.usvm.api.internal.SymbolicMapImpl
 import org.usvm.api.makeNullableSymbolicRefSubtype
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
@@ -105,6 +107,8 @@ import org.usvm.api.readArrayLength
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.collection.array.UArrayIndexLValue
+import org.usvm.collection.map.length.UMapLengthLValue
+import org.usvm.collection.map.ref.URefMapEntryLValue
 import org.usvm.getIntValue
 import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.newStmt
@@ -129,7 +133,9 @@ open class JcMethodApproximationResolver(
 
     private val usvmApiEngine by lazy { ctx.cp.findClassOrNull<Engine>() }
     private val usvmApiSymbolicList by lazy { ctx.cp.findClassOrNull<SymbolicList<*>>() }
+    private val usvmApiSymbolicListImpl by lazy { ctx.cp.findClassOrNull<SymbolicListImpl<*>>() }
     private val usvmApiSymbolicMap by lazy { ctx.cp.findClassOrNull<SymbolicMap<*, *>>() }
+    private val usvmApiSymbolicMapImpl by lazy { ctx.cp.findClassOrNull<SymbolicMapImpl<*, *>>() }
     private val usvmApiSymbolicIdentityMap by lazy { ctx.cp.findClassOrNull<SymbolicIdentityMap<*, *>>() }
 
     fun approximate(scope: JcStepScope, exprResolver: JcExprResolver, callJcInst: JcMethodCall): Boolean = try {
@@ -1018,8 +1024,16 @@ open class JcMethodApproximationResolver(
         checkNotNull(usvmApiSymbolicList).toType()
     }
 
+    private val symbolicListImplType: JcType by lazy {
+        checkNotNull(usvmApiSymbolicListImpl).toType()
+    }
+
     private val symbolicMapType: JcType by lazy {
         checkNotNull(usvmApiSymbolicMap).toType()
+    }
+
+    private val symbolicMapImplType: JcType by lazy {
+        checkNotNull(usvmApiSymbolicMapImpl).toType()
     }
 
     private val symbolicIdentityMapType: JcType by lazy {
@@ -1173,8 +1187,14 @@ open class JcMethodApproximationResolver(
             dispatchMkList(Engine::makeSymbolicList) {
                 scope.calcOnState { mkSymbolicList(symbolicListType) }
             }
+            dispatchMkList(Engine::makeFullySymbolicList) {
+                scope.makeSymbolicRef(symbolicListImplType)
+            }
             dispatchMkMap(Engine::makeSymbolicMap) {
                 scope.calcOnState { mkSymbolicObjectMap(symbolicMapType) }
+            }
+            dispatchMkMap(Engine::makeFullySymbolicMap) {
+                scope.makeSymbolicRef(symbolicMapImplType)
             }
             dispatchMkIdMap(Engine::makeSymbolicIdentityMap) {
                 scope.calcOnState { mkSymbolicObjectMap(symbolicIdentityMapType) }

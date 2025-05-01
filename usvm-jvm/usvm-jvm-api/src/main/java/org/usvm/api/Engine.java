@@ -107,9 +107,13 @@ public class Engine {
         return new SymbolicListImpl<>();
     }
 
-    public static <K, V> SymbolicMap<K, V> makeSymbolicMap() {
-        return new SymbolicMapImpl<>();
+    public static <T> SymbolicList<T> makeFullySymbolicList() {
+        return new SymbolicListImpl<>();
     }
+
+    public static <K, V> SymbolicMap<K, V> makeSymbolicMap() { return new SymbolicMapImpl<>(); }
+
+    public static <K, V> SymbolicMap<K, V> makeFullySymbolicMap() { return new SymbolicMapImpl<>(); }
 
     public static <K, V> SymbolicIdentityMap<K, V> makeSymbolicIdentityMap() {
         return new SymbolicIdentityMapImpl<>();
