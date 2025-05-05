@@ -8,6 +8,7 @@ open class JcUnsafeTestInfo(
     method: JcMethod,
     isExceptional: Boolean,
     testFilePath: Path? = null,
+    testPackageName: String? = null,
     testClassName: String? = null,
     testName: String? = null
-) : JcTestInfo(method, isExceptional, testFilePath, testClassName, testName)
+) : JcTestInfo(method, isExceptional, testFilePath, testPackageName, testClassName, testName)

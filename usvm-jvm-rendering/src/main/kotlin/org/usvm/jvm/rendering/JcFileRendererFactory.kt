@@ -14,7 +14,12 @@ import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestFileRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestInfo
 
-sealed class JcTestClassInfo(val clazz: JcClassOrInterface, protected val filePath: Path?, protected val className: String?) {
+sealed class JcTestClassInfo(
+    val clazz: JcClassOrInterface,
+    protected val filePath: Path?,
+    protected val packageName: String?,
+    protected val className: String?
+) {
 
     private val defaultTestClassName: String by lazy { "${clazz.simpleName}Tests" }
 
@@ -22,24 +27,49 @@ sealed class JcTestClassInfo(val clazz: JcClassOrInterface, protected val filePa
 
     val testFilePath: Path? get() = filePath
 
-    class Base(clazz: JcClassOrInterface, testFilePath: Path?, testClassName: String?) :
-        JcTestClassInfo(clazz, testFilePath, testClassName)
+    val testPackageName: String? get() = packageName
 
-    class Unsafe(clazz: JcClassOrInterface, testFilePath: Path?, testClassName: String?) :
-        JcTestClassInfo(clazz, testFilePath, testClassName)
+    class Base(clazz: JcClassOrInterface, testFilePath: Path?, packageName: String?, testClassName: String?) :
+        JcTestClassInfo(clazz, testFilePath, packageName, testClassName)
 
-    class SpringUnit(clazz: JcClassOrInterface, testFilePath: Path?, testClassName: String?) :
-        JcTestClassInfo(clazz, testFilePath, testClassName)
+    class Unsafe(clazz: JcClassOrInterface, testFilePath: Path?, packageName: String?, testClassName: String?) :
+        JcTestClassInfo(clazz, testFilePath, packageName, testClassName)
 
-    class SpringMvc(clazz: JcClassOrInterface, testFilePath: Path?, testClassName: String?) :
-        JcTestClassInfo(clazz, testFilePath, testClassName)
+    class SpringUnit(clazz: JcClassOrInterface, testFilePath: Path?, packageName: String?, testClassName: String?) :
+        JcTestClassInfo(clazz, testFilePath, packageName, testClassName)
+
+    class SpringMvc(clazz: JcClassOrInterface, testFilePath: Path?, packageName: String?, testClassName: String?) :
+        JcTestClassInfo(clazz, testFilePath, packageName, testClassName)
 
     companion object {
         fun from(testInfo: JcTestInfo) = when (testInfo) {
-            is JcSpringMvcTestInfo -> SpringMvc(testInfo.method.enclosingClass, testInfo.testFilePath, testInfo.testClassName)
-            is JcSpringUnitTestInfo -> SpringUnit(testInfo.method.enclosingClass, testInfo.testFilePath, testInfo.testClassName)
-            is JcUnsafeTestInfo -> Unsafe(testInfo.method.enclosingClass, testInfo.testFilePath, testInfo.testClassName)
-            else -> Base(testInfo.method.enclosingClass, testInfo.testFilePath, testInfo.testClassName)
+            is JcSpringMvcTestInfo -> SpringMvc(
+                testInfo.method.enclosingClass,
+                testInfo.testFilePath,
+                testInfo.testPackageName,
+                testInfo.testClassName
+            )
+
+            is JcSpringUnitTestInfo -> SpringUnit(
+                testInfo.method.enclosingClass,
+                testInfo.testFilePath,
+                testInfo.testPackageName,
+                testInfo.testClassName
+            )
+
+            is JcUnsafeTestInfo -> Unsafe(
+                testInfo.method.enclosingClass,
+                testInfo.testFilePath,
+                testInfo.testPackageName,
+                testInfo.testClassName
+            )
+
+            else -> Base(
+                testInfo.method.enclosingClass,
+                testInfo.testFilePath,
+                testInfo.testPackageName,
+                testInfo.testClassName
+            )
         }
     }
 

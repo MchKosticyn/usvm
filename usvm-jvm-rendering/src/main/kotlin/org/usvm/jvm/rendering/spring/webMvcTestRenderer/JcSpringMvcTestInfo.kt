@@ -9,9 +9,10 @@ class JcSpringMvcTestInfo(
     method: JcMethod,
     isExceptional: Boolean,
     testFilePath: Path? = null,
+    testPackageName: String? = null,
     testClassName: String? = null,
     testName: String? = null
-) : JcSpringUnitTestInfo(method, isExceptional, testFilePath, testClassName, testName) {
+) : JcSpringUnitTestInfo(method, isExceptional, testFilePath, testPackageName, testClassName, testName) {
 
     val controller by lazy { method.enclosingClass.toType() }
 

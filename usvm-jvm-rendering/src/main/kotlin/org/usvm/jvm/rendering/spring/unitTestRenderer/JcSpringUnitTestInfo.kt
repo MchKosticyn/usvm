@@ -8,6 +8,7 @@ open class JcSpringUnitTestInfo(
     method: JcMethod,
     isExceptional: Boolean,
     testFilePath: Path? = null,
+    testPackageName: String? = null,
     testClassName: String? = null,
     testName: String? = null
-) : JcUnsafeTestInfo(method, isExceptional, testFilePath, testClassName, testName)
+) : JcUnsafeTestInfo(method, isExceptional, testFilePath, testPackageName, testClassName, testName)

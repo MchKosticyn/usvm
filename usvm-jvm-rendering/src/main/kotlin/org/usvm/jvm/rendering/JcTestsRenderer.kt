@@ -39,7 +39,7 @@ class JcTestsRenderer {
                 }
                 else -> {
                     JcTestFileRendererFactory.testFileRendererFor(
-                        JcFileRenderer.defaultRenderedPackageName,
+                        testClassInfo.testPackageName ?: JcFileRenderer.defaultRenderedPackageName,
                         cp,
                         testClassInfo,
                         shouldInlineUsvmUtils
