@@ -3,7 +3,6 @@ package org.usvm.jvm.rendering
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.printer.DefaultPrettyPrinter
 import org.jacodb.api.jvm.JcClasspath
-import org.usvm.jvm.rendering.baseRenderer.JcFileRenderer
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.rendering.testTransformers.JcCallCtorTransformer
 import org.usvm.jvm.rendering.testTransformers.JcPrimitiveWrapperTransformer
@@ -39,7 +38,7 @@ class JcTestsRenderer {
                 }
                 else -> {
                     JcTestFileRendererFactory.testFileRendererFor(
-                        testClassInfo.testPackageName ?: JcFileRenderer.defaultRenderedPackageName,
+                        testClassInfo.testPackageName,
                         cp,
                         testClassInfo,
                         shouldInlineUsvmUtils

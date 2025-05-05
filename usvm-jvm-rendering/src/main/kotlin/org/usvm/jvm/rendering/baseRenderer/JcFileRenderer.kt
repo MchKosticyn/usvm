@@ -23,7 +23,7 @@ open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
             return existingPackageDecl ?: freshPackageDecl ?: PackageDeclaration(StaticJavaParser.parseName(defaultRenderedPackageName))
         }
 
-        const val defaultRenderedPackageName = "org.usvm.generated"
+        protected const val defaultRenderedPackageName = "org.usvm.generated"
     }
 
     private constructor(
@@ -52,7 +52,7 @@ open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
     )
 
     protected constructor(
-        packageName: String,
+        packageName: String?,
         importManager: JcImportManager,
         cp: JcClasspath
     ) : this(
@@ -64,7 +64,7 @@ open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
 
     protected constructor(cu: CompilationUnit, cp: JcClasspath) : this(cu, JcImportManager(cu), cp)
 
-    protected constructor(packageName: String, cp: JcClasspath): this(packageName, JcImportManager(), cp)
+    protected constructor(packageName: String?, cp: JcClasspath): this(packageName, JcImportManager(), cp)
 
     protected val packageDeclaration: PackageDeclaration
 

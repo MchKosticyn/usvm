@@ -10,11 +10,11 @@ import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 open class JcTestFileRenderer : JcFileRenderer {
     protected constructor(cu: CompilationUnit, importManager: JcImportManager, cp: JcClasspath) : super(cu, importManager, cp)
 
-    protected constructor(packageName: String, importManager: JcImportManager, cp: JcClasspath) : super(packageName, importManager, cp)
+    protected constructor(packageName: String?, importManager: JcImportManager, cp: JcClasspath) : super(packageName, importManager, cp)
 
     constructor(cu: CompilationUnit, cp: JcClasspath) : this(cu, JcImportManager(cu), cp)
 
-    constructor(packageName: String, cp: JcClasspath) : this(packageName, JcImportManager(), cp)
+    constructor(packageName: String?, cp: JcClasspath) : this(packageName, JcImportManager(), cp)
 
     override fun classRendererFor(declaration: ClassOrInterfaceDeclaration): JcTestClassRenderer {
         return JcTestClassRenderer(declaration, importManager, identifiersManager, cp)

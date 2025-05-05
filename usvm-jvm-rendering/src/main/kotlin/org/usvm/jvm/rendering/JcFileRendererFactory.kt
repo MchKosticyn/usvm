@@ -98,7 +98,7 @@ object JcTestFileRendererFactory {
     }
 
     fun testFileRendererFor(
-        packageName: String,
+        packageName: String?,
         cp: JcClasspath,
         testClassInfo: JcTestClassInfo,
         shouldInlineUsvmUtils: Boolean
