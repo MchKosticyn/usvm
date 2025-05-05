@@ -2,31 +2,28 @@ package machine
 
 import machine.state.JcSpringState
 import machine.state.memory.JcSpringMemory
-import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.cfg.JcImmediate
 import org.jacodb.api.jvm.cfg.JcInst
-import org.usvm.UAddressSort
-import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
-import org.usvm.api.makeSymbolicRef
 import org.usvm.api.targets.JcTarget
-import org.usvm.collection.field.UFieldLValue
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
+import org.usvm.jvm.util.toJcType
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.JcMethodApproximationResolver
+import org.usvm.machine.JcMethodCallBaseInst
 import org.usvm.machine.interpreter.JcExprResolver
 import org.usvm.machine.interpreter.JcStepScope
+import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
+import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.targets.UTargetsSet
-import utils.handleRefForWrite
 
 class JcSpringInterpreter(
     ctx: JcContext,
@@ -75,5 +72,28 @@ class JcSpringInterpreter(
             mkStringConstRef,
             classInitializerAnalysisAlwaysRequiredForType
         )
+    }
+
+    override fun callMethod(
+        scope: JcStepScope,
+        stmt: JcMethodCallBaseInst,
+        exprResolver: JcExprResolver
+    ) {
+        when (stmt) {
+            is JcMockMethodInvokeResult -> {
+                scope.doWithState {
+                    this as JcSpringState
+                    // TODO: Mock exception throws too #AA
+                    if (methodResult is JcMethodResult.Success) {
+                        val methodResult = methodResult as JcMethodResult.Success
+                        val returnType = methodResult.method.returnType.toJcType(ctx.cp)
+                        addMock(stmt.method, methodResult.value, returnType!!)
+                        skipMethodInvocationWithValue(stmt, methodResult.value)
+                    }
+                }
+            }
+
+            else -> super.callMethod(scope, stmt, exprResolver)
+        }
     }
 }
