@@ -1,10 +1,7 @@
 package testGeneration
 
 import machine.state.JcSpringState
-import machine.state.pinnedValues.JcObjectPinnedKey
 import machine.state.pinnedValues.JcPinnedKey
-import machine.state.pinnedValues.JcSpringPinnedValueSource
-import machine.state.pinnedValues.JcSpringPinnedValues
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
@@ -17,12 +14,29 @@ import org.usvm.test.api.spring.JcMockBean
 import org.usvm.test.api.spring.JcSpringRequest
 import org.usvm.test.api.spring.JcSpringResponse
 import org.usvm.test.api.spring.JcSpringTestBuilder
+import org.usvm.test.api.spring.ResolvedSpringException
 import org.usvm.test.api.spring.SpringException
 import org.usvm.test.api.spring.UTString
+import org.usvm.test.api.spring.UnhandledSpringException
+
+private fun JcSpringState.hasResponse(): Boolean {
+    return pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
+}
+
+private fun JcSpringState.hasResolvedException(): Boolean {
+    return pinnedValues.getValue(JcPinnedKey.resolvedExceptionClass()) != null
+}
+
+private fun JcSpringState.hasUnhandledException(): Boolean {
+    return pinnedValues.getValue(JcPinnedKey.unhandledExceptionClass()) != null
+}
+
+private fun JcSpringState.hasException(): Boolean {
+    return hasUnhandledException() || hasResolvedException()
+}
 
 fun JcSpringState.canGenerateTest(): Boolean {
-    return pinnedValues.getValue(JcPinnedKey.requestPath()) != null
-            && pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
+    return hasResponse() || hasException()
 }
 
 data class SpringTestInfo(
@@ -35,14 +49,22 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
     val model = models.first()
     val exprResolver = JcSpringTestExprResolver(ctx, model, memory, entrypoint.toTypedMethod)
     val request = getSpringRequest(this, exprResolver)
-    val response = getSpringResponse(this, exprResolver)
-    val mocks = getSpringMocks(pinnedValues, exprResolver)
+
+    val mocks = getSpringMocks(this, exprResolver)
     val testClass = getGeneratedTestClass(ctx.cp)
 
-    val jcSpringTest = JcSpringTestBuilder(request)
-        .withResponse(response)
+    var jcSpringTest = JcSpringTestBuilder(request)
         .withMocks(mocks)
         .withGeneratedTestClass(testClass)
+
+    if (hasException()) {
+        val exception = getSpringException(this, exprResolver)
+        jcSpringTest = jcSpringTest.withException(exception)
+    }
+    else {
+        val response = getSpringResponse(this, exprResolver)
+        jcSpringTest = jcSpringTest.withResponse(response)
+    }
 
     val uTest = jcSpringTest.build(ctx.cp)
         .generateTestDSL { exprResolver.getInstructions() }
@@ -61,8 +83,30 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
     return SpringTestInfo(method, isExceptional, uTest)
 }
 
-private fun getSpringExn(): SpringException {
-    TODO()
+private fun getSpringException(
+    state: JcSpringState,
+    exprResolver: JcSpringTestExprResolver
+): SpringException {
+    if (state.hasUnhandledException()) {
+        val exceptionClass = state.pinnedValues
+            .getValue(JcPinnedKey.unhandledExceptionClass())!!
+            .let { exprResolver.resolvePinnedValue(it) }
+
+        return UnhandledSpringException(exceptionClass)
+    }
+
+    val exceptionClass = state.pinnedValues
+        .getValue(JcPinnedKey.resolvedExceptionClass())!!
+        .let { exprResolver.resolvePinnedValue(it) }
+
+    val exceptionMessage = state.pinnedValues
+        .getValue(JcPinnedKey.resolvedExceptionMessage())
+        ?.let { exprResolver.resolvePinnedValue(it) }
+
+    return ResolvedSpringException(
+        exceptionClass,
+        exceptionMessage
+    )
 }
 
 private fun getGeneratedTestClass(cp: JcClasspath): JcClassOrInterface {
@@ -81,16 +125,16 @@ private fun getSpringResponse(
 }
 
 fun getSpringMocks(
-    pinnedValues: JcSpringPinnedValues,
+    state: JcSpringState,
     exprResolver: JcSpringTestExprResolver
 ): List<JcMockBean> {
     // TODO: Also fields #AA
-    val mocks = pinnedValues.getValuesOfSource<JcObjectPinnedKey<JcMethod>>(JcSpringPinnedValueSource.MOCK_RESULT)
-    val distinctMocks = mocks.entries.mapNotNull { it.key.getObj()?.enclosingClass }.distinct()
+    val mocks = state.mockedMethodCalls.getMap()
+    val distinctMocks = mocks.entries.map { it.key.enclosingClass }.distinct()
     val testMockObjects = distinctMocks.map { type ->
         val distinctMethods = mocks.entries
-            .filter { it.key.getObj()?.enclosingClass == type }
-            .groupBy({ it.key.getObj()!! }, { exprResolver.resolvePinnedValue(it.value) })
+            .filter { it.key.enclosingClass == type }
+            .associate { it.key to it.value.map { v -> exprResolver.resolvePinnedValue(v) } }
         UTestMockObject(
             type.toType(),
             mapOf(),

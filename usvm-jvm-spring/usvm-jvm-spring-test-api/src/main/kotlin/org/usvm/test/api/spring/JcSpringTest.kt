@@ -1,14 +1,21 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClassOrInterface
-import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.ext.findType
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 
-class SpringException
+abstract class SpringException
+
+class UnhandledSpringException(
+    val clazz: UTAny
+) : SpringException()
+
+class ResolvedSpringException(
+    val clazz: UTAny,
+    val message: UTAny?
+) : SpringException()
 
 class JcSpringTestBuilder(
     private val request: JcSpringRequest
@@ -72,22 +79,22 @@ open class JcSpringTest internal constructor(
         val mocks = generateMocksDSL(mocks, testExecBuilder.testClassExpr)
         initStatements.addAll(mocks)
 
-        val (reqDSL, reqInitDSL) = generateRequestDSL()
-        initStatements.addAll(reqInitDSL)
+        val (requestExpression, requestInitStatements) = generateRequestDSL()
+        initStatements.addAll(requestInitStatements)
 
-        testExecBuilder.addPerformCall(reqDSL)
+        testExecBuilder.addPerformCall(requestExpression)
 
-        val (matchersDSL, matchersInitDSL) = generateMatchersDSL()
+        val matchersInitDSL = generateMatchersDSL(testExecBuilder)
         initStatements.addAll(matchersInitDSL)
 
-        matchersDSL.forEach { testExecBuilder.addAndExpectCall(listOf(it)) }
-
         initStatements.addAll(additionalInstructions())
+
+        testExecBuilder.tryAddAndIgnoreCall()
         return UTest(initStatements = initStatements, callMethodExpression = testExecBuilder.getExecDSL())
     }
 
-    protected open fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> =
-        emptyList<UTestExpression>() to emptyList()
+    protected open fun generateMatchersDSL(testExecBuilder: SpringTestExecBuilder): List<UTestInst> =
+        emptyList()
 
     private fun generateRequestDSL(): Pair<UTestExpression, List<UTestInst>> {
         val builder = SpringRequestBuilder.createRequest(cp, request.getMethod(), request.getPath(), request.getUriVariables())
@@ -114,12 +121,12 @@ class JcSpringResponseTest internal constructor(
     val response: JcSpringResponse
 ) : JcSpringTest(cp, generatedTestClass, mocks, request) {
 
-    override fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> {
-        val matchersBuilder = SpringMatchersBuilder(cp)
+    override fun generateMatchersDSL(testExecBuilder: SpringTestExecBuilder): List<UTestInst> {
+        val matchersBuilder = SpringMatchersBuilder(cp, testExecBuilder)
         matchersBuilder.addStatusCheck(response.getStatus())
         response.getContent()?.let { matchersBuilder.addContentCheck(it) }
         matchersBuilder.addHeadersCheck(response.getHeaders())
-        return matchersBuilder.getMatchersDSL() to matchersBuilder.getInitDSL()
+        return matchersBuilder.getInitDSL()
     }
 }
 
@@ -131,7 +138,19 @@ class JcSpringExceptionTest internal constructor(
     val exception: SpringException
 ) : JcSpringTest(cp, generatedTestClass, mocks, request) {
 
-    override fun generateMatchersDSL(): Pair<List<UTestExpression>, List<UTestInst>> {
-        TODO()
+    override fun generateMatchersDSL(testExecBuilder: SpringTestExecBuilder): List<UTestInst> {
+        val matchersBuilder = SpringExceptionMatchersBuilder(cp, testExecBuilder)
+
+        if (exception is UnhandledSpringException) {
+            matchersBuilder.addUnhandedExceptionCheck(exception.clazz)
+        }
+
+        if (exception is ResolvedSpringException) {
+            testExecBuilder.addAndReturnCall()
+            matchersBuilder.addResolvedExceptionTypeCheck(exception.clazz)
+            exception.message?.let{ matchersBuilder.addResolvedExceptionMessageCheck(it) }
+        }
+
+        return matchersBuilder.getInitDSL()
     }
 }

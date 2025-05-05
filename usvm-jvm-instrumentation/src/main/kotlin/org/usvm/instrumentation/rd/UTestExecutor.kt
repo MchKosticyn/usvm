@@ -36,7 +36,8 @@ abstract class UTestExecutor(
         val callMethodExpr = uTest.callMethodExpression
 
         val executor = UTestExpressionExecutor(workerClassLoader, accessedStatics, mockHelper, taskExecutor)
-        val initStmts = (uTest.initStatements + listOf(callMethodExpr.instance) + callMethodExpr.args).filterNotNull()
+        // TODO: Think about commented code #AA
+        val initStmts = uTest.initStatements // (uTest.initStatements + listOf(callMethodExpr.instance) + callMethodExpr.args).filterNotNull()
         executor.executeUTestInsts(initStmts)
             ?.onFailure {
                 return UTestExecutionInitFailedResult(
