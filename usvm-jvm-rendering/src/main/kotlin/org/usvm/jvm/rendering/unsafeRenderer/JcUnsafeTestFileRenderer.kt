@@ -19,7 +19,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
     }
 
     protected constructor(
-        packageName: String,
+        packageName: String?,
         importManager: JcUnsafeImportManager,
         cp: JcClasspath,
         inlineUsvmUtils: Boolean = false
@@ -34,7 +34,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
     ) : this(cu, JcUnsafeImportManager(cu, inlineUsvmUtils), cp, inlineUsvmUtils)
 
     constructor(
-        packageName: String,
+        packageName: String?,
         cp: JcClasspath,
         inlineUsvmUtils: Boolean
     ) : this(packageName, JcUnsafeImportManager(null, inlineUsvmUtils), cp, inlineUsvmUtils)

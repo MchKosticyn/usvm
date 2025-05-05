@@ -11,7 +11,7 @@ open class JcSpringUnitTestFileRenderer: JcUnsafeTestFileRenderer {
         get() = super.importManager as JcSpringImportManager
     protected constructor(cu: CompilationUnit, importManager: JcSpringImportManager, cp: JcClasspath) : super(cu, importManager, cp)
 
-    protected constructor(packageName: String, importManager: JcSpringImportManager, cp: JcClasspath) : super(packageName, importManager, cp)
+    protected constructor(packageName: String?, importManager: JcSpringImportManager, cp: JcClasspath) : super(packageName, importManager, cp)
 
     constructor(cu: CompilationUnit, cp: JcClasspath, inlineUsvmUtils: Boolean = false) : this(
         cu,
@@ -19,7 +19,7 @@ open class JcSpringUnitTestFileRenderer: JcUnsafeTestFileRenderer {
         cp
     )
 
-    constructor(packageName: String, cp: JcClasspath, inlineUsvmUtils: Boolean = false) : this(
+    constructor(packageName: String?, cp: JcClasspath, inlineUsvmUtils: Boolean = false) : this(
         packageName,
         JcSpringImportManager(null, inlineUsvmUtils),
         cp
