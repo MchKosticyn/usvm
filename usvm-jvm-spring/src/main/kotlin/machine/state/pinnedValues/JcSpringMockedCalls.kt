@@ -5,16 +5,15 @@ import org.usvm.UExpr
 import org.usvm.USort
 
 // Arguments to results
-typealias MockedCallSequence = MutableList<JcPinnedValue>
+typealias MockedCallSequence = List<JcPinnedValue>
 
 class JcSpringMockedCalls(
     private var mockedCalls: Map<JcMethod, MockedCallSequence> = emptyMap()
 ) {
     fun addMock(method: JcMethod, result: JcPinnedValue) {
-        if (mockedCalls[method] == null) {
-            mockedCalls += method to arrayListOf()
-        }
-        mockedCalls[method]!!.add(result)
+        val list = mockedCalls.getOrDefault(method, listOf())
+        mockedCalls = mockedCalls.filter { it.key != method }
+        mockedCalls += method to list + listOf(result)
     }
 
     fun getMap() = mockedCalls
