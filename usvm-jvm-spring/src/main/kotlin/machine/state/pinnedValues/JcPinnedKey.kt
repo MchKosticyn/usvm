@@ -18,7 +18,9 @@ abstract class JcPinnedKey(
         fun responseContent(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.RESPONSE_CONTENT)
         fun requestBody(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_BODY)
         fun requestContentType(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_CONTENT_TYPE)
-        fun mockCallResult(method: JcMethod) = JcObjectPinnedKey(JcSpringPinnedValueSource.MOCK_RESULT, method)
+        fun resolvedExceptionClass() = JcSimplePinnedKey(JcSpringPinnedValueSource.RESOLVED_EXCEPTION_CLASS)
+        fun resolvedExceptionMessage() = JcSimplePinnedKey(JcSpringPinnedValueSource.RESOLVED_EXCEPTION_MESSAGE)
+        fun unhandledExceptionClass() = JcSimplePinnedKey(JcSpringPinnedValueSource.UNHANDLED_EXCEPTION_CLASS)
     }
 
     fun getSource() = source
@@ -41,29 +43,6 @@ class JcSimplePinnedKey(
 
     override fun toString(): String {
         return source.name
-    }
-}
-
-class JcObjectPinnedKey<T>(
-    private val source: JcSpringPinnedValueSource,
-    private val obj: T? = null,
-) : JcPinnedKey(source) {
-
-    override fun hashCode(): Int {
-        return Objects.hash(getSource(), obj)
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        other as JcObjectPinnedKey<*>
-        return getSource() == other.getSource() && getObj() == other.getObj()
-    }
-
-    fun getObj() = obj
-
-    override fun toString(): String {
-        return "${source.name} ($obj)"
     }
 }
 

@@ -6,7 +6,6 @@ import machine.concreteMemory.JcConcreteMemory
 import machine.state.JcSpringState
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
-import machine.state.pinnedValues.JcPinnedKey.Companion.mockCallResult
 import machine.state.pinnedValues.JcPinnedValue
 import machine.state.pinnedValues.JcStringPinnedKey
 import org.jacodb.api.jvm.JcAnnotation
@@ -30,7 +29,6 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UNullRef
 import org.usvm.USort
-import org.usvm.USymbol
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
@@ -42,8 +40,11 @@ import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.jvm.util.allFields
 import org.usvm.util.classesOfLocations
 import org.usvm.jvm.util.toJavaClass
+import org.usvm.machine.JcConcreteMethodCallInst
+import org.usvm.machine.state.newStmt
 import util.isDeserializationMethod
 import util.isSpringController
+import util.isSpringRepository
 import utils.toJcType
 import java.util.ArrayList
 
@@ -86,10 +87,6 @@ class JcSpringMethodApproximationResolver (
             if (approximateBeanDeserializerStatic(methodCall)) return true
         }
 
-        if (className == "org.springframework.web.method.annotation.AbstractNamedValueMethodArgumentResolver") {
-            if (approximateArgumentResolverStatic(methodCall)) return true
-        }
-
         if (className == "generated.org.springframework.boot.pinnedValues.PinnedValueStorage") {
             if (approximatePinnedValueStorage(methodCall)) return true
         }
@@ -109,9 +106,9 @@ class JcSpringMethodApproximationResolver (
             if (approximateSpringBootMethod(methodCall)) return true
         }
 
-//        if (enclosingClass.isSpringRepository) {
-//            if (approximateSpringRepositoryMethod(methodCall)) return true
-//        }
+        if (enclosingClass.isSpringRepository) {
+            if (approximateSpringRepositoryMethod(methodCall)) return true
+        }
 
         if (enclosingClass.annotations.any { it.name == "org.springframework.stereotype.Service" }) {
             if (approximateSpringServiceMethod(methodCall)) return true
@@ -177,27 +174,6 @@ class JcSpringMethodApproximationResolver (
 
         val key = keys[0]
         return@calcOnState JcPinnedKey.ofName(key.first, key.second)
-    }
-
-
-    private fun getParameterType(parameterRef: UConcreteHeapRef) : JcType? = scope.calcOnState {
-        this as JcSpringState
-        val memory = memory as JcSpringMemory
-        val parameter = memory.tryHeapRefToObject(parameterRef) ?: return@calcOnState null
-
-        val clazz = parameter
-            .javaClass.superclass.superclass
-            .declaredMethods.find { it.name == "getParameterType"  && it.parameters.isEmpty() }
-            ?.invoke(parameter) as Class<*>
-
-        val type = clazz.toJcType(ctx.cp)
-
-        if (type == null) {
-            println("Warning! Type was not found")
-            return@calcOnState null
-        }
-
-        return@calcOnState type
     }
 
     private fun accessPinnedValue(
@@ -266,10 +242,10 @@ class JcSpringMethodApproximationResolver (
                 val (key, type) = accessPinnedValue(this, nameArg, pinnedSourceNameArg, clazzArg)
                     ?: return@calcOnState false
 
-                // TODO: Other sorts? #AA
-                val value = createPinnedIfAbsent(key, type, scope, ctx.addressSort) ?: return@calcOnState false
+                val sort = ctx.typeToSort(type)
+                val value = createPinnedIfAbsent(key, type, scope, sort) ?: return@calcOnState false
 
-                skipMethodInvocationWithValue(methodCall, value.getExpr())
+                newStmt(JcBoxMethodCall(methodCall, value.getExpr(), value.getType()))
                 return@calcOnState true
             }
         }
@@ -310,35 +286,6 @@ class JcSpringMethodApproximationResolver (
         }
 
         return false
-    }
-
-    private fun approximateArgumentResolverStatic(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        /* AbstractNamedValueMethodArgumentResolver
-         * Web data binder convert is too hard to execute symbolically
-         * If it is convertible, will just replace string argument given in state user values
-         */
-        if (method.name == "convertIfNecessary") {
-            val parameter = methodCall.arguments[0] as UConcreteHeapRef
-            val source = methodCall.arguments[4]
-            return scope.calcOnState {
-                this as JcSpringState
-                if (source is UNullRef) {
-                    skipMethodInvocationWithValue(methodCall, ctx.nullRef)
-                    return@calcOnState true
-                }
-
-                check(source is USymbol)
-                val key = getPinnedKeyOfParameter(parameter) ?: error("approximateArgumentResolverStatic: not found key")
-                val type = getParameterType(parameter)?.autoboxIfNeeded()!!
-                val newSymbolicValue = createPinnedAndReplace(key, type, scope, ctx.addressSort, false)
-                    ?: return@calcOnState false
-                skipMethodInvocationWithValue(methodCall, newSymbolicValue.getExpr())
-
-                return@calcOnState true
-            }
-        }
-
-        return@with false
     }
 
     private fun approximateArgumentResolver(methodCall: JcMethodCall): Boolean = with(methodCall) {
@@ -496,32 +443,16 @@ class JcSpringMethodApproximationResolver (
     }
 
     private fun approximateSpringRepositoryMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        val returnType = ctx.cp.findType(methodCall.method.returnType.typeName)
-        val mockedValue: UExpr<out USort>
-        val mockedValueType: JcType
-        when {
-            returnType is JcClassType -> {
-                val suitableType =
-                    findSuitableTypeForMock(returnType) ?:
-                    ctx.typeSystem<JcType>().findSubtypes(returnType).filterNot { type ->
-                        (type as? JcClassType)?.jcClass?.let { it.isInterface || it.isAbstract }
-                            ?: true
-                    }.first()
-                mockedValueType = suitableType
-                mockedValue = scope.makeSymbolicRef(suitableType)!!
-            }
-            else -> {
-                check(returnType is JcPrimitiveType)
-                mockedValueType = returnType
-                mockedValue = scope.calcOnState { makeSymbolicPrimitive(ctx.typeToSort(returnType)) }
-            }
-        }
+        if (methodCall.returnSite is JcMockMethodInvokeResult)
+            return false
+
         println("[Mocked] Mocked repository method")
         scope.doWithState {
             this as JcSpringState
-            setPinnedValue(mockCallResult(method), mockedValue, mockedValueType)
-            skipMethodInvocationWithValue(methodCall, mockedValue)
+            val postProcessInst = JcMockMethodInvokeResult(methodCall)
+            newStmt(JcConcreteMethodCallInst(location, method, arguments, postProcessInst))
         }
+
         return true
     }
 
@@ -557,7 +488,7 @@ class JcSpringMethodApproximationResolver (
             println("[Mocked] Mocked service method")
             scope.doWithState {
                 this as JcSpringState
-                setPinnedValue(mockCallResult(methodCall.method), mockedValue, mockedValueType)
+                addMock(method, mockedValue, mockedValueType)
                 skipMethodInvocationWithValue(methodCall, mockedValue)
             }
 

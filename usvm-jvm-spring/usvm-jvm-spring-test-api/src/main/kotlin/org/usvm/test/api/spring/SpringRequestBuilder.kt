@@ -11,7 +11,6 @@ import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestStaticMethodCall
-import org.usvm.test.api.UTestStringExpression
 
 class SpringRequestBuilder private constructor(
     private val initStatements: MutableList<UTestInst>,
@@ -23,7 +22,7 @@ class SpringRequestBuilder private constructor(
             cp: JcClasspath,
             method: JcSpringRequestMethod,
             path: UTString,
-            pathVariables: List<Any?>
+            pathVariables: List<UTAny>
         ): SpringRequestBuilder =
             commonReqDSLBuilder(cp, method, path, pathVariables)
 
@@ -37,7 +36,7 @@ class SpringRequestBuilder private constructor(
             cp: JcClasspath,
             method: JcSpringRequestMethod,
             path: UTString,
-            pathVariables: List<Any?>
+            pathVariables: List<UTAny>
         ): SpringRequestBuilder {
             val requestMethodName = method.name.lowercase()
             val staticMethod = cp.findJcMethod(MOCK_MVC_REQUEST_BUILDERS_CLASS, requestMethodName)
@@ -48,7 +47,7 @@ class SpringRequestBuilder private constructor(
                 UTestArraySetStatement(
                     pathArgsArray,
                     UTestIntExpression(it, cp.int),
-                    UTestStringExpression(pathArgs[it].toString(), cp.stringType)
+                    pathArgs[it]
                 )
             }
             initDSL.addAll(pathArgsInitializer)

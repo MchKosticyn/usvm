@@ -16,11 +16,18 @@ import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestStaticMethodCall
 
+private enum class PerformStatus {
+    NOT_PERFORMED,
+    PERFORMED,
+    RETURNED,
+    WRAPPED_THROWS
+}
+
 class SpringTestExecBuilder private constructor(
     private val cp: JcClasspath,
     private val initStatements: MutableList<UTestInst>,
     private var mockMvcDSL: UTestExpression,
-    private var isPerformed: Boolean = false,
+    private var status: PerformStatus = PerformStatus.NOT_PERFORMED,
     private var generatedTestClass: JcClassOrInterface,
     private var testClassInst: UTestExpression
 ) {
@@ -94,13 +101,13 @@ class SpringTestExecBuilder private constructor(
     }
 
     fun addPerformCall(reqDSL: UTestExpression): SpringTestExecBuilder {
-        check(!isPerformed) { "second perform call" }
+        check(status == PerformStatus.NOT_PERFORMED) { "second perform call" }
         mockMvcDSL = UTestMethodCall(
             instance = mockMvcDSL,
             method = mockMvcPerform,
             args = listOf(reqDSL)
         )
-        isPerformed = true
+        status = PerformStatus.PERFORMED
 
         return this
     }
@@ -109,22 +116,59 @@ class SpringTestExecBuilder private constructor(
         cp.findJcMethod("org.springframework.test.web.servlet.ResultActions", "andExpect")
     }
 
-    fun addAndExpectCall(args: List<UTestExpression>): SpringTestExecBuilder {
-        check(isPerformed)
+    private val andReturn: JcMethod by lazy {
+        cp.findJcMethod("org.springframework.test.web.servlet.ResultActions", "andReturn")
+    }
+
+    fun addAndExpectCall(condition: UTestExpression): SpringTestExecBuilder {
+        check(status == PerformStatus.PERFORMED)
 
         mockMvcDSL = UTestMethodCall(
             instance = mockMvcDSL,
             method = andExpectAction,
-            args = args
+            args = listOf(condition)
         )
+
+        return this
+    }
+
+    fun addAndReturnCall(): SpringTestExecBuilder  {
+        check(status == PerformStatus.PERFORMED)
+
+        mockMvcDSL = UTestMethodCall(
+            instance = mockMvcDSL,
+            method = andReturn,
+            args = listOf()
+        )
+
+        status = PerformStatus.RETURNED
+        return this
+    }
+
+    fun wrapInAssertThrows(exceptionType: UTAny): SpringTestExecBuilder {
+        check(status == PerformStatus.PERFORMED)
+
+        val assertThrowsMethod = cp.findJcMethod(
+            "org.junit.jupiter.api.Assertions",
+            "assertThrows",
+            listOf("java.lang.Class", "org.junit.jupiter.api.function.Executable")
+        )
+
+        mockMvcDSL = UTestStaticMethodCall(
+            method = assertThrowsMethod,
+            args = listOf(exceptionType, mockMvcDSL)
+        )
+
+        status = PerformStatus.WRAPPED_THROWS
 
         return this
     }
 
     fun getInitDSL(): List<UTestInst> = initStatements
 
-    fun getExecDSL(): UTestCall {
-        check(isPerformed)
+    fun tryAddAndIgnoreCall(): SpringTestExecBuilder {
+        if (status != PerformStatus.PERFORMED)
+            return this
 
         val ignoreMethod = generatedTestClass.findDeclaredMethodOrNull("ignoreResult")
             ?: error("ignoreResult method not found")
@@ -133,6 +177,10 @@ class SpringTestExecBuilder private constructor(
             args = listOf(mockMvcDSL)
         )
 
+        return this
+    }
+
+    fun getExecDSL(): UTestCall {
         return mockMvcDSL as UTestCall
     }
 }

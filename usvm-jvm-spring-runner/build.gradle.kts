@@ -51,6 +51,7 @@ dependencies {
 
 // TODO: make versions flexible
 val springVersion = "3.2.0"
+val junitVersion = "5.3.1"
 
 //dependencies {
 //    implementation("org.springframework.boot:spring-boot-starter-web:$springVersion")
@@ -63,6 +64,7 @@ val springVersion = "3.2.0"
 val springTestDeps by configurations.creating
 
 dependencies {
+    springTestDeps("org.junit.jupiter:junit-jupiter-api:$springVersion")
     springTestDeps("org.springframework.boot:spring-boot-starter-test:$springVersion")
 }
 

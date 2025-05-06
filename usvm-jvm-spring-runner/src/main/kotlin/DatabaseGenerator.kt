@@ -46,7 +46,7 @@ class DatabaseGenerator(
 
     fun generateJPADatabase(): JcTableInfoCollector {
 
-        repositories.forEach { repo ->
+        repositories.filter { it.signature != null }.forEach { repo ->
             val genericTypes = repo.signature!!.genericTypesFromSignature
             val dataClass = cp.findClass(genericTypes[0])
 
