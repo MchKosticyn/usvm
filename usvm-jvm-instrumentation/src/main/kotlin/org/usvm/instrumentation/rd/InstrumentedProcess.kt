@@ -72,7 +72,11 @@ class InstrumentedProcess private constructor() {
         }
         val parser = DefaultParser()
         val cmd = parser.parse(options, args)
-        val classPath = cmd.getOptionValue("cp") ?: error("Specify classpath")
+
+        val classPath = cmd.getOptionValue("cp")
+            ?: System.getenv("usvm.jvm.instrumentation.rd.InstrumentedProcess.cp")
+            ?: error("Specify classpath")
+
         val includedClasses = cmd.getOptionValues("ic").toList()
 
         val execMode = when (cmd.getOptionValue("em")) {

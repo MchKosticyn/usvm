@@ -54,14 +54,13 @@ dependencies {
 val springVersion = "3.2.0"
 val junitVersion = "5.3.1"
 
-dependencies {
-    implementation("org.junit.jupiter:junit-jupiter-api:$springVersion")
-    implementation("org.springframework.boot:spring-boot-starter-web:$springVersion")
-    implementation("org.springframework.boot:spring-boot-starter-test:$springVersion")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springVersion")
-    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:$springVersion")
-}
+//dependencies {
+//    implementation("org.springframework.boot:spring-boot-starter-web:$springVersion")
+//    implementation("org.springframework.boot:spring-boot-starter-test:$springVersion")
+//    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springVersion")
+//    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
+//    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:$springVersion")
+//}
 
 val springTestDeps by configurations.creating
 

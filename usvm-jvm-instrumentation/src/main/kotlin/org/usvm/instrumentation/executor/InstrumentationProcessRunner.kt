@@ -62,8 +62,7 @@ class InstrumentationProcessRunner(
     }
 
     private fun createWorkerProcessArgs(rdPort: Int): List<String> =
-        listOf("-cp", testingProjectClasspath) +
-                listOf("-ic", instrumentedClasses.joinToString(" ")) +
+        listOf("-ic", instrumentedClasses.joinToString(" ")) +
                 listOf("-em", executionMode.id) +
                 listOf("-t", "${InstrumentationModuleConstants.concreteExecutorProcessTimeout}") +
                 listOf("-p", "$rdPort")
@@ -74,6 +73,7 @@ class InstrumentationProcessRunner(
         val rdPort = NetUtils.findFreePort(0)
         val workerCommand = jvmArgs + createWorkerProcessArgs(rdPort)
         val pb = ProcessBuilder(workerCommand).inheritIO()
+        pb.environment()["usvm.jvm.instrumentation.rd.InstrumentedProcess.cp"] = testingProjectClasspath
         val process = pb.start()
         rdProcessRunner =
             RdProcessRunner(process = process, rdPort = rdPort, jcClasspath = jcClasspath, lifetime = processLifetime)
