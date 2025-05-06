@@ -9,16 +9,16 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.machine.interpreter.JcStepScope
 
-abstract class JcSpringRawPinnedValues<V> (
-    protected var pinnedValues: Map<JcPinnedKey, V>
+class JcSpringPinnedValues(
+    private var pinnedValues: Map<JcPinnedKey, JcPinnedValue> = emptyMap()
 ) {
     fun getMap() = pinnedValues
 
-    fun getValue(key: JcPinnedKey): V? {
+    fun getValue(key: JcPinnedKey): JcPinnedValue? {
         return pinnedValues[key]
     }
 
-    fun setValue(key: JcPinnedKey, value: V) {
+    fun setValue(key: JcPinnedKey, value: JcPinnedValue) {
         pinnedValues += key to value
     }
 
@@ -28,15 +28,12 @@ abstract class JcSpringRawPinnedValues<V> (
 
     // TODO: Find solution without unchecked cast #AA
     @Suppress("UNCHECKED_CAST")
-    fun <K : JcPinnedKey> getValuesOfSource(source: JcSpringPinnedValueSource): Map<K, V> {
+    fun <K : JcPinnedKey> getValuesOfSource(source: JcSpringPinnedValueSource): Map<K, JcPinnedValue> {
         return pinnedValues
             .filter { it.key.getSource() == source }
             .map { (k, v) -> k as K to v }
             .toMap()
     }
-}
-
-class JcSpringPinnedValues : JcSpringRawPinnedValues<JcPinnedValue>(emptyMap()) {
     fun createAndPut(
         key: JcPinnedKey,
         type: JcType,

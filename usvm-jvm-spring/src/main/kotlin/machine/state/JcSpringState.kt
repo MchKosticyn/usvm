@@ -4,6 +4,7 @@ import machine.HandlerMethodData
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcPinnedValue
+import machine.state.pinnedValues.JcSpringMockedCalls
 import machine.state.pinnedValues.JcSpringPinnedValues
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
@@ -37,6 +38,7 @@ class JcSpringState(
     methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
     var pinnedValues: JcSpringPinnedValues = JcSpringPinnedValues(),
+    var mockedMethodCalls: JcSpringMockedCalls = JcSpringMockedCalls()
 ) : JcState(
     ctx,
     ownership,
@@ -54,6 +56,10 @@ class JcSpringState(
 
     internal val springMemory: JcSpringMemory
         get() = this.memory as JcSpringMemory
+
+    fun addMock(method: JcMethod, result: UExpr<out USort>, type: JcType) {
+        mockedMethodCalls.addMock(method, JcPinnedValue(result, type))
+    }
 
     fun getPinnedValue(key: JcPinnedKey): JcPinnedValue? {
         return pinnedValues.getValue(key)
@@ -99,7 +105,9 @@ class JcSpringState(
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcSpringState {
         println("\u001B[34m" + "Forked on method ${callStack.lastMethod()}" + "\u001B[0m")
         val cloned = super.clone(newConstraints) as JcSpringState
-        cloned.pinnedValues = pinnedValues.copy() as JcSpringPinnedValues
+        cloned.pinnedValues = pinnedValues.copy()
+        cloned.mockedMethodCalls = mockedMethodCalls.copy()
+        println("\u001B[34m[${id}] -> [${id}, ${cloned.id}]\u001B[0m")
         return cloned
     }
 }
