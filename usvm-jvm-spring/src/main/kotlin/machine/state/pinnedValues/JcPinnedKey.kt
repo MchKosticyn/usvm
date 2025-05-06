@@ -16,6 +16,7 @@ abstract class JcPinnedKey(
         fun requestMethod(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_METHOD)
         fun responseStatus(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.RESPONSE_STATUS)
         fun responseContent(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.RESPONSE_CONTENT)
+        fun responseView(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.VIEW_NAME)
         fun requestBody(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_BODY)
         fun requestContentType(): JcSimplePinnedKey = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_CONTENT_TYPE)
         fun resolvedExceptionClass() = JcSimplePinnedKey(JcSpringPinnedValueSource.RESOLVED_EXCEPTION_CLASS)

@@ -2,6 +2,7 @@
 
 import machine.state.pinnedValues.JcPinnedKey.Companion.responseContent
 import machine.state.pinnedValues.JcPinnedKey.Companion.responseStatus
+import machine.state.pinnedValues.JcPinnedKey.Companion.responseView
 import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcSpringPinnedValues
 import org.usvm.test.api.UTestNullExpression
@@ -37,10 +38,22 @@ class JcSpringPinnedValuesResponse(
         return cookies.mapNotNull { (key, value) -> JcSpringHttpCookie(key, value as UTString) }
     }
 
+    override fun getViewName(): UTString? {
+        val viewName = pinnedValues.getValue(responseView())?.let { exprResolver.resolvePinnedValue(it) }
+
+        if (viewName == null)
+            return null
+
+        check(viewName is UTString)
+        return viewName
+    }
+
     override fun getContent(): UTString? {
         val content = pinnedValues.getValue(responseContent())?.let { exprResolver.resolvePinnedValue(it) }
+
         if (content is UTestNullExpression)
             return null
+
         check(content is UTString)
         return content
     }
