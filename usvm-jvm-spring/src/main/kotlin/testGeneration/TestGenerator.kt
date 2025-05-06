@@ -2,6 +2,7 @@ package testGeneration
 
 import machine.state.JcSpringState
 import machine.state.pinnedValues.JcPinnedKey
+import machine.state.pinnedValues.JcSpringMockedCalls
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
@@ -9,6 +10,7 @@ import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.usvm.jvm.util.toTypedMethod
 import org.usvm.test.api.UTest
+import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestMockObject
 import org.usvm.test.api.spring.JcMockBean
 import org.usvm.test.api.spring.JcSpringRequest
@@ -50,7 +52,7 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
     val exprResolver = JcSpringTestExprResolver(ctx, model, memory, entrypoint.toTypedMethod)
     val request = getSpringRequest(this, exprResolver)
 
-    val mocks = getSpringMocks(this, exprResolver)
+    val mocks = getSpringMocks(mockedMethodCalls, exprResolver)
     val testClass = getGeneratedTestClass(ctx.cp)
 
     var jcSpringTest = JcSpringTestBuilder(request)
@@ -92,7 +94,9 @@ private fun getSpringException(
             .getValue(JcPinnedKey.unhandledExceptionClass())!!
             .let { exprResolver.resolvePinnedValue(it) }
 
-        return UnhandledSpringException(exceptionClass)
+        return UnhandledSpringException(
+            exceptionClass as UTestClassExpression
+        )
     }
 
     val exceptionClass = state.pinnedValues
@@ -104,8 +108,8 @@ private fun getSpringException(
         ?.let { exprResolver.resolvePinnedValue(it) }
 
     return ResolvedSpringException(
-        exceptionClass,
-        exceptionMessage
+        exceptionClass as UTestClassExpression,
+        exceptionMessage as UTString?
     )
 }
 
@@ -125,11 +129,11 @@ private fun getSpringResponse(
 }
 
 fun getSpringMocks(
-    state: JcSpringState,
+    mockedCalls: JcSpringMockedCalls,
     exprResolver: JcSpringTestExprResolver
 ): List<JcMockBean> {
     // TODO: Also fields #AA
-    val mocks = state.mockedMethodCalls.getMap()
+    val mocks = mockedCalls.getMap()
     val distinctMocks = mocks.entries.map { it.key.enclosingClass }.distinct()
     val testMockObjects = distinctMocks.map { type ->
         val distinctMethods = mocks.entries

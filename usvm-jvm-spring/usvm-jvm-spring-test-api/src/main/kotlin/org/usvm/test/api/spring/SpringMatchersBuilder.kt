@@ -46,7 +46,7 @@ class SpringMatchersBuilder(
             args = conditionArguments
         )
 
-        testExecBuilder.addAndExpectCall(listOf(conditionDsl))
+        testExecBuilder.addAndExpectCall(conditionDsl)
 
         return conditionDsl
     }

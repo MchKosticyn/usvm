@@ -120,13 +120,13 @@ class SpringTestExecBuilder private constructor(
         cp.findJcMethod("org.springframework.test.web.servlet.ResultActions", "andReturn")
     }
 
-    fun addAndExpectCall(args: List<UTestExpression>): SpringTestExecBuilder {
+    fun addAndExpectCall(condition: UTestExpression): SpringTestExecBuilder {
         check(status == PerformStatus.PERFORMED)
 
         mockMvcDSL = UTestMethodCall(
             instance = mockMvcDSL,
             method = andExpectAction,
-            args = args
+            args = listOf(condition)
         )
 
         return this

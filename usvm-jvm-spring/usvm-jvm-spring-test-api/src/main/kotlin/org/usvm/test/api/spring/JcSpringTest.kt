@@ -3,18 +3,19 @@ package org.usvm.test.api.spring
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.test.api.UTest
+import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 
 abstract class SpringException
 
 class UnhandledSpringException(
-    val clazz: UTAny
+    val clazz: UTestClassExpression
 ) : SpringException()
 
 class ResolvedSpringException(
-    val clazz: UTAny,
-    val message: UTAny?
+    val clazz: UTestClassExpression,
+    val message: UTString?
 ) : SpringException()
 
 class JcSpringTestBuilder(

@@ -1,6 +1,7 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
+import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestStaticMethodCall
@@ -44,7 +45,7 @@ class SpringExceptionMatchersBuilder (
         return resolvedException!!
     }
 
-    fun addResolvedExceptionTypeCheck(expectedType: UTAny): SpringExceptionMatchersBuilder {
+    fun addResolvedExceptionTypeCheck(expectedType: UTestClassExpression): SpringExceptionMatchersBuilder {
         val mvcResult = testExecBuilder.getExecDSL()
         val resolvedException = getResolvedExceptionCached(mvcResult)
         val getClassMethod = cp.findJcMethod(
@@ -61,7 +62,7 @@ class SpringExceptionMatchersBuilder (
         return this
     }
 
-    fun addResolvedExceptionMessageCheck(expectedMessage: UTAny): SpringExceptionMatchersBuilder {
+    fun addResolvedExceptionMessageCheck(expectedMessage: UTString): SpringExceptionMatchersBuilder {
         val mvcResult = testExecBuilder.getExecDSL()
         val resolvedException = getResolvedExceptionCached(mvcResult)
         val getMessageMethod = cp.findJcMethod(
@@ -78,7 +79,7 @@ class SpringExceptionMatchersBuilder (
         return this
     }
 
-    fun addUnhandedExceptionCheck(exceptionType: UTAny): SpringExceptionMatchersBuilder {
+    fun addUnhandedExceptionCheck(exceptionType: UTestClassExpression): SpringExceptionMatchersBuilder {
         testExecBuilder.wrapInAssertThrows(exceptionType)
 
         return this
