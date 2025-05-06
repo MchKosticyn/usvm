@@ -6,7 +6,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.usvm.machine.interpreter.transformers.springjpa.Select
-import util.TableInfo
+import util.database.TableInfo
 
 // ... FROM (SELECT ...) AS sub
 class TableSubquery(val subquery: Select, alias: String?) : Table(alias) {

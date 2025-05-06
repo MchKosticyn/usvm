@@ -16,8 +16,8 @@ import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.util.toJcType
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
-import util.Relation
-import util.TableInfo
+import util.database.Relation
+import util.database.TableInfo
 
 abstract class JcDataclassLambdaTransformer(
     val cp: JcClasspath,

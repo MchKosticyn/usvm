@@ -1,5 +1,7 @@
-package util
+package util.database
 
+import machine.interpreter.transformers.springjpa.BASE_TABLE_MANAGER
+import machine.interpreter.transformers.springjpa.NO_ID_TABLE_MANAGER
 import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
@@ -63,7 +65,7 @@ class JcTableInfoCollector(
         val fields = collectFields(clazz)
         val idField = fields
             .single { contains(it.annotations, "Id") }
-        val idColumn = idField.let { TableInfo.ColumnInfo(getColumnName(it), it.type, idField, true) }
+        val idColumn = idField.let { TableInfo.ColumnInfo(getColumnName(it), it.type, idField, true, listOf()) }
         val idType = idField.type
 
         tablesInfo.getOrPut(name) { TableInfo.TableWithIdInfo(name, hashSetOf(), hashSetOf(), idColumn, clazz) }
@@ -73,6 +75,14 @@ class JcTableInfoCollector(
 
             val simpleColName = getColumnName(field)
 
+            val validators = field.annotations.mapNotNull { annot ->
+                JcValidateAnnotation.entries.find { it.annotationSimpleName == annot.jcClass!!.simpleName }
+                    ?.let { annot to it }
+            }
+
+            fun buildCommonColumn(name: String, typ: TypeName, isOrig: Boolean): TableInfo.ColumnInfo =
+                TableInfo.ColumnInfo(name, typ, field, isOrig, validators)
+
             if (
                 !contains(
                     field.annotations,
@@ -80,7 +90,7 @@ class JcTableInfoCollector(
                 )
             ) {
 
-                val colInfo = TableInfo.ColumnInfo(simpleColName, field.type, field, true)
+                val colInfo = buildCommonColumn(simpleColName, field.type, true)
                 classTable.insertColumn(colInfo)
                 return@forEach
             }
@@ -92,26 +102,26 @@ class JcTableInfoCollector(
             val subIdType = subTable.idColumn.type
 
             val rel = Relation.fromField(classTable, subTable, field)!!
-             classTable.insertRelation(rel)
+            classTable.insertRelation(rel)
 
             when (rel) {
                 is Relation.OneToOne -> {
                     if (rel.mappedBy != null) return@forEach
                     classTable.insertColumn(
-                        TableInfo.ColumnInfo(rel.join.colName, subIdType, field, false)
+                        TableInfo.ColumnInfo(rel.join.colName, subIdType, field, false, listOf())
                     )
                 }
 
                 is Relation.OneToManyByColumn -> {
                     if (rel.mappedBy != null) return@forEach
                     subTable.insertColumn(
-                        TableInfo.ColumnInfo(rel.join!!.colName, idType, field, false)
+                        TableInfo.ColumnInfo(rel.join!!.colName, idType, field, false, listOf())
                     )
                 }
 
                 is Relation.ManyToOne -> {
                     classTable.insertColumn(
-                        TableInfo.ColumnInfo(rel.join.colName, subIdType, field, false)
+                        TableInfo.ColumnInfo(rel.join.colName, subIdType, field, false, listOf())
                     )
                 }
 
@@ -138,11 +148,14 @@ open class TableInfo(
     val relations: MutableSet<Relation>
 ) {
 
+    open val approximateManagerClassName = NO_ID_TABLE_MANAGER
+
     data class ColumnInfo(
         val name: String,
         val type: TypeName,
         val origField: JcField,
-        val isOrig: Boolean
+        val isOrig: Boolean,
+        val validators: List<Pair<JcAnnotation?, JcValidateAnnotation>>
     )
 
     class TableWithIdInfo(
@@ -153,13 +166,15 @@ open class TableInfo(
         val origClass: JcClassOrInterface
     ) : TableInfo(name, columns, relations) {
 
+        override val approximateManagerClassName = BASE_TABLE_MANAGER
+
         fun jkName() = "${name}_${idColumn.name}"
 
         fun jkColumnInfo(): ColumnInfo {
             val name = jkName()
             val type = idColumn.type
             val field = idColumn.origField
-            return ColumnInfo(name, type, field, false)
+            return ColumnInfo(name, type, field, false, listOf())
         }
 
         fun idColIndex() = indexOfCol(idColumn)
@@ -178,7 +193,7 @@ open class TableInfo(
 
     fun insertRelation(rel: Relation) { relations.add(rel) }
 
-    fun indexOfCol(col: ColumnInfo) = columns.sortedBy { it.name }.indexOf(col)
+    fun indexOfCol(col: ColumnInfo) = columns.sortedBy { it.name }.indexOfFirst { it.name == col.name }
 
     fun indexOfField(field: JcField) = columns.sortedBy { it.name }.indexOfFirst { it.origField == field }
 
@@ -393,14 +408,14 @@ sealed class Relation(
                         ?.colName
                         ?: classTable.jkName()
                     val jkClass = TableInfo.ColumnInfo(
-                        jkClassName, classTable.idColumn.type, classTable.idColumn.origField, false
+                        jkClassName, classTable.idColumn.type, classTable.idColumn.origField, false, listOf()
                     )
                     val jkSubName = (joinTableAnnot?.values?.get("inverseJoinColumns") as List<*>?)
                         ?.first()?.let { a -> join(a as JcAnnotation) }
                         ?.colName
                         ?: simpleName
                     val jkSub = TableInfo.ColumnInfo(
-                        jkSubName, subTable.idColumn.type, subTable.idColumn.origField, false
+                        jkSubName, subTable.idColumn.type, subTable.idColumn.origField, false, listOf()
                     )
                     val joinTable = JoinTable(joinTableName, jkClass, jkSub)
                     return ManyToMany(mappedBy, joinTable, field, cascade)

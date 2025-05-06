@@ -19,7 +19,7 @@ import org.jacodb.impl.types.AnnotationInfo
 import org.jacodb.impl.types.ParameterInfo
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.typeName
-import util.blancAnnotation
+import util.database.blancAnnotation
 
 fun getterName(field: JcField): String {
     return "\$get_${field.name}"

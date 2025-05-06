@@ -58,7 +58,7 @@ import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
-import util.JcTableInfoCollector
+import util.database.JcTableInfoCollector
 
 data class CommonInfo(
     val cp: JcClasspath,
