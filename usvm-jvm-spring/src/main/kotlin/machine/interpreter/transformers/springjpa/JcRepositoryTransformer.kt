@@ -27,7 +27,7 @@ import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.toJcType
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 import org.usvm.machine.interpreter.transformers.springjpa.Select
-import util.getTableName
+import util.database.getTableName
 
 
 object JcRepositoryTransformer : JcClassExtFeature {

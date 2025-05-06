@@ -55,8 +55,8 @@ import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.typeName
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
-import util.contains
-import util.nameEquals
+import util.database.contains
+import util.database.nameEquals
 
 // region GeneratedFunctions
 

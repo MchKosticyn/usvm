@@ -38,7 +38,7 @@ import org.usvm.jvm.util.write
 import org.usvm.logger
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
-import util.JcTableInfoCollector
+import util.database.JcTableInfoCollector
 import org.usvm.util.classpathWithApproximations
 import machine.JcConcreteMachineOptions
 import machine.JcSpringMachine
@@ -261,7 +261,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 
     System.setProperty("generatedTestClass", testClassFullName.replace('/', '.'))
 
-    val tablesInfo = DatabaseGenerator(cp, springDirFile.toPath(), repositories).generateJPADatabase()
+    val tablesInfo = DatabaseGenerator(cp, springDirFile, repositories).generateJPADatabase()
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
     startSpringClass.withAsmNode { startSpringAsmNode ->

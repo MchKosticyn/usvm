@@ -181,7 +181,9 @@ abstract class CommonJoin(
 
             val rootSer = (obj.type as JcClassType).declaredMethods.single { it.method.generatedStaticSerializer }
                 .let { ctx.genCtx.generateLambda(ctx.cp, "root_serializer", it.method) }
-            val targetSer = field.typeName.genericTypesFromSignature[0].let { ctx.cp.findType(it) as JcClassType }
+            val targetSer = field.typeName
+                .substringAfter("<").substringBefore(">")
+                .let { ctx.cp.findType(it) as JcClassType }
                 .declaredMethods.single { it.method.generatedStaticSerializer }
                 .let { ctx.genCtx.generateLambda(ctx.cp, "target_serializer", it.method) }
             val onMethod = join.genOnMethod(ctx)

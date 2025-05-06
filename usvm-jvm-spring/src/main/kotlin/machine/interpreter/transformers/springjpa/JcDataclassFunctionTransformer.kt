@@ -40,9 +40,9 @@ import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.typedField
 import org.usvm.jvm.util.typename
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
-import util.Relation
-import util.TableInfo
-import util.getTableName
+import util.database.Relation
+import util.database.TableInfo
+import util.database.getTableName
 
 abstract class JcDataclassFunctionTransformer(
     val dataclassTransformer: JcDataclassTransformer,

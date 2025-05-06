@@ -1,4 +1,4 @@
-package util
+package util.database
 
 import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.impl.types.AnnotationInfo
