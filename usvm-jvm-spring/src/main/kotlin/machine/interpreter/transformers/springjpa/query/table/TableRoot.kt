@@ -7,7 +7,7 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.cfg.JcLocalVar
-import util.TableInfo
+import util.database.TableInfo
 
 // ... FROM SomeTable AS st
 class TableRoot(

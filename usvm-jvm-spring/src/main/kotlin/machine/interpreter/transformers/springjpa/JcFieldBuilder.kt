@@ -6,7 +6,7 @@ import org.jacodb.impl.bytecode.JcFieldImpl
 import org.jacodb.impl.types.AnnotationInfo
 import org.jacodb.impl.types.FieldInfo
 import org.objectweb.asm.Opcodes
-import util.blancAnnotation
+import util.database.blancAnnotation
 
 class JcFieldBuilder(val clazz: JcClassOrInterface) {
 
