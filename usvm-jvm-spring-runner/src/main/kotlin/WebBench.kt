@@ -303,6 +303,8 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 
         if (enableSecurity) {
             addSecurityConfigs(classNode, nonAbstractClasses)
+        } else {
+            disableSecurity(classNode)
         }
 
         classNode.write(cp, springDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
