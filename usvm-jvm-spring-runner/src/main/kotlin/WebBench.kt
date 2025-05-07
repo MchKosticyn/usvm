@@ -29,6 +29,7 @@ import org.jacodb.impl.jacodb
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.FieldNode
+import org.objectweb.asm.Type
 import org.usvm.PathSelectionStrategy
 import org.usvm.SolverType
 import org.usvm.UMachineOptions
@@ -49,8 +50,10 @@ import machine.interpreter.transformers.springjpa.JcDataclassTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
+import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.impl.cfg.JcInstListImpl
 import org.jacodb.impl.types.TypeNameImpl
+import org.objectweb.asm.tree.ClassNode
 import org.usvm.CoverageZone
 import testGeneration.SpringTestInfo
 import java.io.File
@@ -71,37 +74,32 @@ import kotlin.time.Duration.Companion.nanoseconds
 
 private fun loadWebPetClinicBench(): BenchCp {
     val petClinicDir = Path("/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF")
-    return loadWebAppBenchCp(petClinicDir / "classes", petClinicDir / "lib").apply {
-        entrypointFilter = { it.enclosingClass.simpleName.startsWith("PetClinicApplication") }
-    }
+    return loadWebAppBenchCp(petClinicDir / "classes", petClinicDir / "lib")
 }
 
 private fun loadWebGoatBench(): BenchCp {
     val webGoatDir = Path("/Users/michael/Documents/Work/WebGoat/target/build/BOOT-INF")
-    return loadWebAppBenchCp(webGoatDir / "classes", webGoatDir / "lib").apply {
-        entrypointFilter = { it.enclosingClass.simpleName.startsWith("WebGoatApplication") }
-    }
+    return loadWebAppBenchCp(webGoatDir / "classes", webGoatDir / "lib")
 }
 
 private fun loadKafdropBench(): BenchCp {
     val kafdropDir = Path("/Users/michael/Documents/Work/kafdrop/target/build/BOOT-INF")
-    return loadWebAppBenchCp(kafdropDir / "classes", kafdropDir / "lib").apply {
-        entrypointFilter = { it.enclosingClass.simpleName.startsWith("WebGoatApplication") }
-    }
+    return loadWebAppBenchCp(kafdropDir / "classes", kafdropDir / "lib")
 }
 
 private fun loadKlawBench(): BenchCp {
     val klawDir = Path("/Users/michael/Documents/Work/klaw/core/target/build/BOOT-INF")
-    return loadWebAppBenchCp(klawDir / "classes", klawDir / "lib").apply {
-        entrypointFilter = { it.enclosingClass.simpleName.startsWith("WebGoatApplication") }
-    }
+    return loadWebAppBenchCp(klawDir / "classes", klawDir / "lib")
 }
 
 private fun loadSynthBench(): BenchCp {
     val benchDir = Path("C:/Users/arthur/Documents/usvm-spring-benchmarks/build/libs/BOOT-INF")
-    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib").apply {
-        entrypointFilter = { it.enclosingClass.simpleName.startsWith("SpringBenchmarks") }
-    }
+    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
+}
+
+private fun loadJHipsterBench(): BenchCp {
+    val benchDir = Path("/Users/michael/Documents/Work/jhipster-registry/target/build/BOOT-INF")
+    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
 }
 
 fun main() {
@@ -122,7 +120,6 @@ private class BenchCp(
     val cpFiles: List<File>,
     val classes: List<File>,
     val dependencies: List<File>,
-    var entrypointFilter: (JcMethod) -> Boolean = { true },
 ) : AutoCloseable {
     override fun close() {
         cp.close()
@@ -173,7 +170,9 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
     val usvmConcreteApiJarPath = File(System.getenv("usvm.jvm.concrete.api.jar.path"))
     check(usvmConcreteApiJarPath.exists()) { "Concrete API jar does not exist" }
 
-    val cpFiles = classes + dependencies + springTestDeps + usvmConcreteApiJarPath
+    var cpFiles = classes + dependencies + usvmConcreteApiJarPath
+    // TODO: add springTestDeps only if user's dependencies do not contain them
+    cpFiles += springTestDeps
 
     val db = jacodb {
         useProcessJavaRuntime()
@@ -208,10 +207,64 @@ private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp 
             .toList()
     )
 
-private val JcClassOrInterface.jvmDescriptor: String get() = "L${name.replace('.', '/')};"
+private val JcClassOrInterface.jvmDescriptor: String get() = name.jvmName()
 
 fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: String) =
     allClasses.filter { it.annotations.any { annotation -> annotation.name == annotationName } }
+
+const val enableSecurity: Boolean = false
+
+private fun addSecurityConfigs(testClassNode: ClassNode, nonAbstractClasses: Sequence<JcClassOrInterface>) {
+    val importAnnotationName = "org.springframework.context.annotation.Import".jvmName()
+    val securityConfigs = allByAnnotation(
+        nonAbstractClasses,
+        "org.springframework.security.config.annotation.web.configuration.EnableWebSecurity"
+    )
+    val importAnnotationNode = AnnotationNode(importAnnotationName)
+    val securityConfigsAsm = securityConfigs.map { Type.getType(it.jvmDescriptor) }.toList()
+    importAnnotationNode.values = listOf("value", securityConfigsAsm)
+    testClassNode.visibleAnnotations.add(importAnnotationNode)
+}
+
+private fun disableSecurity(testClassNode: ClassNode) {
+    /* Result:
+        @WebMvcTest(
+            excludeFilters = {
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, value = WebSecurityConfigurer.class)
+            },
+            excludeAutoConfiguration = {
+                SecurityAutoConfiguration.class,
+                SecurityFilterAutoConfiguration.class,
+                OAuth2ClientAutoConfiguration.class,
+                OAuth2ResourceServerAutoConfiguration.class
+            }
+        )
+     */
+    val webMvcTestClassName = "org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest".jvmName()
+    val webMvcTestAnnotation =
+        testClassNode.visibleAnnotations.find { it.desc == webMvcTestClassName }
+            ?: error("WebMvcTest annotation not found for ${testClassNode.name}")
+    val filterClassName = "org.springframework.context.annotation.ComponentScan\$Filter".jvmName()
+    val filterAnnotation = AnnotationNode(filterClassName)
+    val filterTypeName = "org.springframework.context.annotation.FilterType".jvmName()
+    val assignableFilterType = arrayOf(filterTypeName, "ASSIGNABLE_TYPE")
+    val configurerName = "org.springframework.security.config.annotation.web.WebSecurityConfigurer".jvmName()
+    filterAnnotation.values = listOf(
+        "type", assignableFilterType,
+        "value", listOf(Type.getType(configurerName))
+    )
+
+    val excludedConfigurations = listOf(
+        "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
+        "org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration",
+        "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration",
+        "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration"
+    )
+    webMvcTestAnnotation.values = listOf(
+        "excludeFilters", listOf(filterAnnotation),
+        "excludeAutoConfiguration", excludedConfigurations.map { Type.getType(it.jvmName()) }
+    )
+}
 
 private fun generateTestClass(benchmark: BenchCp): BenchCp {
     val cp = benchmark.cp
@@ -220,13 +273,7 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
     check(springDirFile.exists()) { "Generated directory ${springDirFile.absolutePath} does not exist" }
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
-//    val importAnnotation = cp.findClass("org.springframework.context.annotation.Import")
-    val mockAnnotation = cp.findClass("org.springframework.boot.test.mock.mockito.MockBean")
     val nonAbstractClasses = cp.nonAbstractClasses(benchmark.classLocations)
-//    val securityConfigs = allByAnnotation(
-//        nonAbstractClasses,
-//        "org.springframework.security.config.annotation.web.configuration.EnableWebSecurity"
-//    )
     val repositories = runBlocking { cp.hierarchyExt() }
         .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
         .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
@@ -246,16 +293,18 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 
     testClass.withAsmNode { classNode ->
         classNode.name = testClassFullName
+        val mockBeanAnnotationName = "org.springframework.boot.test.mock.mockito.MockBean".jvmName()
         mockBeans.forEach { mockBeanType ->
             val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
             val field = FieldNode(Opcodes.ACC_PRIVATE, name, mockBeanType.jvmDescriptor, null, null)
-            field.visibleAnnotations = listOf(AnnotationNode(mockAnnotation.jvmDescriptor))
+            field.visibleAnnotations = listOf(AnnotationNode(mockBeanAnnotationName))
             classNode.fields.add(field)
         }
 
-//        val importAnnotationNode = AnnotationNode(importAnnotation.jvmDescriptor)
-//        importAnnotationNode.values = listOf("value", securityConfigs.map { Type.getType(it.jvmDescriptor) }.toList())
-//        classNode.visibleAnnotations.add(importAnnotationNode)
+        if (enableSecurity) {
+            addSecurityConfigs(classNode, nonAbstractClasses)
+        }
+
         classNode.write(cp, springDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
     }
 
@@ -303,7 +352,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 1.minutes,
+        timeout = 3.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests

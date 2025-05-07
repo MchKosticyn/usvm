@@ -17,6 +17,8 @@ import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethodImpl
 import org.jacodb.impl.types.AnnotationInfo
 import org.usvm.jvm.util.getTypename
 import org.jacodb.api.jvm.ext.CONSTRUCTOR
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethod
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualParameter
 import org.jacodb.impl.types.TypeNameImpl
 
@@ -29,6 +31,13 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
         type: TypeName,
         override val annotations: List<JcAnnotation>
     ): JcVirtualFieldImpl(name = name, type = type)
+
+    private class JcVirtualAnnotatedClass(
+        name: String,
+        initialFields: List<JcVirtualField>,
+        initialMethods: List<JcVirtualMethod>,
+        override val annotations: List<JcAnnotation>
+    ): JcVirtualClassImpl(name = name, initialFields = initialFields, initialMethods = initialMethods)
 
     private const val MOCK_BEAN_NAME = "org.springframework.boot.test.mock.mockito.MockBean"
 
@@ -74,11 +83,20 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
         )
     }
 
+    /* TODO: add security disable annotations
+        @WebMvcTest(excludeFilters = {@ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, value = WebSecurityConfigurer.class)},
+            excludeAutoConfiguration = {SecurityAutoConfiguration.class,
+                                        SecurityFilterAutoConfiguration.class,
+                                        OAuth2ClientAutoConfiguration.class,
+                                        OAuth2ResourceServerAutoConfiguration.class})
+     */
+
     private val defaultTestClass by lazy {
-        JcVirtualClassImpl(
+        JcVirtualAnnotatedClass(
             DEFAULT_TEST_CLASS_NAME,
             initialFields = listOf(),
-            initialMethods = listOf(testClassCtor, testClassIgnoreResultMethod)
+            initialMethods = listOf(testClassCtor, testClassIgnoreResultMethod),
+            annotations = emptyList()
         )
     }
 

@@ -95,6 +95,7 @@ class JcSpringPinnedValuesRequest(
     }
 
     override fun getContentType(): UTAny? {
+        // TODO: use static fields of MediaType #AA
         val contentType = pinnedValues.getValue(JcPinnedKey.requestContentType()) ?: return null
         return exprResolver.resolvePinnedValue(contentType)
     }

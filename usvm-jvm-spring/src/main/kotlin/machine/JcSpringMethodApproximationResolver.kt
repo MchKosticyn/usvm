@@ -310,6 +310,7 @@ class JcSpringMethodApproximationResolver (
     }
 
     private fun approximateMockHttpRequest(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        // TODO: rework #AA
         if (method.name == "setAttribute") {
             val keyArgument = arguments[1].asExpr(ctx.addressSort)
             val valueArgument = arguments[2].asExpr(ctx.addressSort)
