@@ -15,7 +15,7 @@ object InstrumentationModuleConstants {
     //If something gone wrong with RD
     const val triesToRecreateExecutorRdProcess = 3
     //Rollback strategy
-    val testExecutorStaticsRollbackStrategy = StaticsRollbackStrategy.REINIT
+    val testExecutorStaticsRollbackStrategy = StaticsRollbackStrategy.ROLLBACK
     //Max depth of descriptor construction
     val maxDepthOfDescriptorConstruction = 5
     //Number of stacktrace elements for exception construction
