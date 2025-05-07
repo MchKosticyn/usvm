@@ -49,7 +49,7 @@ dependencies {
     agentJarConfiguration(project(":usvm-jvm-concrete:agent"))
 }
 
-// TODO: make versions flexible
+// TODO: make versions flexible (JHipster needs 2.7.3, petclinic needs 3.2.0)
 val springVersion = "3.2.0"
 val junitVersion = "5.3.1"
 
@@ -64,7 +64,7 @@ val junitVersion = "5.3.1"
 val springTestDeps by configurations.creating
 
 dependencies {
-    springTestDeps("org.junit.jupiter:junit-jupiter-api:$springVersion")
+    springTestDeps("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     springTestDeps("org.springframework.boot:spring-boot-starter-test:$springVersion")
 }
 
