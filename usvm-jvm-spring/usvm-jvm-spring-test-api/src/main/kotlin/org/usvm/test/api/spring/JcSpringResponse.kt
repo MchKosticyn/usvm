@@ -5,4 +5,5 @@ interface JcSpringResponse {
     fun getContent(): UTString?
     fun getHeaders(): List<JcSpringHttpHeader>
     fun getCookies(): List<JcSpringHttpCookie>
+    fun getViewName(): UTString?
 }

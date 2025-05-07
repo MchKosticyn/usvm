@@ -124,9 +124,17 @@ class JcSpringResponseTest internal constructor(
 
     override fun generateMatchersDSL(testExecBuilder: SpringTestExecBuilder): List<UTestInst> {
         val matchersBuilder = SpringMatchersBuilder(cp, testExecBuilder)
+
         matchersBuilder.addStatusCheck(response.getStatus())
-        response.getContent()?.let { matchersBuilder.addContentCheck(it) }
         matchersBuilder.addHeadersCheck(response.getHeaders())
+
+        val view = response.getViewName()
+        if (view == null) {
+            response.getContent()?.let { matchersBuilder.addContentCheck(it) }
+        } else {
+            matchersBuilder.addViewCheck(view)
+        }
+
         return matchersBuilder.getInitDSL()
     }
 }
