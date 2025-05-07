@@ -71,6 +71,16 @@ class SpringMatchersBuilder(
         return this
     }
 
+    fun addViewCheck(viewName: UTString): SpringMatchersBuilder {
+        addCondition(
+            addMatcher("view"),
+            "name",
+            listOf(viewName),
+            listOf("java.lang.String")
+        )
+        return this
+    }
+
     fun addHeadersCheck(headers: List<JcSpringHttpHeader>): SpringMatchersBuilder {
         val matcher = addMatcher("header")
         headers.forEach {
