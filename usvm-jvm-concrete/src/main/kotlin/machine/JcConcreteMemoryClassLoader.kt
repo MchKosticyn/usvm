@@ -207,16 +207,13 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         // Forcing `<clinit>` of `InitHelper`
         type.declaredFields.first().get(null)
         // Initializing static fields
-        val staticFields = type.staticFields
-        staticFields
-            .find { it.name == InitHelper::afterClinitAction.javaName }!!
-            .setStaticFieldValue(afterClinitAction)
-        staticFields
-            .find { it.name == InitHelper::afterInitAction.javaName }!!
-            .setStaticFieldValue(afterInitAction)
-        staticFields
-            .find { it.name == InitHelper::afterInternalInitAction.javaName }!!
-            .setStaticFieldValue(afterInternalInitAction)
+        for (field in type.staticFields) {
+            when (field.name) {
+                InitHelper::afterClinitAction.javaName -> field.setStaticFieldValue(afterClinitAction)
+                InitHelper::afterInitAction.javaName -> field.setStaticFieldValue(afterInitAction)
+                InitHelper::afterInternalInitAction.javaName -> field.setStaticFieldValue(afterInternalInitAction)
+            }
+        }
     }
 
     override fun loadClass(name: String?): Class<*> {

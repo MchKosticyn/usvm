@@ -1,7 +1,6 @@
 package util
 
 import org.jacodb.api.jvm.JcClassOrInterface
-import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.isSubClassOf
 
@@ -71,12 +70,3 @@ internal val JcMethod.isServletRequestMethod: Boolean
 internal val JcMethod.isDeserializationMethod: Boolean
     get() = name == "readWithMessageConverters"
             && enclosingClass.name == "org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor"
-
-internal val JcField.isInjectedViaValue: Boolean
-    get() = !isStatic && annotations.any {
-        it.name == "org.springframework.beans.factory.annotation.Value" && it.values.values.singleOrNull()?.let { value ->
-            (value as? String)?.contains('$') == true
-                    // TODO: support SpEL
-                    && (value as? String)?.contains('#') == false
-        } == true
-    }

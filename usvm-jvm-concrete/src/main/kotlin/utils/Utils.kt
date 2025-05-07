@@ -402,6 +402,7 @@ private val String.inImmutableFromJavaLang: Boolean
 private val Class<*>.inImmutableWithSubtypesFromJavaLang: Boolean
     get() = this.typeName.inImmutableFromJavaLang && (isFinal || !isPublic)
 
+// TODO: implement via whitelist instead of blacklist
 internal val Class<*>.isImmutable: Boolean
     get() = !isArray &&
             (immutableTypes.any { it.isAssignableFrom(this) }
