@@ -94,10 +94,11 @@ class JcSpringPinnedValuesRequest(
         return withJsonSerialize(exprResolver.resolvePinnedValue(body))
     }
 
-    override fun getContentType(): UTAny? {
-        // TODO: use static fields of MediaType #AA
-        val contentType = pinnedValues.getValue(JcPinnedKey.requestContentType()) ?: return null
-        return exprResolver.resolvePinnedValue(contentType)
+    override fun getContentTypeName(): UTString? {
+        val contentType = pinnedValues.getValue(JcPinnedKey.requestMediaTypeName()) ?: return null
+        val name = exprResolver.resolvePinnedValue(contentType)
+        check(name is UTString)
+        return name
     }
 
     override fun getParameters(): List<JcSpringHttpParameter> {
