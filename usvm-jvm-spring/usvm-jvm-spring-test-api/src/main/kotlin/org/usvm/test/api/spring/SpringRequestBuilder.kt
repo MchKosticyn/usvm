@@ -98,6 +98,7 @@ class SpringRequestBuilder private constructor(
         val mediaTypeClass = cp.findClass("org.springframework.http.MediaType")
         val fieldName = name.value
         val field = mediaTypeClass.declaredFields.single { it.name == fieldName }
+        check(field.isStatic)
         return UTestGetStaticFieldExpression(field)
     }
 
