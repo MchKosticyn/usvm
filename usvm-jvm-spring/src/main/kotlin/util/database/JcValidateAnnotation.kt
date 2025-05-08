@@ -1,5 +1,6 @@
 package util.database
 
+import machine.interpreter.transformers.springjpa.JAVA_CLASS
 import machine.interpreter.transformers.springjpa.JAVA_INIT
 import machine.interpreter.transformers.springjpa.JAVA_STRING
 import machine.interpreter.transformers.springjpa.JAVA_VOID
@@ -7,64 +8,106 @@ import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawCallInst
+import org.jacodb.api.jvm.cfg.JcRawCastExpr
+import org.jacodb.api.jvm.cfg.JcRawClassConstant
+import org.jacodb.api.jvm.cfg.JcRawConstant
 import org.jacodb.api.jvm.cfg.JcRawFieldRef
 import org.jacodb.api.jvm.cfg.JcRawLocalVar
 import org.jacodb.api.jvm.cfg.JcRawNewExpr
 import org.jacodb.api.jvm.cfg.JcRawSpecialCallExpr
+import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
+import org.jacodb.api.jvm.cfg.JcRawVirtualCallExpr
+import org.jacodb.api.jvm.ext.JAVA_OBJECT
 import org.jacodb.impl.cfg.JcRawInt
 import org.jacodb.impl.cfg.JcRawString
 import org.usvm.jvm.util.typeName
+import org.usvm.jvm.util.typename
 
-interface ValidateAnnotation {
-    fun initializeValidator(ctx: JcMethodNewBodyContext, annot: JcAnnotation?): JcRawLocalVar
-}
+enum class JcValidateAnnotation(val annotationSimpleName: String, val validatorName: String) {
 
-enum class JcValidateAnnotation(val annotationSimpleName: String, val validatorName: String): ValidateAnnotation {
+    NotNull("NotNull", "org.hibernate.validator.internal.constraintvalidators.bv.NotNullValidator"),
+    NotBlank("NotBlank", "org.hibernate.validator.internal.constraintvalidators.bv.NotBlankValidator"),
+    Digits("Digits", "org.hibernate.validator.internal.constraintvalidators.bv.DigitsValidatorForCharSequence");
 
-    NotNull("NotNull", "org.hibernate.validator.internal.constraintvalidators.bv.NotNullValidator") {
-        override fun initializeValidator(ctx: JcMethodNewBodyContext, annot: JcAnnotation?) = initValidator(ctx)
-    },
-
-    NotBlank("NotBlank", "org.hibernate.validator.internal.constraintvalidators.bv.NotBlankValidator") {
-        override fun initializeValidator(ctx: JcMethodNewBodyContext, annot: JcAnnotation?) = initValidator(ctx)
-    },
-
-    Digits("Digits", "org.hibernate.validator.internal.constraintvalidators.bv.DigitsValidatorForCharSequence") {
-        override fun initializeValidator(ctx: JcMethodNewBodyContext, annot: JcAnnotation?): JcRawLocalVar = with(ctx) {
-            val validator = initValidator(ctx)
-            val annotValues = annot?.values!!
-
-            val maxIntegerLength = annotValues["integer"]?.let { it as? Int }!!
-            val maxFractionLength = annotValues["fraction"]?.let { it as? Int }!!
-
-            val intRef = JcRawFieldRef(validator, validatorName.typeName, "integer", "int".typeName)
-            val fracRef = JcRawFieldRef(validator, validatorName.typeName, "fraction", "int".typeName)
-            addInstruction { owner -> JcRawAssignInst(owner, intRef, JcRawInt(maxIntegerLength)) }
-            addInstruction { owner -> JcRawAssignInst(owner, fracRef, JcRawInt(maxFractionLength)) }
-
-            return validator
-        }
-    },
-
-    DateTimeFormat("DateTimeFormat", "org.hibernate.validator.internal.constraintvalidators.bv.PatternValidator") {
-        override fun initializeValidator(ctx: JcMethodNewBodyContext, annot: JcAnnotation?): JcRawLocalVar = with(ctx) {
-            val validator = initValidator(ctx)
-            val escapedRegexp = annot?.values?.get("pattern")?.let { it as? String }!!
-            val regRef = JcRawFieldRef(validator, validatorName.typeName, "escapedRegexp", JAVA_STRING.typeName)
-            addInstruction { owner -> JcRawAssignInst(owner, regRef, JcRawString(escapedRegexp)) }
-            return validator
-        }
-    };
+    fun initializeValidator(ctx: JcMethodNewBodyContext, annot: JcAnnotation?) =
+        if (annot == null || annot.values.isEmpty()) initValidator(ctx) else initializeValidatorWithBuilder(ctx, annot)
 
     fun initValidator(ctx: JcMethodNewBodyContext): JcRawLocalVar = with(ctx) {
         val typ = validatorName.typeName
+        val validator = putValueToVar(JcRawNewExpr(typ), typ)
 
-        val validator = newVar(typ)
-        val newValue = JcRawNewExpr(typ)
-        addInstruction { owner -> JcRawAssignInst(owner, validator, newValue) }
-
-        val callExpr = JcRawSpecialCallExpr(typ, JAVA_INIT, listOf(), JAVA_VOID.typeName, validator, listOf())
+        val callExpr = JcRawSpecialCallExpr(typ, JAVA_INIT, emptyList(), JAVA_VOID.typeName, validator, emptyList())
         addInstruction { owner -> JcRawCallInst(owner, callExpr) }
+
+        return validator
+    }
+
+    fun initializeValidatorWithBuilder(ctx: JcMethodNewBodyContext, annot: JcAnnotation): JcRawLocalVar = with(ctx) {
+        val builderType = "org.hibernate.validator.internal.util.annotation.AnnotationDescriptor\$Builder".typeName
+        val builder = putValueToVar(JcRawNewExpr(builderType), builderType)
+
+        val annotTyp = annot.jcClass!!.typename
+        val annotType = putValueToVar(JcRawClassConstant(annotTyp, JAVA_CLASS.typeName), JAVA_CLASS.typeName)
+
+        val builderInit = JcRawSpecialCallExpr(
+            builderType,
+            JAVA_INIT,
+            listOf(JAVA_CLASS.typeName),
+            JAVA_VOID.typeName,
+            builder,
+            listOf(annotType)
+        )
+        addInstruction { owner -> JcRawCallInst(owner, builderInit) }
+
+        annot.values.forEach { name, value ->
+            val nameVar = resolveRawObject(name)
+            val valueVar = resolveRawObject(value)
+
+            val callExpr = JcRawVirtualCallExpr(
+                builderType,
+                "setAttribute",
+                listOf(JAVA_STRING.typeName, JAVA_OBJECT.typeName),
+                JAVA_VOID.typeName,
+                builder,
+                listOf(nameVar, valueVar)
+            )
+            addInstruction { owner -> JcRawCallInst(owner, callExpr) }
+        }
+
+        val descriptorType = "org.hibernate.validator.internal.util.annotation.AnnotationDescriptor".typeName
+        val buildCall = JcRawVirtualCallExpr(
+            builderType,
+            "build",
+            listOf(),
+            descriptorType,
+            builder,
+            listOf()
+        )
+        val descriptor = putValueToVar(buildCall, descriptorType)
+
+        val javaAnnotType = "java.lang.annotation.Annotation".typeName
+        val createCall = JcRawStaticCallExpr(
+            "org.hibernate.validator.internal.util.annotation.AnnotationFactory".typeName,
+            "create",
+            listOf(descriptorType),
+            javaAnnotType,
+            listOf(descriptor)
+        )
+        val annotConst = putValueToVar(createCall, javaAnnotType)
+
+        val annotCasted = putValueToVar(JcRawCastExpr(annotTyp, annotConst), annotTyp)
+
+        val validator = initValidator(ctx)
+
+        val initCall = JcRawVirtualCallExpr(
+            validatorName.typeName,
+            "initialize",
+            listOf(annotTyp),
+            JAVA_VOID.typeName,
+            validator,
+            listOf(annotCasted)
+        )
+        addInstruction { owner -> JcRawCallInst(owner, initCall) }
 
         return validator
     }
