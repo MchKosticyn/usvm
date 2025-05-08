@@ -37,6 +37,7 @@ import org.usvm.jvm.util.toTypedMethod
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
 import org.jacodb.impl.types.JcTypeVariableImpl
 import org.jacodb.impl.types.TypeNameImpl
+import org.objectweb.asm.Opcodes
 import org.usvm.jvm.rendering.baseRenderer.JcTypeVariableExt.isRecursive
 
 abstract class JcCodeRenderer<T: Node>(
@@ -329,7 +330,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     open fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
-        check(ctor.isConstructor)
+        check(ctor.isConstructor) {
+            "not a constructor in renderConstructorCall"
+        }
         if (shouldRenderMethodCallAsPrivate(ctor))
             return renderPrivateCtorCall(ctor, type, args)
 
@@ -353,7 +356,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     open fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
-        check(!method.isStatic)
+        check(!method.isStatic) {
+            "cannot render static methods in renderMethodCall"
+        }
 
         if (shouldRenderMethodCallAsPrivate(method))
             return renderPrivateMethodCall(method, instance, args)
@@ -371,7 +376,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     open fun renderStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
-        check(method.isStatic)
+        check(method.isStatic) {
+            "cannot render instance method in renderStaticMethodCall"
+        }
 
         if (shouldRenderMethodCallAsPrivate(method))
             return renderPrivateStaticMethodCall(method, args)
@@ -386,10 +393,17 @@ abstract class JcCodeRenderer<T: Node>(
 
     protected fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>): List<Expression> {
         val typedParams = method.toTypedMethod.parameters
+        val isVarargMethod = method.access.and(Opcodes.ACC_VARARGS) != 0
 
-        check(args.size == typedParams.size)
-
-        return args.zip(typedParams).map { (arg, param) ->
+        check(args.size == typedParams.size || isVarargMethod) {
+            "args size != params size in call ${method.name} with ${args.joinToString(" ")}"
+        }
+        val extendedTypedParams = typedParams.toMutableList()
+        val extensionSize = args.size - typedParams.size
+        if (isVarargMethod && extensionSize > 0) {
+            extendedTypedParams.addAll(List(extensionSize) { typedParams.last() })
+        }
+        return args.zip(extendedTypedParams).map { (arg, param) ->
             exprWithGenericsCasted(param.type, arg)
         }
     }
@@ -426,7 +440,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     open fun renderGetStaticField(field: JcField): Expression {
-        check(field.isStatic)
+        check(field.isStatic) {
+            "cannot render instance field in renderGetStaticField"
+        }
 
         if (shouldRenderGetFieldAsPrivate(field))
             return renderGetPrivateStaticField(field)
@@ -442,7 +458,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     open fun renderGetField(instance: Expression, field: JcField): Expression {
-        check(!field.isStatic)
+        check(!field.isStatic) {
+            "cannot render static field in renderGetField"
+        }
 
         if (shouldRenderGetFieldAsPrivate(field))
             return renderGetPrivateField(instance, field)
@@ -462,7 +480,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     fun renderSetStaticField(field: JcField, value: Expression): Expression {
-        check(field.isStatic)
+        check(field.isStatic) {
+            "cannot render instance field in renderSetStaticField"
+        }
 
         if (shouldRenderSetFieldAsPrivate(field))
             return renderSetPrivateStaticField(field, value)
@@ -478,7 +498,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     fun renderSetField(instance: Expression, field: JcField, value: Expression): Expression {
-        check(!field.isStatic)
+        check(!field.isStatic) {
+            "cannot render static field in renderSetField"
+        }
 
         if (shouldRenderSetFieldAsPrivate(field))
             return renderSetPrivateField(instance, field, value)

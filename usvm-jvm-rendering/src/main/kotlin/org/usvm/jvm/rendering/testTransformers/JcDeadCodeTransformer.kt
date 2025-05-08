@@ -145,7 +145,9 @@ class JcDeadCodeTransformer: JcTestTransformer() {
         do {
             clone.clear()
             clone.addAll(reachable)
-            check(clone.size == reachable.size)
+            check(clone.size == reachable.size) {
+                "clone is not the size of reachable"
+            }
             ReachabilityCollector(roots, reachable).visit(test)
         } while (clone.size != reachable.size)
     }

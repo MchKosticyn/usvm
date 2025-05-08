@@ -42,20 +42,26 @@ class SpringRequestBuilder private constructor(
         ): SpringRequestBuilder {
             val requestMethodName = method.name.lowercase()
             val staticMethod = cp.findJcMethod(MOCK_MVC_REQUEST_BUILDERS_CLASS, requestMethodName)
-            val initDSL = mutableListOf<UTestInst>()
-            val pathArgs = pathVariables.map { it }
-            val pathArgsArray = UTestCreateArrayExpression(cp.stringType, UTestIntExpression(pathArgs.size, cp.int))
-            val pathArgsInitializer = List(pathArgs.size) {
-                UTestArraySetStatement(
-                    pathArgsArray,
-                    UTestIntExpression(it, cp.int),
-                    pathArgs[it]
-                )
-            }
-            initDSL.addAll(pathArgsInitializer)
+
             val argsDSL = mutableListOf<UTestExpression>()
             argsDSL.add(path)
-            argsDSL.add(pathArgsArray)
+
+            val initDSL = mutableListOf<UTestInst>()
+
+            if (pathVariables.isNotEmpty()) {
+                val pathArgs = pathVariables.map { it }
+                val pathArgsArray = UTestCreateArrayExpression(cp.stringType, UTestIntExpression(pathArgs.size, cp.int))
+                val pathArgsInitializer = List(pathArgs.size) {
+                    UTestArraySetStatement(
+                        pathArgsArray,
+                        UTestIntExpression(it, cp.int),
+                        pathArgs[it]
+                    )
+                }
+                initDSL.addAll(pathArgsInitializer)
+                argsDSL.add(pathArgsArray)
+            }
+
             return SpringRequestBuilder(
                 initStatements = initDSL,
                 reqDSL = UTestStaticMethodCall(staticMethod, argsDSL),

@@ -69,7 +69,9 @@ class SpringTestExecBuilder private constructor(
                 generatedTestClass.findDeclaredFieldOrNull("mockMvc")
                     ?: JcSpringTestClassesFeature.addAutowireField(mockMvcType)
 
-            check(generatedTestClass.findDeclaredFieldOrNull("mockMvc") != null)
+            check(generatedTestClass.findDeclaredFieldOrNull("mockMvc") != null) {
+                "mockMvc field should be declared for generated test class"
+            }
 
             val mockMvc = UTestGetFieldExpression(
                 instance = generatedClassCtorCall,
