@@ -444,22 +444,26 @@ class JcSpringMethodApproximationResolver (
     }
 
     private fun approximateSpringRepositoryMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        if (methodCall.returnSite is JcMockMethodInvokeResult)
-            return false
+        if (jcSpringMachineOptions.springAnalysisMode == SpringAnalysisMode.WebMVCTest) {
+            if (methodCall.returnSite is JcMockMethodInvokeResult)
+                return false
 
-        println("[Mocked] Mocked repository method")
-        scope.doWithState {
-            this as JcSpringState
-            val postProcessInst = JcMockMethodInvokeResult(methodCall)
-            newStmt(JcConcreteMethodCallInst(location, method, arguments, postProcessInst))
+            println("[Mocked] Mocked repository method")
+            scope.doWithState {
+                this as JcSpringState
+                val postProcessInst = JcMockMethodInvokeResult(methodCall)
+                newStmt(JcConcreteMethodCallInst(location, method, arguments, postProcessInst))
+            }
+
+            return true
         }
 
-        return true
+        return false
     }
 
     private fun approximateSpringServiceMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        val returnType = ctx.cp.findType(methodCall.method.returnType.typeName)
         if (jcSpringMachineOptions.springAnalysisMode == SpringAnalysisMode.WebMVCTest) {
+            val returnType = ctx.cp.findType(methodCall.method.returnType.typeName)
             val mockedValue: UExpr<out USort>
             val mockedValueType: JcType
             when (returnType) {
