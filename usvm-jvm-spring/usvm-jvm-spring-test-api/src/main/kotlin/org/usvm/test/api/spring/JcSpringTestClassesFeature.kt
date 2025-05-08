@@ -19,15 +19,27 @@ import org.jacodb.impl.types.AnnotationInfo
 import org.usvm.jvm.util.getTypename
 import org.jacodb.api.jvm.ext.CONSTRUCTOR
 import org.jacodb.impl.features.classpaths.VirtualLocation
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualClass
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethod
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualParameter
+import org.jacodb.impl.types.AnnotationValue
+import org.jacodb.impl.types.AnnotationValueList
+import org.jacodb.impl.types.ClassRef
+import org.jacodb.impl.types.EnumRef
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.Opcodes
+import org.usvm.jvm.util.typename
 
-object JcSpringTestClassesFeature: JcClasspathExtFeature {
+class JcSpringTestClassesFeature: JcClasspathExtFeature {
 
-    const val DEFAULT_TEST_CLASS_NAME = "org.usvm.test.api.spring.TestClass"
+    private lateinit var cp: JcClasspath
+
+    private fun bind(classpath: JcClasspath) {
+        cp = classpath
+        val mockitoClasses = VirtualMockito.classesIn(cp)
+        classes.addAll(mockitoClasses)
+    }
 
     private class JcVirtualAnnotatedField(
         name: String,
@@ -59,74 +71,86 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
             return super.declaredFields + attachedFields
         }
     }
+    companion object {
+        private const val MOCK_BEAN_NAME = "org.springframework.boot.test.mock.mockito.MockBean"
 
-    private const val MOCK_BEAN_NAME = "org.springframework.boot.test.mock.mockito.MockBean"
+        private const val AUTOWIRE_NAME = "org.springframework.beans.factory.annotation.Autowired"
 
-    private const val AUTOWIRE_NAME = "org.springframework.beans.factory.annotation.Autowired"
+        private const val WEB_MVC_TEST = "org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest"
 
-    private val JcClasspath.mockBeanAnnotation: JcAnnotation get() {
-        val annotationInfo = AnnotationInfo(
-            className = MOCK_BEAN_NAME,
-            visible = true,
-            values = emptyList(),
-            typeRef = null,
-            typePath = null
+        private const val COMPONENT_SCAN_FILTER_NAME = "org.springframework.context.annotation.ComponentScan\$Filter"
+
+        private const val FILTER_TYPE_NAME = "org.springframework.context.annotation.FilterType"
+
+        private const val FILTER_ASSIGNABLE_TYPE = "ASSIGNABLE_TYPE"
+
+        private const val WEB_SECURITY_CONFIGURER_NAME =
+            "org.springframework.security.config.annotation.web.WebSecurityConfigurer"
+
+        private val securityExcludedConfigurations = listOf(
+            "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
+            "org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration",
+            "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration",
+            "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration"
         )
-        return JcAnnotationImpl(annotationInfo, this)
+
+
+        private val JcClasspath.mockBeanAnnotation: JcAnnotation
+            get() {
+                val annotationInfo = AnnotationInfo(
+                    className = MOCK_BEAN_NAME,
+                    visible = true,
+                    values = emptyList(),
+                    typeRef = null,
+                    typePath = null
+                )
+                return JcAnnotationImpl(annotationInfo, this)
+            }
+
+        private val JcClasspath.autowireAnnotation: JcAnnotation
+            get() {
+                val annotationInfo = AnnotationInfo(
+                    className = AUTOWIRE_NAME,
+                    visible = true,
+                    values = emptyList(),
+                    typeRef = null,
+                    typePath = null
+                )
+
+                return JcAnnotationImpl(annotationInfo, this)
+            }
     }
 
-    private val JcClasspath.autowireAnnotation: JcAnnotation get() {
-        val annotationInfo = AnnotationInfo(
-            className = AUTOWIRE_NAME,
-            visible = true,
-            values = emptyList(),
-            typeRef = null,
-            typePath = null
-        )
-        return JcAnnotationImpl(annotationInfo, this)
-    }
-
-    private val testClassCtor by lazy {
-        JcVirtualMethodImpl(
+    fun testClassFor(name: String, controller: JcClassOrInterface): JcClassOrInterface {
+        val testClassCtor = JcVirtualMethodImpl(
             name = CONSTRUCTOR,
             returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
             parameters = emptyList(),
             description = ""
         )
-    }
 
-    private val testClassIgnoreResultMethod by lazy {
-        JcVirtualMethodImpl(
+        val testClassIgnoreResultMethod = JcVirtualMethodImpl(
             name = "ignoreResult",
             returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
             parameters = listOf(JcVirtualParameter(0, TypeNameImpl.fromTypeName("java.lang.Object"))),
             description = "",
             access = Opcodes.ACC_PUBLIC.or(Opcodes.ACC_STATIC)
         )
-    }
 
-    /* TODO: add security disable annotations
-        @WebMvcTest(excludeFilters = {@ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, value = WebSecurityConfigurer.class)},
-            excludeAutoConfiguration = {SecurityAutoConfiguration.class,
-                                        SecurityFilterAutoConfiguration.class,
-                                        OAuth2ClientAutoConfiguration.class,
-                                        OAuth2ResourceServerAutoConfiguration.class})
-     */
-
-    private lateinit var defaultTestClassClasspath: JcClasspath
-
-    private val defaultTestClass by lazy {
         val virtualClass = JcVirtualAnnotatedClass(
-            DEFAULT_TEST_CLASS_NAME,
+            name,
             initialFields = listOf(),
             initialMethods = listOf(testClassCtor, testClassIgnoreResultMethod),
-            annotations = emptyList()
+            annotations = listOf(mockMvcAnnotationFor(controller))
         )
-        virtualClass.bind(defaultTestClassClasspath, VirtualLocation())
-        virtualClass
+
+        virtualClass.bind(controller.classpath, VirtualLocation())
+        classes.add(virtualClass)
+
+        return virtualClass
     }
 
-    private fun addTestClassField(fieldType: JcType, name: String? = null, annotation: JcAnnotation? = null): JcField {
+    private fun addTestClassField(targetClass: JcClassOrInterface, fieldType: JcType, name: String? = null, annotation: JcAnnotation? = null): JcField {
         val fieldName = name ?: (fieldType as JcClassType).jcClass.simpleName.decapitalized
         val annotations = if (annotation != null) listOf(annotation) else emptyList()
         val field = JcVirtualAnnotatedField(
@@ -134,34 +158,81 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
             type = fieldType.getTypename(),
             annotations = annotations,
         )
-        field.bind(defaultTestClass)
+        field.bind(targetClass)
 
         return field
     }
 
-    fun addAutowireField(fieldType: JcType, name: String? = null): JcField {
-        return addTestClassField(fieldType, name, fieldType.classpath.autowireAnnotation)
+    fun addAutowireField(targetClass: JcClassOrInterface, fieldType: JcType, name: String? = null): JcField {
+        return addTestClassField(targetClass, fieldType, name, fieldType.classpath.autowireAnnotation)
     }
 
-    fun addMockBeanField(fieldType: JcType, name: String? = null): JcField {
-        return addTestClassField(fieldType, name, fieldType.classpath.mockBeanAnnotation)
+    fun addMockBeanField(targetClass: JcClassOrInterface, fieldType: JcType, name: String? = null): JcField {
+        return addTestClassField(targetClass, fieldType, name, fieldType.classpath.mockBeanAnnotation)
     }
 
-    private val classes by lazy {
-        setOf(
-            VirtualMockito.mockito,
-            VirtualMockito.ongoingStubbing,
-            VirtualMockito.argumentMatcher,
-            defaultTestClass
+    private val mockMvcSecurityExtraValues: List<Pair<String, AnnotationValue>> get() {
+
+        val filterAnnotation = AnnotationInfo(
+            className = COMPONENT_SCAN_FILTER_NAME,
+            visible = true,
+            values = listOf(
+                "type" to EnumRef(FILTER_TYPE_NAME, FILTER_ASSIGNABLE_TYPE),
+                "value" to ClassRef(WEB_SECURITY_CONFIGURER_NAME)
+            ),
+            typeRef = null,
+            typePath = null
         )
+
+        val excludeFilters = AnnotationValueList(listOf(filterAnnotation))
+
+        val excludeAutoConfiguration = AnnotationValueList(
+            securityExcludedConfigurations.map { className ->
+                ClassRef(className)
+            }
+        )
+
+        val securityExtra = listOf(
+            "excludeFilters" to excludeFilters,
+            "excludeAutoConfiguration" to excludeAutoConfiguration
+        )
+        return securityExtra
     }
+
+    private fun mockMvcAnnotationFor(controller: JcClassOrInterface): JcAnnotation {
+        val annotationValues = mutableListOf<Pair<String, AnnotationValue>>("value" to ClassRef(controller.typename.typeName))
+        val securityEnabled = controller.classpath.findClassOrNull(WEB_SECURITY_CONFIGURER_NAME) != null
+
+        if (securityEnabled) {
+            annotationValues.addAll(mockMvcSecurityExtraValues)
+        }
+
+        val annotationInfo = AnnotationInfo(
+            className = WEB_MVC_TEST,
+            visible = true,
+            values = annotationValues,
+            typeRef = null,
+            typePath = null
+        )
+
+        return JcAnnotationImpl(annotationInfo, controller.classpath)
+    }
+
+    private val classes: MutableSet<JcVirtualClass> = mutableSetOf()
 
     override fun tryFindClass(classpath: JcClasspath, name: String): JcResolvedClassResult? {
-        if (!this::defaultTestClassClasspath.isInitialized) {
-            defaultTestClassClasspath = classpath
-            VirtualMockito.useIn(classpath)
+        if (!this::cp.isInitialized) {
+            bind(classpath)
         }
 
         return classes.find { it.name == name }?.let { AbstractJcResolvedResult.JcResolvedClassResultImpl(name, it) }
     }
+}
+
+fun getSpringTestClassesFeatureIn(cp: JcClasspath): JcSpringTestClassesFeature {
+    val testClassesFeature = cp.features?.filterIsInstance<JcSpringTestClassesFeature>()?.singleOrNull()
+    check(testClassesFeature != null) {
+        "JcSpringTestClassesFeature required in classpath"
+    }
+    return testClassesFeature
 }

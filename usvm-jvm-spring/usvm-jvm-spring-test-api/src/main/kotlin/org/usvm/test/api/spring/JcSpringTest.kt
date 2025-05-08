@@ -19,25 +19,32 @@ class ResolvedSpringException(
 ) : SpringException()
 
 class JcSpringTestBuilder(
+    private val controller: JcClassOrInterface,
     private val request: JcSpringRequest
 ) {
     private var response: JcSpringResponse? = null
     private var exception: SpringException? = null
     private var generatedTestClass: JcClassOrInterface? = null
+    private var generatedTestClassName: String? = null
     private var mocks: MutableList<JcMockBean> = mutableListOf()
 
     fun withResponse(response: JcSpringResponse) = apply { this.response = response }
     fun withException(exception: SpringException) = apply { this.exception = exception }
     fun withGeneratedTestClass(testClass: JcClassOrInterface) = apply { this.generatedTestClass = testClass }
+    fun withGeneratedTestClassName(name: String) = apply { this.generatedTestClassName = name }
     fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks.toMutableList() }
 
-    private fun findTestClass(cp: JcClasspath): JcClassOrInterface {
-        check(cp.features?.contains(JcSpringTestClassesFeature) == true) {
-            "JcSpringTestClassesFeature required in classpath"
-        }
+    private fun makeTestClassName(): String {
+        return "${controller.name}_mvc_testClass"
+    }
 
-        return cp.findClassOrNull(JcSpringTestClassesFeature.DEFAULT_TEST_CLASS_NAME)
-            ?: error("test class not found")
+    private fun findTestClass(cp: JcClasspath): JcClassOrInterface {
+        val testClassesFeature = getSpringTestClassesFeatureIn(cp)
+
+        val testClassName = generatedTestClassName ?: makeTestClassName()
+        testClassesFeature.testClassFor(testClassName, controller)
+
+        return cp.findClassOrNull(testClassName) ?: error("test class not found")
     }
 
     fun build(cp: JcClasspath): JcSpringTest {

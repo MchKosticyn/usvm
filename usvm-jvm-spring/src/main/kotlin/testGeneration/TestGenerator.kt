@@ -55,7 +55,21 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
     val mocks = getSpringMocks(mockedMethodCalls, exprResolver)
     val testClass = getGeneratedTestClass(ctx.cp)
 
-    var jcSpringTest = JcSpringTestBuilder(request)
+    val reqPath = pinnedValues.getValue(JcPinnedKey.requestPath())
+        ?: error("Request path is not found in pinned values")
+    val pathString = (exprResolver.resolvePinnedValue(reqPath) as UTString).value
+    val reqMethod = pinnedValues.getValue(JcPinnedKey.requestMethod())
+        ?: error("Request method is not found in pinned values")
+    val methodString = (exprResolver.resolvePinnedValue(reqMethod) as UTString).value
+    val handler = handlerData.find {
+        it.pathTemplate == pathString && it.allowedMethods.contains(methodString)
+    }?.handler
+
+    check(handler != null) { "Could not infer handler method of path" }
+
+    val controller = handler.enclosingClass
+
+    var jcSpringTest = JcSpringTestBuilder(controller, request)
         .withMocks(mocks)
         .withGeneratedTestClass(testClass)
 
@@ -71,18 +85,7 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
     val uTest = jcSpringTest.build(ctx.cp)
         .generateTestDSL { exprResolver.getInstructions() }
 
-    val reqPath = pinnedValues.getValue(JcPinnedKey.requestPath())
-        ?: error("Request path is not found in pinned values")
-    val pathString = (exprResolver.resolvePinnedValue(reqPath) as UTString).value
-    val reqMethod = pinnedValues.getValue(JcPinnedKey.requestMethod())
-        ?: error("Request method is not found in pinned values")
-    val methodString = (exprResolver.resolvePinnedValue(reqMethod) as UTString).value
-    val method = handlerData.find {
-        it.pathTemplate == pathString && it.allowedMethods.contains(methodString)
-    }?.handler
-    check(method != null) { "Could not infer handler method of path" }
-
-    return SpringTestInfo(method, isExceptional, uTest)
+    return SpringTestInfo(handler, isExceptional, uTest)
 }
 
 private fun getSpringException(

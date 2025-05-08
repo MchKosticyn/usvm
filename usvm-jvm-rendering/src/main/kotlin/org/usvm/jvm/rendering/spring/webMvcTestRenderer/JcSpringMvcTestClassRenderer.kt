@@ -2,10 +2,8 @@ package org.usvm.jvm.rendering.spring.webMvcTestRenderer
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
-import com.github.javaparser.ast.expr.ClassExpr
-import com.github.javaparser.ast.expr.Name
 import com.github.javaparser.ast.expr.SimpleName
-import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
@@ -19,6 +17,8 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
 
     private val controller: JcClassType
 
+    private lateinit var testClass: JcClassOrInterface
+
     constructor(
         controller: JcClassType,
         name: String,
@@ -27,7 +27,6 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         cp: JcClasspath
     ) : super(name, importManager, identifiersManager, cp) {
         this.controller = controller
-        addAnnotation(webMvcAnnotation())
     }
 
     constructor(
@@ -38,15 +37,6 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         cp: JcClasspath
     ) : super(decl, importManager, identifiersManager, cp) {
         this.controller = controller
-        addAnnotation(webMvcAnnotation())
-    }
-
-    private fun webMvcAnnotation(): AnnotationExpr {
-        val webMvcTestClass = renderClass("org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest")
-        val ctlClassExpr: ClassExpr = renderClassExpression(controller) as ClassExpr
-        val annotation = SingleMemberAnnotationExpr(Name(webMvcTestClass.nameWithScope), ctlClassExpr)
-
-        return annotation
     }
 
     override fun createTestRenderer(
@@ -57,6 +47,15 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
     ): JcTestRenderer {
         val mvcTransformer = JcSpringMvcTestTransformer()
         val transformedTest = mvcTransformer.transform(test)
+
+        if (!this::testClass.isInitialized) {
+            testClass = mvcTransformer.testClass
+        } else {
+            check(testClass == mvcTransformer.testClass) {
+                "only one test class expected for class renderer"
+            }
+        }
+
         return JcSpringMvcTestRenderer(
             transformedTest,
             this,
@@ -67,5 +66,15 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
             testAnnotation,
             mvcTransformer.testClass
         )
+    }
+
+    override fun renderInternal(): ClassOrInterfaceDeclaration {
+        check(this::testClass.isInitialized) {
+            "test class expected in class renderer"
+        }
+
+        testClass.annotations.forEach { annotation -> addAnnotation(annotation) }
+
+        return super.renderInternal()
     }
 }

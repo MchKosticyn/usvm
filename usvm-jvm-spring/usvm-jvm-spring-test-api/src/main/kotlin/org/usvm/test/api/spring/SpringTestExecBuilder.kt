@@ -67,7 +67,7 @@ class SpringTestExecBuilder private constructor(
             val mockMvcType = cp.findTypeOrNull(MOCK_MVC_NAME) ?: error("MockMvc type not found")
             val mockMvcField =
                 generatedTestClass.findDeclaredFieldOrNull("mockMvc")
-                    ?: JcSpringTestClassesFeature.addAutowireField(mockMvcType)
+                    ?: getSpringTestClassesFeatureIn(cp).addAutowireField(generatedTestClass, mockMvcType)
 
             check(generatedTestClass.findDeclaredFieldOrNull("mockMvc") != null) {
                 "mockMvc field should be declared for generated test class"
