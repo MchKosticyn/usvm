@@ -2,11 +2,13 @@ package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.int
 import org.usvm.jvm.util.stringType
 import org.usvm.test.api.UTestArraySetStatement
 import org.usvm.test.api.UTestCreateArrayExpression
 import org.usvm.test.api.UTestExpression
+import org.usvm.test.api.UTestGetStaticFieldExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestMethodCall
@@ -92,7 +94,15 @@ class SpringRequestBuilder private constructor(
         return this
     }
 
-    fun addContentType(contentType: UTAny): SpringRequestBuilder {
+    private fun mediaTypeOfName(name: UTString): UTestGetStaticFieldExpression {
+        val mediaTypeClass = cp.findClass("org.springframework.http.MediaType")
+        val fieldName = name.value
+        val field = mediaTypeClass.declaredFields.single { it.name == fieldName }
+        check(field.isStatic)
+        return UTestGetStaticFieldExpression(field)
+    }
+
+    fun addContentType(contentTypeName: UTString): SpringRequestBuilder {
         val method = cp.findJcMethod(
             MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS,
             "contentType",
@@ -101,7 +111,7 @@ class SpringRequestBuilder private constructor(
         reqDSL = UTestMethodCall(
             instance = reqDSL,
             method = method,
-            args = listOf(contentType),
+            args = listOf(mediaTypeOfName(contentTypeName)),
         )
         return this
     }
