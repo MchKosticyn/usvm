@@ -31,6 +31,7 @@ import org.usvm.jvm.util.write
 import util.database.JcMethodNewBodyContext
 import util.database.JcTableInfoCollector
 import util.database.TableInfo
+import util.database.putValueToVar
 import java.io.File
 
 class DatabaseGenerator(
@@ -110,21 +111,17 @@ private fun JcMethodNewBodyContext.generateFieldInitialize(
 
     val tblType = table.approximateManagerClassName.typeName
 
-    val newTblVar = newVar(tblType)
-    val newTbl = JcRawNewExpr(tblType)
-    addInstruction { owner -> JcRawAssignInst(owner, newTblVar, newTbl) }
+    val newTblVar = putValueToVar(JcRawNewExpr(tblType), tblType)
 
-    val typeArrVar = newVar("java.lang.Class[]".typeName)
-    val newTypeArr = JcRawNewArrayExpr(JAVA_CLASS.typeName, listOf(JcRawInt(allColumns.count())))
-    addInstruction { owner -> JcRawAssignInst(owner, typeArrVar, newTypeArr) }
+    val typeArrVar = putValueToVar(
+        JcRawNewArrayExpr(JAVA_CLASS.typeName, listOf(JcRawInt(allColumns.count()))),
+        "java.lang.Class[]".typeName
+    )
 
     allColumns.forEachIndexed { index, col ->
-        val typeVar = newVar(JAVA_CLASS.typeName)
-        val typ = JcRawClassConstant(col.type, JAVA_CLASS.typeName)
-        addInstruction { owner -> JcRawAssignInst(owner, typeVar, typ) }
-
+        val typeVar = putValueToVar(JcRawClassConstant(col.type, JAVA_CLASS.typeName), JAVA_CLASS.typeName)
         val arrAcc = JcRawArrayAccess(typeArrVar, JcRawInt(index), JAVA_CLASS.typeName)
-        addInstruction { owner -> JcRawAssignInst(owner, arrAcc, typ) }
+        addInstruction { owner -> JcRawAssignInst(owner, arrAcc, typeVar) }
     }
 
     val initMethod = cp.findClass(table.approximateManagerClassName)
@@ -154,16 +151,18 @@ private fun JcMethodNewBodyContext.generateValidators(
 ): JcRawLocalVar {
     val contValidatorName = "jakarta.validation.ConstraintValidator"
 
-    val tableValidators = newVar("${contValidatorName}[][]".typeName)
-    val tblVInit = JcRawNewArrayExpr("${contValidatorName}[][]".typeName, listOf(JcRawInt(table.columns.size)))
-    addInstruction { owner -> JcRawAssignInst(owner, tableValidators, tblVInit) }
+    val tableValidators = putValueToVar(
+        JcRawNewArrayExpr("${contValidatorName}[][]".typeName, listOf(JcRawInt(table.columns.size))),
+        "${contValidatorName}[][]".typeName
+    )
 
     table.columnsInOrder().forEachIndexed { ix, col ->
         val validators = col.validators
 
-        val validatorsArr = newVar("${contValidatorName}[]".typeName)
-        val vsInit = JcRawNewArrayExpr(contValidatorName.typeName, listOf(JcRawInt(validators.size)))
-        addInstruction { owner -> JcRawAssignInst(owner, validatorsArr, vsInit) }
+        val validatorsArr = putValueToVar(
+            JcRawNewArrayExpr(contValidatorName.typeName, listOf(JcRawInt(validators.size))),
+            "${contValidatorName}[]".typeName
+        )
 
         validators.forEachIndexed { valIx, (annot, validator) ->
             val valid = validator.initializeValidator(this, annot)

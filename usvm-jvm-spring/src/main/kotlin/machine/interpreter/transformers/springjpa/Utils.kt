@@ -83,7 +83,10 @@ const val JAVA_CLASS = "java.lang.Class"
 
 const val JAVA_INTEGER = "java.lang.Integer"
 const val JAVA_BOOL = "java.lang.Boolean"
+const val JAVA_BYTE = "java.lang.Byte"
+const val JAVA_CHAR = "java.lang.Character"
 const val JAVA_LONG = "java.lang.Long"
+const val JAVA_SHORT = "java.lang.Short"
 const val JAVA_FLOAT = "java.lang.Float"
 const val JAVA_DOUBLE = "java.lang.Double"
 
