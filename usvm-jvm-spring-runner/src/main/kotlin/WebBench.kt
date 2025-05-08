@@ -266,45 +266,55 @@ private fun disableSecurity(testClassNode: ClassNode) {
     )
 }
 
-private fun generateTestClass(benchmark: BenchCp): BenchCp {
+private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpringMachineOptions): BenchCp {
     val cp = benchmark.cp
 
     val springDirFile = File(System.getenv("springDir"))
     check(springDirFile.exists()) { "Generated directory ${springDirFile.absolutePath} does not exist" }
-
-    val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
     val nonAbstractClasses = cp.nonAbstractClasses(benchmark.classLocations)
-    val repositories = runBlocking { cp.hierarchyExt() }
-        .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
-        .filter { benchmark.classLocations.contains(it.declaration.location.jcLocation) }
-        .toList() + allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Repository")
-    val services = allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Service")
-    val mockBeans = repositories + services
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
-
-    val webApplicationPackage = allByAnnotation(nonAbstractClasses, "org.springframework.boot.autoconfigure.SpringBootApplication")
-        .firstOrNull()?.packageName
-        ?: throw IllegalArgumentException("No entry classes found (with SpringBootApplication annotation)")
-
-    val entryPackagePath = webApplicationPackage.replace('.', '/')
-
+    val applicationClass = allByAnnotation(
+        nonAbstractClasses,
+        "org.springframework.boot.autoconfigure.SpringBootApplication"
+    ).firstOrNull() ?: error("No entry classes found (with SpringBootApplication annotation)")
+    val entryPackagePath = applicationClass.packageName.replace('.', '/')
     val testClassName = "StartSpringTestClass"
     val testClassFullName = "$entryPackagePath/$testClassName"
+    val classLocations = benchmark.classLocations
+
+    val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
+    val repositories = runBlocking { cp.hierarchyExt() }
+        .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
+        .filter { classLocations.contains(it.declaration.location.jcLocation) }
+        .toList() + allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Repository")
 
     testClass.withAsmNode { classNode ->
         classNode.name = testClassFullName
-        val mockBeanAnnotationName = "org.springframework.boot.test.mock.mockito.MockBean".jvmName()
-        mockBeans.forEach { mockBeanType ->
-            val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
-            val field = FieldNode(Opcodes.ACC_PRIVATE, name, mockBeanType.jvmDescriptor, null, null)
-            field.visibleAnnotations = listOf(AnnotationNode(mockBeanAnnotationName))
-            classNode.fields.add(field)
-        }
 
-        if (enableSecurity) {
-            addSecurityConfigs(classNode, nonAbstractClasses)
-        } else {
-            disableSecurity(classNode)
+        when (jcSpringMachineOptions.springAnalysisMode) {
+            SpringAnalysisMode.WebMVCTest -> {
+                val webMvcTestAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest".jvmName())
+                classNode.visibleAnnotations.add(webMvcTestAnnotation)
+                val mockBeanAnnotationName = "org.springframework.boot.test.mock.mockito.MockBean".jvmName()
+                val services = allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Service")
+                val mockBeans = repositories + services
+                mockBeans.forEach { mockBeanType ->
+                    val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
+                    val field = FieldNode(Opcodes.ACC_PRIVATE, name, mockBeanType.jvmDescriptor, null, null)
+                    field.visibleAnnotations = listOf(AnnotationNode(mockBeanAnnotationName))
+                    classNode.fields.add(field)
+                }
+
+                if (enableSecurity) {
+                    addSecurityConfigs(classNode, nonAbstractClasses)
+                } else {
+                    disableSecurity(classNode)
+                }
+            }
+            SpringAnalysisMode.SpringBootTest -> {
+                val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
+                classNode.visibleAnnotations.add(sprintBootTestAnnotation)
+            }
         }
 
         classNode.write(cp, springDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
@@ -342,7 +352,11 @@ private fun generateTestClass(benchmark: BenchCp): BenchCp {
 }
 
 private fun analyzeBench(benchmark: BenchCp) {
-    val newBench = generateTestClass(benchmark)
+    val jcSpringMachineOptions = JcSpringMachineOptions(
+        springAnalysisMode = SpringAnalysisMode.SpringBootTest
+    )
+
+    val newBench = generateTestClass(benchmark, jcSpringMachineOptions)
     val cp = newBench.cp
     val nonAbstractClasses = cp.nonAbstractClasses(newBench.classLocations)
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
@@ -367,9 +381,6 @@ private fun analyzeBench(benchmark: BenchCp) {
     val jcConcreteMachineOptions = JcConcreteMachineOptions(
         projectLocations = newBench.classLocations,
         dependenciesLocations = newBench.depsLocations,
-    )
-    val jcSpringMachineOptions = JcSpringMachineOptions(
-        springAnalysisMode = SpringAnalysisMode.WebMVCTest
     )
 
     val testObserver = JcSpringTestObserver()
