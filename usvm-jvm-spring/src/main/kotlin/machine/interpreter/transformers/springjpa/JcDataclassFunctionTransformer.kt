@@ -267,23 +267,20 @@ class JcFetchedInitTransformer(
 
         classTable.orderedRelations().forEachIndexed { ix, rel ->
             val relTblName = rel.toTableName(cp)
+            val relClass = rel.relatedDataclass(cp)
 
-            val tblField = cp.findType(DATABASES).let { it as JcClassType }
-                .declaredFields.single { it.name == relTblName }
-            val tblV = nextLocalVar("fetchTbl$ix", cp.findType(ITABLE))
-            val tblRef = JcFieldRef(null, tblField)
-            addInstruction { loc -> JcAssignInst(loc, tblV, tblRef) }
+            val tblField = generateGlobalTable(cp, "fetch_tbl_$ix", relTblName, relClass)
 
             val fetchInit = rel.relatedDataclass(cp).declaredMethods.single {
                 it.name == STATIC_INIT_NAME
             }
 
-            val typeVar = nextLocalVar("fetchType$ix", cTyp)
+            val typeVar = nextLocalVar("fetch_type_$ix", cTyp)
             val type = JcClassConstant(rel.relatedDataclassType(cp), cTyp)
             addInstruction { loc -> JcAssignInst(loc, typeVar, type) }
 
-            val const = generateLambda(cp, "initMapper$ix", fetchInit)
-            val mapped = generateNewWithInit("mappedFecth$ix", mapType, listOf(tblV, const, typeVar))
+            val const = generateLambda(cp, "init_mapper_$ix", fetchInit)
+            val mapped = generateNewWithInit("mapped_fecth_$ix", mapType, listOf(tblField, const, typeVar))
 
             when (rel) {
                 is Relation.OneToOne, is Relation.ManyToOne ->
@@ -456,7 +453,7 @@ abstract class JcSaveUpdateDeleteTransformer(
 
         generateVoidVirtualCall("add", ctxType, ctxVar, listOf(objVar))
 
-        val casted = generateGlobalTable(cp, "tbl", getTableName(clazz))
+        val casted = generateGlobalTable(cp, "tbl", getTableName(clazz), clazz)
 
         val serializer = clazz.declaredMethods.single { it.generatedStaticSerializerWithSkips }
         val serLmbd = generateLambda(cp, "serilizer", serializer)
@@ -483,7 +480,7 @@ abstract class JcSaveUpdateDeleteTransformer(
             val nameSuffix = "${subClass.simpleName}_${ix++}"
 
             val subType = subClass.toType()
-            val subTableField = generateGlobalTable(cp, nameSuffix, getTableName(subClass))
+            val subTableField = generateGlobalTable(cp, nameSuffix, getTableName(subClass), subClass)
 
             val subSaveUpd = subType.declaredMethods.single { it.method.generatedSaveUpdate }
             val subDel = subType.declaredMethods.single { it.method.generatedDelete }
@@ -512,7 +509,7 @@ abstract class JcSaveUpdateDeleteTransformer(
                 is Relation.OneToOne, is Relation.ManyToOne -> {
                     if (modifyCtxFlags) generateVoidVirtualCall(SET_REC_UPD, ctxType, ctxVar, listOf(allowRecUpdate))
                     generateVoidStaticCall(SAVE_UPDATE_NAME, subClass, listOf(field, ctxVar))
-                    val tbl = generateGlobalTable(cp, "tbl_$ix", getTableName(clazz))
+                    val tbl = generateGlobalTable(cp, "tbl_$ix", getTableName(clazz), clazz)
                     val pos = JcInt(classTable.indexOfField(rel.origField), cp.int)
                     assert(pos.value != -1)
                     val subId = generateVirtualCall("b${ix}_id", "getId", manyManager, manager, listOf(field))
@@ -545,7 +542,7 @@ abstract class JcSaveUpdateDeleteTransformer(
                         generateVoidVirtualCall(SET_REC_UPD, manyManager, manager, listOf(allowRecUpd))
                         generateVoidVirtualCall(SUD_SET_SHOULD_SHUFFLE, manyManager, manager, listOf(shuffle))
                     }
-                    val join = generateGlobalTable(cp, "join_$ix", joinTable.name, true)
+                    val join = generateGlobalTable(cp, "join_$ix", joinTable.name, null)
                     generateVoidVirtualCall(SUD_SAVE_WITH_TABLE, manyManager, manager, listOf(field, join))
                 }
             }

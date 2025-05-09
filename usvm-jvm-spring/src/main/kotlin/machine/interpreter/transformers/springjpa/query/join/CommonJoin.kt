@@ -5,6 +5,7 @@ import machine.interpreter.transformers.springjpa.JAVA_OBJ_ARR
 import machine.interpreter.transformers.springjpa.JcBodyFillerFeature
 import machine.interpreter.transformers.springjpa.JcMethodBuilder
 import machine.interpreter.transformers.springjpa.REPOSITORY_LAMBDA
+import machine.interpreter.transformers.springjpa.generateGlobalTable
 import machine.interpreter.transformers.springjpa.generateLambda
 import machine.interpreter.transformers.springjpa.generateNewWithInit
 import machine.interpreter.transformers.springjpa.generatedStaticSerializer
@@ -19,7 +20,6 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcBool
-import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcReturnInst
@@ -95,11 +95,7 @@ abstract class CommonJoin(
         val targetName = target.applyAliases(ctx.common)
         val targetTbl = ctx.common.collector.getTableByPartName(targetName).single() // it must be single
 
-        val field = ctx.common.databases.declaredFields.single { it.name == targetTbl.name }
-
-        val tbl = ctx.genCtx.nextLocalVar(targetTbl.name, field.type)
-        val ref = JcFieldRef(null, field)
-        ctx.genCtx.addInstruction { loc -> JcAssignInst(loc, tbl, ref) }
+        val tbl = ctx.genCtx.generateGlobalTable(ctx.cp, ctx.getVarName(), targetTbl.name, targetTbl.origClass)
 
         val serilizer = targetTbl.origClass.declaredMethods.single { it.generatedStaticSerializer }
         val ser = ctx.genCtx.generateLambda(ctx.cp, ctx.getLambdaName(), serilizer)

@@ -1,11 +1,10 @@
 package machine.interpreter.transformers.springjpa.query.table
 
+import machine.interpreter.transformers.springjpa.generateGlobalTable
 import machine.interpreter.transformers.springjpa.query.CommonInfo
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.cfg.JcAssignInst
-import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import util.database.TableInfo
 
@@ -46,12 +45,7 @@ class TableRoot(
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         val classTable = getTbl(ctx.common)
-        val field = ctx.common.databases.declaredFields.single { it.name == classTable.name }
-
-        val tbl = ctx.genCtx.nextLocalVar(classTable.name, field.type)
-        val ref = JcFieldRef(null, field)
-        ctx.genCtx.addInstruction { loc -> JcAssignInst(loc, tbl, ref) }
-
-        return tbl
+        val varName = "${ctx.getVarName()}_${classTable.name}"
+        return ctx.genCtx.generateGlobalTable(ctx.cp, varName, classTable.name, classTable.origClass)
     }
 }
