@@ -395,15 +395,11 @@ abstract class JcCodeRenderer<T: Node>(
         val typedParams = method.toTypedMethod.parameters
         val isVarargMethod = method.access.and(Opcodes.ACC_VARARGS) != 0
 
-        check(args.size == typedParams.size || isVarargMethod) {
+        check(args.size == typedParams.size || (isVarargMethod && args.size == typedParams.size - 1)) {
             "args size != params size in call ${method.name} with ${args.joinToString(" ")}"
         }
-        val extendedTypedParams = typedParams.toMutableList()
-        val extensionSize = args.size - typedParams.size
-        if (isVarargMethod && extensionSize > 0) {
-            extendedTypedParams.addAll(List(extensionSize) { typedParams.last() })
-        }
-        return args.zip(extendedTypedParams).map { (arg, param) ->
+
+        return args.zip(typedParams).map { (arg, param) ->
             exprWithGenericsCasted(param.type, arg)
         }
     }

@@ -38,7 +38,7 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
             super.bind(clazz)
 
             if (clazz is JcVirtualAnnotatedClass) {
-                clazz.declaredFields.add(this)
+                clazz.attachedFields.add(this)
             }
         }
     }
@@ -49,13 +49,10 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
         initialMethods: List<JcVirtualMethod>,
         override val annotations: List<JcAnnotation>
     ): JcVirtualClassImpl(name = name, initialFields = initialFields, initialMethods = initialMethods) {
-        override val declaredFields: MutableList<JcVirtualField> by lazy {
-            super.declaredFields.toMutableList()
-        }
 
-        override val declaredMethods: List<JcVirtualMethod> by lazy {
-            super.declaredMethods.toMutableList()
-        }
+        val attachedFields: MutableSet<JcVirtualField> = mutableSetOf()
+
+        override val declaredFields: List<JcVirtualField> get() = super.declaredFields + attachedFields
     }
 
     private const val MOCK_BEAN_NAME = "org.springframework.boot.test.mock.mockito.MockBean"

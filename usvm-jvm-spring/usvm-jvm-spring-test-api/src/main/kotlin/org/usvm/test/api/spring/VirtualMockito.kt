@@ -78,7 +78,6 @@ internal object VirtualMockito {
 
     private fun createMatchers(): List<JcVirtualMethod> {
         val primitiveSuffixes = listOf(
-            "", // REQUIRED FOR ANY
             PredefinedPrimitives.Boolean,
             PredefinedPrimitives.Byte,
             PredefinedPrimitives.Char,
@@ -88,7 +87,7 @@ internal object VirtualMockito {
             PredefinedPrimitives.Long,
             PredefinedPrimitives.Short
         )
-        val suffixes = javaUtilCollectionSuffixes + javaLangCollectionSuffixes + primitiveSuffixes
+        val suffixes = javaUtilCollectionSuffixes + javaLangCollectionSuffixes + primitiveSuffixes + "" // REQUIRED FOR ANY
         val matchers = mutableListOf<JcVirtualMethod>()
         for (suffix in suffixes.distinct()) {
             val returnTypeName = when {
