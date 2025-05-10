@@ -52,7 +52,12 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
 
         val attachedFields: MutableSet<JcVirtualField> = mutableSetOf()
 
-        override val declaredFields: List<JcVirtualField> get() = super.declaredFields + attachedFields
+        override val declaredFields: List<JcVirtualField> get() {
+            check(attachedFields.all { it.enclosingClass === this }) {
+                "attached field is not bind to the class"
+            }
+            return super.declaredFields + attachedFields
+        }
     }
 
     private const val MOCK_BEAN_NAME = "org.springframework.boot.test.mock.mockito.MockBean"

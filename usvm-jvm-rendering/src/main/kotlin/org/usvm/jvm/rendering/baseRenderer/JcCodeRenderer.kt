@@ -33,11 +33,9 @@ import org.jacodb.api.jvm.JcTypeVariable
 import org.jacodb.api.jvm.JcUnboundWildcard
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
-import org.usvm.jvm.util.toTypedMethod
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
 import org.jacodb.impl.types.JcTypeVariableImpl
 import org.jacodb.impl.types.TypeNameImpl
-import org.objectweb.asm.Opcodes
 import org.usvm.jvm.rendering.baseRenderer.JcTypeVariableExt.isRecursive
 
 abstract class JcCodeRenderer<T: Node>(
@@ -336,17 +334,16 @@ abstract class JcCodeRenderer<T: Node>(
         if (shouldRenderMethodCallAsPrivate(ctor))
             return renderPrivateCtorCall(ctor, type, args)
 
-        val castedArgs = callArgsWithGenericsCasted(ctor, args)
         return when {
             type.outerType == null || type.isStatic -> {
-                ObjectCreationExpr(null, renderClass(type), NodeList(castedArgs))
+                ObjectCreationExpr(null, renderClass(type), NodeList(args))
             }
 
             else -> {
                 val ctorTypeName = qualifiedName(type.jcClass.name).split(".").last()
                 val ctorType = StaticJavaParser.parseClassOrInterfaceType(ctorTypeName)
                     .setTypeArgsIfNeeded(true, type)
-                ObjectCreationExpr(args.first(), ctorType, NodeList(castedArgs.drop(1)))
+                ObjectCreationExpr(args.first(), ctorType, NodeList(args.drop(1)))
             }
         }
     }
@@ -363,11 +360,10 @@ abstract class JcCodeRenderer<T: Node>(
         if (shouldRenderMethodCallAsPrivate(method))
             return renderPrivateMethodCall(method, instance, args)
 
-        val castedArgs = callArgsWithGenericsCasted(method, args)
         return MethodCallExpr(
             instance,
             method.name,
-            NodeList(castedArgs)
+            NodeList(args)
         )
     }
 
@@ -383,25 +379,11 @@ abstract class JcCodeRenderer<T: Node>(
         if (shouldRenderMethodCallAsPrivate(method))
             return renderPrivateStaticMethodCall(method, args)
 
-        val castedArgs = callArgsWithGenericsCasted(method, args)
         return MethodCallExpr(
             renderStaticMethodCallScope(method, false),
             method.name,
-            NodeList(castedArgs)
+            NodeList(args)
         )
-    }
-
-    protected fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>): List<Expression> {
-        val typedParams = method.toTypedMethod.parameters
-        val isVarargMethod = method.access.and(Opcodes.ACC_VARARGS) != 0
-
-        check(args.size == typedParams.size || (isVarargMethod && args.size == typedParams.size - 1)) {
-            "args size != params size in call ${method.name} with ${args.joinToString(" ")}"
-        }
-
-        return args.zip(typedParams).map { (arg, param) ->
-            exprWithGenericsCasted(param.type, arg)
-        }
     }
 
     protected fun exprWithGenericsCasted(type: JcType, expr: Expression): Expression {

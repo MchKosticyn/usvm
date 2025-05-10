@@ -65,6 +65,7 @@ import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
+import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.toTypedMethod
 import partitionByKey
 
@@ -269,19 +270,50 @@ open class JcTestBlockRenderer protected constructor(
 
     open fun renderConstructorCall(expr: UTestConstructorCall): Expression {
         val type = expr.type as JcClassType
-        return renderConstructorCall(expr.method, type, expr.args.map { renderExpression(it) })
+        return renderConstructorCall(expr.method, type, renderCallArgs(expr.method, expr.args))
     }
 
     open fun renderMethodCall(expr: UTestMethodCall): Expression {
         return renderMethodCall(
             expr.method,
             renderExpression(expr.instance),
-            expr.args.map { renderExpression(it) }
+            renderCallArgs(expr.method, expr.args)
         )
     }
 
     open fun renderStaticMethodCall(expr: UTestStaticMethodCall): Expression {
-        return renderStaticMethodCall(expr.method, expr.args.map { renderExpression(it) })
+        return renderStaticMethodCall(expr.method, renderCallArgs(expr.method, expr.args))
+    }
+
+    protected fun renderCallArgs(method: JcMethod, args: List<UTestExpression>): List<Expression> {
+        val typedParams = method.toTypedMethod.parameters
+
+        check(args.size == typedParams.size) {
+            "args size != params size in call ${method.name} with ${args.joinToString(" ")}"
+        }
+
+        val isVarargMethod = method.access.and(Opcodes.ACC_VARARGS) != 0
+        val filteredArgs = args.toMutableList()
+
+        if (isVarargMethod) {
+            val vararg = args.last()
+            check(vararg is UTestCreateArrayExpression) {
+                "vararg arg expected to be array"
+            }
+
+            val varargSize = vararg.size
+            check(varargSize is UTestIntExpression) {
+                "vararg size expected to be int"
+            }
+
+            if (varargSize.value == 0)
+                filteredArgs.removeLast()
+        }
+
+        return filteredArgs.zip(typedParams).map { (arg, param) ->
+            val renderedArg = renderExpression(arg)
+            exprWithGenericsCasted(param.type, renderedArg)
+        }
     }
 
     open fun renderCastExpression(expr: UTestCastExpression): Expression = CastExpr(
