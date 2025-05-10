@@ -18,6 +18,7 @@ dependencies {
     implementation(Libs.jacodb_api_jvm)
     implementation(Libs.jacodb_approximations)
 
+    // TODO: make versions flexible
     implementation("org.hibernate.orm:hibernate-core:6.3.1.Final")
     antlr(dep("org.antlr", "antlr4", "4.10.1"))
 }

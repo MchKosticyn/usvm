@@ -10,11 +10,16 @@ import kotlin.time.Duration
 
 private class JcThreadFactory(private val customClassLoader: ClassLoader?) : ThreadFactory {
 
+    companion object {
+        private var threadIdx = 0
+        private fun threadName() = "$threadPrefix${threadIdx++}"
+    }
+
     private var currentThread: Thread? = null
 
     override fun newThread(runnable: Runnable): Thread {
         check(currentThread == null)
-        val thread = Thread(runnable)
+        val thread = Thread(runnable, threadName())
 
         if (customClassLoader != null) {
             thread.contextClassLoader = customClassLoader
@@ -29,6 +34,10 @@ private class JcThreadFactory(private val customClassLoader: ClassLoader?) : Thr
         return currentThread
     }
 }
+
+private const val threadPrefix = "ExecutorThread-"
+
+val Thread.isExecutorThread: Boolean get() = name.startsWith(threadPrefix)
 
 open class JcExecutor(customClassLoader: ClassLoader? = null) {
     private val threadFactory = JcThreadFactory(customClassLoader)
