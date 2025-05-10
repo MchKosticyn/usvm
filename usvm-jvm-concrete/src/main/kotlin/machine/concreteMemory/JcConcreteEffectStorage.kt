@@ -6,6 +6,7 @@ import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.jvm.util.allocateInstance
+import org.usvm.jvm.util.isExecutorThread
 import org.usvm.machine.JcContext
 import utils.allInstanceFields
 import utils.allInstanceFieldsAreFinal
@@ -465,33 +466,46 @@ internal class JcConcreteEffectStorage private constructor(
         get() = own.seq.isEmpty()
 
     fun addObjectToEffect(obj: Any) {
-        check(isCurrent)
+        check(isCurrent) {
+            "addObjectToEffect: effect storage is not current"
+        }
         own.head()!!.addObject(obj)
     }
 
     fun addObjectToEffectRec(obj: Any?) {
-        check(isCurrent)
+        check(isCurrent) {
+            "addObjectToEffectRec: effect storage is not current"
+        }
         own.head()!!.addObjectRec(obj)
     }
 
     fun ensureStatics() {
-        check(isCurrent)
+        check(isCurrent) {
+            "ensureStatics: effect storage is not current"
+        }
         own.head()!!.ensureStatics()
     }
 
     fun addStatics(type: Class<*>) {
-        check(isCurrent)
+        check(isCurrent) {
+            "addStatics: effect storage is not current"
+        }
         own.head()?.addStaticFields(type)
     }
 
     fun addNewObject(obj: Any) {
-        check(isCurrent)
+        check(isCurrent) {
+            "addNewObject: effect storage is not current"
+        }
         own.head()?.addNewObject(obj)
     }
 
     fun reset() {
-        JcConcreteMemoryClassLoader.setEffectStorage(this)
+        // TODO: #hack #threads
+        //  disabling effect storage, because other running threads may create objects, but effect storage is not ready
+        JcConcreteMemoryClassLoader.disableEffectStorage()
         current.resetTo(own)
+        JcConcreteMemoryClassLoader.setEffectStorage(this)
     }
 
     fun kill() {

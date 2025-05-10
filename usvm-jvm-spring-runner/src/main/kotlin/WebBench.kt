@@ -271,16 +271,16 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
 
     val springDirFile = File(System.getenv("springDir"))
     check(springDirFile.exists()) { "Generated directory ${springDirFile.absolutePath} does not exist" }
-    val nonAbstractClasses = cp.nonAbstractClasses(benchmark.classLocations)
+    val classLocations = benchmark.classLocations
+    val nonAbstractClasses = cp.nonAbstractClasses(classLocations)
     val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
     val applicationClass = allByAnnotation(
         nonAbstractClasses,
         "org.springframework.boot.autoconfigure.SpringBootApplication"
-    ).firstOrNull() ?: error("No entry classes found (with SpringBootApplication annotation)")
+    ).singleOrNull() ?: error("No entry classes found (with SpringBootApplication annotation)")
     val entryPackagePath = applicationClass.packageName.replace('.', '/')
     val testClassName = "StartSpringTestClass"
     val testClassFullName = "$entryPackagePath/$testClassName"
-    val classLocations = benchmark.classLocations
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
     val repositories = runBlocking { cp.hierarchyExt() }
@@ -313,6 +313,9 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
             }
             SpringAnalysisMode.SpringBootTest -> {
                 val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
+                sprintBootTestAnnotation.values = listOf(
+                    "classes", listOf(Type.getType(applicationClass.jvmDescriptor))
+                )
                 classNode.visibleAnnotations.add(sprintBootTestAnnotation)
             }
         }
