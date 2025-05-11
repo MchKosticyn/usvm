@@ -16,7 +16,6 @@ import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchy
-import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
@@ -25,7 +24,6 @@ import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
-import org.jacodb.impl.features.classpaths.JcUnknownType
 import org.usvm.jvm.util.allocateInstance
 import org.usvm.jvm.util.toJavaExecutable
 import org.usvm.concrete.api.internal.InitHelper
@@ -53,7 +51,7 @@ private val Class<*>.safeDeclaredFields: List<Field>
 internal val JcClassType.declaredInstanceFields: List<JcTypedField>
     get() = declaredFields.filter { !it.isStatic }
 
-internal val Class<*>.allInstanceFields: List<Field>
+val Class<*>.allInstanceFields: List<Field>
     get() = allFields.filter { !Modifier.isStatic(it.modifiers) }
 
 internal val JcClassOrInterface.staticFields: List<JcField>
@@ -179,16 +177,21 @@ internal fun <Value> Any.setArrayValue(index: Int, value: Value) {
     }
 }
 
+fun JcField.findJavaField(javaFields: List<Field>): Field? {
+    val field = javaFields.find { it.name == name }
+    check(field == null || field.type.typeName == this.type.typeName) {
+        "invalid field: types of field $field and $this differ ${field?.type?.typeName} and ${this.type.typeName}"
+    }
+    return field
+}
+
+// TODO: unify with `Jacodb.toJavaField`
 internal val JcField.toJavaField: Field?
     get() {
         try {
             val type = JcConcreteMemoryClassLoader.loadClass(enclosingClass)
             val fields = if (isStatic) type.staticFields else type.allInstanceFields
-            val field = fields.find { it.name == name }
-            check(field == null || field.type.typeName == this.type.typeName) {
-                "invalid field: types of field $field and $this differ ${field?.type?.typeName} and ${this.type.typeName}"
-            }
-            return field
+            return this.findJavaField(fields)
         } catch (e: Throwable) {
             return null
         }

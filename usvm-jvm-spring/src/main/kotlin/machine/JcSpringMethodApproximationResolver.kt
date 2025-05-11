@@ -37,7 +37,7 @@ import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.state.skipMethodInvocationWithValue
-import org.usvm.jvm.util.allFields
+import org.usvm.jvm.util.allInstanceFields
 import org.usvm.util.classesOfLocations
 import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.JcConcreteMethodCallInst
@@ -45,6 +45,8 @@ import org.usvm.machine.state.newStmt
 import util.isDeserializationMethod
 import util.isSpringController
 import util.isSpringRepository
+import utils.allInstanceFields
+import utils.findJavaField
 import utils.toJcType
 import java.util.ArrayList
 
@@ -181,23 +183,20 @@ class JcSpringMethodApproximationResolver (
         nameArg: UExpr<out USort>,
         pinnedSourceNameArg: UConcreteHeapRef,
         clazzArg: UConcreteHeapRef
-    ): Pair<JcPinnedKey, JcType>? = with(state) {
-        val pinnedSourceName = springMemory.tryHeapRefToObject(pinnedSourceNameArg) as String?
-        val name =
-            if (nameArg is UNullRef) null
-            else springMemory.tryHeapRefToObject(nameArg as UConcreteHeapRef) as String
-        val clazz = springMemory.tryHeapRefToObject(clazzArg) as Class<*>?
-
-        if (clazz == null || pinnedSourceName == null) {
-            println("Source and class should be concrete")
-            return null
+    ): Pair<JcPinnedKey, JcType> = with(state) {
+        val pinnedSourceName = springMemory.tryHeapRefToObject(pinnedSourceNameArg)
+            ?: error("accessPinnedValue: pinned source name should not be symbolic")
+        pinnedSourceName as String
+        val name = when (nameArg) {
+            is UNullRef -> null
+            is UConcreteHeapRef -> springMemory.tryHeapRefToObject(nameArg) as String
+            else -> error("accessPinnedValue: name should not be symbolic")
         }
-
+        val clazz = springMemory.tryHeapRefToObject(clazzArg)
+            ?: error("accessPinnedValue: class should not be symbolic")
+        clazz as Class<*>
         val type = clazz.toJcType(ctx.cp)
-        if (type == null) {
-            println("Type cannot be found: ${clazz.typeName}")
-            return null
-        }
+            ?: error("accessPinnedValue: class ${clazz.typeName} not found in classpath")
 
         val source = JcSpringPinnedValueSource.valueOf(pinnedSourceName)
         val key = if (name != null) JcPinnedKey.ofName(source, name) else JcPinnedKey.ofSource(source)
@@ -223,7 +222,6 @@ class JcSpringMethodApproximationResolver (
                 val sourceArg = methodCall.arguments[2]
                 val clazzArg = methodCall.arguments[3] as UConcreteHeapRef
                 val (key, type) = accessPinnedValue(this, nameArg, pinnedSourceNameArg, clazzArg)
-                    ?: return@calcOnState false
 
                 setPinnedValue(key, sourceArg, type)
 
@@ -240,7 +238,6 @@ class JcSpringMethodApproximationResolver (
                 val clazzArg = methodCall.arguments[2] as UConcreteHeapRef
 
                 val (key, type) = accessPinnedValue(this, nameArg, pinnedSourceNameArg, clazzArg)
-                    ?: return@calcOnState false
 
                 val sort = ctx.typeToSort(type)
                 val value = createPinnedIfAbsent(key, type, scope, sort) ?: return@calcOnState false
@@ -634,13 +631,16 @@ class JcSpringMethodApproximationResolver (
         return arrayListOf(typeItself, generics)
     }
 
-    private fun getFieldTypes(entrypoint: JcClassOrInterface): HashMap<String, ArrayList<Any>> {
-        val fieldTypes = HashMap<String, ArrayList<Any>>()
-
-        for (field in entrypoint.toType().allFields) {
-            val type = field.type.autoboxIfNeeded()
-            val name = field.name
-            fieldTypes[name] = collectTypeWithGenerics(type)
+    private fun getFieldTypes(declaringClass: JcClassOrInterface): HashMap<java.lang.reflect.Field, ArrayList<Any>> {
+        val fieldTypes = HashMap<java.lang.reflect.Field, ArrayList<Any>>()
+        val declaringType = declaringClass.toType()
+        val typedFields = declaringType.allInstanceFields
+        val javaClass = JcConcreteMemoryClassLoader.loadClass(declaringClass)
+        val javaFields = javaClass.allInstanceFields
+        for (typedField in typedFields) {
+            val javaField = typedField.field.findJavaField(javaFields) ?: continue
+            val fieldType = typedField.type.autoboxIfNeeded()
+            fieldTypes[javaField] = collectTypeWithGenerics(fieldType)
         }
 
         return fieldTypes

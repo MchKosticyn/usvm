@@ -50,6 +50,7 @@ import machine.interpreter.transformers.springjpa.JcDataclassTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
+import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.impl.cfg.JcInstListImpl
 import org.jacodb.impl.types.TypeNameImpl
@@ -305,18 +306,24 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
                     classNode.fields.add(field)
                 }
 
-                if (enableSecurity) {
-                    addSecurityConfigs(classNode, nonAbstractClasses)
-                } else {
-                    disableSecurity(classNode)
+                // TODO: find better way to check if application uses security #hack
+                val isSecured = cp.findClassOrNull("org.springframework.security.config.annotation.web.WebSecurityConfigurer") != null
+                if (isSecured) {
+                    if (enableSecurity) {
+                        addSecurityConfigs(classNode, nonAbstractClasses)
+                    } else {
+                        disableSecurity(classNode)
+                    }
                 }
             }
             SpringAnalysisMode.SpringBootTest -> {
                 val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
+                val autoConfigureMockMvcAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc".jvmName())
                 sprintBootTestAnnotation.values = listOf(
                     "classes", listOf(Type.getType(applicationClass.jvmDescriptor))
                 )
                 classNode.visibleAnnotations.add(sprintBootTestAnnotation)
+                classNode.visibleAnnotations.add(autoConfigureMockMvcAnnotation)
             }
         }
 
@@ -371,7 +378,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 3.minutes,
+        timeout = 5.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
