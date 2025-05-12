@@ -39,7 +39,6 @@ import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
 import org.jacodb.api.jvm.ext.boolean
-import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.isAssignable
@@ -130,7 +129,7 @@ const val DISTINCT_TABLE = "generated.org.springframework.boot.databases.Distinc
 const val FLAT_TABLE = "generated.org.springframework.boot.databases.FlatTable"
 const val SINGLETON_TABLE = "generated.org.springframework.boot.databases.SingletonTable"
 const val DATABASE_UTILS = "generated.org.springframework.boot.databases.utils.DatabaseSupportFunctions"
-const val TABLE_TRACKER = "generated.org.springframework.boot.databases.basetables.TableTracker"
+const val TABLE_TRACKER = "stub.spring.TableTracker"
 
 // endregion
 
@@ -140,7 +139,7 @@ const val IWRAPPER = "generated.org.springframework.boot.databases.wrappers.IWra
 const val PAGE_WRAPPER = "org.springframework.data.domain.Page"
 const val PAGE_IMPL_WRAPPER = "org.springframework.data.domain.PageImpl"
 const val SET_WRAPPER = "generated.org.springframework.boot.databases.wrappers.SetWrapper"
-const val LIST_WRAPPER = "generated.org.springframework.boot.databases.wrappers.ListWrapper"
+const val LIST_WRAPPER = "stub.spring.ListWrapper"
 
 // endregion
 
@@ -300,7 +299,7 @@ fun BlockGenerationContext.generateIsEqual(
     right: JcLocalVar
 ): JcLocalVar {
     val compared = generateStaticCall(
-        "compared",
+        "compared_${name}",
         "comparer",
         cp.findType(DATABASE_UTILS) as JcClassType,
         listOf(left, right)
@@ -444,7 +443,7 @@ fun BlockGenerationContext.generateVoidVirtualCall(
     addInstruction { loc -> JcCallInst(loc, call) }
 }
 
-fun BlockGenerationContext.generateGlobalTable(
+fun BlockGenerationContext.generateGlobalTableAccess(
     cp: JcClasspath,
     name: String,
     tableName: String,

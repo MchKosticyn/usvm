@@ -5,7 +5,7 @@ import machine.interpreter.transformers.springjpa.JAVA_OBJ_ARR
 import machine.interpreter.transformers.springjpa.JcBodyFillerFeature
 import machine.interpreter.transformers.springjpa.JcMethodBuilder
 import machine.interpreter.transformers.springjpa.REPOSITORY_LAMBDA
-import machine.interpreter.transformers.springjpa.generateGlobalTable
+import machine.interpreter.transformers.springjpa.generateGlobalTableAccess
 import machine.interpreter.transformers.springjpa.generateLambda
 import machine.interpreter.transformers.springjpa.generateNewWithInit
 import machine.interpreter.transformers.springjpa.generatedStaticSerializer
@@ -95,7 +95,7 @@ abstract class CommonJoin(
         val targetName = target.applyAliases(ctx.common)
         val targetTbl = ctx.common.collector.getTableByPartName(targetName).single() // it must be single
 
-        val tbl = ctx.genCtx.generateGlobalTable(ctx.cp, ctx.getVarName(), targetTbl.name, targetTbl.origClass)
+        val tbl = ctx.genCtx.generateGlobalTableAccess(ctx.cp, ctx.getVarName(), targetTbl.name, targetTbl.origClass)
 
         val serilizer = targetTbl.origClass.declaredMethods.single { it.generatedStaticSerializer }
         val ser = ctx.genCtx.generateLambda(ctx.cp, ctx.getLambdaName(), serilizer)
