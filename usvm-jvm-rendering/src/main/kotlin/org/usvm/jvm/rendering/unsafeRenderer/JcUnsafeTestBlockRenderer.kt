@@ -77,7 +77,12 @@ open class JcUnsafeTestBlockRenderer protected constructor(
 
     //region Private Methods
 
-    override fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
+    override fun renderPrivateCtorCall(
+        ctor: JcMethod,
+        type: JcClassType,
+        args: List<Expression>,
+        inlinesVarargs: Boolean
+    ): Expression {
         addThrownException("java.lang.Throwable", ctor.enclosingClass.classpath)
         importManager.useUsvmReflectionMethod("callConstructor")
         val allArgs = listOf(renderClassExpression(type), StringLiteralExpr(ctor.jcdbSignature)) + args
@@ -96,7 +101,12 @@ open class JcUnsafeTestBlockRenderer protected constructor(
         return typeArgsForType(method.resultType)
     }
 
-    override fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
+    override fun renderPrivateMethodCall(
+        method: JcMethod,
+        instance: Expression,
+        args: List<Expression>,
+        inlinesVarargs: Boolean
+    ): Expression {
         addThrownException("java.lang.Throwable", method.enclosingClass.classpath)
         importManager.useUsvmReflectionMethod("callMethod")
         val allArgs = listOf(instance, StringLiteralExpr(method.jcdbSignature)) + args
@@ -108,7 +118,11 @@ open class JcUnsafeTestBlockRenderer protected constructor(
         )
     }
 
-    override fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
+    override fun renderPrivateStaticMethodCall(
+        method: JcMethod,
+        args: List<Expression>,
+        inlinesVarargs: Boolean
+    ): Expression {
         addThrownException("java.lang.Throwable", method.enclosingClass.classpath)
         importManager.useUsvmReflectionMethod("callStaticMethod")
         val enclosingClass = method.enclosingClass
