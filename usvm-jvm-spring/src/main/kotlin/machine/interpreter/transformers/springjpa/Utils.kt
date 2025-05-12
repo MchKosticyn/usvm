@@ -34,6 +34,7 @@ import org.jacodb.api.jvm.cfg.JcNewExpr
 import org.jacodb.api.jvm.cfg.JcRawArgument
 import org.jacodb.api.jvm.cfg.JcSpecialCallExpr
 import org.jacodb.api.jvm.cfg.JcStaticCallExpr
+import org.jacodb.api.jvm.cfg.JcStringConstant
 import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
@@ -128,6 +129,7 @@ const val DISTINCT_TABLE = "generated.org.springframework.boot.databases.Distinc
 const val FLAT_TABLE = "generated.org.springframework.boot.databases.FlatTable"
 const val SINGLETON_TABLE = "generated.org.springframework.boot.databases.SingletonTable"
 const val DATABASE_UTILS = "generated.org.springframework.boot.databases.utils.DatabaseSupportFunctions"
+const val TABLE_TRACKER = "stub.spring.TableTracker"
 
 // endregion
 
@@ -137,7 +139,7 @@ const val IWRAPPER = "generated.org.springframework.boot.databases.wrappers.IWra
 const val PAGE_WRAPPER = "org.springframework.data.domain.Page"
 const val PAGE_IMPL_WRAPPER = "org.springframework.data.domain.PageImpl"
 const val SET_WRAPPER = "generated.org.springframework.boot.databases.wrappers.SetWrapper"
-const val LIST_WRAPPER = "generated.org.springframework.boot.databases.wrappers.ListWrapper"
+const val LIST_WRAPPER = "stub.spring.ListWrapper"
 
 // endregion
 
@@ -297,7 +299,7 @@ fun BlockGenerationContext.generateIsEqual(
     right: JcLocalVar
 ): JcLocalVar {
     val compared = generateStaticCall(
-        "compared",
+        "compared_${name}",
         "comparer",
         cp.findType(DATABASE_UTILS) as JcClassType,
         listOf(left, right)
@@ -441,12 +443,14 @@ fun BlockGenerationContext.generateVoidVirtualCall(
     addInstruction { loc -> JcCallInst(loc, call) }
 }
 
-fun BlockGenerationContext.generateGlobalTable(
+fun BlockGenerationContext.generateGlobalTableAccess(
     cp: JcClasspath,
     name: String,
     tableName: String,
-    isNoIdTable: Boolean = false
+    clazz: JcClassOrInterface?
 ): JcLocalVar {
+    val isNoIdTable = clazz == null
+
     val tblV = nextLocalVar(name, cp.findType(ITABLE))
     val tblField = (cp.findType(DATABASES) as JcClassType).fields.single { it.name == tableName }
     val tblRef = JcFieldRef(null, tblField)
@@ -457,7 +461,30 @@ fun BlockGenerationContext.generateGlobalTable(
     val cast = JcCastExpr(baseType, tblV)
     addInstruction { loc -> JcAssignInst(loc, casted, cast) }
 
+    if (!isNoIdTable) putTrackCall(cp, name, tableName, casted, clazz)
+
     return casted
+}
+
+private fun BlockGenerationContext.putTrackCall(
+    cp: JcClasspath,
+    name: String,
+    tableName: String,
+    table: JcLocalVar,
+    clazz: JcClassOrInterface
+) {
+    val tblName = nextLocalVar("table_name_${name}", cp.findType(JAVA_STRING))
+    val tblNameValue = JcStringConstant(tableName, cp.findType(JAVA_STRING))
+    addInstruction { loc -> JcAssignInst(loc, tblName, tblNameValue) }
+
+    val deserializerMethod = clazz.declaredMethods.single { it.generatedStaticSerializer }
+    val deserializer = generateLambda(cp, "deserializer_${name}", deserializerMethod)
+
+    val manager = cp.findType(BASE_TABLE_MANAGER) as JcClassType
+    val entities = generateVirtualCall("get_all_entities_${name}", "getAllEntities", manager, table, listOf(deserializer))
+
+    val tracker = cp.findType(TABLE_TRACKER) as JcClassType
+    generateVoidStaticCall("track", tracker, listOf(tblName, entities))
 }
 
 fun BlockGenerationContext.generateLambda(
