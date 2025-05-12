@@ -326,18 +326,18 @@ abstract class JcCodeRenderer<T: Node>(
         return !method.isPublic
     }
 
-    open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
+    open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         error("Rendering private methods is not supported")
     }
 
-    open fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
+    open fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         check(ctor.isConstructor) {
             "not a constructor in renderConstructorCall"
         }
         if (shouldRenderMethodCallAsPrivate(ctor))
-            return renderPrivateCtorCall(ctor, type, args)
+            return renderPrivateCtorCall(ctor, type, args, inlinesVarargs)
 
-        val castedArgs = callArgsWithGenericsCasted(ctor, args)
+        val castedArgs = callArgsWithGenericsCasted(ctor, args, inlinesVarargs)
 
         return when {
             type.outerType == null || type.isStatic -> {
@@ -353,19 +353,19 @@ abstract class JcCodeRenderer<T: Node>(
         }
     }
 
-    open fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
+    open fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         error("Rendering private methods is not supported")
     }
 
-    open fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
+    open fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         check(!method.isStatic) {
             "cannot render static methods in renderMethodCall"
         }
 
         if (shouldRenderMethodCallAsPrivate(method))
-            return renderPrivateMethodCall(method, instance, args)
+            return renderPrivateMethodCall(method, instance, args, inlinesVarargs)
 
-        val castedArgs = callArgsWithGenericsCasted(method, args)
+        val castedArgs = callArgsWithGenericsCasted(method, args, inlinesVarargs)
 
         return MethodCallExpr(
             instance,
@@ -374,19 +374,19 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    open fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
+    open fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         error("Rendering private methods is not supported")
     }
 
-    open fun renderStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
+    open fun renderStaticMethodCall(method: JcMethod, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         check(method.isStatic) {
             "cannot render instance method in renderStaticMethodCall"
         }
 
         if (shouldRenderMethodCallAsPrivate(method))
-            return renderPrivateStaticMethodCall(method, args)
+            return renderPrivateStaticMethodCall(method, args, inlinesVarargs)
 
-        val castedArgs = callArgsWithGenericsCasted(method, args)
+        val castedArgs = callArgsWithGenericsCasted(method, args, inlinesVarargs)
 
         return MethodCallExpr(
             renderStaticMethodCallScope(method, false),
@@ -395,10 +395,14 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    protected fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>): List<Expression> {
+    protected fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>, hasInlinedVarArgs: Boolean): List<Expression> {
         val typedParams = method.toTypedMethod.parameters.map { parameter -> parameter.type }.toMutableList()
 
-        if (method.isVararg) {
+        if (hasInlinedVarArgs) {
+            check(method.isVararg) {
+                "cannot inline non-vararg args"
+            }
+
             val varargParamType = typedParams.last()
             check(varargParamType is JcArrayType) {
                 "vararg param expected to be of array type"
