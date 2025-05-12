@@ -65,6 +65,7 @@ import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
+import org.usvm.jvm.rendering.isVararg
 import org.usvm.jvm.util.toTypedMethod
 import partitionByKey
 
@@ -269,19 +270,53 @@ open class JcTestBlockRenderer protected constructor(
 
     open fun renderConstructorCall(expr: UTestConstructorCall): Expression {
         val type = expr.type as JcClassType
-        return renderConstructorCall(expr.method, type, expr.args.map { renderExpression(it) })
+        val (args, inlinesVararg) = renderCallArgs(expr.method, expr.args)
+        return renderConstructorCall(expr.method, type, args, inlinesVararg)
     }
 
     open fun renderMethodCall(expr: UTestMethodCall): Expression {
+        val (args, inlinesVararg) = renderCallArgs(expr.method, expr.args)
         return renderMethodCall(
             expr.method,
             renderExpression(expr.instance),
-            expr.args.map { renderExpression(it) }
+            args,
+            inlinesVararg
         )
     }
 
     open fun renderStaticMethodCall(expr: UTestStaticMethodCall): Expression {
-        return renderStaticMethodCall(expr.method, expr.args.map { renderExpression(it) })
+        val (args, inlinesVararg) = renderCallArgs(expr.method, expr.args)
+        return renderStaticMethodCall(expr.method, args, inlinesVararg)
+    }
+
+    private fun renderCallArgs(method: JcMethod, args: List<UTestExpression>): Pair<List<Expression>, Boolean> {
+        val typedParams = method.toTypedMethod.parameters
+
+        check(args.size == typedParams.size) {
+            "args size != params size in call ${method.name} with ${args.joinToString(" ")}"
+        }
+
+        val filteredArgs = args.toMutableList()
+        var inlinesVarargs = false
+
+        if (method.isVararg) {
+            val vararg = args.last()
+            check(vararg is UTestCreateArrayExpression) {
+                "vararg arg expected to be array"
+            }
+
+            val varargSize = vararg.size
+            check(varargSize is UTestIntExpression) {
+                "vararg size expected to be int"
+            }
+
+            if (varargSize.value == 0) {
+                filteredArgs.removeLast()
+                inlinesVarargs = true
+            }
+        }
+
+        return filteredArgs.map { arg -> renderExpression(arg) } to inlinesVarargs
     }
 
     open fun renderCastExpression(expr: UTestCastExpression): Expression = CastExpr(
@@ -448,12 +483,12 @@ open class JcTestBlockRenderer protected constructor(
         method: JcMethod,
         args: List<Expression>
     ): Expression {
-        val methodCall = renderMethodCall(method, mockVar, args)
+        val methodCall = renderMethodCall(method, mockVar, args, false)
         return mockitoWhenMethodCall(TypeExpr(mockitoClass), methodCall)
     }
 
     private fun renderMockObjectStaticMethodWhenCall(mockVar: NameExpr, method: JcMethod, args: List<Expression>): Expression {
-        val mockedMethodRef = LambdaExpr(NodeList(), renderStaticMethodCall(method, args))
+        val mockedMethodRef = LambdaExpr(NodeList(), renderStaticMethodCall(method, args, false))
         return mockitoWhenMethodCall(mockVar, mockedMethodRef)
     }
 
