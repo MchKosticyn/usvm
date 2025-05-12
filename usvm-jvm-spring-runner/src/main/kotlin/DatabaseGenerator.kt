@@ -27,6 +27,7 @@ import org.usvm.jvm.util.isSameSignature
 import org.usvm.jvm.util.jvmDescriptor
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.typeName
+import org.usvm.jvm.util.typename
 import org.usvm.jvm.util.write
 import util.database.JcMethodNewBodyContext
 import util.database.JcTableInfoCollector
@@ -128,8 +129,9 @@ private fun JcMethodNewBodyContext.generateFieldInitialize(
         .declaredMethods.single { it.name == JAVA_INIT && it.parameters.isNotEmpty() }
     val args = idColumn?.let {
         val idColIndex = JcRawInt((table as TableInfo.TableWithIdInfo).idColIndex())
+        val entityType = putValueToVar(JcRawClassConstant(table.origClass.typename, JAVA_CLASS.typeName), JAVA_CLASS.typeName)
         val validators = generateValidators(table)
-        listOf(idColIndex, typeArrVar, validators)
+        listOf(idColIndex, entityType, typeArrVar, validators)
     } ?: listOf(typeArrVar)
     val initCall = JcRawSpecialCallExpr(
         tblType,

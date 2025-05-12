@@ -1,6 +1,5 @@
 package machine.interpreter.transformers.springjpa.query
 
-import machine.interpreter.transformers.springjpa.DATABASES
 import machine.interpreter.transformers.springjpa.DATABASE_UTILS
 import machine.interpreter.transformers.springjpa.DISTINCT_TABLE
 import machine.interpreter.transformers.springjpa.FILTER_TABLE
@@ -87,7 +86,6 @@ data class CommonInfo(
     val comparerName = "comparer"
     val valueOfName = "valueOf"
 
-    val databases = cp.findType(DATABASES) as JcClassType
     val wrapperType = cp.findType(IWRAPPER) as JcClassType
     val pageType = cp.findType(PAGE_WRAPPER) as JcClassType
     val pageImplType = cp.findType(PAGE_IMPL_WRAPPER) as JcClassType

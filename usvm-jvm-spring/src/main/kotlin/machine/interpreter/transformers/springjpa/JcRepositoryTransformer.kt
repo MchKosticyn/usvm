@@ -123,7 +123,7 @@ object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
             return
         }
 
-        val tbl = generateGlobalTable(cp, "tbl", getTableName(clazz))
+        val tbl = generateGlobalTableAccess(cp, "tbl", getTableName(clazz), clazz)
 
         val serializer = clazz.declaredMethods.single { it.generatedStaticSerializer }
         val serLmbd = generateLambda(cp, "serilizer", serializer)
