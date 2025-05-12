@@ -403,7 +403,7 @@ abstract class JcCodeRenderer<T: Node>(
                 "cannot inline non-vararg args"
             }
 
-            val varargParamType = typedParams.last()
+            val varargParamType = typedParams.removeLast()
             check(varargParamType is JcArrayType) {
                 "vararg param expected to be of array type"
             }
