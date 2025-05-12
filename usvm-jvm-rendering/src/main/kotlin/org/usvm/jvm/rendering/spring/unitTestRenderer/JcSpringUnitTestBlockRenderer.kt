@@ -74,7 +74,12 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
         }
     }
 
-    override fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
+    override fun renderPrivateCtorCall(
+        ctor: JcMethod,
+        type: JcClassType,
+        args: List<Expression>,
+        inlinesVarargs: Boolean
+    ): Expression {
         val cp = type.classpath
         addThrownException("java.lang.reflect.InvocationTargetException", cp)
         addThrownException("java.lang.NoSuchMethodException", cp)
@@ -98,7 +103,12 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
         return newInstCall
     }
 
-    override fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
+    override fun renderPrivateMethodCall(
+        method: JcMethod,
+        instance: Expression,
+        args: List<Expression>,
+        inlinesVarargs: Boolean
+    ): Expression {
         addThrownException("java.lang.Throwable", method.enclosingClass.classpath)
         val allArgs = listOf(instance, StringLiteralExpr(method.name)) + args
         return MethodCallExpr(
@@ -109,7 +119,11 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
         )
     }
 
-    override fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
+    override fun renderPrivateStaticMethodCall(
+        method: JcMethod,
+        args: List<Expression>,
+        inlinesVarargs: Boolean
+    ): Expression {
         addThrownException("java.lang.Throwable", method.enclosingClass.classpath)
         val enclosingClass = method.enclosingClass
         val allArgs = listOf(renderClassExpression(enclosingClass), StringLiteralExpr(method.name)) + args
