@@ -1,6 +1,7 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcAnnotation
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcClasspathExtFeature
@@ -17,10 +18,12 @@ import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethodImpl
 import org.jacodb.impl.types.AnnotationInfo
 import org.usvm.jvm.util.getTypename
 import org.jacodb.api.jvm.ext.CONSTRUCTOR
+import org.jacodb.impl.features.classpaths.VirtualLocation
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethod
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualParameter
 import org.jacodb.impl.types.TypeNameImpl
+import org.objectweb.asm.Opcodes
 
 object JcSpringTestClassesFeature: JcClasspathExtFeature {
 
@@ -30,14 +33,32 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
         name: String,
         type: TypeName,
         override val annotations: List<JcAnnotation>
-    ): JcVirtualFieldImpl(name = name, type = type)
+    ): JcVirtualFieldImpl(name = name, type = type) {
+        override fun bind(clazz: JcClassOrInterface) {
+            super.bind(clazz)
+
+            if (clazz is JcVirtualAnnotatedClass) {
+                clazz.attachedFields.add(this)
+            }
+        }
+    }
 
     private class JcVirtualAnnotatedClass(
         name: String,
         initialFields: List<JcVirtualField>,
         initialMethods: List<JcVirtualMethod>,
         override val annotations: List<JcAnnotation>
-    ): JcVirtualClassImpl(name = name, initialFields = initialFields, initialMethods = initialMethods)
+    ): JcVirtualClassImpl(name = name, initialFields = initialFields, initialMethods = initialMethods) {
+
+        val attachedFields: MutableSet<JcVirtualField> = mutableSetOf()
+
+        override val declaredFields: List<JcVirtualField> get() {
+            check(attachedFields.all { it.enclosingClass === this }) {
+                "attached field is not bind to the class"
+            }
+            return super.declaredFields + attachedFields
+        }
+    }
 
     private const val MOCK_BEAN_NAME = "org.springframework.boot.test.mock.mockito.MockBean"
 
@@ -79,7 +100,8 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
             name = "ignoreResult",
             returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
             parameters = listOf(JcVirtualParameter(0, TypeNameImpl.fromTypeName("java.lang.Object"))),
-            description = ""
+            description = "",
+            access = Opcodes.ACC_PUBLIC.or(Opcodes.ACC_STATIC)
         )
     }
 
@@ -91,13 +113,17 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
                                         OAuth2ResourceServerAutoConfiguration.class})
      */
 
+    private lateinit var defaultTestClassClasspath: JcClasspath
+
     private val defaultTestClass by lazy {
-        JcVirtualAnnotatedClass(
+        val virtualClass = JcVirtualAnnotatedClass(
             DEFAULT_TEST_CLASS_NAME,
             initialFields = listOf(),
             initialMethods = listOf(testClassCtor, testClassIgnoreResultMethod),
             annotations = emptyList()
         )
+        virtualClass.bind(defaultTestClassClasspath, VirtualLocation())
+        virtualClass
     }
 
     private fun addTestClassField(fieldType: JcType, name: String? = null, annotation: JcAnnotation? = null): JcField {
@@ -131,6 +157,11 @@ object JcSpringTestClassesFeature: JcClasspathExtFeature {
     }
 
     override fun tryFindClass(classpath: JcClasspath, name: String): JcResolvedClassResult? {
+        if (!this::defaultTestClassClasspath.isInitialized) {
+            defaultTestClassClasspath = classpath
+            VirtualMockito.useIn(classpath)
+        }
+
         return classes.find { it.name == name }?.let { AbstractJcResolvedResult.JcResolvedClassResultImpl(name, it) }
     }
 }

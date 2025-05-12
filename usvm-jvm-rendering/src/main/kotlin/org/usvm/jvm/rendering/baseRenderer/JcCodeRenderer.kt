@@ -20,6 +20,7 @@ import com.github.javaparser.ast.type.ReferenceType
 import com.github.javaparser.ast.type.Type
 import com.github.javaparser.ast.type.VoidType
 import com.github.javaparser.ast.type.WildcardType
+import kotlin.math.max
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcBoundedWildcard
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -33,11 +34,12 @@ import org.jacodb.api.jvm.JcTypeVariable
 import org.jacodb.api.jvm.JcUnboundWildcard
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
-import org.usvm.jvm.util.toTypedMethod
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
 import org.jacodb.impl.types.JcTypeVariableImpl
 import org.jacodb.impl.types.TypeNameImpl
 import org.usvm.jvm.rendering.baseRenderer.JcTypeVariableExt.isRecursive
+import org.usvm.jvm.rendering.isVararg
+import org.usvm.jvm.util.toTypedMethod
 
 abstract class JcCodeRenderer<T: Node>(
     open val importManager: JcImportManager,
@@ -324,16 +326,19 @@ abstract class JcCodeRenderer<T: Node>(
         return !method.isPublic
     }
 
-    open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
+    open fun renderPrivateCtorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         error("Rendering private methods is not supported")
     }
 
-    open fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
-        check(ctor.isConstructor)
+    open fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>, inlinesVarargs: Boolean): Expression {
+        check(ctor.isConstructor) {
+            "not a constructor in renderConstructorCall"
+        }
         if (shouldRenderMethodCallAsPrivate(ctor))
-            return renderPrivateCtorCall(ctor, type, args)
+            return renderPrivateCtorCall(ctor, type, args, inlinesVarargs)
 
-        val castedArgs = callArgsWithGenericsCasted(ctor, args)
+        val castedArgs = callArgsWithGenericsCasted(ctor, args, inlinesVarargs)
+
         return when {
             type.outerType == null || type.isStatic -> {
                 ObjectCreationExpr(null, renderClass(type), NodeList(castedArgs))
@@ -343,22 +348,25 @@ abstract class JcCodeRenderer<T: Node>(
                 val ctorTypeName = qualifiedName(type.jcClass.name).split(".").last()
                 val ctorType = StaticJavaParser.parseClassOrInterfaceType(ctorTypeName)
                     .setTypeArgsIfNeeded(true, type)
-                ObjectCreationExpr(args.first(), ctorType, NodeList(castedArgs.drop(1)))
+                ObjectCreationExpr(castedArgs.first(), ctorType, NodeList(castedArgs.drop(1)))
             }
         }
     }
 
-    open fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
+    open fun renderPrivateMethodCall(method: JcMethod, instance: Expression, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         error("Rendering private methods is not supported")
     }
 
-    open fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
-        check(!method.isStatic)
+    open fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>, inlinesVarargs: Boolean): Expression {
+        check(!method.isStatic) {
+            "cannot render static methods in renderMethodCall"
+        }
 
         if (shouldRenderMethodCallAsPrivate(method))
-            return renderPrivateMethodCall(method, instance, args)
+            return renderPrivateMethodCall(method, instance, args, inlinesVarargs)
 
-        val castedArgs = callArgsWithGenericsCasted(method, args)
+        val castedArgs = callArgsWithGenericsCasted(method, args, inlinesVarargs)
+
         return MethodCallExpr(
             instance,
             method.name,
@@ -366,17 +374,20 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    open fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
+    open fun renderPrivateStaticMethodCall(method: JcMethod, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         error("Rendering private methods is not supported")
     }
 
-    open fun renderStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
-        check(method.isStatic)
+    open fun renderStaticMethodCall(method: JcMethod, args: List<Expression>, inlinesVarargs: Boolean): Expression {
+        check(method.isStatic) {
+            "cannot render instance method in renderStaticMethodCall"
+        }
 
         if (shouldRenderMethodCallAsPrivate(method))
-            return renderPrivateStaticMethodCall(method, args)
+            return renderPrivateStaticMethodCall(method, args, inlinesVarargs)
 
-        val castedArgs = callArgsWithGenericsCasted(method, args)
+        val castedArgs = callArgsWithGenericsCasted(method, args, inlinesVarargs)
+
         return MethodCallExpr(
             renderStaticMethodCallScope(method, false),
             method.name,
@@ -384,13 +395,26 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    protected fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>): List<Expression> {
-        val typedParams = method.toTypedMethod.parameters
+    protected fun callArgsWithGenericsCasted(method: JcMethod, args: List<Expression>, hasInlinedVarArgs: Boolean): List<Expression> {
+        val typedParams = method.toTypedMethod.parameters.map { parameter -> parameter.type }.toMutableList()
 
-        check(args.size == typedParams.size)
+        if (hasInlinedVarArgs) {
+            check(method.isVararg) {
+                "cannot inline non-vararg args"
+            }
 
-        return args.zip(typedParams).map { (arg, param) ->
-            exprWithGenericsCasted(param.type, arg)
+            val varargParamType = typedParams.removeLast()
+            check(varargParamType is JcArrayType) {
+                "vararg param expected to be of array type"
+            }
+
+            val extraArgType = varargParamType.elementType
+            val extraParamCount = max(args.size - typedParams.size, 0)
+            typedParams.addAll(List(extraParamCount) { extraArgType })
+        }
+
+        return args.zip(typedParams).map { (arg, paramType) ->
+            exprWithGenericsCasted(paramType, arg)
         }
     }
 
@@ -426,7 +450,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     open fun renderGetStaticField(field: JcField): Expression {
-        check(field.isStatic)
+        check(field.isStatic) {
+            "cannot render instance field in renderGetStaticField"
+        }
 
         if (shouldRenderGetFieldAsPrivate(field))
             return renderGetPrivateStaticField(field)
@@ -442,7 +468,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     open fun renderGetField(instance: Expression, field: JcField): Expression {
-        check(!field.isStatic)
+        check(!field.isStatic) {
+            "cannot render static field in renderGetField"
+        }
 
         if (shouldRenderGetFieldAsPrivate(field))
             return renderGetPrivateField(instance, field)
@@ -462,7 +490,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     fun renderSetStaticField(field: JcField, value: Expression): Expression {
-        check(field.isStatic)
+        check(field.isStatic) {
+            "cannot render instance field in renderSetStaticField"
+        }
 
         if (shouldRenderSetFieldAsPrivate(field))
             return renderSetPrivateStaticField(field, value)
@@ -478,7 +508,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     fun renderSetField(instance: Expression, field: JcField, value: Expression): Expression {
-        check(!field.isStatic)
+        check(!field.isStatic) {
+            "cannot render static field in renderSetField"
+        }
 
         if (shouldRenderSetFieldAsPrivate(field))
             return renderSetPrivateField(instance, field, value)

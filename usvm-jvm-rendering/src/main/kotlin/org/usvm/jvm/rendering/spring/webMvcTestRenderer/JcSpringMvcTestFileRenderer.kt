@@ -19,7 +19,7 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
 
     private constructor(
         controller: JcClassType,
-        packageName: String,
+        packageName: String?,
         importManager: JcSpringImportManager,
         cp: JcClasspath
     ) : super(packageName, importManager, cp) {
@@ -40,7 +40,7 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
 
     constructor(
         controller: JcClassType,
-        packageName: String,
+        packageName: String?,
         cp: JcClasspath,
         inlineUsvmUtils: Boolean = false
     ) : this(

@@ -7,6 +7,7 @@ import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestConstructorCall
 import org.usvm.test.api.UTestMethodCall
+import org.usvm.test.api.UTestStaticMethodCall
 
 class JcSpringMvcTestTransformer: JcTestTransformer() {
 
@@ -27,13 +28,25 @@ class JcSpringMvcTestTransformer: JcTestTransformer() {
 
         if (method.isPrepareInstanceMethod) {
             val instance = call.instance
-            check(instance is UTestConstructorCall && instance.method.enclosingClass.name == testContextManagerName)
+            check(instance is UTestConstructorCall && instance.method.enclosingClass.name == testContextManagerName) {
+                "isPrepareInstanceMethod instance fail"
+            }
+
             val arg = instance.args.singleOrNull() as? UTestClassExpression
-            check(arg != null)
+            check(arg != null) {
+                "isPrepareInstanceMethod arg fail"
+            }
+
             mvcTestClass = (arg.type as JcClassType).jcClass
 
             return null
         }
+
+        return super.transform(call)
+    }
+
+    override fun transform(call: UTestStaticMethodCall): UTestCall? {
+        val method = call.method
 
         if (method.isIgnoreResultMethod)
             return super.transform(call.args.single() as UTestMethodCall)

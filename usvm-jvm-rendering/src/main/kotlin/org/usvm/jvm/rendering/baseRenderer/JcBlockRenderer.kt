@@ -137,18 +137,18 @@ open class JcBlockRenderer private constructor(
         thrownExceptions.add(thrown)
     }
 
-    override fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>): Expression {
+    override fun renderConstructorCall(ctor: JcMethod, type: JcClassType, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         addThrownExceptions(ctor)
-        return super.renderConstructorCall(ctor, type, args)
+        return super.renderConstructorCall(ctor, type, args, inlinesVarargs)
     }
 
-    override fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>): Expression {
+    override fun renderMethodCall(method: JcMethod, instance: Expression, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         addThrownExceptions(method)
-        return super.renderMethodCall(method, instance, args)
+        return super.renderMethodCall(method, instance, args, inlinesVarargs)
     }
 
-    override fun renderStaticMethodCall(method: JcMethod, args: List<Expression>): Expression {
+    override fun renderStaticMethodCall(method: JcMethod, args: List<Expression>, inlinesVarargs: Boolean): Expression {
         addThrownExceptions(method)
-        return super.renderStaticMethodCall(method, args)
+        return super.renderStaticMethodCall(method, args, inlinesVarargs)
     }
 }

@@ -32,7 +32,10 @@ class JcSpringTestBuilder(
     fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks.toMutableList() }
 
     private fun findTestClass(cp: JcClasspath): JcClassOrInterface {
-        check(cp.features?.contains(JcSpringTestClassesFeature) == true)
+        check(cp.features?.contains(JcSpringTestClassesFeature) == true) {
+            "JcSpringTestClassesFeature required in classpath"
+        }
+
         return cp.findClassOrNull(JcSpringTestClassesFeature.DEFAULT_TEST_CLASS_NAME)
             ?: error("test class not found")
     }
