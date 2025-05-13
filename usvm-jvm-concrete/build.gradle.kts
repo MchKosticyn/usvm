@@ -35,7 +35,6 @@ val approximations by configurations.creating
 val approximationsRepo = "org.usvm.approximations.java.stdlib"
 val approximationsVersion = "0.0.0"
 
-
 dependencies {
     testImplementation(Libs.mockk)
     testImplementation(Libs.junit_jupiter_params)

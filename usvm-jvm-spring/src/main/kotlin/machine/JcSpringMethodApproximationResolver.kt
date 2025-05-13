@@ -528,7 +528,6 @@ class JcSpringMethodApproximationResolver (
         return false
     }
 
-
     private fun pathFromAnnotation(annotation: JcAnnotation): String {
         val values = annotation.values
         check(values.contains("value"))
