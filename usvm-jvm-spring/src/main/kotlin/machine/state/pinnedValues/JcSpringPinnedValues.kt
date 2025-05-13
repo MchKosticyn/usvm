@@ -12,8 +12,6 @@ import org.usvm.machine.interpreter.JcStepScope
 class JcSpringPinnedValues(
     private var pinnedValues: Map<JcPinnedKey, JcPinnedValue> = emptyMap()
 ) {
-    fun getMap() = pinnedValues
-
     fun getValue(key: JcPinnedKey): JcPinnedValue? {
         return pinnedValues[key]
     }
