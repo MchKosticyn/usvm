@@ -93,6 +93,7 @@ open class JcConcreteInterpreter(
                         ctx.cp.void -> skipMethodInvocationWithValue(stmt, ctx.nullRef)
                         else -> {
                             val returnValue = (methodResult as JcMethodResult.Success).value
+                            methodResult = JcMethodResult.NoCall
                             newStmt(JcBoxMethodCall(stmt, returnValue, returnType))
                         }
                     }
@@ -114,6 +115,7 @@ open class JcConcreteInterpreter(
                             val boxMethod = boxedType.declaredMethods.find {
                                 it.name == "valueOf" && it.isStatic && it.parameters.singleOrNull()?.type == returnType
                             }!!
+                            methodResult = JcMethodResult.NoCall
                             newStmt(JcConcreteMethodCallInst(stmt.location, boxMethod.method, listOf(result), stmt.returnSite))
                         }
 
