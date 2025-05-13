@@ -129,7 +129,7 @@ const val DISTINCT_TABLE = "generated.org.springframework.boot.databases.Distinc
 const val FLAT_TABLE = "generated.org.springframework.boot.databases.FlatTable"
 const val SINGLETON_TABLE = "generated.org.springframework.boot.databases.SingletonTable"
 const val DATABASE_UTILS = "generated.org.springframework.boot.databases.utils.DatabaseSupportFunctions"
-const val TABLE_TRACKER = "stub.spring.TableTracker"
+const val TABLE_TRACKER = "generated.org.springframework.boot.databases.basetables.TableTracker"
 
 // endregion
 
@@ -139,7 +139,7 @@ const val IWRAPPER = "generated.org.springframework.boot.databases.wrappers.IWra
 const val PAGE_WRAPPER = "org.springframework.data.domain.Page"
 const val PAGE_IMPL_WRAPPER = "org.springframework.data.domain.PageImpl"
 const val SET_WRAPPER = "generated.org.springframework.boot.databases.wrappers.SetWrapper"
-const val LIST_WRAPPER = "stub.spring.ListWrapper"
+const val LIST_WRAPPER = "generated.org.springframework.boot.databases.wrappers.ListWrapper"
 
 // endregion
 
