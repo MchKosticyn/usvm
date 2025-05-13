@@ -27,7 +27,6 @@ import org.jacodb.api.jvm.cfg.JcThrowInst
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.cfg.callExpr
 import org.jacodb.api.jvm.ext.humanReadableSignature
-import org.jacodb.api.jvm.ext.ifArrayGetElementType
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.ForkCase
@@ -41,7 +40,6 @@ import org.usvm.UInterpreter
 import org.usvm.USort
 import org.usvm.api.allocateStaticRef
 import org.usvm.api.evalTypeEquals
-import org.usvm.api.mapTypeStream
 import org.usvm.api.targets.JcTarget
 import org.usvm.collection.array.UArrayIndexLValue
 import org.usvm.collection.field.UFieldLValue
@@ -74,7 +72,6 @@ import org.usvm.memory.ULValue
 import org.usvm.memory.UMemory
 import org.usvm.memory.URegisterStackLValue
 import org.usvm.targets.UTargetsSet
-import org.usvm.types.singleOrNull
 import org.usvm.jvm.util.name
 import org.usvm.jvm.util.outerClassInstanceField
 import org.usvm.util.write
