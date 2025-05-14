@@ -141,7 +141,7 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
             name,
             initialFields = listOf(),
             initialMethods = listOf(testClassCtor, testClassIgnoreResultMethod),
-            annotations = listOf(mockMvcAnnotationFor(controller))
+            annotations = listOf(webMvcTestAnnotationFor(controller))
         )
 
         virtualClass.bind(controller.classpath, VirtualLocation())
@@ -199,7 +199,7 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
         return securityExtra
     }
 
-    private fun mockMvcAnnotationFor(controller: JcClassOrInterface): JcAnnotation {
+    private fun webMvcTestAnnotationFor(controller: JcClassOrInterface): JcAnnotation {
         val annotationValues = mutableListOf<Pair<String, AnnotationValue>>("value" to ClassRef(controller.typename.typeName))
         val securityEnabled = controller.classpath.findClassOrNull(WEB_SECURITY_CONFIGURER_NAME) != null
 
@@ -229,7 +229,7 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
     }
 }
 
-fun getSpringTestClassesFeatureIn(cp: JcClasspath): JcSpringTestClassesFeature {
+internal fun getSpringTestClassesFeatureIn(cp: JcClasspath): JcSpringTestClassesFeature {
     val testClassesFeature = cp.features?.filterIsInstance<JcSpringTestClassesFeature>()?.singleOrNull()
     check(testClassesFeature != null) {
         "JcSpringTestClassesFeature required in classpath"

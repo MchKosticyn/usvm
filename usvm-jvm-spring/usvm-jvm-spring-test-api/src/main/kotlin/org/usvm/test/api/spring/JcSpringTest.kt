@@ -35,7 +35,7 @@ class JcSpringTestBuilder(
     fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks.toMutableList() }
 
     private fun makeTestClassName(): String {
-        return "${controller.name}_mvc_testClass"
+        return "${controller.name}Tests"
     }
 
     private fun findTestClass(cp: JcClasspath): JcClassOrInterface {

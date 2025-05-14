@@ -590,7 +590,6 @@ abstract class JcCodeRenderer<T: Node>(
 
     fun renderLongPrimitive(value: Long): Expression = LongLiteralExpr(value.toString() + "L")
 
-
     fun renderFloatPrimitive(value: Float): Expression = DoubleLiteralExpr(value.toString() + "f")
 
     fun renderDoublePrimitive(value: Double): Expression = DoubleLiteralExpr(value.toString())
