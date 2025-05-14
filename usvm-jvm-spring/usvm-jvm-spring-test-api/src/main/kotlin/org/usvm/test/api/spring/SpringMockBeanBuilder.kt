@@ -92,8 +92,9 @@ class SpringMockBeanBuilder(
             return current
 
         val testClassType = (testClass.type as JcClassType).jcClass
+
         val mockBeanField = testClassType.declaredFields.find { it.type.typeName == type.typeName }
-            ?: JcSpringTestClassesFeature.addMockBeanField(type)
+            ?: getSpringTestClassesFeatureIn(cp).addMockBeanField(testClassType, type)
 
         check(testClassType.declaredFields.any { it.type.typeName == type.typeName }) {
             "mockBean field should be declared in test class"

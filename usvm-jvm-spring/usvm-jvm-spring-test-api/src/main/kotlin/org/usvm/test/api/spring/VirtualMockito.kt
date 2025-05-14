@@ -14,22 +14,22 @@ import org.objectweb.asm.Opcodes
 // TODO: implement as ClasspathExtFeature
 
 internal object VirtualMockito {
-    private lateinit var cp: JcClasspath
-
-    fun useIn(jcClasspath: JcClasspath) {
-        if (!this::cp.isInitialized) {
-            cp = jcClasspath
-        }
+    fun classesIn(cp: JcClasspath): Set<JcVirtualClass> {
+        return setOf(
+            mockito(cp),
+            ongoingStubbing(cp),
+            argumentMatcher(cp)
+        )
     }
 
-    val mockito: JcVirtualClass by lazy {
+    private fun mockito(cp: JcClasspath): JcVirtualClass{
         val clazz = JcVirtualClassImpl(
             "org.mockito.Mockito",
             initialFields = listOf(),
             initialMethods = listOf(mockitoWhen)
         )
         clazz.bind(cp, VirtualLocation())
-        clazz
+        return clazz
     }
 
     private val mockitoWhen: JcVirtualMethod by lazy {
@@ -42,14 +42,14 @@ internal object VirtualMockito {
         )
     }
 
-    val ongoingStubbing: JcVirtualClass by lazy {
+    private fun ongoingStubbing(cp: JcClasspath): JcVirtualClass {
         val clazz = JcVirtualClassImpl(
             "org.mockito.stubbing.OngoingStubbing",
             initialFields = listOf(),
             initialMethods = listOf(ongoingStubbingThenReturn)
         )
         clazz.bind(cp, VirtualLocation())
-        clazz
+        return clazz
     }
 
     private val ongoingStubbingThenReturn by lazy {
@@ -62,14 +62,14 @@ internal object VirtualMockito {
         )
     }
 
-    val argumentMatcher by lazy {
+    private fun argumentMatcher(cp: JcClasspath): JcVirtualClass {
         val clazz = JcVirtualClassImpl(
             "org.mockito.ArgumentMatchers",
             initialFields = listOf(),
             initialMethods = createMatchers()
         )
         clazz.bind(cp, VirtualLocation())
-        clazz
+        return clazz
     }
 
     private val javaUtilCollectionSuffixes = listOf("Set", "Map", "List", "Collection")

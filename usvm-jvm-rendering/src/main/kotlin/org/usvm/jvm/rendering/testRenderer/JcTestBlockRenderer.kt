@@ -5,21 +5,15 @@ import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayCreationExpr
 import com.github.javaparser.ast.expr.BinaryExpr
-import com.github.javaparser.ast.expr.BooleanLiteralExpr
 import com.github.javaparser.ast.expr.CastExpr
-import com.github.javaparser.ast.expr.CharLiteralExpr
-import com.github.javaparser.ast.expr.DoubleLiteralExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.FieldAccessExpr
-import com.github.javaparser.ast.expr.IntegerLiteralExpr
 import com.github.javaparser.ast.expr.LambdaExpr
-import com.github.javaparser.ast.expr.LongLiteralExpr
 import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
-import com.github.javaparser.ast.type.PrimitiveType
 import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.PredefinedPrimitives
@@ -327,26 +321,23 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderClassExpression(expr: UTestClassExpression): Expression =
         renderClassExpression(expr.type as JcClassType)
 
-    open fun renderBooleanExpression(expr: UTestBooleanExpression): Expression = BooleanLiteralExpr(expr.value)
+    open fun renderBooleanExpression(expr: UTestBooleanExpression): Expression = renderBooleanPrimitive(expr.value)
 
-    open fun renderByteExpression(expr: UTestByteExpression): Expression =
-        CastExpr(PrimitiveType.byteType(), IntegerLiteralExpr(expr.value.toString()))
+    open fun renderByteExpression(expr: UTestByteExpression): Expression = renderBytePrimitive(expr.value)
 
-    open fun renderCharExpression(expr: UTestCharExpression): Expression = CharLiteralExpr(expr.value)
+    open fun renderCharExpression(expr: UTestCharExpression): Expression = renderCharPrimitive(expr.value)
 
-    open fun renderDoubleExpression(expr: UTestDoubleExpression): Expression = DoubleLiteralExpr(expr.value)
+    open fun renderDoubleExpression(expr: UTestDoubleExpression): Expression = renderDoublePrimitive(expr.value)
 
-    open fun renderFloatExpression(expr: UTestFloatExpression): Expression =
-        DoubleLiteralExpr(expr.value.toDouble().toString() + "f")
+    open fun renderFloatExpression(expr: UTestFloatExpression): Expression = renderFloatPrimitive(expr.value)
 
-    open fun renderIntExpression(expr: UTestIntExpression): Expression = IntegerLiteralExpr(expr.value.toString())
+    open fun renderIntExpression(expr: UTestIntExpression): Expression = renderIntPrimitive(expr.value)
 
-    open fun renderLongExpression(expr: UTestLongExpression): Expression = LongLiteralExpr(expr.value.toString() + 'L')
+    open fun renderLongExpression(expr: UTestLongExpression): Expression = renderLongPrimitive(expr.value)
 
     open fun renderNullExpression(expr: UTestNullExpression): Expression = NullLiteralExpr()
 
-    open fun renderShortExpression(expr: UTestShortExpression): Expression =
-        CastExpr(PrimitiveType.shortType(), IntegerLiteralExpr(expr.value.toString()))
+    open fun renderShortExpression(expr: UTestShortExpression): Expression = renderShortPrimitive(expr.value)
 
     open fun renderStringExpression(expr: UTestStringExpression): Expression {
         val literal = StringLiteralExpr()

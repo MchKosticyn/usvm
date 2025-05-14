@@ -8,9 +8,9 @@ import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.Expression
-import com.github.javaparser.ast.expr.MarkerAnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.type.Type
+import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 
@@ -56,23 +56,9 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         field: JcField,
         initializer: Expression? = null
     ): SimpleName {
-        val modifiers: MutableList<Modifier> = mutableListOf()
-        if (field.isPublic)
-            modifiers.add(Modifier.publicModifier())
-        if (field.isStatic)
-            modifiers.add(Modifier.staticModifier())
-        if (field.isFinal)
-            modifiers.add(Modifier.finalModifier())
-        if (field.isPrivate)
-            modifiers.add(Modifier.privateModifier())
-        if (field.isAbstract)
-            modifiers.add(Modifier.abstractModifier())
-        if (field.isProtected)
-            modifiers.add(Modifier.protectedModifier())
-        val annotations = field.annotations.map {
-            // TODO: create method 'renderAnnotation'
-            MarkerAnnotationExpr(it.name)
-        }
+        val modifiers: List<Modifier> = getModifiers(field)
+        val annotations = field.annotations.map { renderAnnotation(it) }
+
         val fieldType = cp.findTypeOrNull(field.type.typeName)
             ?: error("Field type ${field.type.typeName} not found in classpath")
         return getOrCreateField(
@@ -120,6 +106,11 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
         if (!annotations.contains(annotation)) {
             annotations.add(annotation)
         }
+    }
+
+    fun addAnnotation(annotation: JcAnnotation) {
+        val renderedAnnotation = renderAnnotation(annotation)
+        addAnnotation(renderedAnnotation)
     }
 
     override fun renderInternal(): ClassOrInterfaceDeclaration {

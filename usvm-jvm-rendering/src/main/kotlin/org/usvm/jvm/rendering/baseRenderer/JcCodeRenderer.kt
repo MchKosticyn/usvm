@@ -1,16 +1,30 @@
 package org.usvm.jvm.rendering.baseRenderer
 
 import com.github.javaparser.StaticJavaParser
+import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.Node
 import com.github.javaparser.ast.NodeList
+import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.ArrayAccessExpr
+import com.github.javaparser.ast.expr.ArrayInitializerExpr
 import com.github.javaparser.ast.expr.AssignExpr
+import com.github.javaparser.ast.expr.BooleanLiteralExpr
 import com.github.javaparser.ast.expr.CastExpr
+import com.github.javaparser.ast.expr.CharLiteralExpr
 import com.github.javaparser.ast.expr.ClassExpr
+import com.github.javaparser.ast.expr.DoubleLiteralExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.FieldAccessExpr
+import com.github.javaparser.ast.expr.IntegerLiteralExpr
+import com.github.javaparser.ast.expr.LongLiteralExpr
+import com.github.javaparser.ast.expr.MarkerAnnotationExpr
+import com.github.javaparser.ast.expr.MemberValuePair
 import com.github.javaparser.ast.expr.MethodCallExpr
+import com.github.javaparser.ast.expr.Name
+import com.github.javaparser.ast.expr.NormalAnnotationExpr
+import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.ObjectCreationExpr
+import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.type.ArrayType
 import com.github.javaparser.ast.type.ClassOrInterfaceType
@@ -21,6 +35,8 @@ import com.github.javaparser.ast.type.Type
 import com.github.javaparser.ast.type.VoidType
 import com.github.javaparser.ast.type.WildcardType
 import kotlin.math.max
+import org.jacodb.api.jvm.JcAccessible
+import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcBoundedWildcard
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -530,6 +546,128 @@ abstract class JcCodeRenderer<T: Node>(
             ArrayAccessExpr(array, index),
             value
         )
+    }
+
+    //endregion
+
+    //region Modifiers
+
+    fun getModifiers(accessible: JcAccessible): List<Modifier> {
+        val modifiers = mutableListOf<Modifier>()
+        if (accessible.isPublic)
+            modifiers.add(Modifier.publicModifier())
+        if (accessible.isStatic)
+            modifiers.add(Modifier.staticModifier())
+        if (accessible.isFinal)
+            modifiers.add(Modifier.finalModifier())
+        if (accessible.isPrivate)
+            modifiers.add(Modifier.privateModifier())
+        if (accessible.isAbstract)
+            modifiers.add(Modifier.abstractModifier())
+        if (accessible.isProtected)
+            modifiers.add(Modifier.protectedModifier())
+
+        return modifiers
+    }
+
+    //endregion
+
+    //region Primitives
+
+    fun renderBooleanPrimitive(value: Boolean): Expression = BooleanLiteralExpr(value)
+
+    fun renderCharPrimitive(value: Char): Expression = CharLiteralExpr(value)
+
+    fun renderStringPrimitive(value: String): Expression = StringLiteralExpr(value)
+
+    fun renderBytePrimitive(value: Byte): Expression =
+        CastExpr(PrimitiveType.byteType(), IntegerLiteralExpr(value.toString()))
+
+    fun renderShortPrimitive(value: Short): Expression =
+        CastExpr(PrimitiveType.shortType(), IntegerLiteralExpr(value.toString()))
+
+    fun renderIntPrimitive(value: Int): Expression = IntegerLiteralExpr(value.toString())
+
+    fun renderLongPrimitive(value: Long): Expression = LongLiteralExpr(value.toString() + "L")
+
+    fun renderFloatPrimitive(value: Float): Expression = DoubleLiteralExpr(value.toString() + "f")
+
+    fun renderDoublePrimitive(value: Double): Expression = DoubleLiteralExpr(value.toString())
+
+    //endregion
+
+    //region Annotations
+
+    fun renderAnnotation(annotation: JcAnnotation): AnnotationExpr {
+        val annotationClass = annotation.jcClass
+
+        check(annotationClass != null) {
+            "annotation class is null"
+        }
+
+        val annotationName = Name(renderClass(annotationClass).nameWithScope)
+
+        if (annotation.values.isEmpty()) {
+            return MarkerAnnotationExpr(annotationName)
+        }
+
+        val annotationValues = renderAnnotationValues(annotation.values)
+        return NormalAnnotationExpr(annotationName, annotationValues)
+    }
+
+    private fun renderAnnotationValues(rawValues: Map<String, Any?>): NodeList<MemberValuePair> {
+        val result = rawValues.map { (name, value) ->
+            val renderedValue = renderSingleAnnotationValue(value)
+            MemberValuePair(name, renderedValue)
+        }
+        return NodeList(result)
+    }
+
+    private fun renderSingleAnnotationValue(value: Any?): Expression {
+        return when (value) {
+            null -> NullLiteralExpr()
+
+            is String -> renderStringPrimitive(value)
+
+            is Boolean -> renderBooleanPrimitive(value)
+
+            is Char -> renderCharPrimitive(value)
+
+            is Byte -> renderBytePrimitive(value)
+
+            is Short-> renderShortPrimitive(value)
+
+            is Int -> renderIntPrimitive(value)
+
+            is Long -> renderLongPrimitive(value)
+
+            is Float -> renderFloatPrimitive(value)
+
+            is Double -> renderDoublePrimitive(value)
+
+            is JcClassOrInterface -> {
+                renderClassExpression(value)
+            }
+
+            is JcField -> {
+                check(value.isStatic) {
+                    "enum value should be a static field"
+                }
+
+                renderGetStaticField(value)
+            }
+
+            is JcAnnotation -> {
+                renderAnnotation(value)
+            }
+
+            is List<*> -> {
+                val renderedValues = NodeList(value.map { renderSingleAnnotationValue(it) })
+                ArrayInitializerExpr(renderedValues)
+            }
+
+            else -> error("unsupported annotation value kind $value")
+        }
     }
 
     //endregion
