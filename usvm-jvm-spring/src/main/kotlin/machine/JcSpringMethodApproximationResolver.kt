@@ -31,6 +31,8 @@ import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
+import org.usvm.api.util.JcTestStateResolver
+import org.usvm.api.writeField
 import org.usvm.collection.field.UFieldLValue
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
@@ -505,7 +507,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldAnalyzePath(path: String, handlerName: String, controllerTypeName: String): Boolean {
-        return handlerName == "showOwner"
+        return true
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
