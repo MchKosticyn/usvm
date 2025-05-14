@@ -113,6 +113,7 @@ open class JcConcreteInterpreter(
                     when (val returnType = stmt.resultType) {
                         is JcPrimitiveType -> {
                             val boxedType = returnType.autoboxIfNeeded() as JcClassType
+                            methodResult = JcMethodResult.NoCall
                             val boxMethod = boxedType.declaredMethods.find {
                                 it.name == "valueOf" && it.isStatic && it.parameters.singleOrNull()?.type == returnType
                             }!!
