@@ -24,6 +24,7 @@ import org.usvm.machine.state.JcState
 import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
+import org.usvm.utils.applySoftConstraints
 
 class JcSpringState(
     ctx: JcContext,
@@ -38,7 +39,7 @@ class JcSpringState(
     methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
     var pinnedValues: JcSpringPinnedValues = JcSpringPinnedValues(),
-    var mockedMethodCalls: JcSpringMockedCalls = JcSpringMockedCalls()
+    var mockedMethodCalls: JcSpringMockedCalls = JcSpringMockedCalls(),
 ) : JcState(
     ctx,
     ownership,
@@ -52,6 +53,10 @@ class JcSpringState(
     methodResult,
     targets
 ) {
+    fun getFixedModel(): UModelBase<JcType> {
+        return (memory as JcSpringMemory).getFixedModel(this)
+    }
+
     var handlerData: List<HandlerMethodData> = listOf()
 
     internal val springMemory: JcSpringMemory

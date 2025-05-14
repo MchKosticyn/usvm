@@ -59,7 +59,8 @@ internal val JcMethod.isSpringFilterChainMethod: Boolean
     get() = enclosingClass.isSpringFilterChain && (name == "doFilter" || name == "doFilterInternal")
 
 internal val JcMethod.isArgumentResolverMethod: Boolean
-    get() = enclosingClass.isArgumentResolver && (name == "resolveArgument" || name == "readWithMessageConverters" || name == "resolveName" || name == "handleNullValue")
+    get() = enclosingClass.isArgumentResolver &&
+            setOf("convertIfNecessary", "resolveArgument", "resolveName", "handleNullValue").contains(name)
 
 internal val JcMethod.isHttpRequestMethod: Boolean
     get() = enclosingClass.isSpringRequest
@@ -69,4 +70,4 @@ internal val JcMethod.isServletRequestMethod: Boolean
 
 internal val JcMethod.isDeserializationMethod: Boolean
     get() = name == "readWithMessageConverters"
-            && enclosingClass.name == "org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor"
+            && enclosingClass.isArgumentResolver
