@@ -58,9 +58,10 @@ internal val JcMethod.isSpringFilterMethod: Boolean
 internal val JcMethod.isSpringFilterChainMethod: Boolean
     get() = enclosingClass.isSpringFilterChain && (name == "doFilter" || name == "doFilterInternal")
 
+private val argumentResolverMethods = setOf("convertIfNecessary", "resolveArgument", "resolveName", "handleNullValue")
+
 internal val JcMethod.isArgumentResolverMethod: Boolean
-    get() = enclosingClass.isArgumentResolver &&
-            setOf("convertIfNecessary", "resolveArgument", "resolveName", "handleNullValue").contains(name)
+    get() = enclosingClass.isArgumentResolver && argumentResolverMethods.contains(name)
 
 internal val JcMethod.isHttpRequestMethod: Boolean
     get() = enclosingClass.isSpringRequest
