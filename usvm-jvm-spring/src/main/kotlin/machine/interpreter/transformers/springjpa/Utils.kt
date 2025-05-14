@@ -461,7 +461,7 @@ fun BlockGenerationContext.generateGlobalTableAccess(
     val cast = JcCastExpr(baseType, tblV)
     addInstruction { loc -> JcAssignInst(loc, casted, cast) }
 
-    if (!isNoIdTable) putTrackCall(cp, name, tableName, casted, clazz)
+    if (!isNoIdTable) putTrackCall(cp, name, tableName, casted, clazz!!)
 
     return casted
 }
