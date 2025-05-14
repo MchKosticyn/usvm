@@ -70,6 +70,7 @@ import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.URegistersStack
 import org.usvm.jvm.util.name
 import org.usvm.jvm.util.typedField
+import org.usvm.model.UModelBase
 import org.usvm.util.onNone
 import org.usvm.util.onSome
 import org.usvm.utils.applySoftConstraints
@@ -105,6 +106,7 @@ open class JcConcreteMemory(
     private var bindings: JcConcreteMemoryBindings = JcConcreteMemoryBindings(ctx, typeConstraints, executor)
     internal var regionStorage: JcConcreteRegionStorage
     private var marshall: Marshall
+    private var fixedModel: UModelBase<JcType>? = null
 
     init {
         val storage = JcConcreteRegionStorage(ctx, this)
@@ -307,7 +309,7 @@ open class JcConcreteMemory(
     }
 
     fun getConcretizer(state: JcState): JcTestStateResolver<Any?> {
-        return JcConcretizer(state, bindings)
+        return JcConcretizer(state, getFixedModel(state), bindings)
     }
 
     //region Concrete Invoke
@@ -378,6 +380,14 @@ open class JcConcreteMemory(
         }
     }
 
+    fun getFixedModel(state: JcState): UModelBase<JcType> {
+        if (fixedModel != null)
+            return fixedModel!!
+        state.applySoftConstraints()
+        fixedModel = state.models.first()
+        return fixedModel!!
+    }
+
     private fun concretize(
         state: JcState,
         exprResolver: JcExprResolver,
@@ -389,7 +399,7 @@ open class JcConcreteMemory(
             state.applySoftConstraints()
         }
 
-        val concretizer = JcConcretizer(state, bindings)
+        val concretizer = JcConcretizer(state, getFixedModel(state), bindings)
 
         if (bindings.isMutableWithEffect())
             bindings.effectStorage.ensureStatics()

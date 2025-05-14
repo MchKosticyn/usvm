@@ -3,6 +3,7 @@ package machine.concreteMemory
 import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
+import org.jacodb.api.jvm.JcType
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.usvm.UConcreteHeapRef
@@ -17,6 +18,7 @@ import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.state.JcState
 import org.usvm.mkSizeExpr
 import org.usvm.jvm.util.allInstanceFields
+import org.usvm.model.UModelBase
 import utils.LambdaInvocationHandler
 import utils.approximationMethod
 import utils.createDefault
@@ -29,8 +31,9 @@ import java.lang.reflect.Proxy
 
 internal class JcConcretizer(
     state: JcState,
+    model: UModelBase<JcType>,
     private val bindings: JcConcreteMemoryBindings
-) : JcTestStateResolver<Any?>(state.ctx, state.models.first(), state.memory, state.entrypoint.toTypedMethod) {
+) : JcTestStateResolver<Any?>(state.ctx, model, state.memory, state.entrypoint.toTypedMethod) {
     override val decoderApi: JcTestInterpreterDecoderApi = JcTestInterpreterDecoderApi(ctx, JcConcreteMemoryClassLoader)
 
     private val concreteMemory = state.memory as JcConcreteMemory
