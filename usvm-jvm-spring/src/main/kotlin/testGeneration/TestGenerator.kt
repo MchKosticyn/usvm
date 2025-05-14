@@ -1,8 +1,10 @@
 package testGeneration
 
+import machine.concreteMemory.JcConcreteMemory
 import machine.state.JcSpringState
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcSpringMockedCalls
+import machine.state.pinnedValues.JcSpringPinnedValueSource
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
@@ -48,7 +50,7 @@ data class SpringTestInfo(
 )
 
 internal fun JcSpringState.generateTest(): SpringTestInfo {
-    val model = models.first()
+    val model = getFixedModel()
     val exprResolver = JcSpringTestExprResolver(ctx, model, memory, entrypoint.toTypedMethod)
     val request = getSpringRequest(this, exprResolver)
 
