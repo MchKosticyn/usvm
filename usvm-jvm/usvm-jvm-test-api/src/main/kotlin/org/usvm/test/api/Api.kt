@@ -84,13 +84,13 @@ class UTestAllocateMemoryCall(
 }
 
 class UTestAssertThrowsCall(
-    val exceptionType: JcClassType,
+    val exceptionClass: JcClassOrInterface,
     val instList: List<UTestInst>
 ) : UTestCall {
     override val instance: UTestExpression? = null
     override val method: JcMethod? = null
     override val args: List<UTestExpression> = emptyList()
-    override val type: JcType = exceptionType.classpath.void
+    override val type: JcType = exceptionClass.classpath.void
 }
 
 sealed interface UTestStatement : UTestInst

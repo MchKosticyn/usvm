@@ -202,12 +202,12 @@ abstract class JcCodeRenderer<T: Node>(
 
     //region Methods
 
-    //region JUnit methods
+    //region Test framework methods
 
     val assertionsClass: ClassOrInterfaceType get() = renderClass(JcTestFrameworkProvider.assertionsClassName)
 
     fun assertThrowsCall(exceptionClassExpr: Expression, observedLambda: Expression): MethodCallExpr  {
-        check (JcTestFrameworkProvider.assertionsClassName != JcRendererTestFramework.JUNIT_4.assertionsClassName) {
+        check(JcTestFrameworkProvider.assertionsClassName != JcRendererTestFramework.JUNIT_4.assertionsClassName) {
             "not yet supported"
         }
 
@@ -479,11 +479,11 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     protected fun renderMethodParameter(clazz: JcClassOrInterface, name: String? = null): Parameter {
-        return renderMethodParameter(clazz.toType(), name)
+        return renderMethodParameter(clazz.name, name)
     }
 
     protected fun renderMethodParameter(typeName: String, name: String? = null): Parameter {
-        val paramName = name?.let { SimpleName(it) } ?: identifiersManager.generateIdentifier("param")
+        val paramName = identifiersManager.generateIdentifier(name ?: "")
         val renderedClass = renderClass(typeName)
         return Parameter(renderedClass, paramName)
     }

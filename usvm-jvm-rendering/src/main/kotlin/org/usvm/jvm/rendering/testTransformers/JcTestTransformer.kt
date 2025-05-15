@@ -237,8 +237,12 @@ abstract class JcTestTransformer {
     open fun transform(call: UTestAllocateMemoryCall): UTestCall? = call
 
     open fun transform(call: UTestAssertThrowsCall): UTestCall? {
-        val instListTransformed = call.instList.map { transformInst(it) ?: return null }
-        return UTestAssertThrowsCall(call.exceptionType, instListTransformed)
+        val instListTransformed = call.instList.mapNotNull { transformInst(it) }
+
+        if (instListTransformed.isEmpty())
+            return null
+
+        return UTestAssertThrowsCall(call.exceptionClass, instListTransformed)
     }
 
     //endregion

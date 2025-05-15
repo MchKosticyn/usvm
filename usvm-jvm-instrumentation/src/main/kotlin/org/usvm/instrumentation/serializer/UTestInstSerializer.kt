@@ -10,7 +10,6 @@ import com.jetbrains.rd.framework.readEnum
 import com.jetbrains.rd.framework.readList
 import com.jetbrains.rd.framework.writeEnum
 import com.jetbrains.rd.framework.writeList
-import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.boolean
@@ -334,18 +333,17 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
             uTestExpression = uTestAssertThrowsCall,
             kind = UTestExpressionKind.ASSERT_THROWS,
             serializeInternals = {
-                serialize(UTestClassExpression(exceptionType))
                 instList.forEach { serializeUTestInst(it) }
             },
             serialize = {
-                writeJcType(exceptionType)
+                writeJcClass(exceptionClass)
                 writeInt(instList.size)
                 instList.forEach { inst -> writeUTestInst(inst) }
             }
         )
 
     private fun AbstractBuffer.deserializeUTestAssertThrowsCall(): UTestAssertThrowsCall {
-        val exceptionType = readJcType(jcClasspath) as JcClassType
+        val exceptionType = readJcClass(jcClasspath)
         val instListSize = readInt()
         val instList = List(instListSize) { getUTestInst(readInt()) }
         return UTestAssertThrowsCall(exceptionType, instList)

@@ -8,6 +8,7 @@ import org.jacodb.api.jvm.ext.CONSTRUCTOR
 import org.jacodb.api.jvm.ext.findDeclaredFieldOrNull
 import org.jacodb.api.jvm.ext.findDeclaredMethodOrNull
 import org.jacodb.api.jvm.ext.toType
+import org.usvm.jvm.util.toJcClass
 import org.usvm.test.api.UTestAssertThrowsCall
 import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestClassExpression
@@ -154,8 +155,13 @@ class SpringTestExecBuilder private constructor(
             "status is not PERFORMED when wrapping into assertThrows"
         }
 
+        val exceptionClass = exceptionType.type.toJcClass()
+        check(exceptionClass != null) {
+            "exception class is null"
+        }
+
         mockMvcDSL = UTestAssertThrowsCall(
-            exceptionType = exceptionType.type as JcClassType,
+            exceptionClass = exceptionClass,
             instList = listOf(mockMvcDSL),
         )
 

@@ -286,15 +286,19 @@ open class JcTestBlockRenderer protected constructor(
     }
 
     open fun renderLambdaExpression(params: List<UTestExpression>, body: List<UTestInst>): Expression {
-        val renderedParams = params.map { renderMethodParameter(it.type ?: error("untyped lambda parameter"))}
         val lambdaBodyRenderer = newInnerBlock()
+
+        val renderedParams = params.map {
+            lambdaBodyRenderer.renderMethodParameter(it.type ?: error("untyped lambda parameter"))
+        }
         body.forEach { inst -> lambdaBodyRenderer.renderInst(inst) }
+
         val lambdaBody = lambdaBodyRenderer.render()
         return LambdaExpr(NodeList(renderedParams), lambdaBody)
     }
 
     open fun renderAssertThrowCall(expr: UTestAssertThrowsCall): Expression {
-        val exceptionType = renderClassExpression(expr.exceptionType)
+        val exceptionType = renderClassExpression(expr.exceptionClass)
         val observedLambda = renderLambdaExpression(listOf(), expr.instList)
         return assertThrowsCall(exceptionType, observedLambda)
     }
