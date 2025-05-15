@@ -38,6 +38,8 @@ import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
+import org.usvm.test.api.UTestAssertEqualsCall
+import org.usvm.test.api.UTestAssertThrowsCall
 
 // TODO: add CompositeTransformer
 abstract class JcTestTransformer {
@@ -213,6 +215,8 @@ abstract class JcTestTransformer {
             is UTestStaticMethodCall -> transform(call)
             is UTestMethodCall -> transform(call)
             is UTestAllocateMemoryCall -> transform(call)
+            is UTestAssertThrowsCall -> transform(call)
+            is UTestAssertEqualsCall -> transform(call)
         }
     }
 
@@ -233,6 +237,22 @@ abstract class JcTestTransformer {
     }
 
     open fun transform(call: UTestAllocateMemoryCall): UTestCall? = call
+
+    open fun transform(call: UTestAssertThrowsCall): UTestCall? {
+        val instListTransformed = call.instList.mapNotNull { transformInst(it) }
+
+        if (instListTransformed.isEmpty())
+            return null
+
+        return UTestAssertThrowsCall(call.exceptionClass, instListTransformed)
+    }
+
+    open fun transform(call: UTestAssertEqualsCall): UTestCall? {
+        val expected = transform(call.expected) ?: return null
+        val actual = transform(call.actual) ?: return null
+
+        return UTestAssertEqualsCall(expected, actual)
+    }
 
     //endregion
 

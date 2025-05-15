@@ -72,6 +72,8 @@ class UTestExpressionExecutor(
             is UTestConstructorCall -> executeConstructorCall(uTestExpression)
             is UTestMethodCall -> executeMethodCall(uTestExpression)
             is UTestStaticMethodCall -> executeUTestStaticMethodCall(uTestExpression)
+            is UTestAssertThrowsCall -> executeUTestAssertThrowsCall(uTestExpression)
+            is UTestAssertEqualsCall -> executeUTestAssertEqualsCall(uTestExpression)
             is UTestCastExpression -> executeUTestCastExpression(uTestExpression)
             is UTestGetFieldExpression -> executeUTestGetFieldExpression(uTestExpression)
             is UTestGetStaticFieldExpression -> executeUTestGetStaticFieldExpression(uTestExpression)
@@ -299,13 +301,35 @@ class UTestExpressionExecutor(
 
     private fun executeUTestStaticMethodCall(uTestStaticMethodCall: UTestStaticMethodCall): Any? {
         val jMethod = uTestStaticMethodCall.method.toJavaMethod(workerClassLoader)
-        // TODO: Move to special UTExpr
-        if (uTestStaticMethodCall.method.name == "assertThrows") {
-            return executeAssertThrows(uTestStaticMethodCall.args)
+        val args = uTestStaticMethodCall.args.map { exec(it) }
+
+        return jMethod.invokeWithAccessibility(null, args, taskExecutor)
+    }
+
+    private fun executeUTestAssertThrowsCall(uTestAssertThrowsCall: UTestAssertThrowsCall): Any? {
+        val expectedExceptionType = uTestAssertThrowsCall.exceptionClass
+        try {
+            uTestAssertThrowsCall.instList.forEach { inst -> exec(inst) }
+        } catch (t: Throwable) {
+            val exceptionType = expectedExceptionType.classpath.findClassOrNull(t.javaClass.typeName)
+            if (expectedExceptionType != exceptionType) {
+                val msg = "Throwable type mismatch, expected: $expectedExceptionType, but got: $exceptionType"
+                throw AssertionError(msg)
+            }
+            return null
+        }
+        throw AssertionError("Method did not throw")
+    }
+
+    private fun executeUTestAssertEqualsCall(uTestAssertEqualsCall: UTestAssertEqualsCall): Any? {
+        val lhs = exec(uTestAssertEqualsCall.expected)
+        val rhs = exec(uTestAssertEqualsCall.actual)
+
+        if (lhs != rhs) {
+            throw AssertionError("Assert equals fail on $lhs == $rhs")
         }
 
-        val args = uTestStaticMethodCall.args.map { exec(it) }
-        return jMethod.invokeWithAccessibility(null, args, taskExecutor)
+        return null
     }
 
     private fun executeUTestCastExpression(uTestCastExpression: UTestCastExpression): Any? {
@@ -337,21 +361,6 @@ class UTestExpressionExecutor(
                 toJavaMethod(workerClassLoader).invokeWithAccessibility(instance, args, taskExecutor)
             }
         }
-    }
-
-    private fun executeAssertThrows(args: List<UTestExpression>) {
-        val expectedExceptionType = exec(args[0])
-        try {
-            exec(args[1])
-        } catch (t: Throwable) {
-            val exceptionType = t.javaClass
-            if (expectedExceptionType != exceptionType) {
-                val msg = "Throwable type mismatch, expected: $expectedExceptionType, but got: $exceptionType"
-                throw AssertionError(msg)
-            }
-            return
-        }
-        throw AssertionError("Method did not throw")
     }
 }
 

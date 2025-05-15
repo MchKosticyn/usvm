@@ -4,7 +4,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
-import org.usvm.test.api.UTestStaticMethodCall
+import org.usvm.test.api.UTestAssertEqualsCall
 
 class SpringExceptionMatchersBuilder (
     private val cp: JcClasspath,
@@ -15,17 +15,7 @@ class SpringExceptionMatchersBuilder (
     private var resolvedException: UTAny? = null
 
     private fun addAssertEqualsCall(expected: UTAny, actual: UTAny) {
-        val assertEqualsMethod = cp.findJcMethod(
-            "org.junit.jupiter.api.Assertions",
-            "assertEquals",
-            listOf("java.lang.Object", "java.lang.Object")
-        )
-
-        val assertDsl = UTestStaticMethodCall(
-            method = assertEqualsMethod,
-            args = listOf(expected, actual)
-        )
-
+        val assertDsl = UTestAssertEqualsCall(expected, actual)
         initStatements.add(assertDsl)
     }
 

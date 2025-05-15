@@ -1,12 +1,15 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.CONSTRUCTOR
 import org.jacodb.api.jvm.ext.findDeclaredFieldOrNull
 import org.jacodb.api.jvm.ext.findDeclaredMethodOrNull
 import org.jacodb.api.jvm.ext.toType
+import org.usvm.jvm.util.toJcClass
+import org.usvm.test.api.UTestAssertThrowsCall
 import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestConstructorCall
@@ -147,18 +150,19 @@ class SpringTestExecBuilder private constructor(
         return this
     }
 
-    fun wrapInAssertThrows(exceptionType: UTAny): SpringTestExecBuilder {
-        check(status == PerformStatus.PERFORMED)
+    fun wrapInAssertThrows(exceptionType: UTestClassExpression): SpringTestExecBuilder {
+        check(status == PerformStatus.PERFORMED) {
+            "status is not PERFORMED when wrapping into assertThrows"
+        }
 
-        val assertThrowsMethod = cp.findJcMethod(
-            "org.junit.jupiter.api.Assertions",
-            "assertThrows",
-            listOf("java.lang.Class", "org.junit.jupiter.api.function.Executable")
-        )
+        val exceptionClass = exceptionType.type.toJcClass()
+        check(exceptionClass != null) {
+            "exception class is null"
+        }
 
-        mockMvcDSL = UTestStaticMethodCall(
-            method = assertThrowsMethod,
-            args = listOf(exceptionType, mockMvcDSL)
+        mockMvcDSL = UTestAssertThrowsCall(
+            exceptionClass = exceptionClass,
+            instList = listOf(mockMvcDSL),
         )
 
         status = PerformStatus.WRAPPED_THROWS
