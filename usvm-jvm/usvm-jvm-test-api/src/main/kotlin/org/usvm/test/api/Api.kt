@@ -97,10 +97,16 @@ class UTestAssertEqualsCall(
     val expected: UTestExpression,
     val actual: UTestExpression
 ) : UTestCall {
+    init {
+        check(expected.type != null && actual.type != null) {
+            "operand types expected"
+        }
+    }
+
     override val instance: UTestExpression? = null
     override val method: JcMethod? = null
     override val args: List<UTestExpression> = emptyList()
-    override val type: JcType = expected.type?.classpath?.boolean ?: error("expected type expected")
+    override val type: JcType = expected.type!!.classpath.boolean
 }
 
 sealed interface UTestStatement : UTestInst

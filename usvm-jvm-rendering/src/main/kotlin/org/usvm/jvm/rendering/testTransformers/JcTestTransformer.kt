@@ -248,10 +248,10 @@ abstract class JcTestTransformer {
     }
 
     open fun transform(call: UTestAssertEqualsCall): UTestCall? {
-        val lhs = transform(call.expected) ?: return null
-        val rhs = transform(call.actual) ?: return null
+        val expected = transform(call.expected) ?: return null
+        val actual = transform(call.actual) ?: return null
 
-        return UTestAssertEqualsCall(lhs, rhs)
+        return UTestAssertEqualsCall(expected, actual)
     }
 
     //endregion
