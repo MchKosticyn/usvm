@@ -35,8 +35,12 @@ class JcSpringPinnedValuesRequest(
         val completedUriVariables = uriVariableNames.map {
             uriVariables[it] ?: placeholder
         }
-        check(completedUriVariables.size == uriVariables.size)
         return completedUriVariables
+    }
+
+    private fun renderMatrixVariables(matrixVariables: Map<UTString, UTString>): String {
+        // TODO: URL Encode this and path #AA
+        return matrixVariables.entries.joinToString("") { ";${it.key.value}=${it.value.value}" }
     }
 
     private fun collectAndResolve(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
@@ -84,9 +88,12 @@ class JcSpringPinnedValuesRequest(
         return JcSpringRequestMethod.valueOf(method.value.uppercase())
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun getPath(): UTString {
-        val method = getStringPinnedValue(JcPinnedKey.requestPath())
-        return method
+        val path = getStringPinnedValue(JcPinnedKey.requestPath())
+        val matrixVariables = collectAndResolve(JcSpringPinnedValueSource.REQUEST_MATRIX)
+        val matrixSuffix = renderMatrixVariables(matrixVariables as Map<UTString, UTString>)
+        return UTString(path.value + matrixSuffix, stringType)
     }
 
     override fun getContent(): UTAny? {

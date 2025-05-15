@@ -27,6 +27,7 @@ import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.UNullRef
 import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
@@ -203,27 +204,42 @@ class JcSpringMethodApproximationResolver (
         return key to type
     }
 
-    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
+    private fun concretizePinnedValue(value: JcPinnedValue, state: JcSpringState): Any? {
         val memory = state.memory as JcSpringMemory
         val concretizer = memory.getConcretizer(state)
-        val result = concretizer.resolveExpr(value.getExpr(), value.getType()) ?: return null
+        return concretizer.resolveExpr(value.getExpr(), value.getType())
+    }
+
+    private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
+        val memory = state.memory as JcSpringMemory
+        val result = concretizePinnedValue(value, state) ?: return null
         if (result.toString().isEmpty()) return null
         val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
         val expr = memory.objectToExpr(arrayOf(result.toString()), stringArrayType)
         return JcPinnedValue(expr, stringArrayType)
     }
 
+    private fun pinnedValueToString(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
+        val memory = state.memory as JcSpringMemory
+        val result = concretizePinnedValue(value, state) ?: return null
+        if (result.toString().isEmpty()) return null
+        val expr = memory.objectToExpr(result.toString(), ctx.stringType)
+        return JcPinnedValue(expr, ctx.stringType)
+    }
+
+    @Suppress("UNCHECKED_CAST")
     private fun approximatePinnedValueStorage(methodCall: JcMethodCall): Boolean = with(methodCall) {
         if (method.name == "_writePinnedInner") {
             return scope.calcOnState {
                 this as JcSpringState
                 val pinnedSourceNameArg = methodCall.arguments[0] as UConcreteHeapRef
                 val nameArg = methodCall.arguments[1]
-                val sourceArg = methodCall.arguments[2]
+                val valueArg = methodCall.arguments[2]
                 val clazzArg = methodCall.arguments[3] as UConcreteHeapRef
                 val (key, type) = accessPinnedValue(this, nameArg, pinnedSourceNameArg, clazzArg)
 
-                setPinnedValue(key, sourceArg, type)
+                val value = unboxIfNeeded(valueArg as UHeapRef, type) ?: return@calcOnState false
+                setPinnedValue(key, value, type)
 
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
                 return@calcOnState true
@@ -252,12 +268,22 @@ class JcSpringMethodApproximationResolver (
                 this as JcSpringState
                 val headers = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_HEADER)
                 val parameters = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_PARAM)
-                (headers + parameters)
+                val matrix = pinnedValues.getValuesOfSource<JcStringPinnedKey>(JcSpringPinnedValueSource.REQUEST_MATRIX)
+
+                val headersAndParametersModified = (headers + parameters)
                     .map { it.key to pinnedValueToStringArray(it.value, this) }
-                    .forEach { (key, value) ->
-                        if (value == null) removePinnedValue(key)
-                        else setPinnedValue(key, value.getExpr(), value.getType())
-                    }
+                    .toList()
+
+                val matrixModified = matrix
+                    .map { it.key to pinnedValueToString(it.value, this) }
+                    .toList()
+
+                val valuesToOverride = headersAndParametersModified + matrixModified
+
+                valuesToOverride.forEach { (key, value) ->
+                    if (value == null) removePinnedValue(key)
+                    else setPinnedValue(key, value.getExpr(), value.getType())
+                }
 
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
                 return@calcOnState true

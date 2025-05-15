@@ -165,7 +165,7 @@ open class JcConcreteMethodApproximationResolver(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun JcState.unboxIfNeeded(value: UHeapRef, neededType: JcType): UExpr<USort>? {
+    protected fun JcState.unboxIfNeeded(value: UHeapRef, neededType: JcType): UExpr<USort>? {
         if (neededType !is JcPrimitiveType)
             return value as UExpr<USort>
 
