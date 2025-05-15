@@ -55,6 +55,7 @@ import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import org.usvm.jvm.util.stringType
+import org.usvm.test.api.UTestAssertEqualsCall
 import org.usvm.test.api.UTestAssertThrowsCall
 
 class UTestInstSerializer(private val ctx: SerializationContext) {
@@ -79,6 +80,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
             is UTestMethodCall -> serialize(uTestInst)
             is UTestStaticMethodCall -> serialize(uTestInst)
             is UTestAssertThrowsCall -> serialize(uTestInst)
+            is UTestAssertEqualsCall -> serialize(uTestInst)
             is UTestCastExpression -> serialize(uTestInst)
             is UTestNullExpression -> serialize(uTestInst)
             is UTestStringExpression -> serialize(uTestInst)
@@ -132,6 +134,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
                     UTestExpressionKind.CAST -> deserializeUTestCastExpression()
                     UTestExpressionKind.STATIC_METHOD_CALL -> deserializeUTestStaticMethodCall()
                     UTestExpressionKind.ASSERT_THROWS -> deserializeUTestAssertThrowsCall()
+                    UTestExpressionKind.ASSERT_EQUALS -> deserializeUTestAssertEqualsCall()
                     UTestExpressionKind.ALLOCATE_MEMORY_CALL -> deserializeUTestAllocateMemoryCall()
                     UTestExpressionKind.ARRAY_GET -> deserializeUTestArrayGetExpression()
                     UTestExpressionKind.ARRAY_LENGTH -> deserializeUTestArrayLengthExpression()
@@ -347,6 +350,27 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
         val instListSize = readInt()
         val instList = List(instListSize) { getUTestInst(readInt()) }
         return UTestAssertThrowsCall(exceptionType, instList)
+    }
+
+    private fun AbstractBuffer.serialize(uTestAssertEqualsCall: UTestAssertEqualsCall) =
+        serialize(
+            uTestExpression = uTestAssertEqualsCall,
+            kind = UTestExpressionKind.ASSERT_EQUALS,
+            serializeInternals = {
+                serializeUTestInst(expected)
+                serializeUTestInst(actual)
+            },
+            serialize = {
+                writeUTestExpressionList(listOf(expected, actual))
+            }
+        )
+
+    private fun AbstractBuffer.deserializeUTestAssertEqualsCall(): UTestAssertEqualsCall {
+        val operands = readUTestExpressionList()
+        check(operands.size == 2) {
+            "wrong number of assert equals arguemnts"
+        }
+        return UTestAssertEqualsCall(operands[0], operands[1])
     }
 
     private fun AbstractBuffer.serialize(uTestCastExpression: UTestCastExpression) =
@@ -784,6 +808,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
         SHORT,
         STATIC_METHOD_CALL,
         ASSERT_THROWS,
+        ASSERT_EQUALS,
         STRING,
         ARITHMETIC,
         CLASS

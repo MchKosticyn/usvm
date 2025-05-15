@@ -26,7 +26,6 @@ import com.github.javaparser.ast.expr.Name
 import com.github.javaparser.ast.expr.NormalAnnotationExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.ObjectCreationExpr
-import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
 import com.github.javaparser.ast.stmt.BlockStmt
@@ -215,6 +214,18 @@ abstract class JcCodeRenderer<T: Node>(
             TypeExpr(assertionsClass),
             "assertThrows",
             NodeList(exceptionClassExpr, observedLambda)
+        )
+    }
+
+    fun assertEqualsCall(expected: Expression, actual: Expression): MethodCallExpr {
+        val operands = mutableListOf(expected, actual)
+        if (JcTestFrameworkProvider.requireActualExpectedEqualsOrder)
+            operands.reverse()
+
+        return MethodCallExpr(
+            TypeExpr(assertionsClass),
+            "assertEquals",
+            NodeList(operands)
         )
     }
 
@@ -483,7 +494,7 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     protected fun renderMethodParameter(typeName: String, name: String? = null): Parameter {
-        val paramName = identifiersManager.generateIdentifier(name ?: "")
+        val paramName = identifiersManager.generateIdentifier(name ?: "param")
         val renderedClass = renderClass(typeName)
         return Parameter(renderedClass, paramName)
     }

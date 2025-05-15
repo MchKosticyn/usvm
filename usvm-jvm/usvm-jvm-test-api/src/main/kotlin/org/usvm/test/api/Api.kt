@@ -93,6 +93,16 @@ class UTestAssertThrowsCall(
     override val type: JcType = exceptionClass.classpath.void
 }
 
+class UTestAssertEqualsCall(
+    val expected: UTestExpression,
+    val actual: UTestExpression
+) : UTestCall {
+    override val instance: UTestExpression? = null
+    override val method: JcMethod? = null
+    override val args: List<UTestExpression> = emptyList()
+    override val type: JcType = expected.type?.classpath?.boolean ?: error("expected type expected")
+}
+
 sealed interface UTestStatement : UTestInst
 
 class UTestSetFieldStatement(

@@ -16,4 +16,6 @@ object JcTestFrameworkProvider {
     val assertionsClassName: String get() = framework.assertionsClassName
 
     val testAnnotationClassName: String get() = framework.testAnnotationClassName
+
+    val requireActualExpectedEqualsOrder: Boolean get() = framework == JcRendererTestFramework.TEST_NG
 }

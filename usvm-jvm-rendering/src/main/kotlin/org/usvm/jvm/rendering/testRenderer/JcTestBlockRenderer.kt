@@ -61,6 +61,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.usvm.jvm.rendering.isVararg
 import org.usvm.jvm.util.toTypedMethod
+import org.usvm.test.api.UTestAssertEqualsCall
 import org.usvm.test.api.UTestAssertThrowsCall
 import partitionByKey
 
@@ -128,6 +129,7 @@ open class JcTestBlockRenderer protected constructor(
             is UTestMethodCall -> renderMethodCall(expr)
             is UTestStaticMethodCall -> renderStaticMethodCall(expr)
             is UTestAssertThrowsCall -> renderAssertThrowCall(expr)
+            is UTestAssertEqualsCall -> renderAssertEqualsCall(expr)
             is UTestCastExpression -> renderCastExpression(expr)
             is UTestClassExpression -> renderClassExpression(expr)
             is UTestCreateArrayExpression -> renderCreateArrayExpression(expr)
@@ -301,6 +303,13 @@ open class JcTestBlockRenderer protected constructor(
         val exceptionType = renderClassExpression(expr.exceptionClass)
         val observedLambda = renderLambdaExpression(listOf(), expr.instList)
         return assertThrowsCall(exceptionType, observedLambda)
+    }
+
+    open fun renderAssertEqualsCall(expr: UTestAssertEqualsCall): Expression {
+        val lhs = renderExpression(expr.expected)
+        val rhs = renderExpression(expr.actual)
+
+        return assertEqualsCall(lhs, rhs)
     }
 
     private fun renderCallArgs(method: JcMethod, args: List<UTestExpression>): Pair<List<Expression>, Boolean> {

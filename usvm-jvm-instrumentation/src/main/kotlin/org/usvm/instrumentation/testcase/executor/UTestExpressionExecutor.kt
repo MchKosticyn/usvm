@@ -73,6 +73,7 @@ class UTestExpressionExecutor(
             is UTestMethodCall -> executeMethodCall(uTestExpression)
             is UTestStaticMethodCall -> executeUTestStaticMethodCall(uTestExpression)
             is UTestAssertThrowsCall -> executeUTestAssertThrowsCall(uTestExpression)
+            is UTestAssertEqualsCall -> executeUTestAssertEqualsCall(uTestExpression)
             is UTestCastExpression -> executeUTestCastExpression(uTestExpression)
             is UTestGetFieldExpression -> executeUTestGetFieldExpression(uTestExpression)
             is UTestGetStaticFieldExpression -> executeUTestGetStaticFieldExpression(uTestExpression)
@@ -318,6 +319,17 @@ class UTestExpressionExecutor(
             return null
         }
         throw AssertionError("Method did not throw")
+    }
+
+    private fun executeUTestAssertEqualsCall(uTestAssertEqualsCall: UTestAssertEqualsCall): Any? {
+        val lhs = exec(uTestAssertEqualsCall.expected)
+        val rhs = exec(uTestAssertEqualsCall.actual)
+
+        if (lhs != rhs) {
+            throw AssertionError("Assert equals fail on $lhs == $rhs")
+        }
+
+        return null
     }
 
     private fun executeUTestCastExpression(uTestCastExpression: UTestCastExpression): Any? {
