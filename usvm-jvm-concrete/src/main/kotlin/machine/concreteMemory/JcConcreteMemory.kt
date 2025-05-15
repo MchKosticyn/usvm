@@ -381,10 +381,12 @@ open class JcConcreteMemory(
     }
 
     fun getFixedModel(state: JcState): UModelBase<JcType> {
+        concretization = true
         if (fixedModel != null)
             return fixedModel!!
         state.applySoftConstraints()
         fixedModel = state.models.first()
+        state.models = listOf(fixedModel!!)
         return fixedModel!!
     }
 
@@ -585,6 +587,7 @@ open class JcConcreteMemory(
         }
 
         check(objParameters.size == parameters.size)
+        print("<|${state.callStack.size}|>")
         if (bindings.isMutableWithEffect()) {
             bindings.effectStorage.ensureStatics()
             println(ansiGreen + "Invoking (B) $signature" + ansiReset)
