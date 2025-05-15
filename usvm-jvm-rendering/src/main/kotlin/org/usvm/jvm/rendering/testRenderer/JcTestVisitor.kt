@@ -8,6 +8,8 @@ import org.usvm.test.api.UTestArithmeticExpression
 import org.usvm.test.api.UTestArrayGetExpression
 import org.usvm.test.api.UTestArrayLengthExpression
 import org.usvm.test.api.UTestArraySetStatement
+import org.usvm.test.api.UTestAssertEqualsCall
+import org.usvm.test.api.UTestAssertThrowsCall
 import org.usvm.test.api.UTestBinaryConditionExpression
 import org.usvm.test.api.UTestBinaryConditionStatement
 import org.usvm.test.api.UTestBooleanExpression
@@ -197,6 +199,8 @@ open class JcTestVisitor {
             is UTestStaticMethodCall -> visit(call)
             is UTestMethodCall -> visit(call)
             is UTestAllocateMemoryCall -> visit(call)
+            is UTestAssertThrowsCall -> visit(call)
+            is UTestAssertEqualsCall -> visit(call)
         }
     }
 
@@ -217,6 +221,17 @@ open class JcTestVisitor {
     }
 
     open fun visit(call: UTestAllocateMemoryCall) { }
+
+    open fun visit(call: UTestAssertThrowsCall) {
+        for (inst in call.instList) {
+            visit(inst)
+        }
+    }
+
+    open fun visit(call: UTestAssertEqualsCall) {
+        visit(call.expected)
+        visit(call.actual)
+    }
 
     //endregion
 

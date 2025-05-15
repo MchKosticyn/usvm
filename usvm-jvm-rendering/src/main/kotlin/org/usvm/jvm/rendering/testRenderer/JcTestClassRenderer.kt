@@ -8,6 +8,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcClassRenderer
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
+import org.usvm.jvm.rendering.baseRenderer.JcTestFrameworkProvider
 import org.usvm.test.api.UTest
 
 open class JcTestClassRenderer : JcClassRenderer {
@@ -26,8 +27,8 @@ open class JcTestClassRenderer : JcClassRenderer {
         cp: JcClasspath,
     ): super(decl, importManager, identifiersManager, cp)
 
-    protected val testAnnotationJUnit: AnnotationExpr by lazy {
-        val annotationName = renderClass("org.junit.jupiter.api.Test")
+    protected val testAnnotation: AnnotationExpr by lazy {
+        val annotationName = renderClass(JcTestFrameworkProvider.testAnnotationClassName)
         MarkerAnnotationExpr(annotationName.nameWithScope)
     }
 
@@ -53,7 +54,7 @@ open class JcTestClassRenderer : JcClassRenderer {
             test,
             JcIdentifiersManager(identifiersManager),
             identifiersManager[namePrefix ?: "test"],
-            testAnnotationJUnit
+            testAnnotation
         )
 
         addRenderingMethod(renderer)
