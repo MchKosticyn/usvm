@@ -305,17 +305,17 @@ class UTestExpressionExecutor(
         return jMethod.invokeWithAccessibility(null, args, taskExecutor)
     }
 
-    private fun executeUTestAssertThrowsCall(uTestAssertThrowsCall: UTestAssertThrowsCall) {
+    private fun executeUTestAssertThrowsCall(uTestAssertThrowsCall: UTestAssertThrowsCall): Any? {
         val expectedExceptionType = uTestAssertThrowsCall.exceptionClass
         try {
             uTestAssertThrowsCall.instList.forEach { inst -> exec(inst) }
         } catch (t: Throwable) {
-            val exceptionType = expectedExceptionType.classpath.findClassOrNull(t.javaClass.name)
+            val exceptionType = expectedExceptionType.classpath.findClassOrNull(t.javaClass.typeName)
             if (expectedExceptionType != exceptionType) {
                 val msg = "Throwable type mismatch, expected: $expectedExceptionType, but got: $exceptionType"
                 throw AssertionError(msg)
             }
-            return
+            return null
         }
         throw AssertionError("Method did not throw")
     }

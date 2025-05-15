@@ -68,7 +68,7 @@ open class Value2DescriptorConverter(
     }
 
     private fun buildDescriptor(any: Any?, type: JcType?, depth: Int = 0): UTestValueDescriptor {
-        if (any == null || depth > InstrumentationModuleConstants.maxDepthOfDescriptorConstruction) {
+        if (any == null || any is Unit || depth > InstrumentationModuleConstants.maxDepthOfDescriptorConstruction) {
             return `null`(type ?: jcClasspath.nullType)
         }
         return objectToDescriptor.getOrPut(any) {
