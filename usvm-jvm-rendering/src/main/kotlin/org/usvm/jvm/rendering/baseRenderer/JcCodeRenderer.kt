@@ -4,6 +4,7 @@ import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.Node
 import com.github.javaparser.ast.NodeList
+import com.github.javaparser.ast.body.Parameter
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.ArrayAccessExpr
 import com.github.javaparser.ast.expr.ArrayInitializerExpr
@@ -16,6 +17,7 @@ import com.github.javaparser.ast.expr.DoubleLiteralExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.FieldAccessExpr
 import com.github.javaparser.ast.expr.IntegerLiteralExpr
+import com.github.javaparser.ast.expr.LambdaExpr
 import com.github.javaparser.ast.expr.LongLiteralExpr
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr
 import com.github.javaparser.ast.expr.MemberValuePair
@@ -24,8 +26,10 @@ import com.github.javaparser.ast.expr.Name
 import com.github.javaparser.ast.expr.NormalAnnotationExpr
 import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.ObjectCreationExpr
+import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.expr.TypeExpr
+import com.github.javaparser.ast.stmt.BlockStmt
 import com.github.javaparser.ast.type.ArrayType
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import com.github.javaparser.ast.type.PrimitiveType
@@ -197,6 +201,24 @@ abstract class JcCodeRenderer<T: Node>(
     //endregion
 
     //region Methods
+
+    //region JUnit methods
+
+    val assertionsClass: ClassOrInterfaceType get() = renderClass(JcTestFrameworkProvider.assertionsClassName)
+
+    fun assertThrowsCall(exceptionClassExpr: Expression, observedLambda: Expression): MethodCallExpr  {
+        check (JcTestFrameworkProvider.assertionsClassName != JcRendererTestFramework.JUNIT_4.assertionsClassName) {
+            "not yet supported"
+        }
+
+        return MethodCallExpr(
+            TypeExpr(assertionsClass),
+            "assertThrows",
+            NodeList(exceptionClassExpr, observedLambda)
+        )
+    }
+
+    //endregion
 
     //region Mockito methods
 
@@ -448,6 +470,23 @@ abstract class JcCodeRenderer<T: Node>(
         return if (useClassName) TypeExpr(renderClass(callType, includeGenericArgs = false)) else null
     }
 
+    protected open fun renderLambdaExpression(params: List<Parameter>, body: BlockStmt): Expression {
+        return LambdaExpr(NodeList(params), body)
+    }
+
+    protected fun renderMethodParameter(type: JcType, name: String? = null): Parameter {
+        return renderMethodParameter(type.typeName, name)
+    }
+
+    protected fun renderMethodParameter(clazz: JcClassOrInterface, name: String? = null): Parameter {
+        return renderMethodParameter(clazz.toType(), name)
+    }
+
+    protected fun renderMethodParameter(typeName: String, name: String? = null): Parameter {
+        val paramName = name?.let { SimpleName(it) } ?: identifiersManager.generateIdentifier("param")
+        val renderedClass = renderClass(typeName)
+        return Parameter(renderedClass, paramName)
+    }
 
     //endregion
 

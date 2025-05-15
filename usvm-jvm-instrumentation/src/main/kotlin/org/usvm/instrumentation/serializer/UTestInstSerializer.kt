@@ -10,6 +10,7 @@ import com.jetbrains.rd.framework.readEnum
 import com.jetbrains.rd.framework.readList
 import com.jetbrains.rd.framework.writeEnum
 import com.jetbrains.rd.framework.writeList
+import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.boolean
@@ -55,6 +56,7 @@ import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 import org.usvm.jvm.util.stringType
+import org.usvm.test.api.UTestAssertThrowsCall
 
 class UTestInstSerializer(private val ctx: SerializationContext) {
 
@@ -77,6 +79,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
             is UTestConstructorCall -> serialize(uTestInst)
             is UTestMethodCall -> serialize(uTestInst)
             is UTestStaticMethodCall -> serialize(uTestInst)
+            is UTestAssertThrowsCall -> serialize(uTestInst)
             is UTestCastExpression -> serialize(uTestInst)
             is UTestNullExpression -> serialize(uTestInst)
             is UTestStringExpression -> serialize(uTestInst)
@@ -129,6 +132,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
                     UTestExpressionKind.NULL -> deserializeUTestNullExpression()
                     UTestExpressionKind.CAST -> deserializeUTestCastExpression()
                     UTestExpressionKind.STATIC_METHOD_CALL -> deserializeUTestStaticMethodCall()
+                    UTestExpressionKind.ASSERT_THROWS -> deserializeUTestAssertThrowsCall()
                     UTestExpressionKind.ALLOCATE_MEMORY_CALL -> deserializeUTestAllocateMemoryCall()
                     UTestExpressionKind.ARRAY_GET -> deserializeUTestArrayGetExpression()
                     UTestExpressionKind.ARRAY_LENGTH -> deserializeUTestArrayLengthExpression()
@@ -325,6 +329,27 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
         return UTestStaticMethodCall(method, args)
     }
 
+    private fun AbstractBuffer.serialize(uTestAssertThrowsCall: UTestAssertThrowsCall) =
+        serialize(
+            uTestExpression = uTestAssertThrowsCall,
+            kind = UTestExpressionKind.ASSERT_THROWS,
+            serializeInternals = {
+                serialize(UTestClassExpression(exceptionType))
+                instList.forEach { serializeUTestInst(it) }
+            },
+            serialize = {
+                writeJcType(exceptionType)
+                writeInt(instList.size)
+                instList.forEach { inst -> writeUTestInst(inst) }
+            }
+        )
+
+    private fun AbstractBuffer.deserializeUTestAssertThrowsCall(): UTestAssertThrowsCall {
+        val exceptionType = readJcType(jcClasspath) as JcClassType
+        val instListSize = readInt()
+        val instList = List(instListSize) { getUTestInst(readInt()) }
+        return UTestAssertThrowsCall(exceptionType, instList)
+    }
 
     private fun AbstractBuffer.serialize(uTestCastExpression: UTestCastExpression) =
         serialize(
@@ -760,6 +785,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
         SET_STATIC_FIELD,
         SHORT,
         STATIC_METHOD_CALL,
+        ASSERT_THROWS,
         STRING,
         ARITHMETIC,
         CLASS

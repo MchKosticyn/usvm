@@ -61,6 +61,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.usvm.jvm.rendering.isVararg
 import org.usvm.jvm.util.toTypedMethod
+import org.usvm.test.api.UTestAssertThrowsCall
 import partitionByKey
 
 open class JcTestBlockRenderer protected constructor(
@@ -126,6 +127,7 @@ open class JcTestBlockRenderer protected constructor(
             is UTestConstructorCall -> renderConstructorCall(expr)
             is UTestMethodCall -> renderMethodCall(expr)
             is UTestStaticMethodCall -> renderStaticMethodCall(expr)
+            is UTestAssertThrowsCall -> renderAssertThrowCall(expr)
             is UTestCastExpression -> renderCastExpression(expr)
             is UTestClassExpression -> renderClassExpression(expr)
             is UTestCreateArrayExpression -> renderCreateArrayExpression(expr)
@@ -281,6 +283,20 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderStaticMethodCall(expr: UTestStaticMethodCall): Expression {
         val (args, inlinesVararg) = renderCallArgs(expr.method, expr.args)
         return renderStaticMethodCall(expr.method, args, inlinesVararg)
+    }
+
+    open fun renderLambdaExpression(params: List<UTestExpression>, body: List<UTestInst>): Expression {
+        val renderedParams = params.map { renderMethodParameter(it.type ?: error("untyped lambda parameter"))}
+        val lambdaBodyRenderer = newInnerBlock()
+        body.forEach { inst -> lambdaBodyRenderer.renderInst(inst) }
+        val lambdaBody = lambdaBodyRenderer.render()
+        return LambdaExpr(NodeList(renderedParams), lambdaBody)
+    }
+
+    open fun renderAssertThrowCall(expr: UTestAssertThrowsCall): Expression {
+        val exceptionType = renderClassExpression(expr.exceptionType)
+        val observedLambda = renderLambdaExpression(listOf(), expr.instList)
+        return assertThrowsCall(exceptionType, observedLambda)
     }
 
     private fun renderCallArgs(method: JcMethod, args: List<UTestExpression>): Pair<List<Expression>, Boolean> {
