@@ -573,7 +573,7 @@ open class JcInterpreter(
         val address = exprResolver.resolveJcExpr(stmt.throwable)?.asExpr(ctx.addressSort) ?: return
 
         // Throwing `null` leads to NPE
-        exprResolver.checkNullPointer(address)
+        exprResolver.checkNullPointer(address) ?: return
 
         scope.calcOnState {
             throwExceptionWithoutStackFrameDrop(address, stmt.throwable.type)
