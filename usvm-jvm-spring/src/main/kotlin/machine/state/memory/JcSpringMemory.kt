@@ -8,6 +8,7 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UTypeConstraints
 import org.usvm.machine.JcContext
 import util.isArgumentResolverMethod
+import util.isDeserializationMethod
 import util.isHttpRequestMethod
 import util.isServletRequestMethod
 import util.isSpringFilterChainMethod
@@ -30,7 +31,8 @@ class JcSpringMemory(
                 method.isSpringFilterChainMethod ||
                 method.isArgumentResolverMethod ||
                 method.isHttpRequestMethod ||
-                method.isServletRequestMethod
+                method.isServletRequestMethod ||
+                method.isDeserializationMethod
     }
 
     override fun shouldConcretizeMethod(method: JcMethod): Boolean {
