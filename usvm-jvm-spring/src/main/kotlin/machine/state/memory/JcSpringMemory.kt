@@ -30,7 +30,10 @@ class JcSpringMemory(
                 method.isSpringFilterChainMethod ||
                 method.isArgumentResolverMethod ||
                 method.isHttpRequestMethod ||
-                method.isServletRequestMethod
+                method.isServletRequestMethod ||
+                // TODO: #hack
+                method.enclosingClass.name == "generated.org.springframework.boot.databases.wrappers.ListWrapper" ||
+                method.enclosingClass.name == "generated.org.springframework.boot.databases.iterators.wrappers.ListWrapperIterator"
     }
 
     override fun shouldConcretizeMethod(method: JcMethod): Boolean {

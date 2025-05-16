@@ -15,6 +15,13 @@ internal class JcConcreteMemoryPathSelector(
 
     private val removedStateIds = mutableSetOf<StateId>()
 
+    private lateinit var addNewState: ((JcState) -> Unit)
+
+    internal fun setAddStateAction(action: (JcState) -> Unit) {
+        check(!this::addNewState.isInitialized)
+        addNewState = action
+    }
+
     override fun isEmpty(): Boolean {
         return selector.isEmpty()
     }
@@ -49,11 +56,14 @@ internal class JcConcreteMemoryPathSelector(
     override fun remove(state: JcState) {
         check(fixedState === state)
         check(!removedStateIds.contains(state.id))
-        (state.memory as JcConcreteMemory).kill()
+        val memory = state.memory as JcConcreteMemory
+        val backtrackedState = memory.kill()
         removedStateIds.add(state.id)
         selector.remove(state)
         if (state.callStack.isNotEmpty()) {
-            val newState = lastAddedStates.firstOrNull { !removedStateIds.contains(it.id) }
+            if (backtrackedState != null)
+                addNewState(backtrackedState)
+            val newState = backtrackedState ?: lastAddedStates.firstOrNull { !removedStateIds.contains(it.id) }
             if (newState != null)
                 fixState(newState)
             else

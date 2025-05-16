@@ -27,6 +27,9 @@ object JcInitFeature: JcInstExtFeature {
                 || type.isLambda
                 || type.isSynthetic
                 || type.notTracked
+                // TODO: #hack
+                || type.name == "generated.org.springframework.boot.databases.wrappers.ListWrapper"
+                || type.name == "generated.org.springframework.boot.databases.iterators.wrappers.ListWrapperIterator"
     }
 
     override fun transformRawInstList(method: JcMethod, list: JcInstList<JcRawInst>): JcInstList<JcRawInst> {

@@ -15,6 +15,8 @@ abstract class UFieldsModelRegion<Field, Sort : USort>(
 
     override fun read(key: UFieldLValue<Field, Sort>): UExpr<Sort> {
         val ref = modelEnsureConcreteInputRef(key.ref)
+        // TODO: create default reading like this #hack
+//        regionId.emptyRegion().read(key)
         return inputFields.read(ref)
     }
 }

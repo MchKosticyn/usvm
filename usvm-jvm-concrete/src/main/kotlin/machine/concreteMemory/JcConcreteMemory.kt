@@ -7,12 +7,10 @@ import machine.JcConcreteMemoryClassLoader
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
 import machine.concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
-import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.ext.findTypeOrNull
 import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.jacodb.api.jvm.ext.int
@@ -84,8 +82,6 @@ import utils.jcTypeOf
 import utils.setStaticFieldValue
 import utils.toJavaField
 import utils.toJavaMethod
-import java.lang.reflect.InvocationTargetException
-import java.util.concurrent.ExecutionException
 
 //region Concrete Memory
 
@@ -106,7 +102,20 @@ open class JcConcreteMemory(
     private var bindings: JcConcreteMemoryBindings = JcConcreteMemoryBindings(ctx, typeConstraints, executor)
     internal var regionStorage: JcConcreteRegionStorage
     private var marshall: Marshall
+
+    private var shouldApplySoftConstraints = true
     private var fixedModel: UModelBase<JcType>? = null
+    private var backtrackState: JcState? = null
+    private var backtrackEnabled = false
+
+    internal fun backtrackConcretization(model: UModelBase<JcType>) {
+        check(backtrackState != null && !backtrackEnabled)
+        backtrackState?.models = listOf(model)
+        val memory = backtrackState!!.memory as JcConcreteMemory
+        // TODO: #hack
+        memory.shouldApplySoftConstraints = false
+        backtrackEnabled = true
+    }
 
     init {
         val storage = JcConcreteRegionStorage(ctx, this)
@@ -125,7 +134,7 @@ open class JcConcreteMemory(
     private val ansiPurple: String = "\u001B[35m"
     private val ansiCyan: String = "\u001B[36m"
 
-    private var concretization = false
+    internal val concretization: Boolean get() = fixedModel != null
 
     //region 'JcConcreteRegionGetter' implementation
 
@@ -287,6 +296,7 @@ open class JcConcreteMemory(
         cloneOwnership: MutabilityOwnership
     ): UMemory<JcType, JcMethod> {
         check(!concretization)
+        check(backtrackState == null)
 
         val clonedMemory = super.clone(typeConstraints, thisOwnership, cloneOwnership) as JcConcreteMemory
 
@@ -381,10 +391,16 @@ open class JcConcreteMemory(
     }
 
     fun getFixedModel(state: JcState): UModelBase<JcType> {
-        if (fixedModel != null)
+        if (fixedModel != null) {
+            check(state.models.singleOrNull() === fixedModel) {
+                "getFixedModel: path divergence"
+            }
             return fixedModel!!
-        state.applySoftConstraints()
+        }
+        if ((state.memory as JcConcreteMemory).shouldApplySoftConstraints)
+            state.applySoftConstraints()
         fixedModel = state.models.first()
+        state.models = listOf(fixedModel!!)
         return fixedModel!!
     }
 
@@ -394,9 +410,11 @@ open class JcConcreteMemory(
         stmt: JcMethodCall,
         method: JcMethod,
     ) {
-        if (!concretization) {
-            // Getting better model (via soft constraints)
-            state.applySoftConstraints()
+        val firstConcretize = !concretization
+        if (firstConcretize) {
+            // TODO: #hack
+            Unit
+//            backtrackState = state.clone()
         }
 
         val concretizer = JcConcretizer(state, getFixedModel(state), bindings)
@@ -404,10 +422,8 @@ open class JcConcreteMemory(
         if (bindings.isMutableWithEffect())
             bindings.effectStorage.ensureStatics()
 
-        if (!concretization) {
+        if (firstConcretize)
             concretizeStatics(concretizer)
-            concretization = true
-        }
 
         val parameterInfos = method.parameters
         var parameters = stmt.arguments
@@ -428,8 +444,12 @@ open class JcConcreteMemory(
             val info = parameterInfos[i]
             val value = parameters[i]
             val type = ctx.cp.findTypeOrNull(info.type)!!
-            val elem = concretizer.withMode(ResolveMode.CURRENT) {
-                resolveExpr(value, type)
+            val elem = try {
+                concretizer.withMode(ResolveMode.CURRENT) {
+                    resolveExpr(value, type)
+                }
+            } catch (e: Throwable) {
+                println(e)
             }
             objParameters.add(elem)
         }
@@ -617,8 +637,18 @@ open class JcConcreteMemory(
         return success is TryConcreteInvokeSuccess
     }
 
-    fun kill() {
+    fun kill(): JcState? {
         bindings.kill()
+        if (backtrackState == null)
+            return null
+
+        if (backtrackEnabled)
+            return backtrackState!!
+
+        val memory = backtrackState!!.memory as JcConcreteMemory
+        val killResult = memory.kill()
+        check(killResult == null)
+        return null
     }
 
     fun reset() {

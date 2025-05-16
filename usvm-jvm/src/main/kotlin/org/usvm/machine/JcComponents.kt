@@ -15,7 +15,7 @@ import org.usvm.solver.USoftConstraintsProvider
 import org.usvm.solver.USolverBase
 import org.usvm.solver.UTypeSolver
 
-class JcComponents(
+open class JcComponents(
     private val typeSystem: JcTypeSystem,
     // TODO specific JcMachineOptions should be here
     private val options: UMachineOptions,
@@ -23,11 +23,15 @@ class JcComponents(
     private val closeableResources = mutableListOf<AutoCloseable>()
     override val useSolverForForks: Boolean get() = options.useSolverForForks
 
+    protected open fun createLazyModelDecoder(translator: JcExprTranslator): ULazyModelDecoder<JcType> {
+        return ULazyModelDecoder(translator)
+    }
+
     override fun <Context : UContext<USizeSort>> buildTranslatorAndLazyDecoder(
         ctx: Context,
     ): Pair<UExprTranslator<JcType, USizeSort>, ULazyModelDecoder<JcType>> {
         val translator = JcExprTranslator(ctx)
-        val decoder: ULazyModelDecoder<JcType> = ULazyModelDecoder(translator)
+        val decoder = createLazyModelDecoder(translator)
 
         return translator to decoder
     }

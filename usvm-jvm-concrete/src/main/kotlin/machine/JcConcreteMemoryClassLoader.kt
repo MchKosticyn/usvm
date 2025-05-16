@@ -220,6 +220,12 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (name == null)
             throw ClassNotFoundException()
 
+        if (name == "jdk.vm.ci.meta.Assumptions")
+            println("AHTUNG!")
+
+        if (name == "ch.qos.logback.classic.spi.Configurator")
+            println()
+
         val loaded = findLoadedClass(name)
         if (loaded != null)
             return loaded

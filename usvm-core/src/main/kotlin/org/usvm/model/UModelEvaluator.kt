@@ -33,6 +33,7 @@ import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
+import org.usvm.collections.immutable.implementations.immutableMap.UPersistentHashMap
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
@@ -88,20 +89,32 @@ open class UModelEvaluator<SizeSort : USort>(
     override fun <R : KSort> visit(sort: KArrayNSort<R>): UExpr<*> =
         ctx.mkArrayConst(sort, sort.range.accept(this).uncheckedCast())
 
+    protected open fun <Sort : USort> complete(expr: UExpr<Sort>): UExpr<Sort>? {
+        return completedValues.getOrPut(expr) {
+            check(expr.sort !is KArraySortBase<*>) { "Unexpected array expression $expr" }
+            expr.sort.accept(this)
+        }.uncheckedCast()
+    }
+
     /**
      * Evaluate simple (not an array) expression in the model.
      * Complete model according to the expression sort if expr is free in the model.
      * */
     open fun <Sort : USort> evalAndComplete(expr: UExpr<Sort>): UExpr<Sort> {
         val modelValue = model.eval(expr, isComplete = false)
-        if (modelValue is KInterpretedValue<*>) {
+        if (modelValue is KInterpretedValue<*>)
             return modelValue.mapAddress(addressesMapping).uncheckedCast()
-        }
 
-        return completedValues.getOrPut(expr) {
-            check(expr.sort !is KArraySortBase<*>) { "Unexpected array expression $expr" }
+        return complete(expr) ?: modelValue
+    }
 
-            expr.sort.accept(this)
+    protected open fun <Idx : USort, Value : USort> complete(
+        translated: KDecl<KArraySort<Idx, Value>>,
+        stores: UPersistentHashMap<UExpr<Idx>, UExpr<Value>>
+    ): UMemory1DArray<Idx, Value>? {
+        return completed1DArrays.getOrPut(translated) {
+            val completedDefault = translated.sort.range.accept(this)
+            UMemory1DArray(stores, completedDefault.uncheckedCast())
         }.uncheckedCast()
     }
 
@@ -125,9 +138,16 @@ open class UModelEvaluator<SizeSort : USort>(
             return UMemory1DArray(stores, defaultValue.mapAddress(addressesMapping))
         }
 
-        return completed1DArrays.getOrPut(translated) {
+        return complete(translated, stores) ?: TODO("HZ")
+    }
+
+    protected open fun <Idx1 : USort, Idx2 : USort, Value : USort> complete(
+        translated: KDecl<KArray2Sort<Idx1, Idx2, Value>>,
+        stores: UPersistentHashMap<Pair<UExpr<Idx1>, UExpr<Idx2>>, UExpr<Value>>
+    ): UMemory2DArray<Idx1, Idx2, Value>? {
+        return completed2DArrays.getOrPut(translated) {
             val completedDefault = translated.sort.range.accept(this)
-            UMemory1DArray(stores, completedDefault.uncheckedCast())
+            UMemory2DArray(stores, completedDefault.uncheckedCast())
         }.uncheckedCast()
     }
 
@@ -153,10 +173,7 @@ open class UModelEvaluator<SizeSort : USort>(
             return UMemory2DArray(stores, defaultValue.mapAddress(addressesMapping))
         }
 
-        return completed2DArrays.getOrPut(translated) {
-            val completedDefault = translated.sort.range.accept(this)
-            UMemory2DArray(stores, completedDefault.uncheckedCast())
-        }.uncheckedCast()
+        return complete(translated, stores) ?: TODO("HZ")
     }
 
     /**

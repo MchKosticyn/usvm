@@ -13,6 +13,7 @@ import org.usvm.PathNode
 import org.usvm.UCallStack
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
@@ -53,14 +54,30 @@ class JcSpringState(
     methodResult,
     targets
 ) {
-    fun getFixedModel(): UModelBase<JcType> {
-        return (memory as JcSpringMemory).getFixedModel(this)
-    }
-
     var handlerData: List<HandlerMethodData> = listOf()
+
+    private var usedTables = emptyMap<String, UHeapRef>()
+
+    private var tableEntities = emptyMap<String, List<UHeapRef>>()
 
     internal val springMemory: JcSpringMemory
         get() = this.memory as JcSpringMemory
+
+    fun addUsedTable(name: String, table: UHeapRef) {
+        usedTables += name to table
+    }
+
+    val allUsedTables get() = usedTables.keys
+
+    fun tableContentByName(tableName: String): UHeapRef {
+        return usedTables[tableName]!!
+    }
+
+    fun addTableEntity(tableName: String, entity: UHeapRef) {
+        val entities = tableEntities.getOrDefault(tableName, listOf())
+        val updatedEntities = entities + listOf(entity)
+        tableEntities += tableName to updatedEntities
+    }
 
     fun addMock(method: JcMethod, result: UExpr<out USort>, type: JcType) {
         mockedMethodCalls.addMock(method, JcPinnedValue(result, type))

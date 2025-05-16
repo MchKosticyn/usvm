@@ -32,7 +32,7 @@ import org.usvm.util.extractJcRefType
 
 typealias USizeSort = UBv32Sort
 
-class JcContext(
+open class JcContext(
     val cp: JcClasspath,
     components: JcComponents,
 ) : UContext<USizeSort>(components) {

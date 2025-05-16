@@ -69,7 +69,7 @@ open class UContext<USizeSort : USort>(
 
     val defaultOwnership = MutabilityOwnership()
     val sizeExprs by lazy { components.mkSizeExprProvider(this) }
-    val statesForkProvider by lazy { components.mkStatesForkProvider() }
+    open val statesForkProvider by lazy { components.mkStatesForkProvider() }
 
     private var currentStateId = 0u
 
