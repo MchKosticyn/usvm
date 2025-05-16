@@ -95,8 +95,6 @@ object WithSolverStateForker : StateForker {
         conditions: Iterable<UBoolExpr>,
     ): List<T?> {
         val guardedModels = mutableListOf<Pair<List<UModelBase<Type>>, UBoolExpr>?>()
-        val initialModels = state.models
-        initialModels.let {  }
 
         for (condition in conditions) {
             val (trueModels, _, _) = splitModelsByCondition(state.models, condition)
