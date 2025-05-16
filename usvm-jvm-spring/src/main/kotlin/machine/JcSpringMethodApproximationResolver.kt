@@ -556,9 +556,9 @@ class JcSpringMethodApproximationResolver (
 
     private fun pathFromAnnotation(annotation: JcAnnotation): String {
         val values = annotation.values
-        check(values.contains("value"))
-        val value = values["value"] as List<*>
-        return value[0] as String
+        val paths = values["value"] ?: values["path"] ?: listOf("")
+        paths as List<*>
+        return paths[0] as String
     }
 
     private fun reqMappingPath(controllerType: JcClassOrInterface): String? {
