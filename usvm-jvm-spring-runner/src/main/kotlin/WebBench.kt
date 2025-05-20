@@ -11,7 +11,6 @@ import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
-import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
 import org.jacodb.api.jvm.ext.findClass
@@ -50,12 +49,14 @@ import machine.interpreter.transformers.springjpa.JcDataclassTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
-import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.impl.cfg.JcInstListImpl
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.tree.ClassNode
 import org.usvm.CoverageZone
+import org.usvm.jvm.rendering.spring.webMvcTestRenderer.JcSpringMvcTestInfo
+import org.usvm.jvm.rendering.testRenderer.JcTestInfo
+import org.usvm.test.api.UTest
 import testGeneration.SpringTestInfo
 import java.io.File
 import java.io.PrintStream
@@ -378,7 +379,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 5.minutes,
+        timeout = 1.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
@@ -415,6 +416,26 @@ private fun analyzeBench(benchmark: BenchCp) {
     exitProcess(0)
 }
 
+private fun SpringTestInfo.toRenderInfo(): Pair<UTest, JcSpringMvcTestInfo> {
+    return this.test to JcSpringMvcTestInfo(this.method, this.isExceptional)
+}
+
+private fun createOrClear(file: File) {
+    if (file.exists()) {
+        file.listFiles()?.forEach { it.deleteRecursively() }
+    } else {
+        file.mkdirs()
+    }
+}
+
+private fun renderTests(testRenderer: SpringTestRenderer, tests: List<Pair<UTest, JcTestInfo>>, dir: File) {
+    val rendered = testRenderer.render(tests)
+    for ((testClassInfo, result) in rendered) {
+        val testFile = dir.resolve("${testClassInfo.testClassName}.java")
+        testFile.writeText(result)
+    }
+}
+
 private fun reproduceTests(
     tests: List<SpringTestInfo>,
     jcConcreteMachineOptions: JcConcreteMachineOptions,
@@ -422,32 +443,29 @@ private fun reproduceTests(
 ) {
     val testReproducer by lazy { SpringTestReproducer(jcConcreteMachineOptions, cp) }
     val testRenderer by lazy { SpringTestRenderer(cp) }
-    val reproducingResults = mutableMapOf<JcMethod, Pair<String, Boolean>>()
 
+    val reproducedTests = mutableListOf<Pair<UTest, JcSpringMvcTestInfo>>()
+    val notReproducedTests = mutableListOf<Pair<UTest, JcSpringMvcTestInfo>>()
     for (testInfo in tests) {
-        val rendered = testRenderer.render(testInfo.test, testInfo.method, testInfo.isExceptional)
         val reproduced = testReproducer.reproduce(testInfo.test)
-        reproducingResults[testInfo.method] = rendered to reproduced
+        if (reproduced)
+            reproducedTests.add(testInfo.toRenderInfo())
+        else notReproducedTests.add(testInfo.toRenderInfo())
     }
-
     testReproducer.kill()
 
-    println("Tests count: ${tests.size}")
-    val notReproduced = reproducingResults.filter { (_, value) -> !value.second }
-    if (notReproduced.isEmpty()) {
-        println("All reproduced")
-        return
-    }
+    val currentDir = File(System.getProperty("user.dir"))
+    val generatedTestsDir = currentDir.resolve("generatedTests")
+    createOrClear(generatedTestsDir)
+    val reproducedDir = generatedTestsDir.resolve("reproduced")
+    createOrClear(reproducedDir)
+    val notReproducedDir = generatedTestsDir.resolve("notReproduced")
+    createOrClear(notReproducedDir)
 
-    println("Reproduced ${tests.size - notReproduced.size} of ${tests.size} tests")
-    var sb = StringBuilder()
-    sb = sb.appendLine("Not reproduced tests:")
-    for ((method, value) in notReproduced) {
-        sb = sb.appendLine("$method:")
-        sb = sb.appendLine(value.first)
-    }
+    renderTests(testRenderer, reproducedTests, reproducedDir)
+    renderTests(testRenderer, notReproducedTests, notReproducedDir)
 
-    println(sb.toString())
+    println("Reproduced ${reproducedTests.size} of ${tests.size} tests")
 }
 
 private fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =

@@ -573,7 +573,7 @@ class JcSpringMethodApproximationResolver (
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun shouldAnalyzePath(path: String, kind: String, controllerTypeName: String): Boolean {
+    private fun shouldAnalyzePath(path: String, handlerName: String, controllerTypeName: String): Boolean {
         return true
     }
 
