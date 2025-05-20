@@ -40,6 +40,7 @@ import org.usvm.test.api.UTestStringExpression
 import java.util.IdentityHashMap
 import org.usvm.test.api.UTestAssertEqualsCall
 import org.usvm.test.api.UTestAssertThrowsCall
+import org.usvm.test.api.UTestInstList
 
 // TODO: add CompositeTransformer
 abstract class JcTestTransformer {
@@ -101,6 +102,7 @@ abstract class JcTestTransformer {
             is UTestGetStaticFieldExpression -> transform(expr)
             is UTestGlobalMock -> transform(expr)
             is UTestMockObject -> transform(expr)
+            is UTestInstList -> transform(expr)
         }
     }
 
@@ -203,6 +205,11 @@ abstract class JcTestTransformer {
         fields.putAll(transformedFields)
         methods.putAll(transformedMethods)
         return mock
+    }
+
+    open fun transform(expr: UTestInstList): UTestExpression? {
+        val instList = expr.instList.mapNotNull { inst -> transformInst(inst) }
+        return UTestInstList(instList)
     }
 
     //endregion

@@ -63,6 +63,7 @@ import org.usvm.jvm.rendering.isVararg
 import org.usvm.jvm.util.toTypedMethod
 import org.usvm.test.api.UTestAssertEqualsCall
 import org.usvm.test.api.UTestAssertThrowsCall
+import org.usvm.test.api.UTestInstList
 import partitionByKey
 
 open class JcTestBlockRenderer protected constructor(
@@ -138,7 +139,12 @@ open class JcTestBlockRenderer protected constructor(
             is UTestGlobalMock -> renderGlobalMock(expr)
             is UTestMockObject -> renderMockObject(expr)
             is UTestConstExpression<*> -> renderConstExpression(expr)
+            is UTestInstList -> renderInstList(expr)
         }
+    }
+
+    open fun renderInstList(expr: UTestInstList): Expression {
+        TODO("not yet decided")
     }
 
     fun renderConstExpression(expr: UTestConstExpression<*>): Expression = when (expr) {

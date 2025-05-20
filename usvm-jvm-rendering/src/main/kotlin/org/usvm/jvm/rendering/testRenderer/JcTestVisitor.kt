@@ -27,6 +27,7 @@ import org.usvm.test.api.UTestGetFieldExpression
 import org.usvm.test.api.UTestGetStaticFieldExpression
 import org.usvm.test.api.UTestGlobalMock
 import org.usvm.test.api.UTestInst
+import org.usvm.test.api.UTestInstList
 import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestLongExpression
 import org.usvm.test.api.UTestMethodCall
@@ -92,6 +93,7 @@ open class JcTestVisitor {
             is UTestGetStaticFieldExpression -> visit(expr)
             is UTestGlobalMock -> visit(expr)
             is UTestMockObject -> visit(expr)
+            is UTestInstList -> visit(expr)
         }
     }
 
@@ -186,6 +188,12 @@ open class JcTestVisitor {
             for (value in methodValues) {
                 visitExpr(value)
             }
+        }
+    }
+
+    open fun visit(expr: UTestInstList) {
+        for (inst in expr.instList) {
+            visit(inst)
         }
     }
 
