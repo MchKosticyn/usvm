@@ -74,7 +74,11 @@ open class JcBlockRenderer private constructor(
             return
         }
 
-        statements.add(ExpressionStmt(expr))
+        addStatement(ExpressionStmt(expr))
+    }
+
+    fun addStatement(stmt: Statement) {
+        statements.add(stmt)
     }
 
     fun renderVarDeclaration(type: JcType, expr: Expression? = null, namePrefix: String? = null): NameExpr {

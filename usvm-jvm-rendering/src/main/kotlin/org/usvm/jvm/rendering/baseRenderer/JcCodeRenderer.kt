@@ -235,6 +235,8 @@ abstract class JcCodeRenderer<T: Node>(
 
     val mockitoClass: ClassOrInterfaceType by lazy { renderClass("org.mockito.Mockito") }
 
+    val mockitoCallsRealMethod by lazy { FieldAccessExpr(TypeExpr(mockitoClass), "CALLS_REAL_METHODS") }
+
     protected val JcField.isSpy: Boolean
         get() = this is JcVirtualField &&
                 name == "\$isSpyGenerated239" &&
@@ -265,10 +267,11 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     fun mockitoMockStaticMethodCall(mockedClass: JcClassOrInterface): MethodCallExpr {
+        val mockito = TypeExpr(mockitoClass)
         return MethodCallExpr(
-            TypeExpr(mockitoClass),
+            mockito,
             "mockStatic",
-            NodeList(renderClassExpression(mockedClass))
+            NodeList(renderClassExpression(mockedClass), mockitoCallsRealMethod)
         )
     }
 
@@ -293,6 +296,22 @@ abstract class JcCodeRenderer<T: Node>(
             methodMock,
             "thenReturn",
             NodeList(methodValue)
+        )
+    }
+
+    fun mockitoDoAnswerMethodCall(receiver: Expression, doAnswerLambda: Expression): MethodCallExpr {
+        return MethodCallExpr(
+            receiver,
+            "doAnswer",
+            NodeList(doAnswerLambda)
+        )
+    }
+
+    fun mockitoThenAnswerMethodCall(receiver: Expression, thenAnswerLambda: Expression): MethodCallExpr {
+        return MethodCallExpr(
+            receiver,
+            "thenAnswer",
+            NodeList(thenAnswerLambda)
         )
     }
 
