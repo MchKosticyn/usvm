@@ -66,6 +66,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.ext.jcdbSignature
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethod
 import org.usvm.jvm.rendering.isVararg
 import org.usvm.jvm.util.toTypedMethod
 import org.usvm.test.api.UTestAssertEqualsCall
@@ -146,12 +147,8 @@ open class JcTestBlockRenderer protected constructor(
             is UTestGlobalMock -> renderGlobalMock(expr)
             is UTestMockObject -> renderMockObject(expr)
             is UTestConstExpression<*> -> renderConstExpression(expr)
-            is UTestInstList -> renderInstList(expr)
+            is UTestInstList -> error("UTestInstList should not be rendered")
         }
-    }
-
-    open fun renderInstList(expr: UTestInstList): Expression {
-        TODO("not yet decided")
     }
 
     fun renderConstExpression(expr: UTestConstExpression<*>): Expression = when (expr) {
@@ -405,29 +402,31 @@ open class JcTestBlockRenderer protected constructor(
 
     private fun fetchDoAnswerFields(
         fields: Map<JcField, UTestExpression>
-    ): Pair<Map<String, List<ArgDescriptor>>, Map<JcField, UTestExpression>> {
-        val doAnswerFields = mutableMapOf<String, MutableList<ArgDescriptor>>()
+    ): Pair<Map<String, List<DoAnswerArgDescriptor>>, Map<JcField, UTestExpression>> {
+        val doAnswerFields = mutableMapOf<String, MutableList<DoAnswerArgDescriptor>>()
         val commonFields = mutableMapOf<JcField, UTestExpression>()
+
         for ((field, value) in fields) {
-            val argDescriptor = ArgDescriptor.fromMockFieldOrNull(field, value)
-            if (argDescriptor == null) {
+            val doAnswerArgDescriptor = DoAnswerArgDescriptor.fromMockFieldOrNull(field, value)
+            if (doAnswerArgDescriptor == null) {
                 commonFields.put(field, value)
             } else {
-                doAnswerFields.getOrPut(argDescriptor.signature) { mutableListOf() }.add(argDescriptor)
+                doAnswerFields.getOrPut(doAnswerArgDescriptor.signature) { mutableListOf() }.add(doAnswerArgDescriptor)
             }
         }
+
         return doAnswerFields to commonFields
     }
 
     private fun fetchDoAnswerMethods(
-        doAnswerFields: Map<String, List<ArgDescriptor>>,
+        doAnswerFields: Map<String, List<DoAnswerArgDescriptor>>,
         methods: Map<JcMethod, List<UTestExpression>>
-    ): Pair<Map<JcMethod, List<InvocationDescriptor>>, Map<JcMethod, List<UTestExpression>>> {
-        val doAnswerMethods = mutableMapOf<JcMethod, MutableList<InvocationDescriptor>>()
+    ): Pair<Map<JcMethod, List<DoAnswerInvocationDescriptor>>, Map<JcMethod, List<UTestExpression>>> {
+        val doAnswerMethods = mutableMapOf<JcMethod, MutableList<DoAnswerInvocationDescriptor>>()
         val commonMethods = mutableMapOf<JcMethod, List<UTestExpression>>()
 
         for ((method, insts) in methods) {
-            val descriptor = InvocationDescriptor.fromMockMethodOrNull(methods, doAnswerFields, method, insts)
+            val descriptor = DoAnswerInvocationDescriptor.fromMockMethodOrNull(methods, doAnswerFields, method, insts)
 
             if (descriptor != null) {
                 doAnswerMethods.getOrPut(descriptor.method) { mutableListOf() }.add(descriptor)
@@ -442,6 +441,11 @@ open class JcTestBlockRenderer protected constructor(
     open fun renderMockObject(expr: UTestMockObject): Expression {
         val type = expr.type as JcClassType
         val (spyFields, otherFields) = expr.fields.partitionByKey { it.isSpy }
+
+        check(spyFields.size <= 1) {
+            "multiple spy fields found"
+        }
+
         val instanceUnderSpy = spyFields.entries.singleOrNull()?.value
 
         if (otherFields.isEmpty() && expr.methods.isEmpty()) {
@@ -453,22 +457,31 @@ open class JcTestBlockRenderer protected constructor(
         val (doAnswerMethods, otherMethods) = fetchDoAnswerMethods(doAnswerFields, expr.methods)
         val (staticMethods, instanceMethods) = otherMethods.partitionByKey { it.isStatic }
 
-        check(spyFields.size <= 1) {
-            "multiple spy fields found"
-        }
-
         val mockExpr = renderInstanceMockCreationExpressions(type, instanceUnderSpy)
         val mockVarNamePrefix = if (instanceUnderSpy != null) "spy" else "mocked"
-        val mockVar = renderVarDeclaration(type, mockExpr, mockVarNamePrefix)
-        exprCache[expr] = mockVar
+
+        val shouldCreateInstanceMock = instanceFields.isNotEmpty() ||
+                instanceMethods.isNotEmpty() ||
+                doAnswerMethods.keys.any { method -> method !is JcVirtualMethod && !method.isStatic }
+        val mockVar: NameExpr? =
+            if (shouldCreateInstanceMock)
+                renderVarDeclaration(type, mockExpr, mockVarNamePrefix)
+            else
+                null
+
+        if (mockVar != null)
+            exprCache[expr] = mockVar
 
         val staticMock = renderMockStaticInitializer(type, staticMethods, doAnswerMethods.keys.any { it.isStatic })
 
-        renderMockInstanceFields(mockVar, instanceFields)
-        renderMockObjectMethods(mockVar, instanceMethods)
+        if (mockVar != null) {
+            renderMockInstanceFields(mockVar, instanceFields)
+            renderMockObjectMethods(mockVar, instanceMethods)
+        }
+
         renderMockObjectDoAnswerMethods(mockVar, staticMock, doAnswerMethods)
 
-        return mockVar
+        return (mockVar ?: staticMock)!!
     }
 
     private fun renderMockStaticInitializer(
@@ -504,7 +517,7 @@ open class JcTestBlockRenderer protected constructor(
         }
     }
 
-    private data class InvocationDescriptor(
+    private data class DoAnswerInvocationDescriptor(
         val method: JcMethod,
         val index: Int,
         val args: Map<UTestAllocateMemoryCall, Int>,
@@ -514,10 +527,10 @@ open class JcTestBlockRenderer protected constructor(
         companion object {
             fun fromMockMethodOrNull(
                 allMockMethods: Map<JcMethod, List<UTestExpression>>,
-                sigToArgs: Map<String, List<ArgDescriptor>>,
+                sigToArgs: Map<String, List<DoAnswerArgDescriptor>>,
                 method: JcMethod,
                 insts: List<UTestExpression>
-            ): InvocationDescriptor? {
+            ): DoAnswerInvocationDescriptor? {
                 val sigAndInvokeIdx = method.name.split("\$\$_invocation_")
                 if (sigAndInvokeIdx.size != 2) return null
 
@@ -526,7 +539,9 @@ open class JcTestBlockRenderer protected constructor(
                 val method = allMockMethods.entries.single { (method, _) -> method.jcdbSignature == signature }
                 val invocationIndex = sigAndInvokeIdx.last().toInt()
 
-                if(insts.first() !is UTestInstList) return null
+                check(insts.first() is UTestInstList) {
+                    "bad doAnswer effect descriptor"
+                }
 
                 val instList = insts.first() as UTestInstList
                 val retVal = method.value.getOrNull(invocationIndex)
@@ -537,19 +552,19 @@ open class JcTestBlockRenderer protected constructor(
                     descriptor.expr to descriptor.position
                 } ?: emptyMap()
 
-                return InvocationDescriptor(method.key, invocationIndex, args, instList, retVal)
+                return DoAnswerInvocationDescriptor(method.key, invocationIndex, args, instList, retVal)
             }
         }
     }
 
-    private data class ArgDescriptor(
+    private data class DoAnswerArgDescriptor(
         val signature: String,
         val position: Int,
         val invocation: Int,
         val expr: UTestAllocateMemoryCall
     ) {
         companion object {
-            fun fromMockFieldOrNull(field: JcField, value: UTestExpression): ArgDescriptor? {
+            fun fromMockFieldOrNull(field: JcField, value: UTestExpression): DoAnswerArgDescriptor? {
                 val rawTokens = field.name.split("_method_\$\$")
                 if (rawTokens.size != 2 || !rawTokens.first().startsWith("arg_")) return null
 
@@ -560,16 +575,20 @@ open class JcTestBlockRenderer protected constructor(
 
                 val signature = sigAndInvocation.first()
                 val invocationIdx = sigAndInvocation.last().toInt()
-                return ArgDescriptor(signature, idx, invocationIdx, value as UTestAllocateMemoryCall)
+                return DoAnswerArgDescriptor(signature, idx, invocationIdx, value as UTestAllocateMemoryCall)
             }
         }
     }
 
     private fun renderMockObjectDoAnswerMethods(
-        mockVar: NameExpr,
+        mockVar: NameExpr?,
         mockStaticUtil: NameExpr?,
-        invocations: Map<JcMethod, List<InvocationDescriptor>>
+        invocations: Map<JcMethod, List<DoAnswerInvocationDescriptor>>
     ) {
+        check(mockVar != null || mockStaticUtil != null) {
+            "either instance or static mock should not be null"
+        }
+
         val invocationOnMockType = renderClass("org.mockito.invocation.InvocationOnMock")
 
         for ((method, invokesList) in invocations) {
@@ -592,19 +611,26 @@ open class JcTestBlockRenderer protected constructor(
         mockStaticUtil: NameExpr?,
         args: List<Expression>
     ): Expression = when {
-        !method.isStatic -> TypeExpr(mockitoClass)
-        else -> renderMockObjectStaticMethodWhenCall(mockStaticUtil!!, method, args)
+        method.isStatic -> renderMockObjectStaticMethodWhenCall(mockStaticUtil!!, method, args)
+        else -> TypeExpr(mockitoClass)
     }
 
+    /*
+     * TODO: replace lambda rendering with more general approach
+     *  example: invocation -> { return invocation.getArgument(0) + invocation.getArgument(1); }
+     *  relies on "return value is always generated outside of lambda"
+     */
     private fun renderDoAnswerLambda(
-        invokeDescriptor: InvocationDescriptor,
+        invokeDescriptor: DoAnswerInvocationDescriptor,
         invocationOnMockType: ReferenceType
-    ): Expression {
+    ): LambdaExpr {
         val retExpr = invokeDescriptor.returnValue?.let { renderExpression(it) } ?: NullLiteralExpr()
 
         val lambdaBlock = newInnerBlock()
         val lambdaVarName = lambdaBlock.identifiersManager["invocationOnMock"]
+
         for ((expr, argPos) in invokeDescriptor.args) {
+
             val argInitializer = MethodCallExpr(
                 NameExpr(lambdaVarName),
                 "getArgument",
@@ -626,20 +652,25 @@ open class JcTestBlockRenderer protected constructor(
     private fun chainDoAnswerCalls(
         method: JcMethod,
         currentReceiver: Expression,
-        lambda: Expression
+        lambda: LambdaExpr
     ): Expression = when {
-        !method.isStatic -> mockitoDoAnswerMethodCall(currentReceiver, lambda)
-        else -> mockitoThenAnswerMethodCall(currentReceiver, lambda)
+        method.isStatic -> mockitoThenAnswerMethodCall(currentReceiver, lambda)
+        else -> mockitoDoAnswerMethodCall(currentReceiver, lambda)
     }
 
     private fun renderFinalDoAnswerExpression(
         method: JcMethod,
         receiver: Expression,
-        mockVar: NameExpr,
+        mockVar: NameExpr?,
         args: List<Expression>
     ): Expression = when {
         method.isStatic -> receiver
+
         else -> {
+            check(mockVar != null) {
+                "instance mock cannot be bull for instance doAnswer"
+            }
+
             val whenCall = mockitoWhenMethodCall(receiver, mockVar)
             renderMethodCall(method, whenCall, args, method.isVararg)
         }
@@ -698,6 +729,10 @@ open class JcTestBlockRenderer protected constructor(
         val mockedMethod = mockValues.fold(mockWhenCall) { mock, nextReturnValue ->
             var renderedMockValue = renderExpression(nextReturnValue)
 
+            /*
+             * TODO: fresh var required when mocked method M of class T use another method from T
+             *  require optimisations
+             */
             if (method.isStatic) {
                 val mockValueWithTypeChecked = exprWithGenericsCasted(methodReturnType, renderedMockValue)
                 renderedMockValue = renderVarDeclaration(renderedReturnType, mockValueWithTypeChecked)

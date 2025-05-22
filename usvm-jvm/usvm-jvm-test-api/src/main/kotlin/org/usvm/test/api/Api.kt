@@ -28,6 +28,11 @@ class UTestMockObject(
     override val methods: Map<JcMethod, List<UTestExpression>>
 ) : UTestMock(type, fields, methods)
 
+/*
+ * TODO: replace with proper UTestInst
+ * now used for effects that may occur on arguments when mocking
+ * not executed
+ */
 class UTestInstList(val instList: List<UTestInst>): UTestExpression {
     override val type: JcType? = null
 }

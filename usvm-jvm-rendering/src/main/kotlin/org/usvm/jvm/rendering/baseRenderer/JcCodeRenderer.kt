@@ -299,7 +299,7 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    fun mockitoDoAnswerMethodCall(receiver: Expression, doAnswerLambda: Expression): MethodCallExpr {
+    fun mockitoDoAnswerMethodCall(receiver: Expression, doAnswerLambda: LambdaExpr): MethodCallExpr {
         return MethodCallExpr(
             receiver,
             "doAnswer",
@@ -307,7 +307,7 @@ abstract class JcCodeRenderer<T: Node>(
         )
     }
 
-    fun mockitoThenAnswerMethodCall(receiver: Expression, thenAnswerLambda: Expression): MethodCallExpr {
+    fun mockitoThenAnswerMethodCall(receiver: Expression, thenAnswerLambda: LambdaExpr): MethodCallExpr {
         return MethodCallExpr(
             receiver,
             "thenAnswer",

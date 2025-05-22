@@ -84,7 +84,7 @@ class UTestExpressionExecutor(
             is UTestSetStaticFieldStatement -> executeUTestSetStaticFieldStatement(uTestExpression)
             is UTestArithmeticExpression -> executeUTestArithmeticExpression(uTestExpression)
             is UTestClassExpression -> executeUTestClassExpression(uTestExpression)
-            is UTestInstList -> { }
+            is UTestInstList -> { error("UTestInst should not be executed") }
         }
     }.also {
         it?.let {
