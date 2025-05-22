@@ -20,7 +20,7 @@ private const val NUMBER_OF_ARGUMENTS_IN_GENERATED_METHOD = 3
 
 @SupportedAnnotationTypes("org.usvm.annotations.SymbolicMethod")
 @SupportedOptions("headerPath")
-@SupportedSourceVersion(SourceVersion.RELEASE_17)
+@SupportedSourceVersion(SourceVersion.RELEASE_11)
 class SymbolicMethodProcessor : AbstractProcessor() {
     override fun process(annotations: Set<TypeElement>, roundEnv: RoundEnvironment): Boolean {
         if (annotations.size != 1) {

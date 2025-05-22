@@ -140,6 +140,6 @@ public class Engine {
     }
 
     public static Class<?> arrayElementType(Object a) {
-        return a.getClass().componentType();
+        return a.getClass().getComponentType();
     }
 }

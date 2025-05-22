@@ -379,7 +379,6 @@ internal val Class<*>.isImmutable: Boolean
             (immutableTypes.any { it.isAssignableFrom(this) }
                     || isPrimitive
                     || isEnum
-                    || isRecord
                     || packagesWithImmutableTypes.any { packageName.startsWith(it) }
                     || this.typeName.inImmutableFromJavaLang
                     || isClassLoader
@@ -392,7 +391,6 @@ internal val Class<*>.isImmutableWithSubtypes: Boolean
             (immutableTypes.any { it.isAssignableFrom(this) }
                     || isPrimitive
                     || isEnum
-                    || isRecord
                     || packagesWithImmutableTypes.any { packageName.startsWith(it) }
                     || inImmutableWithSubtypesFromJavaLang
                     || isClassLoader
@@ -446,9 +444,6 @@ class LambdaClassSource(
 
 fun Class<*>.toJcType(cp: JcClasspath): JcType? {
     try {
-        if (isHidden)
-            JcGeneratedTypesFeature.addHiddenClass(typeName, this)
-
         if (isProxy) {
             val interfaces = interfaces
             if (interfaces.size == 1)
