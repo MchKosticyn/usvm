@@ -1,6 +1,6 @@
 package machine.state.memory
 
-import machine.concreteMemory.JcConcreteMemory
+import machine.state.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.humanReadableSignature

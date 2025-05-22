@@ -633,7 +633,7 @@ abstract class JcTestStateResolver<T>(
      *
      * @return a concretized expression.
      */
-    fun <T : USort> evaluateInModel(expr: UExpr<T>): UExpr<T> {
+    open fun <T : USort> evaluateInModel(expr: UExpr<T>): UExpr<T> {
         return model.eval(expr)
     }
 

@@ -1,9 +1,8 @@
 package machine
 
 import io.ksmt.utils.asExpr
-import machine.concreteMemory.JcConcreteMemory
+import machine.state.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcClassType
-import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedMethod

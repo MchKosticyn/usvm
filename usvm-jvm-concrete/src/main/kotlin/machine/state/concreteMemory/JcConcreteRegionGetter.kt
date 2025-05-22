@@ -1,6 +1,6 @@
-package machine.concreteMemory
+package machine.state.concreteMemory
 
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteRegion
 import org.usvm.USort
 import org.usvm.memory.UMemoryRegionId
 

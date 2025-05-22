@@ -1,7 +1,7 @@
 package machine
 
 import features.JcGeneratedTypesFeature
-import machine.concreteMemory.JcConcreteEffectStorage
+import machine.state.concreteMemory.JcConcreteEffectStorage
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcClasspathFeature
@@ -219,6 +219,12 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     override fun loadClass(name: String?): Class<*> {
         if (name == null)
             throw ClassNotFoundException()
+
+        if (name == "jdk.vm.ci.meta.Assumptions")
+            println("AHTUNG!")
+
+        if (name == "ch.qos.logback.classic.spi.Configurator")
+            println()
 
         val loaded = findLoadedClass(name)
         if (loaded != null)

@@ -6,6 +6,7 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.UMachineOptions
 import org.usvm.UPathSelector
+import org.usvm.machine.JcComponents
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
 import org.usvm.machine.JcMachineOptions
@@ -23,6 +24,13 @@ open class JcConcreteMachine(
     protected val jcConcreteMachineOptions: JcConcreteMachineOptions = JcConcreteMachineOptions(),
     interpreterObserver: JcInterpreterObserver? = null,
 ) : JcMachine(cp, options, jcMachineOptions, interpreterObserver) {
+
+    override fun createContext(
+        cp: JcClasspath,
+        components: JcComponents
+    ): JcConcreteContext {
+        return JcConcreteContext(cp, components)
+    }
 
     override fun createInterpreter(): JcInterpreter {
         return JcConcreteInterpreter(
@@ -43,13 +51,23 @@ open class JcConcreteMachine(
         loopStatisticFactory: () -> StateLoopTracker<*, JcInst, JcState>?,
         wrappingPathSelector: (UPathSelector<JcState>) -> UPathSelector<JcState>
     ): UPathSelector<JcState> {
-        return super.createPathSelector(
+        var concretePs: JcConcreteMemoryPathSelector? = null
+        val resultPs = super.createPathSelector(
             initialStates,
             options,
             timeStatistics,
             coverageStatistics,
             callGraphStatistics,
             loopStatisticFactory
-        ) { wrappingPathSelector(JcConcreteMemoryPathSelector(it)) }
+        ) {
+            val ps = JcConcreteMemoryPathSelector(it)
+            concretePs = ps
+            wrappingPathSelector(ps)
+        }
+        check(concretePs != null)
+        concretePs!!.setAddStateAction { state ->
+            resultPs.add(listOf(state))
+        }
+        return resultPs
     }
 }

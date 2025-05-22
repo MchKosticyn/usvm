@@ -1,7 +1,8 @@
 package machine
 
 import io.ksmt.utils.asExpr
-import machine.concreteMemory.JcConcreteMemory
+import machine.state.JcConcreteState
+import machine.state.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
@@ -56,7 +57,7 @@ open class JcConcreteInterpreter(
     ): JcState {
         val pathConstraints = UPathConstraints<JcType>(ctx, initOwnership)
         val memory = JcConcreteMemory(ctx, initOwnership, pathConstraints.typeConstraints)
-        return JcState(
+        return JcConcreteState(
             ctx,
             initOwnership,
             method,

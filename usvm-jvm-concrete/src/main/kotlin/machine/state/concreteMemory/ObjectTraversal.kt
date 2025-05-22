@@ -1,4 +1,4 @@
-package machine.concreteMemory
+package machine.state.concreteMemory
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue
 import utils.allInstanceFields

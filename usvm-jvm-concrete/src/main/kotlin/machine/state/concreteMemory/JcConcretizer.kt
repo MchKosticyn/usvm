@@ -1,4 +1,4 @@
-package machine.concreteMemory
+package machine.state.concreteMemory
 
 import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcArrayType
@@ -6,13 +6,19 @@ import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
+import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.UNullRef
+import org.usvm.USort
 import org.usvm.api.readArrayIndex
 import org.usvm.api.readField
 import org.usvm.api.util.JcTestInterpreterDecoderApi
 import org.usvm.api.util.JcTestStateResolver
 import org.usvm.collection.field.UFieldLValue
+import org.usvm.isFalse
+import org.usvm.isTrue
 import org.usvm.jvm.util.toTypedMethod
 import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.state.JcState
@@ -32,7 +38,8 @@ import java.lang.reflect.Proxy
 internal class JcConcretizer(
     state: JcState,
     model: UModelBase<JcType>,
-    private val bindings: JcConcreteMemoryBindings
+    private val bindings: JcConcreteMemoryBindings,
+    private val concretizingConstraints: MutableList<UBoolExpr>
 ) : JcTestStateResolver<Any?>(state.ctx, model, state.memory, state.entrypoint.toTypedMethod) {
     override val decoderApi: JcTestInterpreterDecoderApi = JcTestInterpreterDecoderApi(ctx, JcConcreteMemoryClassLoader)
 
@@ -43,6 +50,22 @@ internal class JcConcretizer(
     override fun <R> withMode(resolveMode: ResolveMode, body: JcTestStateResolver<Any?>.() -> R): R {
         check(resolveMode == ResolveMode.CURRENT && this.resolveMode == ResolveMode.CURRENT)
         return body()
+    }
+
+    private fun <T : USort> addConstraints(expr: UExpr<T>, evaled: UExpr<T>) {
+        if (expr is UConcreteHeapRef || expr is UNullRef)
+            return
+
+        val constraint = ctx.mkEq(evaled, expr)
+        check(!constraint.isFalse) { "JcConcretizer.addConstraints: false constraint" }
+        if (!constraint.isTrue)
+            concretizingConstraints.add(constraint)
+    }
+
+    override fun <T : USort> evaluateInModel(expr: UExpr<T>): UExpr<T> {
+        val evaled = super.evaluateInModel(expr)
+        addConstraints(expr, evaled)
+        return evaled
     }
 
     override fun tryCreateObjectInstance(heapRef: UHeapRef): Any? {

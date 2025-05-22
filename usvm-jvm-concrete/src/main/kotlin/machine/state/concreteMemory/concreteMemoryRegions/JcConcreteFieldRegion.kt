@@ -1,7 +1,7 @@
-package machine.concreteMemory.concreteMemoryRegions
+package machine.state.concreteMemory.concreteMemoryRegions
 
-import machine.concreteMemory.JcConcreteMemoryBindings
-import machine.concreteMemory.Marshall
+import machine.state.concreteMemory.JcConcreteMemoryBindings
+import machine.state.concreteMemory.Marshall
 import utils.allInstanceFields
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField

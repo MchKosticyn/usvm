@@ -1,6 +1,6 @@
 ﻿package utils
 
-import machine.concreteMemory.JcConcreteMemory
+import machine.state.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedMethod

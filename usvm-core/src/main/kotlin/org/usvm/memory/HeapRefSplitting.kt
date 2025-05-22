@@ -1,5 +1,6 @@
 package org.usvm.memory
 
+import org.usvm.NULL_ADDRESS
 import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
@@ -9,6 +10,7 @@ import org.usvm.UIteExpr
 import org.usvm.UNullRef
 import org.usvm.USort
 import org.usvm.USymbolicHeapRef
+import org.usvm.isAllocatedConcreteHeapRef
 import org.usvm.isFalse
 import org.usvm.isStaticHeapRef
 import org.usvm.uctx
@@ -61,7 +63,7 @@ fun splitUHeapRef(
         val expr = guarded.expr
 
         // Static refs may alias symbolic refs so they should be not filtered out
-        if (expr is UConcreteHeapRef && (staticIsConcrete || !isStaticHeapRef(expr))) {
+        if (expr is UConcreteHeapRef && (staticIsConcrete || isAllocatedConcreteHeapRef(expr))) {
             @Suppress("UNCHECKED_CAST")
             concreteHeapRefs += guarded as GuardedExpr<UConcreteHeapRef>
             false

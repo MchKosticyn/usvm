@@ -11,7 +11,7 @@ private typealias StateToCheck = Boolean
 private const val ForkedState = true
 private const val OriginalState = false
 
-sealed interface StateForker {
+interface StateForker {
     /**
      * Implements symbolic branching.
      * Checks if [condition] and ![condition] are satisfiable within [state].
