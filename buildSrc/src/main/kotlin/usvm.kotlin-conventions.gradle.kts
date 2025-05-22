@@ -28,8 +28,8 @@ dependencies {
 
 tasks {
     withType<JavaCompile> {
-        sourceCompatibility = JavaVersion.VERSION_17.toString()
-        targetCompatibility = JavaVersion.VERSION_17.toString()
+        sourceCompatibility = JavaVersion.VERSION_11.toString()
+        targetCompatibility = JavaVersion.VERSION_11.toString()
         options.encoding = "UTF-8"
         options.compilerArgs.add("-Xlint:all")
         options.compilerArgs.add("-Xlint:-options")
@@ -37,7 +37,7 @@ tasks {
     }
     withType<KotlinCompile> {
         kotlinOptions {
-            jvmTarget = JavaVersion.VERSION_17.toString()
+            jvmTarget = JavaVersion.VERSION_11.toString()
             freeCompilerArgs += "-Xsam-conversions=class"
             allWarningsAsErrors = true
         }

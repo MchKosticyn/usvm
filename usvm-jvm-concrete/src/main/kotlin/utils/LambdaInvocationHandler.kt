@@ -35,7 +35,6 @@ class LambdaInvocationHandler : InvocationHandler {
 
         }
 
-        val newArgs = args ?: arrayOf()
-        return InvocationHandler.invokeDefault(proxy, method, *newArgs)
+        return null
     }
 }
