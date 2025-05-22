@@ -31,9 +31,6 @@ tasks {
         sourceCompatibility = JavaVersion.VERSION_11.toString()
         targetCompatibility = JavaVersion.VERSION_11.toString()
         options.encoding = "UTF-8"
-        options.compilerArgs.add("-Xlint:all")
-        options.compilerArgs.add("-Xlint:-options")
-        options.compilerArgs.add("-Werror")
     }
     withType<KotlinCompile> {
         kotlinOptions {

@@ -10,7 +10,6 @@ dependencies {
     implementation(project(":usvm-jvm:usvm-jvm-util"))
 
     implementation(project(":usvm-jvm-concrete"))
-    implementation(project(":usvm-jvm-concrete:agent"))
     implementation(project(":usvm-jvm:usvm-jvm-test-api"))
     implementation(project("usvm-jvm-spring-test-api"))
 

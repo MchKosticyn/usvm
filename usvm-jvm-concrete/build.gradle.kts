@@ -7,7 +7,6 @@ dependencies {
     implementation(project(":usvm-core"))
 
     implementation(project("usvm-jvm-concrete-api"))
-    implementation(project("agent"))
     implementation(project(":usvm-jvm:usvm-jvm-test-api"))
     implementation(project(":usvm-jvm:usvm-jvm-util"))
     implementation(project(":usvm-jvm:usvm-jvm-api"))

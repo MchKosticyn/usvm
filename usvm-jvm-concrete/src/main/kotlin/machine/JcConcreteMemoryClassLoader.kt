@@ -18,11 +18,10 @@ import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.types.MethodInfo
 import org.jacodb.impl.types.ParameterInfo
 import org.usvm.concrete.api.internal.InitHelper
-import org.usvm.jvm.concrete.JcConcreteClassLoader
 import org.usvm.jvm.util.JcClassLoaderExt
+import org.usvm.jvm.util.javaName
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.toByteArray
-import org.usvm.jvm.util.javaName
 import utils.isInstrumentedClinit
 import utils.isInstrumentedInit
 import utils.isInstrumentedInternalInit
@@ -43,6 +42,10 @@ import java.util.LinkedList
 import java.util.Queue
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
+
+interface JcConcreteClassLoader {
+    fun addTypeBytes(name: String, typeBytes: ByteArray)
+}
 
 /**
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
