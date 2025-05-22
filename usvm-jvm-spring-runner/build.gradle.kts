@@ -45,11 +45,6 @@ dependencies {
     approximations(approximationsRepo, "approximations", approximationsVersion)
 }
 
-val agentJarConfiguration by configurations.creating
-dependencies {
-    agentJarConfiguration(project(":usvm-jvm-concrete:agent"))
-}
-
 // TODO: make versions flexible (JHipster needs 2.7.3, petclinic needs 3.2.0)
 val springVersion = "3.2.0"
 val junitVersion = "5.3.1"
@@ -123,12 +118,9 @@ tasks.register<JavaExec>("runWebBench") {
             .get().asFile.absolutePath
     )
 
-    val agentJarPath = agentJarConfiguration.resolvedConfiguration.files.single()
-
     jvmArgs = listOf("-Xmx12g") + mutableListOf<String>().apply {
         add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
         add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePath}")
-        add("-javaagent:${agentJarPath.absolutePath}")
         openPackage("java.base", "jdk.internal.misc")
         openPackage("java.base", "java.lang")
         openPackage("java.base", "java.lang.reflect")

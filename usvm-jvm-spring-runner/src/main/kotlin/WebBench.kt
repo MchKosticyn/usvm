@@ -13,9 +13,6 @@ import machine.JcSpringMachine
 import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
 import machine.interpreter.transformers.springjpa.JcDataclassTransformer
-import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
-import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
-import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
@@ -134,10 +131,6 @@ private class BenchCp(
         cp.close()
         db.close()
     }
-
-    fun bindMachineOptions(options: JcConcreteMachineOptions) {
-        (cp.features?.find { it is JcRepositoryTransformer } as? JcRepositoryTransformer)?.bindMachineOptions(options)
-    }
 }
 
 private fun loadBench(
@@ -160,9 +153,6 @@ private fun loadBench(
 
     if (!isPureClasspath) {
         val dbFeatures = listOf(
-            JcRepositoryCrudTransformer,
-            JcRepositoryQueryTransformer,
-            JcRepositoryTransformer,
             JcDataclassTransformer(tablesInfo!!)
         )
         features.addAll(dbFeatures)
@@ -425,7 +415,6 @@ private fun analyzeBench(benchmark: BenchCp) {
         projectLocations = newBench.classLocations,
         dependenciesLocations = newBench.depsLocations,
     )
-    newBench.bindMachineOptions(jcConcreteMachineOptions)
     val jcSpringMachineOptions = JcSpringMachineOptions(
         springAnalysisMode = springAnalysisMode
     )
