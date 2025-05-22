@@ -674,7 +674,7 @@ open class JcTestBlockRenderer protected constructor(
 
         else -> {
             check(mockVar != null) {
-                "instance mock cannot be bull for instance doAnswer"
+                "instance mock cannot be null for instance doAnswer"
             }
 
             val whenCall = mockitoWhenMethodCall(receiver, mockVar)
