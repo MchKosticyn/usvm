@@ -733,15 +733,14 @@ open class JcTestBlockRenderer protected constructor(
         val methodReturnType = typedMethod.returnType
         val renderedReturnType = renderType(methodReturnType)
         val mockedMethod = mockValues.fold(mockWhenCall) { mock, nextReturnValue ->
-            var renderedMockValue = renderExpression(nextReturnValue)
+            var renderedMockValue = exprWithGenericsCasted(methodReturnType, renderExpression(nextReturnValue))
 
             /*
              * TODO: fresh var required when mocked method M of class T use another method from T
              *  require optimisations
              */
             if (method.isStatic) {
-                val mockValueWithTypeChecked = exprWithGenericsCasted(methodReturnType, renderedMockValue)
-                renderedMockValue = renderVarDeclaration(renderedReturnType, mockValueWithTypeChecked)
+                renderedMockValue = renderVarDeclaration(renderedReturnType, renderedMockValue)
             }
 
             if (nextReturnValue is UTestClassExpression)
