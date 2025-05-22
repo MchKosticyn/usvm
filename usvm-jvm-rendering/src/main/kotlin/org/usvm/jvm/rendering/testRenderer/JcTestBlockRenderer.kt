@@ -472,7 +472,11 @@ open class JcTestBlockRenderer protected constructor(
         if (mockVar != null)
             exprCache[expr] = mockVar
 
-        val staticMock = renderMockStaticInitializer(type, staticMethods, doAnswerMethods.keys.any { it.isStatic })
+        val staticMock = renderMockStaticInitializer(
+            type,
+            staticMethods,
+            doAnswerMethods.keys.any { it !is JcVirtualMethod && it.isStatic }
+        )
 
         if (mockVar != null) {
             renderMockInstanceFields(mockVar, instanceFields)
@@ -595,8 +599,10 @@ open class JcTestBlockRenderer protected constructor(
 
             val args = mockMethodMatchersList(method.toTypedMethod)
             val initReceiver = renderInitialDoAnswerReceiver(method, mockStaticUtil, args)
-            
-            val doAnswerChain = invokesList.fold(initReceiver) { currentReceiver, invokeDescriptor ->
+
+            val doAnswerChain = invokesList.sortedBy { descriptor ->
+                descriptor.index
+            }.fold(initReceiver) { currentReceiver, invokeDescriptor ->
                 val lambda = renderDoAnswerLambda(invokeDescriptor, invocationOnMockType)
                 chainDoAnswerCalls(method, currentReceiver, lambda)
             }
