@@ -65,6 +65,8 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcTypedMethod
+import org.jacodb.api.jvm.ext.findType
+import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.jcdbSignature
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethod
 import org.usvm.jvm.rendering.isVararg
@@ -743,7 +745,7 @@ open class JcTestBlockRenderer protected constructor(
                 renderedMockValue = renderVarDeclaration(renderedReturnType, renderedMockValue)
             }
 
-            if (nextReturnValue is UTestClassExpression)
+            if (nextReturnValue is UTestClassExpression && nextReturnValue.type.isAssignable(cp.findType("java.lang.Throwable")))
                 mockitoThenThrowMethodCall(mock, renderedMockValue)
             else
                 mockitoThenReturnMethodCall(mock, renderedMockValue)

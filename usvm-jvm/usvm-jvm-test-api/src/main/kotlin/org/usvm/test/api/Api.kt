@@ -29,9 +29,8 @@ class UTestMockObject(
 ) : UTestMock(type, fields, methods)
 
 /*
- * TODO: replace with proper UTestInst
- * now used for effects that may occur on arguments when mocking
- * not executed
+ * TODO: remove when there will be proper doAnswer-like support
+ *  in UTestMockObject
  */
 class UTestInstList(val instList: List<UTestInst>): UTestExpression {
     override val type: JcType? = null
