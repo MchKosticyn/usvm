@@ -1,4 +1,4 @@
-package machine.concreteMemory
+package machine.state.concreteMemory
 
 import io.ksmt.expr.KBitVec16Value
 import io.ksmt.expr.KBitVec32Value

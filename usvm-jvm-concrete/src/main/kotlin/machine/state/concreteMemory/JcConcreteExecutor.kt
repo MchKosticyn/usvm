@@ -1,4 +1,4 @@
-package machine.concreteMemory
+package machine.state.concreteMemory
 
 import machine.JcConcreteMemoryClassLoader
 import org.usvm.jvm.util.JcExecutor

@@ -1,18 +1,16 @@
-package machine.concreteMemory
+package machine.state.concreteMemory
 
 import io.ksmt.utils.asExpr
 import machine.JcConcreteInvocationResult
 import machine.JcConcreteMachineOptions
 import machine.JcConcreteMemoryClassLoader
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
-import org.jacodb.api.jvm.JcByteCodeLocation
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.ext.findTypeOrNull
 import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.jacodb.api.jvm.ext.int
@@ -52,12 +50,13 @@ import org.usvm.machine.interpreter.JcLambdaCallSiteRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
 import org.usvm.machine.state.JcState
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteFieldRegion
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteMapLengthRegion
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefMapRegion
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteRefSetRegion
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteRegion
-import machine.concreteMemory.concreteMemoryRegions.JcConcreteStaticFieldsRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteFieldRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteMapLengthRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteRefMapRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteRefSetRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteRegion
+import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteStaticFieldsRegion
+import org.usvm.UBoolExpr
 import org.usvm.api.util.JcTestStateResolver
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.toJavaClass
@@ -84,8 +83,6 @@ import utils.jcTypeOf
 import utils.setStaticFieldValue
 import utils.toJavaField
 import utils.toJavaMethod
-import java.lang.reflect.InvocationTargetException
-import java.util.concurrent.ExecutionException
 
 //region Concrete Memory
 
@@ -106,7 +103,11 @@ open class JcConcreteMemory(
     private var bindings: JcConcreteMemoryBindings = JcConcreteMemoryBindings(ctx, typeConstraints, executor)
     internal var regionStorage: JcConcreteRegionStorage
     private var marshall: Marshall
+
+    private var concretizingConstraints = mutableListOf<UBoolExpr>()
     private var fixedModel: UModelBase<JcType>? = null
+    private var backtrackState: JcState? = null
+    private var backtrackEnabled = false
 
     init {
         val storage = JcConcreteRegionStorage(ctx, this)
@@ -125,7 +126,7 @@ open class JcConcreteMemory(
     private val ansiPurple: String = "\u001B[35m"
     private val ansiCyan: String = "\u001B[36m"
 
-    private var concretization = false
+    internal val concretization: Boolean get() = fixedModel != null
 
     //region 'JcConcreteRegionGetter' implementation
 
@@ -136,14 +137,7 @@ open class JcConcreteMemory(
             is UFieldsRegionId<*, *> -> {
                 baseRegion as UFieldsRegion<JcField, Sort>
                 regionId as UFieldsRegionId<JcField, Sort>
-                JcConcreteFieldRegion(
-                    regionId,
-                    ctx,
-                    bindings,
-                    baseRegion,
-                    marshall,
-                    ownership
-                )
+                JcConcreteFieldRegion(regionId, ctx, bindings, baseRegion, marshall, ownership)
             }
 
             is UArrayRegionId<*, *, *> -> {
@@ -286,7 +280,10 @@ open class JcConcreteMemory(
         thisOwnership: MutabilityOwnership,
         cloneOwnership: MutabilityOwnership
     ): UMemory<JcType, JcMethod> {
-        check(!concretization)
+        check(!concretization) {
+            "asdad"
+        }
+        check(backtrackState == null)
 
         val clonedMemory = super.clone(typeConstraints, thisOwnership, cloneOwnership) as JcConcreteMemory
 
@@ -299,6 +296,7 @@ open class JcConcreteMemory(
         clonedMemory.bindings = clonedBindings
         clonedMemory.regionStorage = clonedRegionStorage
         clonedMemory.marshall = clonedMarshall
+        clonedMemory.concretizingConstraints = concretizingConstraints.toMutableList()
 
         this.ownership = thisOwnership
         val myRegionStorage = regionStorage.copy(bindings, this, marshall, thisOwnership)
@@ -309,7 +307,7 @@ open class JcConcreteMemory(
     }
 
     fun getConcretizer(state: JcState): JcTestStateResolver<Any?> {
-        return JcConcretizer(state, getFixedModel(state), bindings)
+        return JcConcretizer(state, getFixedModel(state), bindings, concretizingConstraints)
     }
 
     //region Concrete Invoke
@@ -350,8 +348,7 @@ open class JcConcreteMemory(
                 && method is JcEnrichedVirtualMethod && method.enclosingClass.toType().isStaticApproximation
     }
 
-    // TODO: move to bindings?
-
+    //region Concretization
 
     private fun shouldNotConcretizeField(field: JcField): Boolean {
         return field.enclosingClass.name.startsWith("stub.")
@@ -381,13 +378,30 @@ open class JcConcreteMemory(
     }
 
     fun getFixedModel(state: JcState): UModelBase<JcType> {
-        concretization = true
-        if (fixedModel != null)
+        check(state.memory === this)
+        if (fixedModel != null) {
+            check(state.models.singleOrNull() === fixedModel) {
+                "getFixedModel: path divergence"
+            }
             return fixedModel!!
+        }
+
+        check(!backtrackEnabled && backtrackState == null) {
+            "asdasdasd"
+        }
+        backtrackState = state.clone()
         state.applySoftConstraints()
         fixedModel = state.models.first()
         state.models = listOf(fixedModel!!)
         return fixedModel!!
+    }
+
+    internal fun setFixedModel(state: JcState, model: UModelBase<JcType>) {
+        check(state.memory === this)
+        if (backtrackState == null)
+            backtrackState = state.clone()
+        fixedModel = model
+        state.models = listOf(model)
     }
 
     private fun concretize(
@@ -396,20 +410,14 @@ open class JcConcreteMemory(
         stmt: JcMethodCall,
         method: JcMethod,
     ) {
-        if (!concretization) {
-            // Getting better model (via soft constraints)
-            state.applySoftConstraints()
-        }
-
-        val concretizer = JcConcretizer(state, getFixedModel(state), bindings)
+        val firstConcretize = !concretization
+        val concretizer = JcConcretizer(state, getFixedModel(state), bindings, concretizingConstraints)
 
         if (bindings.isMutableWithEffect())
             bindings.effectStorage.ensureStatics()
 
-        if (!concretization) {
+        if (firstConcretize)
             concretizeStatics(concretizer)
-            concretization = true
-        }
 
         val parameterInfos = method.parameters
         var parameters = stmt.arguments
@@ -440,6 +448,20 @@ open class JcConcreteMemory(
         println(ansiGreen + "Concretizing ${method.humanReadableSignature}" + ansiReset)
         invoke(state, exprResolver, stmt, method, thisObj, objParameters)
     }
+
+    internal fun backtrackConcretization(model: UModelBase<JcType>) {
+        check(backtrackState != null && !backtrackEnabled) {
+            "ASDASDAS"
+        }
+        val stateForBacktrack = backtrackState!!
+        val memory = stateForBacktrack.memory as JcConcreteMemory
+        memory.setFixedModel(stateForBacktrack, model)
+        backtrackEnabled = true
+    }
+
+    internal val concretizationConstraints: List<UBoolExpr> get() = concretizingConstraints
+
+    //endregion
 
     private fun ensureClinit(type: JcClassOrInterface): Boolean {
         if (type.isInternalType)
@@ -619,8 +641,22 @@ open class JcConcreteMemory(
         return success is TryConcreteInvokeSuccess
     }
 
-    fun kill() {
-        bindings.kill()
+    private fun internalKill(force: Boolean): JcState? {
+        bindings.kill(force)
+        if (backtrackState == null)
+            return null
+
+        if (backtrackEnabled)
+            return backtrackState!!
+
+        val memory = backtrackState!!.memory as JcConcreteMemory
+        val killResult = memory.internalKill(true)
+        check(killResult == null)
+        return null
+    }
+
+    fun kill(): JcState? {
+        return internalKill(false)
     }
 
     fun reset() {

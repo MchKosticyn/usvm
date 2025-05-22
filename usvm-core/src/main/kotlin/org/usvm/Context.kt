@@ -69,7 +69,7 @@ open class UContext<USizeSort : USort>(
 
     val defaultOwnership = MutabilityOwnership()
     val sizeExprs by lazy { components.mkSizeExprProvider(this) }
-    val statesForkProvider by lazy { components.mkStatesForkProvider() }
+    open val statesForkProvider by lazy { components.mkStatesForkProvider() }
 
     private var currentStateId = 0u
 
@@ -180,6 +180,9 @@ open class UContext<USizeSort : USort>(
 
         lhs is USymbolicHeapRef && isStaticHeapRef(rhs) -> super.mkEq(lhs, rhs, order = true)
         isStaticHeapRef(lhs) && rhs is USymbolicHeapRef -> super.mkEq(lhs, rhs, order = true)
+
+        lhs is USymbolicHeapRef && rhs is UConcreteHeapRef && rhs.address <= NULL_ADDRESS -> super.mkEq(lhs, rhs, order = true)
+        lhs is UConcreteHeapRef && lhs.address <= NULL_ADDRESS && rhs is USymbolicHeapRef -> super.mkEq(lhs, rhs, order = true)
 
         else -> blockOnFailedFastChecks()
     }

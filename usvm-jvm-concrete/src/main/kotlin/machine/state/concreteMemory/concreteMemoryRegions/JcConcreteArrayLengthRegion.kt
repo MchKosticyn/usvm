@@ -1,4 +1,4 @@
-package machine.concreteMemory.concreteMemoryRegions
+package machine.state.concreteMemory.concreteMemoryRegions
 
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.int
@@ -12,8 +12,8 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.isTrue
 import org.usvm.machine.JcContext
 import org.usvm.machine.USizeSort
-import machine.concreteMemory.JcConcreteMemoryBindings
-import machine.concreteMemory.Marshall
+import machine.state.concreteMemory.JcConcreteMemoryBindings
+import machine.state.concreteMemory.Marshall
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.mapWithStaticAsConcrete
 import utils.handleRefForWrite

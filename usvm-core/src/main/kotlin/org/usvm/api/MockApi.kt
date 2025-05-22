@@ -71,7 +71,9 @@ private inline fun <Type, Method, State> StepScope<State, Type, *, *>.mockSymbol
     }
 
     assert(typeConstraint)
-        .logAssertFailure { "Constraint violation: Type constraint in mockSymbolicRef" }
+        .logAssertFailure {
+            "Constraint violation: Type constraint in mockSymbolicRef"
+        }
         ?: return null
 
     return ref

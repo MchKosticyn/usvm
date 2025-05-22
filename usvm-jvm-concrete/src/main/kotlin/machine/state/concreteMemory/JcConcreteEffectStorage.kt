@@ -1,4 +1,4 @@
-package machine.concreteMemory
+package machine.state.concreteMemory
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import machine.JcConcreteMemoryClassLoader
@@ -508,8 +508,8 @@ internal class JcConcreteEffectStorage private constructor(
         JcConcreteMemoryClassLoader.setEffectStorage(this)
     }
 
-    fun kill() {
-        check(isCurrent)
+    internal fun kill(force: Boolean) {
+        check(isCurrent || force)
         own.head()?.kill()
         JcConcreteMemoryClassLoader.disableEffectStorage()
     }

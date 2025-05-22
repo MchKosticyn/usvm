@@ -891,7 +891,9 @@ open class JcExprResolver(
                 blockOnFalseState = allocateException(nullPointerExceptionType)
             )
         } else {
-            scope.assert(neqNull).logAssertFailure { "Jc implicit exception: Check NPE" }
+            scope.assert(neqNull).logAssertFailure {
+                "Jc implicit exception: Check NPE"
+            }
         }
     }
 

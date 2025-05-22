@@ -1,7 +1,7 @@
-package machine.concreteMemory.concreteMemoryRegions
+package machine.state.concreteMemory.concreteMemoryRegions
 
-import machine.concreteMemory.JcConcreteMemoryBindings
-import machine.concreteMemory.Marshall
+import machine.state.concreteMemory.JcConcreteMemoryBindings
+import machine.state.concreteMemory.Marshall
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.objectType
 import org.usvm.UBoolExpr

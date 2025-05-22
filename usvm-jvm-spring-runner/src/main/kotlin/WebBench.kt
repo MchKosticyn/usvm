@@ -242,30 +242,30 @@ private fun disableSecurity(testClassNode: ClassNode) {
             }
         )
      */
-    val webMvcTestClassName = "org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest".jvmName()
-    val webMvcTestAnnotation =
-        testClassNode.visibleAnnotations.find { it.desc == webMvcTestClassName }
-            ?: error("WebMvcTest annotation not found for ${testClassNode.name}")
-    val filterClassName = "org.springframework.context.annotation.ComponentScan\$Filter".jvmName()
-    val filterAnnotation = AnnotationNode(filterClassName)
-    val filterTypeName = "org.springframework.context.annotation.FilterType".jvmName()
-    val assignableFilterType = arrayOf(filterTypeName, "ASSIGNABLE_TYPE")
-    val configurerName = "org.springframework.security.config.annotation.web.WebSecurityConfigurer".jvmName()
-    filterAnnotation.values = listOf(
-        "type", assignableFilterType,
-        "value", listOf(Type.getType(configurerName))
-    )
-
-    val excludedConfigurations = listOf(
-        "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
-        "org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration",
-        "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration",
-        "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration"
-    )
-    webMvcTestAnnotation.values = listOf(
-        "excludeFilters", listOf(filterAnnotation),
-        "excludeAutoConfiguration", excludedConfigurations.map { Type.getType(it.jvmName()) }
-    )
+//    val webMvcTestClassName = "org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest".jvmName()
+//    val webMvcTestAnnotation =
+//        testClassNode.visibleAnnotations.find { it.desc == webMvcTestClassName }
+//            ?: error("WebMvcTest annotation not found for ${testClassNode.name}")
+//    val filterClassName = "org.springframework.context.annotation.ComponentScan\$Filter".jvmName()
+//    val filterAnnotation = AnnotationNode(filterClassName)
+//    val filterTypeName = "org.springframework.context.annotation.FilterType".jvmName()
+//    val assignableFilterType = arrayOf(filterTypeName, "ASSIGNABLE_TYPE")
+//    val configurerName = "org.springframework.security.config.annotation.web.WebSecurityConfigurer".jvmName()
+//    filterAnnotation.values = listOf(
+//        "type", assignableFilterType,
+//        "value", listOf(Type.getType(configurerName))
+//    )
+//
+//    val excludedConfigurations = listOf(
+//        "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
+//        "org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration",
+//        "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration",
+//        "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration"
+//    )
+//    webMvcTestAnnotation.values = listOf(
+//        "excludeFilters", listOf(filterAnnotation),
+//        "excludeAutoConfiguration", excludedConfigurations.map { Type.getType(it.jvmName()) }
+//    )
 }
 
 private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpringMachineOptions): BenchCp {
@@ -376,10 +376,11 @@ private fun analyzeBench(benchmark: BenchCp) {
     val fileStream = PrintStream("springLog.ansi")
     System.setOut(fileStream)
     val options = UMachineOptions(
+        useSoftConstraints = false,
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 1.minutes,
+        timeout = 5.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests

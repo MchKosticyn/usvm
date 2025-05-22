@@ -59,6 +59,7 @@ import org.usvm.collection.set.ref.UInputRefSetWithAllocatedElementsReading
 import org.usvm.collection.set.ref.UInputRefSetWithInputElementsReading
 import org.usvm.collection.set.ref.URefSetRegionDecoder
 import org.usvm.collection.set.ref.USymbolicRefSetId
+import org.usvm.isAllocatedConcreteHeapRef
 import org.usvm.isStaticHeapRef
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.regions.Region
@@ -95,7 +96,7 @@ open class UExprTranslator<Type, USizeSort : USort>(
     }
 
     override fun transform(expr: UConcreteHeapRef): KExpr<UAddressSort> {
-        require(isStaticHeapRef(expr)) { "Unexpected ref: $expr" }
+        require(!isAllocatedConcreteHeapRef(expr)) { "Unexpected ref: $expr" }
 
         return ctx.mkUninterpretedSortValue(ctx.addressSort, expr.address)
     }

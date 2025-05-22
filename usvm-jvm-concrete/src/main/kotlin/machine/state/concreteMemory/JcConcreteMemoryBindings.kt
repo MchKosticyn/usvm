@@ -1,4 +1,4 @@
-package machine.concreteMemory
+package machine.state.concreteMemory
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import machine.JcConcreteMemoryClassLoader
@@ -107,10 +107,10 @@ internal class JcConcreteMemoryBindings private constructor(
         state = State.MutableWithEffect
     }
 
-    fun kill() {
+    internal fun kill(force: Boolean) {
         check(state != State.Dead)
         state = State.Dead
-        effectStorage.kill()
+        effectStorage.kill(force)
     }
 
     fun isMutableWithEffect(): Boolean {

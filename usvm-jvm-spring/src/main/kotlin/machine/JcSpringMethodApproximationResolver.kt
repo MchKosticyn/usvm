@@ -2,7 +2,7 @@ package machine
 
 import io.ksmt.utils.asExpr
 import machine.state.pinnedValues.JcSpringPinnedValueSource
-import machine.concreteMemory.JcConcreteMemory
+import machine.state.concreteMemory.JcConcreteMemory
 import machine.state.JcSpringState
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
@@ -96,6 +96,10 @@ class JcSpringMethodApproximationResolver (
 
         if (className == "org.springframework.web.bind.ServletRequestDataBinder") {
             if (approximateServletRequestDataBinder(methodCall)) return true
+        }
+
+        if (className == "generated.org.springframework.boot.databases.basetables.TableTracker") {
+            if (approximateTableTracker(methodCall)) return true
         }
 
         return false
@@ -574,7 +578,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldAnalyzePath(path: String, handlerName: String, controllerTypeName: String): Boolean {
-        return true
+        return path == "/owners/{ownerId}" && handlerName == "showOwner"
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
@@ -672,7 +676,8 @@ class JcSpringMethodApproximationResolver (
     }
 
     private fun approximateSpringBootStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        if (method.name == "deduceFromClasspath") {
+        val methodName = method.name
+        if (methodName == "deduceFromClasspath") {
             val returnType = ctx.cp.findTypeOrNull(method.returnType.typeName) as? JcClassType
                 ?: return false
             check(returnType.jcClass.isEnum)
@@ -686,7 +691,7 @@ class JcSpringMethodApproximationResolver (
             return true
         }
 
-        if (method.name == "_println") {
+        if (methodName == "_println") {
             scope.doWithState {
                 val memory = memory as JcConcreteMemory
                 val messageExpr = methodCall.arguments[0].asExpr(ctx.addressSort)
@@ -698,6 +703,70 @@ class JcSpringMethodApproximationResolver (
 
                 val message = memory.tryHeapRefToObject(messageExpr) as String
                 println("\u001B[36m$message\u001B[0m")
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        if (methodName == "_getUsedTables") {
+            scope.doWithState {
+                this as JcSpringState
+                val memory = memory as JcSpringMemory
+                val tableNames = this.allUsedTables.toTypedArray()
+                val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
+                val tableNamesExpr = memory.objectToExpr(tableNames, stringArrayType)
+                skipMethodInvocationWithValue(methodCall, tableNamesExpr)
+            }
+
+            return true
+        }
+
+        if (methodName == "_tableContentByName") {
+            val tableNameExpr = methodCall.arguments[0].asExpr(ctx.addressSort)
+            check(tableNameExpr is UConcreteHeapRef)
+            scope.doWithState {
+                this as JcSpringState
+                val memory = memory as JcSpringMemory
+                val tableName = memory.tryHeapRefToObject(tableNameExpr) as String
+                val content = this.tableContentByName(tableName)
+                skipMethodInvocationWithValue(methodCall, content)
+            }
+
+            return true
+        }
+
+        if (methodName == "_saveTableEntity") {
+            val tableNameExpr = methodCall.arguments[0].asExpr(ctx.addressSort)
+            val entityExpr = methodCall.arguments[1].asExpr(ctx.addressSort)
+            check(tableNameExpr is UConcreteHeapRef)
+            scope.doWithState {
+                this as JcSpringState
+                val memory = memory as JcSpringMemory
+                val tableName = memory.tryHeapRefToObject(tableNameExpr) as String
+                val entity = memory.tryHeapRefToObject(entityExpr as UConcreteHeapRef) as String
+                println(entity)
+                this.addTableEntity(tableName, entityExpr)
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        return false
+    }
+
+    private fun approximateTableTracker(methodCall: JcMethodCall): Boolean {
+        val method = methodCall.method
+        if (method.name == "track") {
+            val tableNameExpr = methodCall.arguments[0].asExpr(ctx.addressSort)
+            val tableExpr = methodCall.arguments[1].asExpr(ctx.addressSort)
+            check(tableNameExpr is UConcreteHeapRef)
+            scope.doWithState {
+                this as JcSpringState
+                val memory = memory as JcSpringMemory
+                val tableName = memory.tryHeapRefToObject(tableNameExpr) as String
+                this.addUsedTable(tableName, tableExpr)
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
             }
 
