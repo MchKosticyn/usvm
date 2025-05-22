@@ -88,7 +88,7 @@ class SpringMatchersBuilder(
                 matcher,
                 "stringValues",
                 listOf(it.getName(), it.getValues()),
-                listOf("java.lang.String[]")
+                listOf("java.lang.String", "java.lang.String[]")
             )
         }
         return this
