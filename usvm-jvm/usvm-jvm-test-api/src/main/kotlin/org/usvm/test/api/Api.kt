@@ -28,6 +28,14 @@ class UTestMockObject(
     override val methods: Map<JcMethod, List<UTestExpression>>
 ) : UTestMock(type, fields, methods)
 
+/*
+ * TODO: remove when there will be proper doAnswer-like support
+ *  in UTestMockObject
+ */
+class UTestInstList(val instList: List<UTestInst>): UTestExpression {
+    override val type: JcType? = null
+}
+
 /**
  * Mock for all objects of type
  */

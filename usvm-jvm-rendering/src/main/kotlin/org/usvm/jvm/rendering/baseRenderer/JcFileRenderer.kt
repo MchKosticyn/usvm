@@ -80,6 +80,7 @@ open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
                 renderedClasses.add(classRender)
             } catch (e: Throwable) {
                 println("Renderer failed to render class: ${e.message}")
+                println("with ${e.stackTraceToString()}")
             }
         }
 

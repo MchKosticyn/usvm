@@ -57,6 +57,7 @@ import org.usvm.test.api.UTestStringExpression
 import org.usvm.jvm.util.stringType
 import org.usvm.test.api.UTestAssertEqualsCall
 import org.usvm.test.api.UTestAssertThrowsCall
+import org.usvm.test.api.UTestInstList
 
 class UTestInstSerializer(private val ctx: SerializationContext) {
 
@@ -104,6 +105,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
             is UTestShortExpression -> serialize(uTestInst)
             is UTestArithmeticExpression -> serialize(uTestInst)
             is UTestClassExpression -> serialize(uTestInst)
+            is UTestInstList -> serialize(uTestInst)
         }
 
     }
@@ -148,7 +150,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
                     UTestExpressionKind.SHORT -> deserializeShort()
                     UTestExpressionKind.ARITHMETIC -> deserializeUTestArithmeticExpression()
                     UTestExpressionKind.CLASS -> deserializeUTestClassExpression()
-
+                    UTestExpressionKind.INST_LIST -> deserializeInstList()
                 }
             ctx.deserializedUTestInstructions[id] = deserializedExpression
         }
@@ -405,6 +407,25 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
     private fun AbstractBuffer.deserializeUTestClassExpression(): UTestClassExpression {
         val type = readJcType(jcClasspath)!!
         return UTestClassExpression(type)
+    }
+
+    private fun AbstractBuffer.serialize(uTestInstList: UTestInstList) =
+        serialize(
+            uTestExpression = uTestInstList,
+            kind = UTestExpressionKind.INST_LIST,
+            serializeInternals = {
+                serializeUTestInstList(uTestInstList.instList)
+            },
+            serialize = {
+                writeInt(instList.size)
+                instList.forEach { inst -> writeUTestInst(inst) }
+            }
+        )
+
+    private fun AbstractBuffer.deserializeInstList(): UTestInstList {
+        val instListSize = readInt()
+        val instList = List(instListSize) { getUTestInst(readInt()) }
+        return UTestInstList(instList)
     }
 
     private fun AbstractBuffer.serialize(uTestNullExpression: UTestNullExpression) =
@@ -811,7 +832,8 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
         ASSERT_EQUALS,
         STRING,
         ARITHMETIC,
-        CLASS
+        CLASS,
+        INST_LIST
     }
 
     companion object {

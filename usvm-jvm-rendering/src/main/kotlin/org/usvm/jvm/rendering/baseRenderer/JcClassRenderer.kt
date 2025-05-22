@@ -120,6 +120,7 @@ open class JcClassRenderer : JcCodeRenderer<ClassOrInterfaceDeclaration> {
                 renderedMembers.add(renderer.render())
             } catch (e: Throwable) {
                 println("Renderer failed to render method: ${e.message}")
+                println("with ${e.stackTraceToString()}")
             }
         }
         val allMembers = NodeList(renderedMembers)
