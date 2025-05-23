@@ -461,7 +461,7 @@ fun BlockGenerationContext.generateGlobalTableAccess(
     val cast = JcCastExpr(baseType, tblV)
     addInstruction { loc -> JcAssignInst(loc, casted, cast) }
 
-    if (!isNoIdTable) putTrackCall(cp, name, tableName, casted, clazz!!)
+    if (!isNoIdTable) putTrackCall(cp, name, casted, clazz)
 
     return casted
 }
@@ -469,22 +469,14 @@ fun BlockGenerationContext.generateGlobalTableAccess(
 private fun BlockGenerationContext.putTrackCall(
     cp: JcClasspath,
     name: String,
-    tableName: String,
     table: JcLocalVar,
     clazz: JcClassOrInterface
 ) {
-    val tblName = nextLocalVar("table_name_${name}", cp.findType(JAVA_STRING))
-    val tblNameValue = JcStringConstant(tableName, cp.findType(JAVA_STRING))
-    addInstruction { loc -> JcAssignInst(loc, tblName, tblNameValue) }
-
-    val deserializerMethod = clazz.declaredMethods.single { it.generatedStaticSerializer }
+    val deserializerMethod = clazz.declaredMethods.single { it.generatedStaticFetchInit }
     val deserializer = generateLambda(cp, "deserializer_${name}", deserializerMethod)
 
     val manager = cp.findType(BASE_TABLE_MANAGER) as JcClassType
-    val entities = generateVirtualCall("get_all_entities_${name}", "getAllEntities", manager, table, listOf(deserializer))
-
-    val tracker = cp.findType(TABLE_TRACKER) as JcClassType
-    generateVoidStaticCall("track", tracker, listOf(tblName, entities))
+    generateVoidVirtualCall("setDeserializerTrackTable", manager, table, listOf(deserializer))
 }
 
 fun BlockGenerationContext.generateLambda(

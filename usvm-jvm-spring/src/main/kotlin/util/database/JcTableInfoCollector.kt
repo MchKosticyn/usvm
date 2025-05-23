@@ -10,6 +10,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findClass
+import org.jacodb.api.jvm.ext.objectClass
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.toJcClassOrInterface
@@ -48,7 +49,7 @@ class JcTableInfoCollector(
 
         val supClass = clazz.superClass
         val columns = clazz.fields +
-                if (checkParents && supClass != null
+                if (checkParents && supClass != null && supClass != clazz.classpath.objectClass
                     && supClass.annotations.any { it.jcClass?.simpleName.equals("MappedSuperclass") }
                 )
                     collectFields(supClass)
@@ -98,7 +99,7 @@ class JcTableInfoCollector(
             val subClass = field.signature?.genericTypesFromSignature?.let { cp.findClass(it[0]) }
                 ?: cp.findClass(field.type.typeName)
 
-            val subTable = collectTable(subClass)
+            val subTable = tablesInfo.get(getTableName(subClass)) ?: collectTable(subClass)
             val subIdType = subTable.idColumn.type
 
             val rel = Relation.fromField(classTable, subTable, field)!!

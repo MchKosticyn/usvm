@@ -333,7 +333,8 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
 
     System.setProperty("generatedTestClass", testClassFullName.replace('/', '.'))
 
-    val tablesInfo = DatabaseGenerator(cp, springDirFile, repositories).generateJPADatabase()
+    val tablesInfo = DatabaseGenerator(cp, springDirFile, repositories)
+        .generateJPADatabase(jcSpringMachineOptions.springAnalysisMode == SpringAnalysisMode.SpringBootTest)
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
     startSpringClass.withAsmNode { startSpringAsmNode ->
