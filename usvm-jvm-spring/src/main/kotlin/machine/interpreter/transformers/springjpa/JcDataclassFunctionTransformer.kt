@@ -162,9 +162,9 @@ open class JcInitTransformer(
         val fieldName = rel.origField.name
 
         val method = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single()
-        val lambdaVar = generateLambda(cp, "${fieldName}Lambda", method)
+        val lambdaVar = generateLambda(cp, "${fieldName}_lambda", method)
 
-        val filterVar = generateNewWithInit("${fieldName}Filter", filterType, listOf(arg, lambdaVar))
+        val filterVar = generateNewWithInit("${fieldName}_filter", filterType, listOf(arg, lambdaVar))
 
         val wrapperVar = generateWrapper(rel, filterVar)
         val fieldRef = JcFieldRef(thisVal, rel.origField.typedField)
@@ -180,9 +180,9 @@ open class JcInitTransformer(
         val fieldName = rel.origField.name
 
         val pred = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single { it.generatedSetFilter }
-        val predVar = generateLambda(cp, "${fieldName}Pred", pred)
+        val predVar = generateLambda(cp, "${fieldName}_pred", pred)
 
-        val filterVar = generateNewWithInit("${fieldName}FilWrapper", filterType, listOf(arg, predVar))
+        val filterVar = generateNewWithInit("${fieldName}_filter_wrapper", filterType, listOf(arg, predVar))
 
         val wrapperVar = generateWrapper(rel, filterVar)
         val fieldRef = JcFieldRef(thisVal, rel.origField.typedField)
@@ -266,8 +266,8 @@ class JcFetchedInitTransformer(
         classTable.relations.filterIsInstance<Relation.RelationByTable>().forEach { generateSetAssign(thisVal, it) }
 
         classTable.orderedRelations().forEachIndexed { ix, rel ->
-            val relTblName = rel.toTableName(cp)
             val relClass = rel.relatedDataclass(cp)
+            val relTblName = getTableName(relClass)
 
             val tblField = generateGlobalTableAccess(cp, "fetch_tbl_$ix", relTblName, relClass)
 

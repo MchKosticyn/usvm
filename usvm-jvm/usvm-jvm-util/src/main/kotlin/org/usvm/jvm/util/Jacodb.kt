@@ -182,5 +182,5 @@ val String.genericTypesFromSignature : List<String> get() {
         }
     }
 
-    return res.map { it.jcdbName() }
+    return res.map { it.substringAfter(":").jcdbName() }
 }

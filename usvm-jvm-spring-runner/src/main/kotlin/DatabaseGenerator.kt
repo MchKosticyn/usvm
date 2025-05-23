@@ -1,8 +1,10 @@
 package bench
 
 import machine.interpreter.transformers.springjpa.APPROX_NAME
+import machine.interpreter.transformers.springjpa.JAVA_BOOL
 import machine.interpreter.transformers.springjpa.JAVA_CLASS
 import machine.interpreter.transformers.springjpa.JAVA_INIT
+import machine.interpreter.transformers.springjpa.JAVA_STRING
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.cfg.JcRawArrayAccess
@@ -15,7 +17,9 @@ import org.jacodb.api.jvm.cfg.JcRawNewArrayExpr
 import org.jacodb.api.jvm.cfg.JcRawNewExpr
 import org.jacodb.api.jvm.cfg.JcRawSpecialCallExpr
 import org.jacodb.api.jvm.ext.findClass
+import org.jacodb.impl.cfg.JcRawBool
 import org.jacodb.impl.cfg.JcRawInt
+import org.jacodb.impl.cfg.JcRawString
 import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -46,7 +50,7 @@ class DatabaseGenerator(
     val tableInfoCollector = JcTableInfoCollector(cp)
     val newBodyContext = JcMethodNewBodyContext(clinitMethod)
 
-    fun generateJPADatabase(): JcTableInfoCollector {
+    fun generateJPADatabase(needTrack: Boolean): JcTableInfoCollector {
 
         repositories.filter { it.signature != null }.forEach { repo ->
             val genericTypes = repo.signature!!.genericTypesFromSignature
@@ -68,7 +72,7 @@ class DatabaseGenerator(
 
             tableInfoCollector.allTables().forEach { table ->
                 table.addNewField(cp, classNode)
-                newBodyContext.generateFieldInitialize(cp, table, classNode)
+                newBodyContext.generateFieldInitialize(cp, table, classNode, needTrack)
             }
 
             clinitMethod.withAsmNode { clinitAsmNode ->
@@ -104,7 +108,8 @@ private fun TableInfo.addNewField(
 private fun JcMethodNewBodyContext.generateFieldInitialize(
     cp: JcClasspath,
     table: TableInfo,
-    classNode: ClassNode
+    classNode: ClassNode,
+    needTrack: Boolean
 ) {
     val idColumn = if (table is TableInfo.TableWithIdInfo) table.idColumn else null
     idColumn?.let { table.columns.toMutableList().add(it) }
@@ -131,7 +136,9 @@ private fun JcMethodNewBodyContext.generateFieldInitialize(
         val idColIndex = JcRawInt((table as TableInfo.TableWithIdInfo).idColIndex())
         val entityType = putValueToVar(JcRawClassConstant(table.origClass.typename, JAVA_CLASS.typeName), JAVA_CLASS.typeName)
         val validators = generateValidators(table)
-        listOf(idColIndex, entityType, typeArrVar, validators)
+        val tableName = putValueToVar(JcRawString(table.name), JAVA_STRING.typeName)
+        val needTrackValue = putValueToVar(JcRawBool(needTrack), "boolean".typeName)
+        listOf(idColIndex, entityType, typeArrVar, validators, tableName, needTrackValue)
     } ?: listOf(typeArrVar)
     val initCall = JcRawSpecialCallExpr(
         tblType,
