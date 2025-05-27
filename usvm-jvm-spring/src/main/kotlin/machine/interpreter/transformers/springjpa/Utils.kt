@@ -34,7 +34,6 @@ import org.jacodb.api.jvm.cfg.JcNewExpr
 import org.jacodb.api.jvm.cfg.JcRawArgument
 import org.jacodb.api.jvm.cfg.JcSpecialCallExpr
 import org.jacodb.api.jvm.cfg.JcStaticCallExpr
-import org.jacodb.api.jvm.cfg.JcStringConstant
 import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
@@ -129,7 +128,6 @@ const val DISTINCT_TABLE = "generated.org.springframework.boot.databases.Distinc
 const val FLAT_TABLE = "generated.org.springframework.boot.databases.FlatTable"
 const val SINGLETON_TABLE = "generated.org.springframework.boot.databases.SingletonTable"
 const val DATABASE_UTILS = "generated.org.springframework.boot.databases.utils.DatabaseSupportFunctions"
-const val TABLE_TRACKER = "generated.org.springframework.boot.databases.basetables.TableTracker"
 
 // endregion
 
@@ -461,12 +459,12 @@ fun BlockGenerationContext.generateGlobalTableAccess(
     val cast = JcCastExpr(baseType, tblV)
     addInstruction { loc -> JcAssignInst(loc, casted, cast) }
 
-    if (!isNoIdTable) putTrackCall(cp, name, casted, clazz)
+    if (!isNoIdTable) putSetDeserializerCall(cp, name, casted, clazz!!)
 
     return casted
 }
 
-private fun BlockGenerationContext.putTrackCall(
+private fun BlockGenerationContext.putSetDeserializerCall(
     cp: JcClasspath,
     name: String,
     table: JcLocalVar,
