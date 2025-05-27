@@ -36,6 +36,7 @@ import com.github.javaparser.ast.type.PrimitiveType.Primitive
 import com.github.javaparser.ast.type.Type
 import com.github.javaparser.ast.type.VoidType
 import com.github.javaparser.ast.type.WildcardType
+import kotlin.jvm.optionals.getOrElse
 import kotlin.math.max
 import org.jacodb.api.jvm.JcAccessible
 import org.jacodb.api.jvm.JcAnnotation
@@ -89,7 +90,11 @@ abstract class JcCodeRenderer<T: Node>(
     protected fun qualifiedName(typeName: String): String = typeName.replace("$", ".")
 
     fun renderType(type: JcType, includeGenericArgs: Boolean = true): Type = when (type) {
-        is JcPrimitiveType -> PrimitiveType(Primitive.byTypeName(type.typeName).get())
+        is JcPrimitiveType -> PrimitiveType(
+            Primitive.byTypeName(type.typeName).getOrElse {
+                error("cannot render primitive ${type.typeName}")
+            }
+        )
         is JcArrayType -> ArrayType(renderType(type.elementType, includeGenericArgs))
         is JcClassType -> renderClass(type, includeGenericArgs)
         is JcTypeVariable -> renderTypeVariable(type, includeGenericArgs)
