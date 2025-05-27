@@ -25,6 +25,7 @@ import org.usvm.machine.state.JcState
 import org.usvm.mkSizeExpr
 import org.usvm.jvm.util.allInstanceFields
 import org.usvm.model.UModelBase
+import utils.JcConcreteTestStateResolver
 import utils.LambdaInvocationHandler
 import utils.approximationMethod
 import utils.createDefault
@@ -40,10 +41,8 @@ internal class JcConcretizer(
     model: UModelBase<JcType>,
     private val bindings: JcConcreteMemoryBindings,
     private val concretizingConstraints: MutableList<UBoolExpr>
-) : JcTestStateResolver<Any?>(state.ctx, model, state.memory, state.entrypoint.toTypedMethod) {
+) : JcConcreteTestStateResolver<Any?>(state.ctx, model, state.memory, state.entrypoint.toTypedMethod) {
     override val decoderApi: JcTestInterpreterDecoderApi = JcTestInterpreterDecoderApi(ctx, JcConcreteMemoryClassLoader)
-
-    private val concreteMemory = state.memory as JcConcreteMemory
 
     override var resolveMode: ResolveMode = ResolveMode.CURRENT
 

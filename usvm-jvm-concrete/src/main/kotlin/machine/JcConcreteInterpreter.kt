@@ -43,7 +43,7 @@ open class JcConcreteInterpreter(
     ctx: JcContext,
     applicationGraph: JcApplicationGraph,
     options: JcMachineOptions,
-    private val jcConcreteMachineOptions: JcConcreteMachineOptions,
+    protected val jcConcreteMachineOptions: JcConcreteMachineOptions,
     observer: JcInterpreterObserver? = null,
 ): JcInterpreter(ctx, applicationGraph, options, observer) {
 

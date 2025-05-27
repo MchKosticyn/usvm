@@ -44,11 +44,11 @@ import machine.JcConcreteMachineOptions
 import machine.JcSpringMachine
 import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
-import machine.SpringAnalysisMode
 import machine.interpreter.transformers.springjpa.JcDataclassTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
+import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.impl.cfg.JcInstListImpl
 import org.jacodb.impl.types.TypeNameImpl
@@ -57,6 +57,9 @@ import org.usvm.CoverageZone
 import org.usvm.jvm.rendering.spring.webMvcTestRenderer.JcSpringMvcTestInfo
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.test.api.UTest
+import org.usvm.test.api.spring.JcSpringTestKind
+import org.usvm.test.api.spring.SpringBootTest
+import org.usvm.test.api.spring.WebMvcTest
 import testGeneration.SpringTestInfo
 import java.io.File
 import java.io.PrintStream
@@ -122,6 +125,7 @@ private class BenchCp(
     val cpFiles: List<File>,
     val classes: List<File>,
     val dependencies: List<File>,
+    val testKind: JcSpringTestKind?
 ) : AutoCloseable {
     override fun close() {
         cp.close()
@@ -135,8 +139,9 @@ private fun loadBench(
     classes: List<File>,
     dependencies: List<File>,
     isPureClasspath: Boolean = true,
-    tablesInfo: JcTableInfoCollector? = null
-    ) = runBlocking {
+    tablesInfo: JcTableInfoCollector? = null,
+    testKind: JcSpringTestKind? = null
+) = runBlocking {
     val features = mutableListOf(
         UnknownClasses,
         JcStringConcatTransformer,
@@ -160,7 +165,7 @@ private fun loadBench(
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
     val depsLocations = cp.locations.filter { it.jarOrFolder in dependencies }
-    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies)
+    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies, testKind)
 }
 
 private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
@@ -268,7 +273,14 @@ private fun disableSecurity(testClassNode: ClassNode) {
 //    )
 }
 
-private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpringMachineOptions): BenchCp {
+private enum class InternalTestKind {
+    WebMvcTest,
+    SpringBootTest,
+    SpringJpaTest,
+}
+
+@Suppress("SameParameterValue")
+private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTestKind): BenchCp {
     val cp = benchmark.cp
 
     val springDirFile = File(System.getenv("springDir"))
@@ -290,11 +302,13 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
         .filter { classLocations.contains(it.declaration.location.jcLocation) }
         .toList() + allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Repository")
 
+    var testKind: JcSpringTestKind? = null
     testClass.withAsmNode { classNode ->
         classNode.name = testClassFullName
 
-        when (jcSpringMachineOptions.springAnalysisMode) {
-            SpringAnalysisMode.WebMVCTest -> {
+        when (internalTestKind) {
+            InternalTestKind.WebMvcTest -> {
+                testKind = WebMvcTest(null)
                 val webMvcTestAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest".jvmName())
                 classNode.visibleAnnotations.add(webMvcTestAnnotation)
                 val mockBeanAnnotationName = "org.springframework.boot.test.mock.mockito.MockBean".jvmName()
@@ -317,7 +331,8 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
                     }
                 }
             }
-            SpringAnalysisMode.SpringBootTest -> {
+            InternalTestKind.SpringBootTest -> {
+                testKind = SpringBootTest(applicationClass)
                 val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
                 val autoConfigureMockMvcAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc".jvmName())
                 sprintBootTestAnnotation.values = listOf(
@@ -325,7 +340,16 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
                 )
                 classNode.visibleAnnotations.add(sprintBootTestAnnotation)
                 classNode.visibleAnnotations.add(autoConfigureMockMvcAnnotation)
+                val entityManagerClass = cp.findClassOrNull("jakarta.persistence.EntityManager")
+                val persistenceContextClass = cp.findClassOrNull("jakarta.persistence.PersistenceContext")
+                if (entityManagerClass != null && persistenceContextClass != null) {
+                    val name = "entityManager"
+                    val field = FieldNode(Opcodes.ACC_PRIVATE, name, entityManagerClass.jvmDescriptor, null, null)
+                    field.visibleAnnotations = listOf(AnnotationNode(persistenceContextClass.jvmDescriptor))
+                    classNode.fields.add(field)
+                }
             }
+            InternalTestKind.SpringJpaTest -> TODO("not supported yet")
         }
 
         classNode.write(cp, springDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
@@ -334,7 +358,7 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
     System.setProperty("generatedTestClass", testClassFullName.replace('/', '.'))
 
     val tablesInfo = DatabaseGenerator(cp, springDirFile, repositories)
-        .generateJPADatabase(jcSpringMachineOptions.springAnalysisMode == SpringAnalysisMode.SpringBootTest)
+        .generateJPADatabase(internalTestKind == InternalTestKind.SpringBootTest)
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
     startSpringClass.withAsmNode { startSpringAsmNode ->
@@ -360,15 +384,15 @@ private fun generateTestClass(benchmark: BenchCp, jcSpringMachineOptions: JcSpri
     }
     val newCpFiles = benchmark.cpFiles + springDirFile
     val newClasses = benchmark.classes + springDirFile
-    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies, false, tablesInfo)
+    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies, false, tablesInfo, testKind)
 }
 
-private fun analyzeBench(benchmark: BenchCp) {
-    val jcSpringMachineOptions = JcSpringMachineOptions(
-        springAnalysisMode = SpringAnalysisMode.SpringBootTest
-    )
 
-    val newBench = generateTestClass(benchmark, jcSpringMachineOptions)
+private fun analyzeBench(benchmark: BenchCp) {
+    val newBench = generateTestClass(benchmark, InternalTestKind.SpringBootTest)
+    val jcSpringMachineOptions = JcSpringMachineOptions(
+        springTestKind = newBench.testKind!!
+    )
     val cp = newBench.cp
     val nonAbstractClasses = cp.nonAbstractClasses(newBench.classLocations)
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()

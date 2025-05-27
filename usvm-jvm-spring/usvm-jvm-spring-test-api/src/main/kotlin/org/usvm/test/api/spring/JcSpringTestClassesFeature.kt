@@ -18,6 +18,7 @@ import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethodImpl
 import org.jacodb.impl.types.AnnotationInfo
 import org.usvm.jvm.util.getTypename
 import org.jacodb.api.jvm.ext.CONSTRUCTOR
+import org.jacodb.api.jvm.ext.findType
 import org.jacodb.impl.features.classpaths.VirtualLocation
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualClass
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
@@ -76,7 +77,11 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
 
         private const val AUTOWIRE_NAME = "org.springframework.beans.factory.annotation.Autowired"
 
+        private const val PERSISTENCE_CONTEXT_NAME = "jakarta.persistence.PersistenceContext"
+
         private const val WEB_MVC_TEST = "org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest"
+
+        private const val SPRING_BOOT_TEST = "org.springframework.boot.test.context.SpringBootTest"
 
         private const val COMPONENT_SCAN_FILTER_NAME = "org.springframework.context.annotation.ComponentScan\$Filter"
 
@@ -119,9 +124,30 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
 
                 return JcAnnotationImpl(annotationInfo, this)
             }
+
+        private val JcClasspath.persistenceContextAnnotation: JcAnnotation
+            get() {
+                val annotationInfo = AnnotationInfo(
+                    className = PERSISTENCE_CONTEXT_NAME,
+                    visible = true,
+                    values = emptyList(),
+                    typeRef = null,
+                    typePath = null
+                )
+
+                return JcAnnotationImpl(annotationInfo, this)
+            }
     }
 
-    fun testClassFor(name: String, controller: JcClassOrInterface): JcClassOrInterface {
+    private fun createTestAnnotation(testKind: JcSpringTestKind): JcAnnotation {
+        return when (testKind) {
+            is WebMvcTest -> webMvcTestAnnotationFor(testKind.controllerType!!)
+            is SpringBootTest -> springBootTestAnnotationFor(testKind.springApplicationType)
+            is SpringJpaTest -> TODO("not yet supported")
+        }
+    }
+
+    fun testClassFor(name: String, controller: JcClassOrInterface, testKind: JcSpringTestKind): JcClassOrInterface {
         val testClassCtor = JcVirtualMethodImpl(
             name = CONSTRUCTOR,
             returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
@@ -141,7 +167,7 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
             name,
             initialFields = listOf(),
             initialMethods = listOf(testClassCtor, testClassIgnoreResultMethod),
-            annotations = listOf(webMvcTestAnnotationFor(controller))
+            annotations = listOf(createTestAnnotation(testKind))
         )
 
         virtualClass.bind(controller.classpath, VirtualLocation())
@@ -169,6 +195,12 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
 
     fun addMockBeanField(targetClass: JcClassOrInterface, fieldType: JcType, name: String? = null): JcField {
         return addTestClassField(targetClass, fieldType, name, fieldType.classpath.mockBeanAnnotation)
+    }
+
+    fun addEntityManagerField(targetClass: JcClassOrInterface): JcField {
+        val cp = targetClass.classpath
+        val entityManagerType = cp.findType("jakarta.persistence.EntityManager")
+        return addTestClassField(targetClass, entityManagerType, "entityManager", cp.persistenceContextAnnotation)
     }
 
     private val mockMvcSecurityExtraValues: List<Pair<String, AnnotationValue>> get() {
@@ -216,6 +248,19 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
         )
 
         return JcAnnotationImpl(annotationInfo, controller.classpath)
+    }
+
+    private fun springBootTestAnnotationFor(application: JcClassOrInterface): JcAnnotation {
+        val annotationValues = mutableListOf<Pair<String, AnnotationValue>>("classes" to ClassRef(application.typename.typeName))
+        val annotationInfo = AnnotationInfo(
+            className = SPRING_BOOT_TEST,
+            visible = true,
+            values = annotationValues,
+            typeRef = null,
+            typePath = null
+        )
+
+        return JcAnnotationImpl(annotationInfo, application.classpath)
     }
 
     private val classes: MutableSet<JcVirtualClass> = mutableSetOf()

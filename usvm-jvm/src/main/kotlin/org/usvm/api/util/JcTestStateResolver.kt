@@ -8,6 +8,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
 import org.jacodb.api.jvm.ext.boolean
@@ -291,6 +292,10 @@ abstract class JcTestStateResolver<T>(
         return allocateAndInitializeObject(ref, heapRef, type)
     }
 
+    open fun shouldIgnoreField(typedField: JcTypedField): Boolean {
+        return typedField.isStatic || typedField.field.annotations.any { it.name == DummyField::class.java.name }
+    }
+
     fun allocateAndInitializeObject(
         ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType
     ): T {
@@ -327,11 +332,7 @@ abstract class JcTestStateResolver<T>(
                 break
             } else {
                 // TODO: think about it! #CM
-                val fields = cls.declaredFields.filterNot {
-                    it.isStatic
-                            || cls.isAbstract && it.field is JcEnrichedVirtualField
-                            || it.field.annotations.any { it.name == DummyField::class.java.name }
-                }
+                val fields = cls.declaredFields.filterNot { shouldIgnoreField(it) }
 
                 for (field in fields) {
                     check(field.field !is JcEnrichedVirtualField) {

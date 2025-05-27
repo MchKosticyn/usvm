@@ -1,10 +1,7 @@
 package machine
 
-enum class SpringAnalysisMode {
-    WebMVCTest,
-    SpringBootTest,
-}
+import org.usvm.test.api.spring.JcSpringTestKind
 
 data class JcSpringMachineOptions(
-    val springAnalysisMode: SpringAnalysisMode,
+    val springTestKind: JcSpringTestKind,
 )

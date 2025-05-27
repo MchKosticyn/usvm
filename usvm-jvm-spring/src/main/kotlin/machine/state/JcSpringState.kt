@@ -6,6 +6,7 @@ import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcPinnedValue
 import machine.state.pinnedValues.JcSpringMockedCalls
 import machine.state.pinnedValues.JcSpringPinnedValues
+import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
@@ -22,10 +23,9 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
-import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
-import org.usvm.utils.applySoftConstraints
+import org.usvm.test.api.spring.JcSpringTestKind
 
 class JcSpringState(
     ctx: JcContext,
@@ -38,7 +38,8 @@ class JcSpringState(
     pathNode: PathNode<JcInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
     methodResult: JcMethodResult = JcMethodResult.NoCall,
-    targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty()
+    targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
+    internal val testKind: JcSpringTestKind
 ) : JcState(
     ctx,
     ownership,
@@ -57,26 +58,15 @@ class JcSpringState(
 
     var handlerData: List<HandlerMethodData> = listOf()
 
-    private var usedTables = emptyMap<String, UHeapRef>()
-
-    private var tableEntities = emptyMap<String, List<UHeapRef>>()
+    var tableEntities = emptyMap<String, Pair<List<UHeapRef>, JcClassType>>()
 
     internal val springMemory: JcSpringMemory
         get() = this.memory as JcSpringMemory
 
-    fun addUsedTable(name: String, table: UHeapRef) {
-        usedTables += name to table
-    }
-
-    val allUsedTables get() = usedTables.keys
-
-    fun tableContentByName(tableName: String): UHeapRef {
-        return usedTables[tableName]!!
-    }
-
-    fun addTableEntity(tableName: String, entity: UHeapRef) {
-        val entities = tableEntities.getOrDefault(tableName, listOf())
-        val updatedEntities = entities + listOf(entity)
+    fun addTableEntity(tableName: String, entity: UHeapRef, type: JcClassType) {
+        val (entities, currentType) = tableEntities.getOrDefault(tableName, emptyList<UHeapRef>() to type)
+        check(currentType == type)
+        val updatedEntities = entities + listOf(entity) to currentType
         tableEntities += tableName to updatedEntities
     }
 
