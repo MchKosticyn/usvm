@@ -123,10 +123,15 @@ open class JcTestBlockRenderer protected constructor(
     protected fun renderExpression(expr: UTestExpression): Expression =
         exprCache.getOrPut(expr) {
             val rendered = doRenderExpression(expr)
-            if (shouldDeclareVar.contains(expr))
+            if (shouldDeclareVar.contains(expr)) {
+                check(expr.type?.typeName != PredefinedPrimitives.Void) {
+                    "void cannot be rendered as var"
+                }
                 renderVarDeclaration(expr.type!!, rendered)
-            else
+            }
+            else {
                 rendered
+            }
         }
 
     private fun doRenderExpression(expr: UTestExpression): Expression {
