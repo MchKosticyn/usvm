@@ -20,19 +20,29 @@ class ResolvedSpringException(
 
 class JcSpringTestBuilder(
     private val controller: JcClassOrInterface,
-    private val request: JcSpringRequest
+    private val request: JcSpringRequest,
+    private val testKind: JcSpringTestKind
 ) {
     private var response: JcSpringResponse? = null
     private var exception: SpringException? = null
     private var generatedTestClass: JcClassOrInterface? = null
     private var generatedTestClassName: String? = null
-    private var mocks: MutableList<JcMockBean> = mutableListOf()
+    private var mocks: List<JcMockBean> = emptyList()
+    private var tables: List<JcTableEntities> = emptyList()
+
+    init {
+        when (testKind) {
+            is WebMvcTest -> testKind.ensureInitialized(controller)
+            else -> Unit
+        }
+    }
 
     fun withResponse(response: JcSpringResponse) = apply { this.response = response }
     fun withException(exception: SpringException) = apply { this.exception = exception }
     fun withGeneratedTestClass(testClass: JcClassOrInterface) = apply { this.generatedTestClass = testClass }
     fun withGeneratedTestClassName(name: String) = apply { this.generatedTestClassName = name }
-    fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks.toMutableList() }
+    fun withMocks(mocks: List<JcMockBean>) = apply { this.mocks = mocks }
+    fun withTables(tables: List<JcTableEntities>) = apply { this.tables = tables }
 
     private fun makeTestClassName(): String {
         return "${controller.name}Tests"
@@ -42,7 +52,7 @@ class JcSpringTestBuilder(
         val testClassesFeature = getSpringTestClassesFeatureIn(cp)
 
         val testClassName = generatedTestClassName ?: makeTestClassName()
-        testClassesFeature.testClassFor(testClassName, controller)
+        testClassesFeature.testClassFor(testClassName, controller, testKind)
 
         return cp.findClassOrNull(testClassName) ?: error("test class not found")
     }
@@ -55,6 +65,7 @@ class JcSpringTestBuilder(
                 generatedTestClass = testClass,
                 mocks = mocks,
                 request = request,
+                tables = tables,
                 response = response!!,
             )
 
@@ -63,6 +74,7 @@ class JcSpringTestBuilder(
                 generatedTestClass = testClass,
                 mocks = mocks,
                 request = request,
+                tables = tables,
                 exception = exception!!,
             )
 
@@ -71,6 +83,7 @@ class JcSpringTestBuilder(
                 generatedTestClass = testClass,
                 mocks = mocks,
                 request = request,
+                tables = tables,
             )
         }
     }
@@ -81,11 +94,15 @@ open class JcSpringTest internal constructor(
     private val generatedTestClass: JcClassOrInterface,
     private val mocks: List<JcMockBean>,
     private val request: JcSpringRequest,
+    private val tables: List<JcTableEntities>,
 ) {
     fun generateTestDSL(additionalInstructions: () -> List<UTestInst>): UTest {
         val initStatements: MutableList<UTestInst> = mutableListOf()
         val testExecBuilder = SpringTestExecBuilder.initTestCtx(cp, generatedTestClass)
         initStatements.addAll(testExecBuilder.getInitDSL())
+
+        val tables = generateTablesDSL(tables, testExecBuilder.testClassExpr)
+        initStatements.addAll(tables)
 
         val mocks = generateMocksDSL(mocks, testExecBuilder.testClassExpr)
         initStatements.addAll(mocks)
@@ -117,7 +134,13 @@ open class JcSpringTest internal constructor(
         return builder.getDSL() to builder.getInitDSL()
     }
 
-    private fun generateMocksDSL(mocks: List<JcMockBean>, testClass: UTestExpression): List<UTestInst>{
+    private fun generateTablesDSL(tables: List<JcTableEntities>, testClass: UTestExpression): List<UTestInst> {
+        val builder = SpringTablesBuilder(cp, testClass)
+        tables.forEach { builder.addTable(it) }
+        return builder.getStatements()
+    }
+
+    private fun generateMocksDSL(mocks: List<JcMockBean>, testClass: UTestExpression): List<UTestInst> {
         val builder = SpringMockBeanBuilder(cp, testClass)
         mocks.forEach { builder.addMock(it) }
         return builder.getInitStatements() + builder.getMockitoCalls()
@@ -129,8 +152,9 @@ class JcSpringResponseTest internal constructor(
     generatedTestClass: JcClassOrInterface,
     mocks: List<JcMockBean>,
     request: JcSpringRequest,
+    tables: List<JcTableEntities>,
     val response: JcSpringResponse
-) : JcSpringTest(cp, generatedTestClass, mocks, request) {
+) : JcSpringTest(cp, generatedTestClass, mocks, request, tables) {
 
     override fun generateMatchersDSL(testExecBuilder: SpringTestExecBuilder): List<UTestInst> {
         val matchersBuilder = SpringMatchersBuilder(cp, testExecBuilder)
@@ -154,8 +178,9 @@ class JcSpringExceptionTest internal constructor(
     generatedTestClass: JcClassOrInterface,
     mocks: List<JcMockBean>,
     request: JcSpringRequest,
+    tables: List<JcTableEntities>,
     val exception: SpringException
-) : JcSpringTest(cp, generatedTestClass, mocks, request) {
+) : JcSpringTest(cp, generatedTestClass, mocks, request, tables) {
 
     override fun generateMatchersDSL(testExecBuilder: SpringTestExecBuilder): List<UTestInst> {
         val matchersBuilder = SpringExceptionMatchersBuilder(cp, testExecBuilder)

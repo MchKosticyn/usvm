@@ -30,7 +30,7 @@ class JcSpringInterpreter(
     applicationGraph: JcApplicationGraph,
     options: JcMachineOptions,
     jcConcreteMachineOptions: JcConcreteMachineOptions,
-    jcSpringMachineOptions: JcSpringMachineOptions,
+    protected val jcSpringMachineOptions: JcSpringMachineOptions,
     observer: JcInterpreterObserver? = null,
 ): JcConcreteInterpreter(ctx, applicationGraph, options, jcConcreteMachineOptions, observer) {
 
@@ -50,7 +50,8 @@ class JcSpringInterpreter(
             method,
             pathConstraints = pathConstraints,
             memory = memory,
-            targets = targets
+            targets = targets,
+            testKind = jcSpringMachineOptions.springTestKind
         )
     }
 

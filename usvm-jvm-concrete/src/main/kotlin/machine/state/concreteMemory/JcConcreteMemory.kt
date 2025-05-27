@@ -280,9 +280,7 @@ open class JcConcreteMemory(
         thisOwnership: MutabilityOwnership,
         cloneOwnership: MutabilityOwnership
     ): UMemory<JcType, JcMethod> {
-        check(!concretization) {
-            "asdad"
-        }
+        check(!concretization)
         check(backtrackState == null)
 
         val clonedMemory = super.clone(typeConstraints, thisOwnership, cloneOwnership) as JcConcreteMemory
@@ -380,15 +378,11 @@ open class JcConcreteMemory(
     fun getFixedModel(state: JcState): UModelBase<JcType> {
         check(state.memory === this)
         if (fixedModel != null) {
-            check(state.models.singleOrNull() === fixedModel) {
-                "getFixedModel: path divergence"
-            }
+            check(state.models.singleOrNull() === fixedModel)
             return fixedModel!!
         }
 
-        check(!backtrackEnabled && backtrackState == null) {
-            "asdasdasd"
-        }
+        check(!backtrackEnabled && backtrackState == null)
         backtrackState = state.clone()
         state.applySoftConstraints()
         fixedModel = state.models.first()
@@ -450,9 +444,7 @@ open class JcConcreteMemory(
     }
 
     internal fun backtrackConcretization(model: UModelBase<JcType>) {
-        check(backtrackState != null && !backtrackEnabled) {
-            "ASDASDAS"
-        }
+        check(backtrackState != null && !backtrackEnabled)
         val stateForBacktrack = backtrackState!!
         val memory = stateForBacktrack.memory as JcConcreteMemory
         memory.setFixedModel(stateForBacktrack, model)
