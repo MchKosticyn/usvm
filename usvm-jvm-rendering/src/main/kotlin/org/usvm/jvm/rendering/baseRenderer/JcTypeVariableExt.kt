@@ -53,6 +53,8 @@ object JcTypeVariableExt {
             }
 
             is JvmBoundWildcard -> {
+                if (!existingSymbols.add(bound)) return true
+
                 bound.presentInOrRecursive(existingSymbols, cp)
             }
 
