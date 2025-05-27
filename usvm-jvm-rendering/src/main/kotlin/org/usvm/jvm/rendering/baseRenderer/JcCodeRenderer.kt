@@ -33,7 +33,6 @@ import com.github.javaparser.ast.type.ArrayType
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import com.github.javaparser.ast.type.PrimitiveType
 import com.github.javaparser.ast.type.PrimitiveType.Primitive
-import com.github.javaparser.ast.type.ReferenceType
 import com.github.javaparser.ast.type.Type
 import com.github.javaparser.ast.type.VoidType
 import com.github.javaparser.ast.type.WildcardType
@@ -93,28 +92,27 @@ abstract class JcCodeRenderer<T: Node>(
         is JcPrimitiveType -> PrimitiveType(Primitive.byTypeName(type.typeName).get())
         is JcArrayType -> ArrayType(renderType(type.elementType, includeGenericArgs))
         is JcClassType -> renderClass(type, includeGenericArgs)
-        is JcTypeVariable -> renderClass(type.jcClass, (type as? JcTypeVariableImpl)?.isRecursive == false)
-        is JcBoundedWildcard -> renderBoundedWildcardType(type)
+        is JcTypeVariable -> renderTypeVariable(type, includeGenericArgs)
+        is JcBoundedWildcard -> renderBoundedWildcardType(type, includeGenericArgs)
         is JcUnboundWildcard -> WildcardType()
         else -> error("unexpected type ${type.typeName}")
     }
 
-    private fun renderBoundedWildcardType(type: JcBoundedWildcard): Type {
-        var wc = WildcardType()
+    private fun renderTypeVariable(variable: JcTypeVariable, includeGenericArgs: Boolean): Type {
+        val isRecursive = (variable as? JcTypeVariableImpl)?.isRecursive
+        return renderType(variable.bounds.first(), includeGenericArgs && isRecursive == false)
+    }
 
-        val ub = type.upperBounds.singleOrNull()
-        if (ub != null) wc = wc.setExtendedType(renderType(ub) as ReferenceType)
-
-        val lb = type.lowerBounds.singleOrNull()
-        if (lb != null) wc = wc.setSuperType(renderType(lb) as ReferenceType)
-
-        return wc
+    private fun renderBoundedWildcardType(type: JcBoundedWildcard, includeGenericArgs: Boolean): Type {
+        val bound = (type.lowerBounds + type.upperBounds).first()
+        return renderType(bound, includeGenericArgs)
     }
 
     fun renderClass(typeName: String, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
         check(!typeName.contains('<') && !typeName.contains('>')) {
             "hardcoded generics not supported"
         }
+
         val type = cp.findTypeOrNull(typeName) as? JcClassType
         if (type != null)
             return renderClass(type, includeGenericArgs)
@@ -176,14 +174,21 @@ abstract class JcCodeRenderer<T: Node>(
         }
 
         val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(renderName))
-        if (!includeGenericArgs || type.typeArguments.any { it is JcTypeVariableImpl && it.isRecursive })
+        val argTypes = type.typeArguments.zip(type.typeParameters).map { (a, p) ->
+            when (a) {
+                is JcUnboundWildcard -> p.bounds.first()
+                is JcBoundedWildcard -> (a.lowerBounds + a.upperBounds).first()
+                else -> a
+            }
+        }
+
+        if (!includeGenericArgs || argTypes.any { (it is JcTypeVariableImpl && it.isRecursive) })
             return renderedType.removeTypeArguments()
 
-        val typeArguments = type.typeArguments
-        if (typeArguments.isEmpty())
+        if (argTypes.isEmpty())
             return renderedType
 
-        val renderedTypeArguments = typeArguments.map { renderType(it) }
+        val renderedTypeArguments = argTypes.map { renderType(it, includeGenericArgs) }
         return renderedType.setTypeArguments(NodeList(renderedTypeArguments))
     }
 
