@@ -62,7 +62,7 @@ object JcTypeVariableExt {
                 if (!existingSymbols.add(this)) return true
                 val decl = cp.findType(this.name) as JcClassType
 
-                val params = decl.typeParameters.zip(this.parameterTypes).map { (declParam, realParam) ->
+                val params = decl.typeParameters.zip(this.parameterTypes).mapNotNull { (declParam, realParam) ->
                     if (realParam !is JvmUnboundWildcard) {
                         realParam
                     }
@@ -70,7 +70,7 @@ object JcTypeVariableExt {
                         check(declParam is JcTypeVariableDeclarationImpl) {
                             "JcClassType declaration expected not to have ?"
                         }
-                        declParam.jvmBounds.first()
+                        declParam.jvmBounds.firstOrNull()
                     }
                 }
 
@@ -86,7 +86,7 @@ object JcTypeVariableExt {
                     check(declParam is JcTypeVariableDeclarationImpl) {
                         "JcClassType declaration expected not to have ?"
                     }
-                    declParam.jvmBounds.first().presentInOrRecursive(existingSymbols, cp)
+                    declParam.jvmBounds.firstOrNull()?.presentInOrRecursive(existingSymbols, cp) == true
                 }
             }
 
