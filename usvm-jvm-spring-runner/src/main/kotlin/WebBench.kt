@@ -61,6 +61,7 @@ import org.usvm.test.api.spring.JcSpringTestKind
 import org.usvm.test.api.spring.SpringBootTest
 import org.usvm.test.api.spring.WebMvcTest
 import testGeneration.SpringTestInfo
+import util.database.TableInfo
 import java.io.File
 import java.io.PrintStream
 import java.nio.file.Path
@@ -130,6 +131,10 @@ private class BenchCp(
     override fun close() {
         cp.close()
         db.close()
+    }
+
+    fun bindMachineOptions(options: JcConcreteMachineOptions) {
+        (cp.features?.find{ it is JcRepositoryTransformer } as? JcRepositoryTransformer)?.bindMachineOptions(options)
     }
 }
 
@@ -386,12 +391,28 @@ private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTest
     }
     val newCpFiles = benchmark.cpFiles + springDirFile
     val newClasses = benchmark.classes + springDirFile
-    return loadBench(benchmark.db, newCpFiles, newClasses, benchmark.dependencies, false, tablesInfo, testKind)
+    return loadBench(
+        benchmark.db,
+        newCpFiles,
+        newClasses,
+        benchmark.dependencies,
+        false,
+        tablesInfo,
+        testKind
+    )
 }
 
 
 private fun analyzeBench(benchmark: BenchCp) {
     val newBench = generateTestClass(benchmark, InternalTestKind.SpringBootTest)
+
+    val jcConcreteMachineOptions = JcConcreteMachineOptions(
+        projectLocations = newBench.classLocations,
+        dependenciesLocations = newBench.depsLocations,
+    )
+
+    newBench.bindMachineOptions(jcConcreteMachineOptions)
+
     val jcSpringMachineOptions = JcSpringMachineOptions(
         springTestKind = newBench.testKind!!
     )
@@ -416,10 +437,6 @@ private fun analyzeBench(benchmark: BenchCp) {
     val jcMachineOptions = JcMachineOptions(
         forkOnImplicitExceptions = false,
         arrayMaxSize = 10_000,
-    )
-    val jcConcreteMachineOptions = JcConcreteMachineOptions(
-        projectLocations = newBench.classLocations,
-        dependenciesLocations = newBench.depsLocations,
     )
 
     val testObserver = JcSpringTestObserver()

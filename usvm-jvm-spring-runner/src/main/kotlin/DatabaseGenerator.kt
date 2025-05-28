@@ -137,8 +137,9 @@ private fun JcMethodNewBodyContext.generateFieldInitialize(
         val entityType = putValueToVar(JcRawClassConstant(table.origClass.typename, JAVA_CLASS.typeName), JAVA_CLASS.typeName)
         val validators = generateValidators(table)
         val tableName = putValueToVar(JcRawString(table.name), JAVA_STRING.typeName)
+        val isAutoGenerateId = putValueToVar(JcRawBool(table.isAutoGenerateId), "boolean".typeName)
         val needTrackValue = putValueToVar(JcRawBool(needTrack), "boolean".typeName)
-        listOf(idColIndex, entityType, typeArrVar, validators, tableName, needTrackValue)
+        listOf(idColIndex, entityType, typeArrVar, validators, tableName, isAutoGenerateId, needTrackValue)
     } ?: listOf(typeArrVar)
     val initCall = JcRawSpecialCallExpr(
         tblType,

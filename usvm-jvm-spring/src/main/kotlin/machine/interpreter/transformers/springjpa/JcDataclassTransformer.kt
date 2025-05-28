@@ -288,10 +288,9 @@ private class SignatureGenerator(
             val lambdas =
                 when (rel) {
                     is Relation.RelationByTable -> gen.getByTableLambdas()
-                    is Relation.ManyToOne -> listOf(gen.getManyToOneFilter())
+                    is Relation.ManyToOne, is Relation.OneToOne -> listOf(gen.getManyToOneFilter())
                     is Relation.OneToManyByColumn -> listOf(gen.getOneToManyFilter())
-                    else -> null
-                }!!
+                }
 
             lambdas.also { dataclassTransformer.relationLambdas.set(clazz, rel.origField, it) }
         }
