@@ -335,11 +335,13 @@ private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTest
                 testKind = SpringBootTest(applicationClass)
                 val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
                 val autoConfigureMockMvcAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc".jvmName())
+                val transactionalAnnotation = AnnotationNode("jakarta.persistence.Transactional".jvmName())
                 sprintBootTestAnnotation.values = listOf(
                     "classes", listOf(Type.getType(applicationClass.jvmDescriptor))
                 )
                 classNode.visibleAnnotations.add(sprintBootTestAnnotation)
                 classNode.visibleAnnotations.add(autoConfigureMockMvcAnnotation)
+                classNode.visibleAnnotations.add(transactionalAnnotation)
                 val entityManagerClass = cp.findClassOrNull("jakarta.persistence.EntityManager")
                 val persistenceContextClass = cp.findClassOrNull("jakarta.persistence.PersistenceContext")
                 if (entityManagerClass != null && persistenceContextClass != null) {
@@ -405,7 +407,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 5.minutes,
+        timeout = 2.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
