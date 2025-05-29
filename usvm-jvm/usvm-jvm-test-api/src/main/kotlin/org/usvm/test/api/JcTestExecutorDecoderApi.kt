@@ -16,10 +16,10 @@ import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.api.decoder.DecoderApi
 
-class JcTestExecutorDecoderApi(
-    private val cp: JcClasspath
+open class JcTestExecutorDecoderApi(
+    protected val cp: JcClasspath
 ) : DecoderApi<UTestExpression> {
-    private val instructions = mutableListOf<UTestInst>()
+    protected val instructions = mutableListOf<UTestInst>()
 
     fun initializerInstructions(): List<UTestInst> = instructions
 
