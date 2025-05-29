@@ -10,9 +10,13 @@ import org.jacodb.api.jvm.JcParameter
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.ext.findType
+import org.jacodb.api.jvm.ext.int
+import org.usvm.test.api.UTestArraySetStatement
+import org.usvm.test.api.UTestCreateArrayExpression
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestGetFieldExpression
 import org.usvm.test.api.UTestInst
+import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestSetFieldStatement
 import org.usvm.test.api.UTestStatement
@@ -33,6 +37,10 @@ class SpringMockBeanBuilder(
 
     private val thenReturnMethod = ongoingStubbingClass.declaredMethods.find {
         it.name == "thenReturn" && it.parameters.size == 1
+    } ?: error("mockito thenReturn method not found")
+
+    private val thenReturnMultipleMethod = ongoingStubbingClass.declaredMethods.find {
+        it.name == "thenReturn" && it.parameters.size == 2
     } ?: error("mockito thenReturn method not found")
 
     private val argumentMatchersClass = cp.findClassOrNull("org.mockito.ArgumentMatchers")
@@ -129,11 +137,22 @@ class SpringMockBeanBuilder(
             listOf(mockedMethodCall)
         )
 
-        val mockitoCall = values.fold(whenCall) { call: UTestExpression, result ->
-            UTestMethodCall(call, thenReturnMethod, listOf(result))
+        if (values.size == 1) {
+            val mockitoCall = UTestMethodCall(whenCall, thenReturnMethod, listOf(values.single()))
+            mockitoCalls.add(mockitoCall)
+            return mockitoCall
         }
-        mockitoCalls.add(mockitoCall)
 
+        val head = values.first()
+        val tail = values.drop(1)
+        val tailSize = UTestIntExpression(tail.size, cp.int)
+        val tailArray = UTestCreateArrayExpression(head.type!!, tailSize)
+        val assignInstructions = List(tail.size) {
+            UTestArraySetStatement(tailArray, UTestIntExpression(it, cp.int), tail[it])
+        }
+        initStatements.addAll(assignInstructions)
+        val mockitoCall = UTestMethodCall(whenCall, thenReturnMultipleMethod, listOf(head, tailArray))
+        mockitoCalls.add(mockitoCall)
         return mockitoCall
     }
 
