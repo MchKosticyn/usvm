@@ -52,6 +52,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypeVariable
 import org.jacodb.api.jvm.JcUnboundWildcard
 import org.jacodb.api.jvm.PredefinedPrimitives
+import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualField
@@ -109,7 +110,7 @@ abstract class JcCodeRenderer<T: Node>(
 
     private fun renderTypeVariable(variable: JcTypeVariable, includeGenericArgs: Boolean): Type {
         val isRecursive = (variable as? JcTypeVariableImpl)?.isRecursive
-        return renderType(variable.bounds.first(), includeGenericArgs && isRecursive == false)
+        return renderType(variable.bounds.firstOrNull() ?: cp.objectType, includeGenericArgs && isRecursive == false)
     }
 
     private fun renderBoundedWildcardType(type: JcBoundedWildcard, includeGenericArgs: Boolean): Type {
