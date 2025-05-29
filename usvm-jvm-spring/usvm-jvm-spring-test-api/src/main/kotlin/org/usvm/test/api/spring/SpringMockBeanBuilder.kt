@@ -11,6 +11,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.int
+import org.jacodb.api.jvm.ext.void
 import org.usvm.test.api.UTestArraySetStatement
 import org.usvm.test.api.UTestCreateArrayExpression
 import org.usvm.test.api.UTestExpression
@@ -124,6 +125,7 @@ class SpringMockBeanBuilder(
         values: List<UTestExpression>
     ): UTestExpression {
         check (!method.isStatic) { "no static method mocks expected in mockBean" }
+        check (method.returnType.typeName != cp.void.typeName) { "cannot mock void method" }
 
         val mockedMethodCallArgs = anyMatchersForParametersOf(method)
 

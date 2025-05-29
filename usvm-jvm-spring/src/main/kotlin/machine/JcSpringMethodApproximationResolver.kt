@@ -23,6 +23,7 @@ import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
+import org.jacodb.api.jvm.ext.void
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -423,13 +424,16 @@ class JcSpringMethodApproximationResolver (
                 return false
 
             println("[Mocked] Mocked repository method")
-            scope.doWithState {
+            return scope.calcOnState {
                 this as JcSpringState
+                if (methodCall.method.returnType.typeName == ctx.cp.void.typeName)
+                    return@calcOnState false
+
                 val postProcessInst = JcMockMethodInvokeResult(methodCall)
                 newStmt(JcConcreteMethodCallInst(location, method, arguments, postProcessInst))
-            }
 
-            return true
+                return@calcOnState true
+            }
         }
 
         return false
@@ -526,7 +530,7 @@ class JcSpringMethodApproximationResolver (
     @Suppress("UNUSED_PARAMETER")
     private fun shouldAnalyzePath(path: String, methods: List<String>, controllerTypeName: String): Boolean {
         // skibidi
-        return true
+        return path == "/save/test"
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
