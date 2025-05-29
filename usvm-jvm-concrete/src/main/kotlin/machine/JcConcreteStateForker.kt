@@ -67,14 +67,18 @@ class JcConcreteStateForker(
         if (conditionFound)
             return results
 
-        val solver = state.ctx.solver<Type>()
+        val ctx = state.ctx
+        val solver = ctx.solver<Type>()
         for ((idx, condition) in conditions.withIndex()) {
             val currentPs = (state as T).pathConstraints.clone()
             for (constraint in memory.concretizationConstraints)
                 currentPs += constraint
             currentPs += condition
-            when (val result = solver.check(currentPs)) {
+            when (solver.check(currentPs)) {
                 is USatResult<UModelBase<Type>> -> {
+                    val softConstraints = ctx.softConstraintsProvider<Type>().makeSoftConstraints(currentPs)
+                    val result = solver.checkWithSoftConstraints(currentPs, softConstraints)
+                    check(result is USatResult<UModelBase<Type>>)
                     memory.setFixedModel(state, result.model as UModelBase<JcType>)
                     results[idx] = state
                     return results
@@ -87,8 +91,11 @@ class JcConcreteStateForker(
         for (condition in conditions) {
             val currentPs = (state as T).pathConstraints.clone()
             currentPs += condition
-            when (val result = solver.check(currentPs)) {
+            when (solver.check(currentPs)) {
                 is USatResult<UModelBase<Type>> -> {
+                    val softConstraints = ctx.softConstraintsProvider<Type>().makeSoftConstraints(currentPs)
+                    val result = solver.checkWithSoftConstraints(currentPs, softConstraints)
+                    check(result is USatResult<UModelBase<Type>>)
                     newModel = result.model
                     break
                 }
