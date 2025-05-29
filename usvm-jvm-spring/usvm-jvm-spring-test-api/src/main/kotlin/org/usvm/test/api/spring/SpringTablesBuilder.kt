@@ -27,7 +27,7 @@ class SpringTablesBuilder(
     fun addTable(table : JcTableEntities) {
         for (entity in table.entities) {
             val entityManagerClass = (entityManager.type as JcClassType).jcClass
-            val persistMethod = entityManagerClass.declaredMethods.find { it.name == "persist" }!!
+            val persistMethod = entityManagerClass.declaredMethods.find { it.name == "merge" }!!
             statements.add(UTestMethodCall(entityManager, persistMethod, listOf(entity)))
         }
     }
