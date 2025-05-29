@@ -46,7 +46,7 @@ internal object VirtualMockito {
         val clazz = JcVirtualClassImpl(
             "org.mockito.stubbing.OngoingStubbing",
             initialFields = listOf(),
-            initialMethods = listOf(ongoingStubbingThenReturn)
+            initialMethods = listOf(ongoingStubbingThenReturn, ongoingStubbingMultipleThenReturn)
         )
         clazz.bind(cp, VirtualLocation())
         return clazz
@@ -57,6 +57,19 @@ internal object VirtualMockito {
             name = "thenReturn",
             returnType = TypeNameImpl.fromTypeName("org.mockito.stubbing.OngoingStubbing"),
             parameters = listOf(JcVirtualParameter(0, TypeNameImpl.fromTypeName("java.lang.Object"))),
+            description = "",
+            access = Opcodes.ACC_PUBLIC
+        )
+    }
+
+    private val ongoingStubbingMultipleThenReturn by lazy {
+        JcVirtualMethodImpl(
+            name = "thenReturn",
+            returnType = TypeNameImpl.fromTypeName("org.mockito.stubbing.OngoingStubbing"),
+            parameters = listOf(
+                JcVirtualParameter(0, TypeNameImpl.fromTypeName("java.lang.Object")),
+                JcVirtualParameter(1, TypeNameImpl.fromTypeName("java.lang.Object[]"))
+            ),
             description = "",
             access = Opcodes.ACC_PUBLIC
         )
