@@ -15,10 +15,10 @@ import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestMockObject
 import org.usvm.test.api.UTestNullExpression
-import org.usvm.test.api.spring.JcMockBean
 import org.usvm.test.api.spring.JcSpringRequest
 import org.usvm.test.api.spring.JcSpringResponse
 import org.usvm.test.api.spring.JcSpringTestBuilder
+import org.usvm.test.api.spring.JcSpringTestKind
 import org.usvm.test.api.spring.JcTableEntities
 import org.usvm.test.api.spring.ResolvedSpringException
 import org.usvm.test.api.spring.SpringException
@@ -51,21 +51,58 @@ data class SpringTestInfo(
     val test: UTest,
 )
 
+private class JcStateSpringTestBuilder(
+    cp: JcClasspath,
+    controller: JcClassOrInterface,
+    testKind: JcSpringTestKind,
+    testClass: JcClassOrInterface,
+    private val state: JcSpringState,
+    private val resolver: JcSpringTestExprResolver
+): JcSpringTestBuilder(
+    cp,
+    controller,
+    testKind,
+    resolver.decoderApi,
+    testClass
+) {
+    override fun buildJcSpringRequest(): JcSpringRequest {
+        return getSpringRequest(state, resolver)
+    }
+
+    override fun buildJcSpringResponse(): JcSpringResponse? {
+        if (!state.hasResponse())
+            return null
+
+        return getSpringResponse(state, resolver)
+    }
+
+    override fun buildSpringException(): SpringException? {
+        if (!state.hasException())
+            return null
+
+        return getSpringException(state, resolver)
+    }
+
+    override fun buildTableEntities(): List<JcTableEntities> {
+        return getSpringTables(state.tableEntities, resolver)
+    }
+
+    override fun buildMockBeans(): List<UTestMockObject> {
+        return getSpringMocks(state.mockedMethodCalls, resolver)
+    }
+
+}
+
 internal fun JcSpringState.generateTest(): SpringTestInfo {
     val model = springMemory.getFixedModel(this)
-    val exprResolver = JcSpringTestExprResolver(ctx, model, memory, entrypoint.toTypedMethod)
-    val request = getSpringRequest(this, exprResolver)
-
-    val mocks = getSpringMocks(mockedMethodCalls, exprResolver)
-    val tables = getSpringTables(tableEntities, exprResolver)
-    val testClass = getGeneratedTestClass(ctx.cp)
+    val resolver = JcSpringTestExprResolver(ctx, model, memory, entrypoint.toTypedMethod)
 
     val reqPath = pinnedValues.getValue(JcPinnedKey.requestPath())
         ?: error("Request path is not found in pinned values")
-    val pathString = (exprResolver.resolvePinnedValue(reqPath) as UTString).value
+    val pathString = (resolver.resolvePinnedValue(reqPath) as UTString).value
     val reqMethod = pinnedValues.getValue(JcPinnedKey.requestMethod())
         ?: error("Request method is not found in pinned values")
-    val methodString = (exprResolver.resolvePinnedValue(reqMethod) as UTString).value
+    val methodString = (resolver.resolvePinnedValue(reqMethod) as UTString).value
     val handler = handlerData.find {
         it.pathTemplate == pathString && it.allowedMethods.contains(methodString)
     }?.handler
@@ -73,24 +110,10 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
     check(handler != null) { "Could not infer handler method of path" }
 
     val controller = handler.enclosingClass
+    val testClass = getGeneratedTestClass(ctx.cp)
 
-    var jcSpringTest = JcSpringTestBuilder(controller, request, testKind)
-        .withMocks(mocks)
-        .withGeneratedTestClass(testClass)
-        .withTables(tables)
-
-    if (hasException()) {
-        val exception = getSpringException(this, exprResolver)
-        jcSpringTest = jcSpringTest.withException(exception)
-    }
-    else {
-        val response = getSpringResponse(this, exprResolver)
-        jcSpringTest = jcSpringTest.withResponse(response)
-    }
-
-    val uTest = jcSpringTest.build(ctx.cp)
-        .generateTestDSL { exprResolver.getInstructions() }
-
+    val testBuilder = JcStateSpringTestBuilder(ctx.cp, controller, testKind, testClass, this, resolver)
+    val uTest = testBuilder.build()
     return SpringTestInfo(handler, isExceptional, uTest)
 }
 
@@ -140,11 +163,11 @@ private fun getSpringResponse(
 private fun getSpringMocks(
     mockedCalls: JcSpringMockedCalls,
     exprResolver: JcSpringTestExprResolver
-): List<JcMockBean> {
-    // TODO: Also fields #AA
+): List<UTestMockObject> {
+    // TODO: Support fields #AA
     val mocks = mockedCalls.getMap()
     val distinctMocks = mocks.entries.map { it.key.enclosingClass }.distinct()
-    val testMockObjects = distinctMocks.map { type ->
+    return distinctMocks.map { type ->
         val distinctMethods = mocks.entries
             .filter { it.key.enclosingClass == type }
             .associate { it.key to it.value.map { v -> exprResolver.resolvePinnedValue(v) } }
@@ -154,8 +177,6 @@ private fun getSpringMocks(
             distinctMethods
         )
     }
-
-    return testMockObjects.map { JcMockBean(it) }
 }
 
 private fun getSpringTables(

@@ -18,6 +18,7 @@ import org.usvm.test.api.UTestGetFieldExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestMethodCall
+import org.usvm.test.api.UTestMockObject
 import org.usvm.test.api.UTestSetFieldStatement
 import org.usvm.test.api.UTestStatement
 import org.usvm.test.api.UTestStaticMethodCall
@@ -156,7 +157,7 @@ class SpringMockBeanBuilder(
         return mockitoCall
     }
 
-    fun addMock(mock: JcMockBean): SpringMockBeanBuilder {
+    fun addMockBean(mock: UTestMockObject): SpringMockBeanBuilder {
         val mockBean = findMockBean(mock.type)
         mock.fields.forEach { (field, value) -> addMockField(mockBean, field, value) }
         mock.methods.forEach { (method, values) -> addMockMethod(mockBean, method, values) }
