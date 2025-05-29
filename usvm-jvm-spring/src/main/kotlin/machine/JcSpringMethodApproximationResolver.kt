@@ -1,12 +1,12 @@
 package machine
 
 import io.ksmt.utils.asExpr
-import machine.state.pinnedValues.JcSpringPinnedValueSource
-import machine.state.concreteMemory.JcConcreteMemory
 import machine.state.JcSpringState
+import machine.state.concreteMemory.JcConcreteMemory
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcPinnedValue
+import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcStringPinnedKey
 import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcArrayType
@@ -31,12 +31,15 @@ import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
-import org.usvm.api.util.JcTestStateResolver
 import org.usvm.api.writeField
 import org.usvm.collection.field.UFieldLValue
+import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.JcApplicationGraph
+import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
+import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.findJavaField
@@ -48,7 +51,10 @@ import util.isDeserializationMethod
 import util.isSpringController
 import util.isSpringRepository
 import utils.toJcType
-import java.util.ArrayList
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 data class HandlerMethodData(
     val pathTemplate: String,
@@ -209,20 +215,32 @@ class JcSpringMethodApproximationResolver (
         return concretizer.resolveExpr(value.getExpr(), value.getType())
     }
 
+    private fun serializeObject(target: Any): String {
+        val type = target.javaClass
+        val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        return when (type.simpleName) {
+            "LocalDate" -> (target as LocalDate).atStartOfDay().atOffset(ZoneOffset.UTC).format(dateFormatter)
+            "LocalDateTime" -> (target as LocalDateTime).atOffset(ZoneOffset.UTC).format(dateFormatter)
+            else -> target.toString()
+        }
+    }
+
     private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
         val memory = state.memory as JcSpringMemory
         val result = concretizePinnedValue(value, state) ?: return null
-        if (result.toString().isEmpty()) return null
+        val serialized = serializeObject(result)
+        if (serialized.isEmpty()) return null
         val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
-        val expr = memory.objectToExpr(arrayOf(result.toString()), stringArrayType)
+        val expr = memory.objectToExpr(arrayOf(serialized), stringArrayType)
         return JcPinnedValue(expr, stringArrayType)
     }
 
     private fun pinnedValueToString(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
         val memory = state.memory as JcSpringMemory
         val result = concretizePinnedValue(value, state) ?: return null
+        val serialized = serializeObject(result)
         if (result.toString().isEmpty()) return null
-        val expr = memory.objectToExpr(result.toString(), ctx.stringType)
+        val expr = memory.objectToExpr(serialized, ctx.stringType)
         return JcPinnedValue(expr, ctx.stringType)
     }
 
@@ -506,7 +524,7 @@ class JcSpringMethodApproximationResolver (
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun shouldAnalyzePath(path: String, handlerName: String, controllerTypeName: String): Boolean {
+    private fun shouldAnalyzePath(path: String, methods: List<String>, controllerTypeName: String): Boolean {
         // skibidi
         return true
     }
@@ -575,7 +593,7 @@ class JcSpringMethodApproximationResolver (
     private fun allControllerPaths(stateToFill: JcSpringState): ArrayList<ArrayList<Any>> {
         val handlerData =
             getHandlerData()
-            .filter { shouldAnalyzePath(it.pathTemplate, it.handler.name, it.controller.name) }
+            .filter { shouldAnalyzePath(it.pathTemplate, it.allowedMethods, it.controller.name) }
         stateToFill.handlerData = handlerData
 
         return handlerData
