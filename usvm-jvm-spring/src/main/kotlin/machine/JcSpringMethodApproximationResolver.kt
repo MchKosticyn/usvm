@@ -581,7 +581,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldAnalyzePath(path: String, handlerName: String, controllerTypeName: String): Boolean {
-        return true
+        return handlerName == "showOwner"
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {

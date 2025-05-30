@@ -58,6 +58,7 @@ import org.usvm.collection.set.ref.refSetEntries
 import org.usvm.isAllocatedConcreteHeapRef
 import org.usvm.isStaticHeapRef
 import org.usvm.isTrue
+import org.usvm.jvm.util.allInstanceFields
 import org.usvm.logger
 import org.usvm.machine.JcContext
 import org.usvm.machine.extractBool
@@ -313,6 +314,13 @@ abstract class JcTestStateResolver<T>(
             // If superclass have a decoder, apply decoder and copy fields values
             val decoder = decoders.findDecoder(cls.jcClass)
             if (decoder != null) {
+                val fields = cls.allInstanceFields
+                    // Don't copy approximation-specific fields
+                    .filterNot { it.field is JcEnrichedVirtualField }
+
+                if (fields.isEmpty())
+                    continue
+
                 val decodedCls = decodeObject(ref, heapRef, cls, decoder)
 
                 // Decoder can overwrite cached instance. Restore correct instance
@@ -331,10 +339,7 @@ abstract class JcTestStateResolver<T>(
                 // No need to process other superclasses since we already decode them
                 break
             } else {
-                // TODO: think about it! #CM
-                val fields = cls.declaredFields.filterNot { shouldIgnoreField(it) }
-
-                for (field in fields) {
+                for (field in cls.declaredFields.filterNot { shouldIgnoreField(it) }) {
                     check(field.field !is JcEnrichedVirtualField) {
                         "Class ${cls.jcClass.name} has approximated field ${field.field} but has no decoder"
                     }
