@@ -137,7 +137,9 @@ abstract class JcCodeRenderer<T: Node>(
     }
 
     fun renderClass(type: JcClassType, includeGenericArgs: Boolean = true): ClassOrInterfaceType {
-        check(!shouldRenderClassAsPrivate(type)) { "Rendering private classes is not supported" }
+        check(!shouldRenderClassAsPrivate(type)) {
+            "Rendering private classes is not supported. Cannot render ${type.typeName}"
+        }
         check(!type.jcClass.isAnonymous) { "Rendering anonymous classes is not supported" }
 
         return when {
