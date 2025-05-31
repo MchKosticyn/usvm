@@ -84,12 +84,15 @@ class JcSpringInterpreter(
             is JcMockMethodInvokeResult -> {
                 scope.doWithState {
                     this as JcSpringState
-                    // TODO: Mock exception throws too #AA
                     if (methodResult is JcMethodResult.Success) {
                         val methodResult = methodResult as JcMethodResult.Success
                         val returnType = methodResult.method.returnType.toJcType(ctx.cp)
                         addMock(stmt.method, methodResult.value, returnType!!)
                         skipMethodInvocationWithValue(stmt, methodResult.value)
+                    }
+
+                    if (methodResult is JcMethodResult.JcException) {
+                        TODO("Needs to be supported #AA")
                     }
                 }
             }
