@@ -66,7 +66,7 @@ class JcSpringState(
     fun addTableEntity(tableName: String, entity: UHeapRef, type: JcClassType) {
         val (entities, currentType) = tableEntities.getOrDefault(tableName, emptyList<UHeapRef>() to type)
         check(currentType == type)
-        val updatedEntities = entities + listOf(entity) to currentType
+        val updatedEntities = (entities + listOf(entity)).distinct() to currentType
         tableEntities += tableName to updatedEntities
     }
 
