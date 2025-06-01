@@ -16,9 +16,11 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
+import org.usvm.api.readField
 import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
+import org.usvm.jvm.util.allInstanceFields
 import org.usvm.machine.JcContext
 import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.JcMethodResult
@@ -26,6 +28,8 @@ import org.usvm.machine.state.JcState
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 import org.usvm.test.api.spring.JcSpringTestKind
+
+typealias tableContent = Pair<List<Pair<UHeapRef, UExpr<out USort>>>, JcClassType>
 
 class JcSpringState(
     ctx: JcContext,
@@ -58,15 +62,27 @@ class JcSpringState(
 
     var handlerData: List<HandlerMethodData> = listOf()
 
-    var tableEntities = emptyMap<String, Pair<List<UHeapRef>, JcClassType>>()
+    var tableEntities = emptyMap<String, tableContent>()
 
     internal val springMemory: JcSpringMemory
         get() = this.memory as JcSpringMemory
 
     fun addTableEntity(tableName: String, entity: UHeapRef, type: JcClassType) {
-        val (entities, currentType) = tableEntities.getOrDefault(tableName, emptyList<UHeapRef>() to type)
+        val (entities, currentType) = tableEntities.getOrDefault(tableName, emptyList<Pair<UHeapRef, UExpr<out USort>>>() to type)
         check(currentType == type)
-        val updatedEntities = (entities + listOf(entity)).distinct() to currentType
+        // TODO: use distinct over read by id field
+        val idField = type.allInstanceFields.find { typedField ->
+            typedField.field.annotations.any { annotation ->
+                annotation.name == "jakarta.persistence.Id"
+            }
+        } ?: error("unable to find id field for ${type.jcClass.name}")
+        val idFieldSort = ctx.typeToSort(idField.type)
+        val id = memory.readField(entity, idField.field, idFieldSort)
+        val alreadyExists = entities.any { (_, oldId) -> oldId == id }
+        if (alreadyExists)
+            return
+
+        val updatedEntities = (entities + listOf(entity to id)) to currentType
         tableEntities += tableName to updatedEntities
     }
 

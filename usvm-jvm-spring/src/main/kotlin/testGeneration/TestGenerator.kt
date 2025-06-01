@@ -3,13 +3,12 @@ package testGeneration
 import machine.state.JcSpringState
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcSpringMockedCalls
+import machine.state.tableContent
 import org.jacodb.api.jvm.JcClassOrInterface
-import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.usvm.UHeapRef
 import org.usvm.jvm.util.toTypedMethod
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestClassExpression
@@ -180,14 +179,14 @@ private fun getSpringMocks(
 }
 
 private fun getSpringTables(
-    tables: Map<String, Pair<List<UHeapRef>, JcClassType>>,
+    tables: Map<String, tableContent>,
     exprResolver: JcSpringTestExprResolver
 ): List<JcTableEntities> {
     return tables.mapNotNull { (tableName, entitiesWithType) ->
         val (entities, type) = entitiesWithType
         if (entities.isEmpty()) return@mapNotNull null
-        val resolveEntities = entities.map {
-            val resolved = exprResolver.resolveExpr(it, type)
+        val resolveEntities = entities.map { (entity, _) ->
+            val resolved = exprResolver.resolveExpr(entity, type)
             check(resolved !is UTestNullExpression)
             resolved
         }
