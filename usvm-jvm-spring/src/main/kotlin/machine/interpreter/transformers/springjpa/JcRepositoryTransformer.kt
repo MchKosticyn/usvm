@@ -1,6 +1,8 @@
 package machine.interpreter.transformers.springjpa
 
 import kotlinx.collections.immutable.toPersistentList
+import machine.JcConcreteMachineOptions
+import machine.interpreter.transformers.springjpa.query.JPANameTranslator
 import machine.interpreter.transformers.springjpa.query.JPAQueryVisitor
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
@@ -17,6 +19,7 @@ import org.jacodb.api.jvm.cfg.JcClassConstant
 import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
+import org.jacodb.api.jvm.ext.JAVA_OBJECT
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.objectType
@@ -32,41 +35,57 @@ import util.database.getTableName
 
 object JcRepositoryTransformer : JcClassExtFeature {
 
+    // Remember to call bindMachineOptions!!!
+    private var machineOptions: JcConcreteMachineOptions? = null
+
     private val visitedCtx: MutableMap<String, Select> = mutableMapOf()
 
     private fun visitedName(method: JcMethod): String {
         return "${method.enclosingClass.name}.${method.name}"
     }
 
-    fun addCtx(method: JcMethod, ctx: Select) {
-        visitedCtx[visitedName(method)] = ctx
+    fun bindMachineOptions(options: JcConcreteMachineOptions) {
+        machineOptions = options
     }
 
-    fun getCtx(method: JcMethod): Select? {
-        return visitedCtx[visitedName(method)]
+    private fun addCtx(method: JcMethod, ctx: Select) { visitedCtx[visitedName(method)] = ctx }
+    fun getCtx(method: JcMethod) = visitedCtx[visitedName(method)]
+
+    // TODO: may failed
+    private fun collectRepositoryMethods(clazz: JcClassOrInterface, originalMethods: List<JcMethod>): List<JcMethod> {
+        val superClass = clazz.superClass
+        return if (superClass == null || !superClass.isJpaRepository) originalMethods
+        else {
+            val newMethods = originalMethods.toPersistentList().addAll(superClass.declaredMethods)
+            collectRepositoryMethods(superClass, newMethods)
+        }
+
     }
 
     override fun methodsOf(clazz: JcClassOrInterface, originalMethods: List<JcMethod>): List<JcMethod>? {
 
-        if (!clazz.isJpaRepository) return null
+        // Remember to call bindMachineOptions!!!
+        if (!clazz.isJpaRepository || !machineOptions!!.isProjectLocation(clazz)) return null
 
-        val lambdas = originalMethods.flatMap {
-            val query = it.query // TODO: by name
-            if (query == null) {
-                listOf()
-            } else {
-                val queryCtx = HqlLexer(CharStreams.fromString(query))
-                    .let { CommonTokenStream(it) }
-                    .let { HqlParser(it) }
-                    .statement()
+        val dataClass = clazz.signature!!.genericTypesFromSignature.first().let { clazz.classpath.findClass(it) }
 
-                val parserRes = JPAQueryVisitor().visit(queryCtx) as Select
-                addCtx(it, parserRes)
+        val methods = collectRepositoryMethods(clazz, originalMethods)
+        val lambdas = methods.flatMap {
+            if (it.query == null && JcRepositoryCrudTransformer.crudNames.contains(it.name))
+                return@flatMap emptyList<JcMethod>()
 
-                val repo = it.enclosingClass
+            val query = it.query ?: JPANameTranslator(it.name, dataClass).buildQuery()
+            val queryCtx = HqlLexer(CharStreams.fromString(query))
+                .let(::CommonTokenStream)
+                .let(::HqlParser)
+                .statement()
 
-                parserRes.getLambdas(repo.classpath, repo, it)
-            }
+            val parserRes = JPAQueryVisitor().visit(queryCtx) as Select
+            addCtx(it, parserRes)
+
+            val repo = it.enclosingClass
+
+            parserRes.getLambdas(repo.classpath, repo, it)
         }
 
         return originalMethods.toPersistentList().addAll(lambdas)
@@ -75,9 +94,7 @@ object JcRepositoryTransformer : JcClassExtFeature {
 
 object JcRepositoryQueryTransformer : JcBodyFillerFeature() {
 
-    override fun condition(method: JcMethod): Boolean {
-        return !method.repositoryLambda && method.enclosingClass.isJpaRepository && method.query != null
-    }
+    override fun condition(method: JcMethod) = method.query != null
 
     override fun JcSingleInstructionTransformer.BlockGenerationContext.generateBody(method: JcMethod) {
 
@@ -108,9 +125,11 @@ object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
     val JcMethod.isCrud: Boolean get() = crudNames.contains(name)
     val JcMethod.isSaveUpdDel: Boolean get() = listOf("save", "delete").contains(name)
 
-    override fun condition(method: JcMethod): Boolean {
-        return method.isCrud && method.enclosingClass.isJpaRepository && method.query == null
-    }
+    override fun condition(method: JcMethod) =
+        !method.repositoryLambda
+                && method.query == null
+                && method.enclosingClass.isJpaRepository
+                && method.isCrud
 
     override fun JcSingleInstructionTransformer.BlockGenerationContext.generateBody(method: JcMethod) {
 

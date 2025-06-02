@@ -64,25 +64,24 @@ class JcTableInfoCollector(
         // TODO: think about cache
         val name = getTableName(clazz)
         val fields = collectFields(clazz)
-        val idField = fields
-            .single { contains(it.annotations, "Id") }
+        val idField = fields.single { contains(it.annotations, "Id") }
+        val isAutoGenerateId = contains(idField.annotations, "GeneratedValue")
         val idColumn = idField.let { TableInfo.ColumnInfo(getColumnName(it), it.type, idField, true, listOf()) }
         val idType = idField.type
 
-        tablesInfo.getOrPut(name) { TableInfo.TableWithIdInfo(name, hashSetOf(), hashSetOf(), idColumn, clazz) }
+        tablesInfo.getOrPut(name) {
+            TableInfo.TableWithIdInfo(name, hashSetOf(), hashSetOf(), idColumn, clazz, isAutoGenerateId)
+        }
         val classTable = tablesInfo[name]!!
 
         fields.forEach { field ->
-
             val simpleColName = getColumnName(field)
 
             val validators = field.annotations.mapNotNull { annot ->
+                // TODO: adds other enums validators!!
                 JcValidateAnnotation.entries.find { it.annotationSimpleName == annot.jcClass!!.simpleName }
                     ?.let { annot to it }
             }
-
-            fun buildCommonColumn(name: String, typ: TypeName, isOrig: Boolean): TableInfo.ColumnInfo =
-                TableInfo.ColumnInfo(name, typ, field, isOrig, validators)
 
             if (
                 !contains(
@@ -91,7 +90,7 @@ class JcTableInfoCollector(
                 )
             ) {
 
-                val colInfo = buildCommonColumn(simpleColName, field.type, true)
+                val colInfo = TableInfo.ColumnInfo(simpleColName, field.type, field, true, validators)
                 classTable.insertColumn(colInfo)
                 return@forEach
             }
@@ -164,7 +163,8 @@ open class TableInfo(
         columns: MutableSet<ColumnInfo>,
         relations: MutableSet<Relation>,
         val idColumn: ColumnInfo,
-        val origClass: JcClassOrInterface
+        val origClass: JcClassOrInterface,
+        val isAutoGenerateId: Boolean
     ) : TableInfo(name, columns, relations) {
 
         override val approximateManagerClassName = BASE_TABLE_MANAGER
