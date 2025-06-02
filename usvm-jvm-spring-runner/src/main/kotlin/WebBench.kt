@@ -134,7 +134,7 @@ private class BenchCp(
     }
 
     fun bindMachineOptions(options: JcConcreteMachineOptions) {
-        (cp.features?.find{ it is JcRepositoryTransformer } as? JcRepositoryTransformer)?.bindMachineOptions(options)
+        (cp.features?.find { it is JcRepositoryTransformer } as? JcRepositoryTransformer)?.bindMachineOptions(options)
     }
 }
 
