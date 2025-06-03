@@ -32,9 +32,13 @@ class JcSpringPinnedValuesRequest(
             .toList()
         val placeholder = UTestStringExpression("0", stringType)
 
-        val completedUriVariables = uriVariableNames.map {
-            uriVariables[it] ?: placeholder
-        }
+        val uriVariablesWithStringKeys = uriVariables
+            .map { it.key.value to it.value }
+            .toMap()
+
+        val completedUriVariables = uriVariableNames
+            .map { uriVariablesWithStringKeys[it.value] ?: placeholder }
+
         return completedUriVariables
     }
 
