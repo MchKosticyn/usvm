@@ -29,7 +29,7 @@ import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 import org.usvm.test.api.spring.JcSpringTestKind
 
-typealias tableContent = Pair<List<Pair<UHeapRef, UExpr<out USort>>>, JcClassType>
+typealias tableContent = Pair<List<UHeapRef>, JcClassType>
 
 class JcSpringState(
     ctx: JcContext,
@@ -68,21 +68,9 @@ class JcSpringState(
         get() = this.memory as JcSpringMemory
 
     fun addTableEntity(tableName: String, entity: UHeapRef, type: JcClassType) {
-        val (entities, currentType) = tableEntities.getOrDefault(tableName, emptyList<Pair<UHeapRef, UExpr<out USort>>>() to type)
+        val (entities, currentType) = tableEntities.getOrDefault(tableName, emptyList<UHeapRef>() to type)
         check(currentType == type)
-        // TODO: use distinct over read by id field
-        val idField = type.allInstanceFields.find { typedField ->
-            typedField.field.annotations.any { annotation ->
-                annotation.name == "jakarta.persistence.Id"
-            }
-        } ?: error("unable to find id field for ${type.jcClass.name}")
-        val idFieldSort = ctx.typeToSort(idField.type)
-        val id = memory.readField(entity, idField.field, idFieldSort)
-        val alreadyExists = entities.any { (_, oldId) -> oldId == id }
-        if (alreadyExists)
-            return
-
-        val updatedEntities = (entities + listOf(entity to id)) to currentType
+        val updatedEntities = (entities + listOf(entity)).distinct() to currentType
         tableEntities += tableName to updatedEntities
     }
 

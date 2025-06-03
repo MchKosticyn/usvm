@@ -342,9 +342,9 @@ open class JcConcreteMemory(
         check(method.isClassInitializer)
         // TODO: add recursive static fields check: if static field of another class was read it should not be symbolic #CM
         return !forceMethodInvoke(method) && (
-                // TODO: delete this, but create encoding for static fields (analyze clinit symbolically and write fields) #CM
-                method is JcEnrichedVirtualMethod && method.enclosingClass.toType().isStaticApproximation
-                        || method.enclosingClass.isInternalType
+                    // TODO: delete this, but create encoding for static fields (analyze clinit symbolically and write fields) #CM
+                    method is JcEnrichedVirtualMethod && method.enclosingClass.toType().isStaticApproximation
+                            || method.enclosingClass.isInternalType
                 )
     }
 
