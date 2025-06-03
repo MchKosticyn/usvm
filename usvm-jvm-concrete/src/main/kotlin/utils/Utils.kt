@@ -232,6 +232,7 @@ internal val JcType.isStaticApproximation: Boolean
 
         val originalType = JcConcreteMemoryClassLoader.loadClass(jcClass)
         val originalFieldNames = originalType.staticFields.map { it.name }
+        // TODO: check approximated static constructor?
         return this.jcClass.staticFields.any { !originalFieldNames.contains(it.name) }
     }
 

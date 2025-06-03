@@ -185,7 +185,7 @@ private fun getSpringTables(
     return tables.mapNotNull { (tableName, entitiesWithType) ->
         val (entities, type) = entitiesWithType
         if (entities.isEmpty()) return@mapNotNull null
-        val resolveEntities = entities.map { (entity, _) ->
+        val resolveEntities = entities.map { entity ->
             val resolved = exprResolver.resolveExpr(entity, type)
             check(resolved !is UTestNullExpression)
             resolved
