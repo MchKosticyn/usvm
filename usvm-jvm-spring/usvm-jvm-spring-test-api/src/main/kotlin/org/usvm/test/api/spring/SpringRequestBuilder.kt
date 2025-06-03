@@ -4,6 +4,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.int
+import org.jacodb.api.jvm.ext.objectType
 import org.usvm.jvm.util.stringType
 import org.usvm.test.api.UTestArraySetStatement
 import org.usvm.test.api.UTestCreateArrayExpression
@@ -46,7 +47,7 @@ class SpringRequestBuilder private constructor(
             val initDSL = mutableListOf<UTestInst>()
 
             val pathArgs = pathVariables.map { it }
-            val pathArgsArray = UTestCreateArrayExpression(cp.stringType, UTestIntExpression(pathArgs.size, cp.int))
+            val pathArgsArray = UTestCreateArrayExpression(cp.objectType, UTestIntExpression(pathArgs.size, cp.int))
             val pathArgsInitializer = List(pathArgs.size) {
                 UTestArraySetStatement(
                     pathArgsArray,
