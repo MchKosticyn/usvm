@@ -7,17 +7,23 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.CONSTRUCTOR
 import org.jacodb.api.jvm.ext.findDeclaredFieldOrNull
 import org.jacodb.api.jvm.ext.findDeclaredMethodOrNull
+import org.jacodb.api.jvm.ext.findType
+import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.toType
+import org.usvm.jvm.util.stringType
 import org.usvm.jvm.util.toJcClass
 import org.usvm.test.api.UTestAssertThrowsCall
 import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestConstructorCall
+import org.usvm.test.api.UTestCreateArrayExpression
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestGetFieldExpression
 import org.usvm.test.api.UTestInst
+import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestStaticMethodCall
+import org.usvm.test.api.UTestStringExpression
 
 private enum class PerformStatus {
     NOT_PERFORMED,
@@ -67,6 +73,32 @@ class SpringTestExecBuilder private constructor(
                 args = listOf(generatedClassCtorCall)
             )
 
+            val beforeTestClassCall = UTestMethodCall(
+                instance = testCtxManagerCtorCall,
+                method = testCtxManagerBeforeTestClass(cp),
+                args = emptyList()
+            )
+            val fakeTestMethod = UTestMethodCall(
+                instance = UTestMethodCall(
+                    instance = generatedClassCtorCall,
+                    method = cp.findJcMethod("java.lang.Object", "getClass"),
+                    args = emptyList()
+                ),
+                method = cp.findJcMethod("java.lang.Class", "getDeclaredMethod"),
+                args = listOf(
+                    UTestStringExpression("fakeTest", cp.stringType),
+                    UTestCreateArrayExpression(
+                        cp.findType("java.lang.Class"),
+                        UTestIntExpression(0, cp.int)
+                    )
+                )
+            )
+            val beforeTestMethodCall = UTestMethodCall(
+                instance = testCtxManagerCtorCall,
+                method = testCtxManagerBeforeTestMethod(cp),
+                args = listOf(generatedClassCtorCall, fakeTestMethod)
+            )
+
             val mockMvcType = cp.findTypeOrNull(MOCK_MVC_NAME) ?: error("MockMvc type not found")
             val mockMvcField =
                 generatedTestClass.findDeclaredFieldOrNull("mockMvc")
@@ -81,9 +113,14 @@ class SpringTestExecBuilder private constructor(
                 field = mockMvcField,
             )
 
+            val initStatements = mutableListOf<UTestInst>(
+                prepareTestInstanceCall,
+                beforeTestClassCall,
+                beforeTestMethodCall
+            )
             return SpringTestExecBuilder(
                 cp = cp,
-                initStatements = mutableListOf(prepareTestInstanceCall),
+                initStatements = initStatements,
                 mockMvcDSL = mockMvc,
                 generatedTestClass = generatedTestClass,
                 testClassInst = generatedClassCtorCall
@@ -96,6 +133,14 @@ class SpringTestExecBuilder private constructor(
 
         private fun testCtxManagerPrepareTestInstance(cp: JcClasspath): JcMethod {
             return cp.findJcMethod(TEST_CONTEXT_MANAGER_NAME, "prepareTestInstance")
+        }
+
+        private fun testCtxManagerBeforeTestClass(cp: JcClasspath): JcMethod {
+            return cp.findJcMethod(TEST_CONTEXT_MANAGER_NAME, "beforeTestClass")
+        }
+
+        private fun testCtxManagerBeforeTestMethod(cp: JcClasspath): JcMethod {
+            return cp.findJcMethod(TEST_CONTEXT_MANAGER_NAME, "beforeTestMethod")
         }
     }
 

@@ -48,7 +48,6 @@ import machine.interpreter.transformers.springjpa.JcDataclassTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
-import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.impl.cfg.JcInstListImpl
 import org.jacodb.impl.types.TypeNameImpl
@@ -61,7 +60,6 @@ import org.usvm.test.api.spring.JcSpringTestKind
 import org.usvm.test.api.spring.SpringBootTest
 import org.usvm.test.api.spring.WebMvcTest
 import testGeneration.SpringTestInfo
-import util.database.TableInfo
 import java.io.File
 import java.io.PrintStream
 import java.nio.file.Path
@@ -338,15 +336,17 @@ private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTest
             }
             InternalTestKind.SpringBootTest -> {
                 testKind = SpringBootTest(applicationClass)
-                val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
                 val autoConfigureMockMvcAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc".jvmName())
-                val transactionalAnnotation = AnnotationNode("jakarta.persistence.Transactional".jvmName())
+                val transactionalAnnotation = AnnotationNode("jakarta.transaction.Transactional".jvmName())
+                val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
                 sprintBootTestAnnotation.values = listOf(
                     "classes", listOf(Type.getType(applicationClass.jvmDescriptor))
                 )
                 classNode.visibleAnnotations.add(sprintBootTestAnnotation)
                 classNode.visibleAnnotations.add(autoConfigureMockMvcAnnotation)
-                classNode.visibleAnnotations.add(transactionalAnnotation)
+                val fakeTestMethodNode = classNode.methods.find { it.name == "fakeTest" }
+                    ?: error("Could not find `fakeTest` method")
+                fakeTestMethodNode.visibleAnnotations.add(transactionalAnnotation)
                 val entityManagerClass = cp.findClassOrNull("jakarta.persistence.EntityManager")
                 val persistenceContextClass = cp.findClassOrNull("jakarta.persistence.PersistenceContext")
                 if (entityManagerClass != null && persistenceContextClass != null) {
