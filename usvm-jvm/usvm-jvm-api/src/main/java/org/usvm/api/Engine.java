@@ -12,6 +12,10 @@ public class Engine {
         assert expr;
     }
 
+    public static void assumeSoft(boolean expr) {
+        assert expr;
+    }
+
     @SuppressWarnings("unused")
     public static <T> T makeSymbolic(Class<T> clazz) {
         return null;
