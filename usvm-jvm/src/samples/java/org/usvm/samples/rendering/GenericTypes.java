@@ -2,20 +2,21 @@ package org.usvm.samples.rendering;
 
 import java.util.HashSet;
 import java.util.Set;
-@SuppressWarnings("ALL")
+
+@SuppressWarnings("rawtypes")
 class AttributeType<OwningType extends Customizable> { }
-@SuppressWarnings("ALL")
+@SuppressWarnings("rawtypes")
 class AttributeTypeImpl<T extends Customizable> extends AttributeType<T> { }
-@SuppressWarnings("ALL")
+@SuppressWarnings("rawtypes")
 class Customizable<A extends Attribute> { }
-@SuppressWarnings("ALL")
+@SuppressWarnings("rawtypes")
 class CustomizableImpl<A extends Attribute> extends Customizable<A> { }
-@SuppressWarnings("ALL")
+@SuppressWarnings("rawtypes")
 class Attribute<AT extends AttributeType, OT extends Customizable<?>> { }
 
-@SuppressWarnings("ALL")
+@SuppressWarnings("rawtypes")
 class AttrImpl<AT extends AttributeType, OT extends Customizable<?>> extends Attribute<AT, OT> { }
-@SuppressWarnings("ALL")
+@SuppressWarnings({"rawtypes", "ClassEscapesDefinedScope", "ConstantValue"})
 public class GenericTypes {
 
     public static int unboundedWildcardInUsage(Attribute<AttributeTypeImpl<Customizable>, CustomizableImpl<Attribute<?,?>>> a) {
