@@ -77,6 +77,7 @@ open class USoftConstraintsProvider<Type, USizeSort : USort>(
                 .provide(it)
                 .filterNot(UBoolExpr::isFalse)
         }
+        softConstraints.addAll(pathConstraints.softConstraints)
 
         return softConstraints
     }
