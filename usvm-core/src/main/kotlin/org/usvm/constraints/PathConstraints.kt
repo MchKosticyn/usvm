@@ -46,12 +46,15 @@ open class UPathConstraints<Type>(
     protected val numericConstraints: UNumericConstraints<UBv32Sort> =
         UNumericConstraints(ctx, sort = ctx.bv32Sort, ownership),
 
-    var softConstraints: UPersistentHashSet<UBoolExpr> = persistentHashSetOf(),
+    softConstraints: UPersistentHashSet<UBoolExpr> = persistentHashSetOf(),
 ) : UOwnedMergeable<UPathConstraints<Type>, MutableMergeGuard> {
     init {
         // Use the information from the type constraints to check whether any static ref is assignable to any symbolic ref
         equalityConstraints.setTypesCheck(typeConstraints::canStaticRefBeEqualToSymbolic)
     }
+
+    var softConstraints: UPersistentHashSet<UBoolExpr> = softConstraints
+        private set
 
     /**
      * Recursively changes ownership for all nested data structures that use persistent maps.
@@ -187,6 +190,10 @@ open class UPathConstraints<Type>(
                 else -> logicalConstraints.add(constraint, ownership)
             }
         }
+
+    fun addSoftConstraint(constraint: UBoolExpr) {
+        softConstraints = softConstraints.add(constraint, ownership)
+    }
 
     open fun clone(
         thisOwnership: MutabilityOwnership = MutabilityOwnership(),
