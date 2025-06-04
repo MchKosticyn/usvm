@@ -11,7 +11,9 @@ import org.usvm.UIsSupertypeExpr
 import org.usvm.UNotExpr
 import org.usvm.UOrExpr
 import org.usvm.USymbolicHeapRef
+import org.usvm.collections.immutable.implementations.immutableSet.UPersistentHashSet
 import org.usvm.collections.immutable.internal.MutabilityOwnership
+import org.usvm.collections.immutable.persistentHashSetOf
 import org.usvm.isStaticHeapRef
 import org.usvm.isSymbolicHeapRef
 import org.usvm.merging.MutableMergeGuard
@@ -42,7 +44,9 @@ open class UPathConstraints<Type>(
      * Specially represented numeric constraints (e.g. >, <, >=, ...).
      */
     protected val numericConstraints: UNumericConstraints<UBv32Sort> =
-        UNumericConstraints(ctx, sort = ctx.bv32Sort, ownership)
+        UNumericConstraints(ctx, sort = ctx.bv32Sort, ownership),
+
+    var softConstraints: UPersistentHashSet<UBoolExpr> = persistentHashSetOf(),
 ) : UOwnedMergeable<UPathConstraints<Type>, MutableMergeGuard> {
     init {
         // Use the information from the type constraints to check whether any static ref is assignable to any symbolic ref
@@ -200,6 +204,7 @@ open class UPathConstraints<Type>(
             equalityConstraints = clonedEqualityConstraints,
             typeConstraints = clonedTypeConstraints,
             numericConstraints = clonedNumericConstraints,
+            softConstraints = this.softConstraints
         )
     }
 
@@ -240,6 +245,8 @@ open class UPathConstraints<Type>(
         val mergedNumericConstraints =
             numericConstraints.mergeWith(other.numericConstraints, by, thisOwnership, otherOwnership, mergedOwnership)
 
+        val mergedSoftConstraints = softConstraints.addAll(other.softConstraints, mergedOwnership)
+
         this.changeOwnership(thisOwnership)
         other.changeOwnership(otherOwnership)
         return UPathConstraints(
@@ -249,6 +256,7 @@ open class UPathConstraints<Type>(
             mergedEqualityConstraints,
             mergedTypeConstraints,
             mergedNumericConstraints,
+            mergedSoftConstraints
         )
     }
 }
