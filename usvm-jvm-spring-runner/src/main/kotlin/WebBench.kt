@@ -346,7 +346,7 @@ private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTest
                 classNode.visibleAnnotations.add(autoConfigureMockMvcAnnotation)
                 val fakeTestMethodNode = classNode.methods.find { it.name == "fakeTest" }
                     ?: error("Could not find `fakeTest` method")
-                fakeTestMethodNode.visibleAnnotations.add(transactionalAnnotation)
+                fakeTestMethodNode.visibleAnnotations = listOf(transactionalAnnotation)
                 val entityManagerClass = cp.findClassOrNull("jakarta.persistence.EntityManager")
                 val persistenceContextClass = cp.findClassOrNull("jakarta.persistence.PersistenceContext")
                 if (entityManagerClass != null && persistenceContextClass != null) {
