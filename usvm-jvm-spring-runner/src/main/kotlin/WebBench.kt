@@ -338,15 +338,27 @@ private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTest
                 testKind = SpringBootTest(applicationClass)
                 val autoConfigureMockMvcAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc".jvmName())
                 val transactionalAnnotation = AnnotationNode("jakarta.transaction.Transactional".jvmName())
+                val dirtiesContextAnnotation = AnnotationNode("org.springframework.test.annotation.DirtiesContext".jvmName())
                 val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
+                val testPropertySourceAnnotation = AnnotationNode("org.springframework.test.context.TestPropertySource".jvmName())
+                val disabledInAotModeAnnotation = AnnotationNode("org.springframework.test.context.aot.DisabledInAotMode".jvmName())
                 sprintBootTestAnnotation.values = listOf(
                     "classes", listOf(Type.getType(applicationClass.jvmDescriptor))
                 )
+                testPropertySourceAnnotation.values = listOf(
+                    "properties", listOf(
+                        "spring.sql.init.mode=never",
+                        "spring.jpa.hibernate.ddl-auto=create-drop",
+                        "spring.jpa.defer-datasource-initialization=true"
+                    )
+                )
                 classNode.visibleAnnotations.add(sprintBootTestAnnotation)
                 classNode.visibleAnnotations.add(autoConfigureMockMvcAnnotation)
+                classNode.visibleAnnotations.add(testPropertySourceAnnotation)
+                classNode.visibleAnnotations.add(disabledInAotModeAnnotation)
                 val fakeTestMethodNode = classNode.methods.find { it.name == "fakeTest" }
                     ?: error("Could not find `fakeTest` method")
-                fakeTestMethodNode.visibleAnnotations = listOf(transactionalAnnotation)
+                fakeTestMethodNode.visibleAnnotations = listOf(transactionalAnnotation, dirtiesContextAnnotation)
                 val entityManagerClass = cp.findClassOrNull("jakarta.persistence.EntityManager")
                 val persistenceContextClass = cp.findClassOrNull("jakarta.persistence.PersistenceContext")
                 if (entityManagerClass != null && persistenceContextClass != null) {

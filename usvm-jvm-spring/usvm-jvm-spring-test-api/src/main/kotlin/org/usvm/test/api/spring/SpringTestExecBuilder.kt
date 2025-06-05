@@ -22,6 +22,7 @@ import org.usvm.test.api.UTestGetFieldExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestIntExpression
 import org.usvm.test.api.UTestMethodCall
+import org.usvm.test.api.UTestNullExpression
 import org.usvm.test.api.UTestStaticMethodCall
 import org.usvm.test.api.UTestStringExpression
 
@@ -93,6 +94,13 @@ class SpringTestExecBuilder private constructor(
                     )
                 )
             )
+
+            val afterTestMethodCall = UTestMethodCall(
+                instance = testCtxManagerCtorCall,
+                method = testCtxManagerAfterTestMethod(cp),
+                args = listOf(generatedClassCtorCall, fakeTestMethod, UTestNullExpression(cp.findType("java.lang.Throwable")))
+            )
+
             val beforeTestMethodCall = UTestMethodCall(
                 instance = testCtxManagerCtorCall,
                 method = testCtxManagerBeforeTestMethod(cp),
@@ -116,6 +124,7 @@ class SpringTestExecBuilder private constructor(
             val initStatements = mutableListOf<UTestInst>(
                 prepareTestInstanceCall,
                 beforeTestClassCall,
+                afterTestMethodCall,
                 beforeTestMethodCall
             )
             return SpringTestExecBuilder(
@@ -141,6 +150,10 @@ class SpringTestExecBuilder private constructor(
 
         private fun testCtxManagerBeforeTestMethod(cp: JcClasspath): JcMethod {
             return cp.findJcMethod(TEST_CONTEXT_MANAGER_NAME, "beforeTestMethod")
+        }
+
+        private fun testCtxManagerAfterTestMethod(cp: JcClasspath): JcMethod {
+            return cp.findJcMethod(TEST_CONTEXT_MANAGER_NAME, "afterTestMethod")
         }
     }
 
