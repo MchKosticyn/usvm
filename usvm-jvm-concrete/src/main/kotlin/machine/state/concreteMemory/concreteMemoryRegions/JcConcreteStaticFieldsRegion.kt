@@ -16,6 +16,7 @@ import utils.getStaticFieldValue
 import utils.isInternalType
 import utils.setStaticFieldValue
 import utils.toJavaField
+import java.lang.reflect.Field
 
 internal class JcConcreteStaticFieldsRegion<Sort : USort>(
     private val regionId: JcStaticFieldRegionId<Sort>,
@@ -25,12 +26,19 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
     private val writtenFields: MutableSet<JcStaticFieldLValue<Sort>> = mutableSetOf()
 ) : JcStaticFieldsMemoryRegion<Sort>(regionId.sort), JcConcreteRegion {
 
+    private val JcField.tryToJavaField: Field? get() {
+        check(isStatic)
+        if (enclosingClass.isInternalType)
+            return null
+
+        return toJavaField
+    }
+
     // TODO: redo #CM
     override fun read(key: JcStaticFieldLValue<Sort>): UExpr<Sort> {
         val field = key.field
-        val javaField = field.toJavaField
-        if (field.enclosingClass.isInternalType || javaField == null)
-            return baseRegion.read(key)
+        val javaField = field.tryToJavaField
+            ?: return baseRegion.read(key)
 
         check(JcConcreteMemoryClassLoader.isLoaded(field.enclosingClass))
         val fieldType = field.typedField.type
@@ -58,7 +66,7 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
     ): JcConcreteStaticFieldsRegion<Sort> {
         check(this.ownership == ownership)
         val field = key.field
-        val javaField = field.toJavaField
+        val javaField = field.tryToJavaField
         // TODO: should mutate every field or filter some fields?
         if (javaField == null) {
             writeToRegion(key, value, guard, ownership)
@@ -68,6 +76,7 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
         val fieldType = field.typedField.type
         val concreteValue = marshall.tryExprToFullyConcreteObj(value, fieldType)
         if (concreteValue.isNone) {
+            // TODO: implement unmarshall: store fields, which was unmarshalled
             writeToRegion(key, value, guard, ownership)
             return this
         }
