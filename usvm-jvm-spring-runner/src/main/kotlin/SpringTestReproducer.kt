@@ -26,7 +26,7 @@ class SpringTestReproducer(
             timeout = Duration.INFINITE,
             opts = opts,
             memoryLimit = memoryLimit,
-            allowForDebugger = true,
+            allowForDebugger = false,
         )
         runBlocking { executor.ensureRunnerAlive() }
         return executor
