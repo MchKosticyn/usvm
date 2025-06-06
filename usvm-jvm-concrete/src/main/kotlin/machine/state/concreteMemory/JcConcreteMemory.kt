@@ -173,7 +173,7 @@ open class JcConcreteMemory(
             is JcStaticFieldRegionId<*> -> {
                 baseRegion as JcStaticFieldsMemoryRegion<Sort>
                 val id = regionId as JcStaticFieldRegionId<Sort>
-                JcConcreteStaticFieldsRegion(id, baseRegion, marshall, ownership)
+                JcConcreteStaticFieldsRegion(ctx, id, baseRegion, marshall, ownership)
             }
 
             is JcLambdaCallSiteRegionId -> {
