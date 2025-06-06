@@ -9,6 +9,7 @@ import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.jvm.util.typedField
+import org.usvm.machine.JcContext
 import org.usvm.machine.interpreter.statics.JcStaticFieldLValue
 import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
@@ -19,11 +20,12 @@ import utils.toJavaField
 import java.lang.reflect.Field
 
 internal class JcConcreteStaticFieldsRegion<Sort : USort>(
+    private val ctx: JcContext,
     private val regionId: JcStaticFieldRegionId<Sort>,
     private var baseRegion: JcStaticFieldsMemoryRegion<Sort>,
     private val marshall: Marshall,
     private val ownership: MutabilityOwnership,
-    private val writtenFields: MutableSet<JcStaticFieldLValue<Sort>> = mutableSetOf()
+    private val symbolicFields: MutableSet<JcField> = mutableSetOf(),
 ) : JcStaticFieldsMemoryRegion<Sort>(regionId.sort), JcConcreteRegion {
 
     private val JcField.tryToJavaField: Field? get() {
@@ -37,6 +39,9 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
     // TODO: redo #CM
     override fun read(key: JcStaticFieldLValue<Sort>): UExpr<Sort> {
         val field = key.field
+        if (symbolicFields.contains(field))
+            return baseRegion.read(key)
+
         val javaField = field.tryToJavaField
             ?: return baseRegion.read(key)
 
@@ -54,7 +59,6 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
         guard: UBoolExpr,
         ownership: MutabilityOwnership
     ) {
-        writtenFields.add(key)
         baseRegion = baseRegion.write(key, value, guard, ownership)
     }
 
@@ -76,11 +80,12 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
         val fieldType = field.typedField.type
         val concreteValue = marshall.tryExprToFullyConcreteObj(value, fieldType)
         if (concreteValue.isNone) {
-            // TODO: implement unmarshall: store fields, which was unmarshalled
+            symbolicFields.add(field)
             writeToRegion(key, value, guard, ownership)
             return this
         }
         check(JcConcreteMemoryClassLoader.isLoaded(field.enclosingClass))
+        symbolicFields.remove(field)
         javaField.setStaticFieldValue(concreteValue.getOrThrow())
 
         return this
@@ -94,11 +99,15 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
         // No symbolic statics
     }
 
+    @Suppress("UNCHECKED_CAST")
     fun fieldsWithValues(): MutableMap<JcField, UExpr<Sort>> {
         val result: MutableMap<JcField, UExpr<Sort>> = mutableMapOf()
-        for (key in writtenFields) {
+        for (field in symbolicFields) {
+            val fieldType = ctx.cp.findTypeOrNull(field.type.typeName) ?: continue
+            val sort = ctx.typeToSort(fieldType)
+            val key = JcStaticFieldLValue(field, sort as Sort)
             val value = baseRegion.read(key)
-            result[key.field] = value
+            result[field] = value
         }
 
         return result
@@ -109,11 +118,12 @@ internal class JcConcreteStaticFieldsRegion<Sort : USort>(
         ownership: MutabilityOwnership
     ): JcConcreteStaticFieldsRegion<Sort> {
         return JcConcreteStaticFieldsRegion(
+            ctx,
             regionId,
             baseRegion,
             marshall,
             ownership,
-            writtenFields.toMutableSet()
+            symbolicFields.toMutableSet()
         )
     }
 }
