@@ -20,11 +20,4 @@ class GeneralPath(
     fun fullPath(): SimplePath {
         return path
     }
-
-    fun genInst(ctx: MethodCtx) =
-        if (isSimple()) genObj(ctx) else genField(ctx)
-
-    private fun genObj(ctx: MethodCtx) = ctx.genObj(path.applyAliases(ctx.common))
-
-    private fun genField(ctx: MethodCtx) = ctx.genField(ctx.applyAliases(path.root), path.cont)
 }

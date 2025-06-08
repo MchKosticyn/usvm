@@ -1,9 +1,12 @@
 package machine.interpreter.transformers.springjpa.query.predicate
 
 import machine.interpreter.transformers.springjpa.compare
-import machine.interpreter.transformers.springjpa.query.ExprOrPred
 import machine.interpreter.transformers.springjpa.query.MethodCtx
+import machine.interpreter.transformers.springjpa.query.expresion.DoubleArgumentExpression
 import machine.interpreter.transformers.springjpa.query.expresion.Expression
+import machine.interpreter.transformers.springjpa.query.expresion.ManyArgumentExpression
+import machine.interpreter.transformers.springjpa.query.expresion.NoLambdaExpression
+import machine.interpreter.transformers.springjpa.query.expresion.SingleArgumentExpression
 import machine.interpreter.transformers.springjpa.query.type.Primitive
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcEqExpr
@@ -14,15 +17,16 @@ import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcNeqExpr
 import org.jacodb.api.jvm.ext.boolean
 
-abstract class PredicateCtx : ExprOrPred() {
+abstract class NoArgsPredicate(): NoLambdaExpression() {
+    override val type = Primitive.Bool()
+}
 
+fun makeNot(not: Any?, expr: Expression) = not?.let { SinglePredicate.Not(expr) } ?: expr
+
+abstract class SinglePredicate(val predicate: Expression): SingleArgumentExpression(predicate) {
     override val type = Primitive.Bool()
 
-    fun makeNot(not: Any?): PredicateCtx {
-        return if (not == null) this else Not(this)
-    }
-
-    class Not(val predicate: PredicateCtx) : PredicateCtx() {
+    class Not(predicate: Expression): SinglePredicate(predicate) {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             val pr = predicate.genInst(ctx)
             val cond = JcNeqExpr(ctx.cp.boolean, pr, ctx.common.jcTrue)
@@ -30,8 +34,12 @@ abstract class PredicateCtx : ExprOrPred() {
             return ifRes
         }
     }
+}
 
-    class And(val left: PredicateCtx, val right: PredicateCtx) : PredicateCtx() {
+abstract class DoublePredicate(left: Expression, right: Expression): DoubleArgumentExpression(left, right) {
+    override val type = Primitive.Bool()
+
+    class And(left: Expression, right: Expression): DoublePredicate(left, right) {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             val genCtx = ctx.genCtx
             val l = left.genInst(ctx)
@@ -69,7 +77,7 @@ abstract class PredicateCtx : ExprOrPred() {
         }
     }
 
-    class Or(val left: PredicateCtx, val right: PredicateCtx) : PredicateCtx() {
+    class Or(left: Expression, right: Expression): DoublePredicate(left, right) {
         override fun genInst(ctx: MethodCtx): JcLocalVar {
             val genCtx = ctx.genCtx
             val l = left.genInst(ctx)
@@ -106,10 +114,8 @@ abstract class PredicateCtx : ExprOrPred() {
             return resVal
         }
     }
+}
 
-    class BoolExpr(val expression: Expression) : PredicateCtx() {
-        override fun genInst(ctx: MethodCtx): JcLocalVar {
-            return expression.genInst(ctx)
-        }
-    }
+abstract class ManyPredicate(args: List<Expression>): ManyArgumentExpression(args) {
+    override val type = Primitive.Bool()
 }

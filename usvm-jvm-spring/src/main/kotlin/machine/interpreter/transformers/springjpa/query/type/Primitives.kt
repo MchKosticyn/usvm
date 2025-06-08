@@ -3,7 +3,8 @@ package machine.interpreter.transformers.springjpa.query.type
 import machine.interpreter.transformers.springjpa.query.CommonInfo
 import org.jacodb.api.jvm.JcType
 
-abstract class Primitive : Type() {
+abstract class Primitive : SqlType() {
+
     class String : Primitive() {
         override fun getType(info: CommonInfo): JcType = info.strType
     }

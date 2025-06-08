@@ -11,9 +11,9 @@ import machine.interpreter.transformers.springjpa.generateNewWithInit
 import machine.interpreter.transformers.springjpa.generatedStaticSerializer
 import machine.interpreter.transformers.springjpa.query.CommonInfo
 import machine.interpreter.transformers.springjpa.query.MethodCtx
+import machine.interpreter.transformers.springjpa.query.expresion.Expression
 import machine.interpreter.transformers.springjpa.query.expresion.LNull
 import machine.interpreter.transformers.springjpa.query.path.Path
-import machine.interpreter.transformers.springjpa.query.predicate.PredicateCtx
 import machine.interpreter.transformers.springjpa.repositoryLambda
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcField
@@ -37,8 +37,8 @@ import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 
 abstract class CommonJoin(
     val target: Path,
-    val pred: PredicateCtx?
-) : Join() {
+    val pred: Expression?
+): Join() {
 
     abstract fun getJoinArgs(
         ctx: MethodCtx,
@@ -72,10 +72,7 @@ abstract class CommonJoin(
         return mapOf(name to columns)
     }
 
-    override fun getLambdas(info: CommonInfo): List<JcMethod> {
-        val mapper = getMapperMethod(info)
-        return pred?.let { listOf(getOnMethod(info), mapper) } ?: listOf(mapper)
-    }
+    override fun getLambdas(info: CommonInfo) = pred?.let { it.getLambdas(info) + getOnMethod(info) } ?: emptyList()
 
     private fun getOnMethod(info: CommonInfo) = pred!!.toLambda(info)
 
@@ -193,7 +190,7 @@ abstract class CommonJoin(
 
 class InnerJoin(
     target: Path,
-    pred: PredicateCtx?
+    pred: Expression?
 ) : CommonJoin(target, pred) {
     override fun getJoinArgs(
         ctx: MethodCtx,
@@ -211,7 +208,7 @@ class InnerJoin(
 
 class FullJoin(
     target: Path,
-    pred: PredicateCtx?
+    pred: Expression?
 ) : CommonJoin(target, pred) {
     override fun getJoinArgs(
         ctx: MethodCtx,
@@ -227,7 +224,7 @@ class FullJoin(
 
 class RightJoin(
     target: Path,
-    pred: PredicateCtx?
+    pred: Expression?
 ) : CommonJoin(target, pred) {
     override fun getJoinArgs(
         ctx: MethodCtx,
@@ -245,7 +242,7 @@ class RightJoin(
 
 class LeftJoin(
     target: Path,
-    pred: PredicateCtx?
+    pred: Expression?
 ) : CommonJoin(target, pred) {
     override fun getJoinArgs(
         ctx: MethodCtx,

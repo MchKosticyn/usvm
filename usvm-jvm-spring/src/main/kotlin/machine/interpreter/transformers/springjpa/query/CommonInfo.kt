@@ -1,9 +1,12 @@
 package machine.interpreter.transformers.springjpa.query
 
+import machine.interpreter.transformers.springjpa.AGGREGATORS
 import machine.interpreter.transformers.springjpa.DATABASE_UTILS
 import machine.interpreter.transformers.springjpa.DISTINCT_TABLE
 import machine.interpreter.transformers.springjpa.FILTER_TABLE
 import machine.interpreter.transformers.springjpa.FLAT_TABLE
+import machine.interpreter.transformers.springjpa.GROUP_BY_TABLE
+import machine.interpreter.transformers.springjpa.HAVING_TABLE
 import machine.interpreter.transformers.springjpa.ITABLE
 import machine.interpreter.transformers.springjpa.IWRAPPER
 import machine.interpreter.transformers.springjpa.JAVA_BIG_DECIMAL
@@ -25,6 +28,7 @@ import machine.interpreter.transformers.springjpa.SINGLETON_TABLE
 import machine.interpreter.transformers.springjpa.SORTED_TABLE
 import machine.interpreter.transformers.springjpa.generateObjectArray
 import machine.interpreter.transformers.springjpa.generateStaticCall
+import machine.interpreter.transformers.springjpa.generateVirtualCall
 import machine.interpreter.transformers.springjpa.generatedStaticFetchInit
 import machine.interpreter.transformers.springjpa.isGeneratedGetter
 import machine.interpreter.transformers.springjpa.methodRef
@@ -45,6 +49,7 @@ import org.jacodb.api.jvm.cfg.JcBool
 import org.jacodb.api.jvm.cfg.JcClassConstant
 import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
+import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcSpecialCallExpr
 import org.jacodb.api.jvm.cfg.JcStaticCallExpr
 import org.jacodb.api.jvm.cfg.JcValue
@@ -85,6 +90,7 @@ data class CommonInfo(
 
     val comparerName = "comparer"
     val valueOfName = "valueOf"
+    val firstEnsureName = "firstEnsure"
 
     val wrapperType = cp.findType(IWRAPPER) as JcClassType
     val pageType = cp.findType(PAGE_WRAPPER) as JcClassType
@@ -94,11 +100,14 @@ data class CommonInfo(
     val tableType = cp.findType(ITABLE) as JcClassType
     val mapperType = cp.findType(MAP_TABLE) as JcClassType
     val filterType = cp.findType(FILTER_TABLE) as JcClassType
+    val havingType = cp.findType(HAVING_TABLE) as JcClassType
     val distinctType = cp.findType(DISTINCT_TABLE) as JcClassType
     val orderType = cp.findType(SORTED_TABLE) as JcClassType
+    val groupByType = cp.findType(GROUP_BY_TABLE) as JcClassType
     val joinType = cp.findType(JOIN_TABLE) as JcClassType
     val flatType = cp.findType(FLAT_TABLE) as JcClassType
     val singletonType = cp.findType(SINGLETON_TABLE) as JcClassType
+    val aggregatorsType = cp.findType(AGGREGATORS) as JcClassType
     val utilsType = cp.findType(DATABASE_UTILS) as JcClassType
 
     val boolType = cp.findType(JAVA_BOOL) as JcClassType
@@ -115,6 +124,7 @@ data class CommonInfo(
 
     val jcTrue = JcBool(true, cp.boolean)
     val jcFalse = JcBool(false, cp.boolean)
+    val jcNull = JcNullConstant(cp.objectType)
 }
 
 class NamesManager(val method: JcMethod) {
@@ -187,7 +197,7 @@ class MethodCtx(
         genCtx.generateStaticCall(name, methodName, common.utilsType, args)
 
     private var currObj: JcLocalVar? = null
-    fun genObj(name: String): JcLocalVar {
+    fun genObj(name: String, isGrouped: Boolean = false): JcLocalVar {
         currObj?.also { return it }
 
         val aliased = applyAliases(name)
@@ -196,6 +206,23 @@ class MethodCtx(
         val newRow = genCtx.generateObjectArray(cp, common.names.getVarName(), columns.count())
 
         val row = common.method.parameters.first().toArgument
+            .let {
+                if (!isGrouped) it
+                // if query contains GROUP BY then type of chain is ITable<ITable>,
+                // so for expressions like book.name, COUNT(book) we need to take
+                // ITable.firstEnsure().name, COUNT(ITable)
+                // ^ always same for all rows of ITable and always exist
+                // because it must be value witch GROUP BY'ed
+                else {
+                    genCtx.generateVirtualCall(
+                        "grouped_first_ensure",
+                        common.firstEnsureName,
+                        common.tableType,
+                        it,
+                        emptyList()
+                    )
+                }
+            }
         columns.forEachIndexed { ix, (_, oldIx) ->
             val elem = JcArrayAccess(newRow, JcInt(ix, cp.int), cp.objectType)
             val value = JcArrayAccess(row, JcInt(oldIx, cp.int), cp.objectType)
@@ -213,10 +240,11 @@ class MethodCtx(
         return res
     }
 
-    fun genField(root: String, fields: List<String>) = genComplexField(root, fields)
+    fun genField(root: String, fields: List<String>, isGrouped: Boolean = false) =
+        genComplexField(root, fields, isGrouped)
 
-    private fun genComplexField(root: String, fields: List<String>): JcLocalVar {
-        val obj = genObj(root)
+    private fun genComplexField(root: String, fields: List<String>, isGrouped: Boolean = false): JcLocalVar {
+        val obj = genObj(root, isGrouped)
         return fields.fold(obj) { acc, fieldName ->
             val classType = acc.type as JcClassType
             val getter = classType.declaredMethods.single { it.method.isGeneratedGetter(fieldName) }

@@ -5,6 +5,7 @@ import machine.interpreter.transformers.springjpa.JAVA_LIST
 import machine.interpreter.transformers.springjpa.JAVA_SET
 import machine.interpreter.transformers.springjpa.generateNewWithInit
 import machine.interpreter.transformers.springjpa.query.CommonInfo
+import machine.interpreter.transformers.springjpa.query.Lambdable
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.Order
 import machine.interpreter.transformers.springjpa.query.Query
@@ -26,7 +27,7 @@ import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 class Select(
     val orders: List<Order>,
     val query: Query
-) {
+): Lambdable() {
     fun addOrder(order: List<Order>) = orders.toMutableList().addAll(order)
 
     fun genInst(
@@ -37,7 +38,11 @@ class Select(
     ): JcLocalVar {
         val ctx = MethodCtx(cp, query, repo, method, method, genCtx)
 
-        val queryVar = query.genInst(ctx, orders)
+        val queryVar = query.genInst(ctx).let {
+            orders.fold(it) { p, order ->
+                order.applyOrder(p, ctx)
+            }
+        }
         val wrapped = wrapResult(ctx, method, queryVar)
 
         return wrapped
@@ -99,4 +104,6 @@ class Select(
         val orderLambas = orders.flatMap { it.getLambdas(info) }
         return queryLambdas.toPersistentList().addAll(orderLambas)
     }
+
+    override fun getLambdas(info: CommonInfo) = getLambdas(info.cp, info.repo, info.origMethod)
 }

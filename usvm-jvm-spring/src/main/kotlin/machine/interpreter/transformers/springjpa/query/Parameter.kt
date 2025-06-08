@@ -2,8 +2,9 @@ package machine.interpreter.transformers.springjpa.query
 
 import machine.interpreter.transformers.springjpa.query.expresion.Expression
 import machine.interpreter.transformers.springjpa.query.type.Param
-import machine.interpreter.transformers.springjpa.query.type.Type
+import machine.interpreter.transformers.springjpa.query.type.SqlType
 import machine.interpreter.transformers.springjpa.toArgument
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcArrayAccess
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcCastExpr
@@ -14,7 +15,7 @@ import org.jacodb.api.jvm.ext.objectType
 import org.usvm.jvm.util.toJcType
 
 // Argument from original toplevel-function
-abstract class Parameter : Expression() {
+abstract class Parameter: Expression() {
 
     abstract fun position(info: CommonInfo): Int
 
@@ -38,15 +39,17 @@ abstract class Parameter : Expression() {
         return casted
     }
 
-    override val type: Type = Param(this)
+    override fun getLambdas(info: CommonInfo) = emptyList<JcMethod>()
+
+    override val type: SqlType = Param(this)
 }
 
 // Simple name
-class Colon(val name: String) : Parameter() {
+class Colon(val name: String): Parameter() {
     override fun position(info: CommonInfo) = info.origMethodArguments[name]!!
 }
 
 // ?3
-class Positional(val pos: Int) : Parameter() {
+class Positional(val pos: Int): Parameter() {
     override fun position(info: CommonInfo) = pos
 }

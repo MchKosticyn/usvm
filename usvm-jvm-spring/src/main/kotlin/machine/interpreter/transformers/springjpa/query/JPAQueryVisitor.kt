@@ -1,10 +1,10 @@
 package machine.interpreter.transformers.springjpa.query
 
+import com.microsoft.z3.BoolExpr
 import machine.interpreter.transformers.springjpa.query.expresion.BinOperator
 import machine.interpreter.transformers.springjpa.query.expresion.CaseList
 import machine.interpreter.transformers.springjpa.query.expresion.ExprPath
 import machine.interpreter.transformers.springjpa.query.expresion.Expression
-import machine.interpreter.transformers.springjpa.query.expresion.FunctionExpr
 import machine.interpreter.transformers.springjpa.query.expresion.Id
 import machine.interpreter.transformers.springjpa.query.expresion.LBigDecimal
 import machine.interpreter.transformers.springjpa.query.expresion.LBigInt
@@ -27,6 +27,8 @@ import machine.interpreter.transformers.springjpa.query.expresion.TypeOfParamete
 import machine.interpreter.transformers.springjpa.query.expresion.TypeOfPath
 import machine.interpreter.transformers.springjpa.query.expresion.Version
 import machine.interpreter.transformers.springjpa.query.function.InstCtx
+import machine.interpreter.transformers.springjpa.query.function.SqlFunction
+import machine.interpreter.transformers.springjpa.query.specification.GroupBySpec
 import machine.interpreter.transformers.springjpa.query.join.CommonJoin
 import machine.interpreter.transformers.springjpa.query.join.CrossJoin
 import machine.interpreter.transformers.springjpa.query.join.FullJoin
@@ -38,27 +40,29 @@ import machine.interpreter.transformers.springjpa.query.join.RightJoin
 import machine.interpreter.transformers.springjpa.query.path.GeneralPath
 import machine.interpreter.transformers.springjpa.query.path.Path
 import machine.interpreter.transformers.springjpa.query.path.SimplePath
-import machine.interpreter.transformers.springjpa.query.predicate.Function.Between
-import machine.interpreter.transformers.springjpa.query.predicate.Function.Compare
-import machine.interpreter.transformers.springjpa.query.predicate.Function.Exist
-import machine.interpreter.transformers.springjpa.query.predicate.Function.ExistCollection
-import machine.interpreter.transformers.springjpa.query.predicate.Function.In
-import machine.interpreter.transformers.springjpa.query.predicate.Function.IsDistinct
-import machine.interpreter.transformers.springjpa.query.predicate.Function.IsEmpty
-import machine.interpreter.transformers.springjpa.query.predicate.Function.IsNull
-import machine.interpreter.transformers.springjpa.query.predicate.Function.IsTrue
-import machine.interpreter.transformers.springjpa.query.predicate.Function.Like
-import machine.interpreter.transformers.springjpa.query.predicate.Function.Member
-import machine.interpreter.transformers.springjpa.query.predicate.PredicateCtx
+import machine.interpreter.transformers.springjpa.query.predicate.Between
+import machine.interpreter.transformers.springjpa.query.predicate.Compare
+import machine.interpreter.transformers.springjpa.query.predicate.DoublePredicate
+import machine.interpreter.transformers.springjpa.query.predicate.Exist
+import machine.interpreter.transformers.springjpa.query.predicate.ExistCollection
+import machine.interpreter.transformers.springjpa.query.predicate.In
+import machine.interpreter.transformers.springjpa.query.predicate.IsDistinct
+import machine.interpreter.transformers.springjpa.query.predicate.IsEmpty
+import machine.interpreter.transformers.springjpa.query.predicate.IsNull
+import machine.interpreter.transformers.springjpa.query.predicate.IsTrue
+import machine.interpreter.transformers.springjpa.query.predicate.Like
+import machine.interpreter.transformers.springjpa.query.predicate.Member
+import machine.interpreter.transformers.springjpa.query.predicate.SinglePredicate
+import machine.interpreter.transformers.springjpa.query.predicate.makeNot
 import machine.interpreter.transformers.springjpa.query.selectfun.Entry
 import machine.interpreter.transformers.springjpa.query.selectfun.Expr
 import machine.interpreter.transformers.springjpa.query.selectfun.Instance
 import machine.interpreter.transformers.springjpa.query.selectfun.JpaSelect
-import machine.interpreter.transformers.springjpa.query.selectfun.SelectFuntion
-import machine.interpreter.transformers.springjpa.query.sortspec.ByExpr
-import machine.interpreter.transformers.springjpa.query.sortspec.ByIdent
-import machine.interpreter.transformers.springjpa.query.sortspec.ByPos
-import machine.interpreter.transformers.springjpa.query.sortspec.SortSpec
+import machine.interpreter.transformers.springjpa.query.selectfun.SelectFunction
+import machine.interpreter.transformers.springjpa.query.specification.ByExpr
+import machine.interpreter.transformers.springjpa.query.specification.ByIdent
+import machine.interpreter.transformers.springjpa.query.specification.ByPos
+import machine.interpreter.transformers.springjpa.query.specification.SortSpec
 import machine.interpreter.transformers.springjpa.query.table.Table
 import machine.interpreter.transformers.springjpa.query.table.TableRoot
 import machine.interpreter.transformers.springjpa.query.table.TableSubquery
@@ -198,7 +202,9 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         val from = visitFromClause(ctx.fromClause())
         val where = visitWhereClause(ctx.whereClause())
         val select = visitSelectClause(ctx.selectClause())
-        val query = Query(from, where, select)
+        val group = visitGroupByClause(ctx.groupByClause())
+        val having = visitHavingClause(ctx.havingClause())
+        val query = Query(from, where, select, group, having)
         return query
     }
 
@@ -264,7 +270,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         return join
     }
 
-    private fun resolveJoinType(ctx: HqlParser.JoinTypeContext?, pred: PredicateCtx?, target: Path): CommonJoin {
+    private fun resolveJoinType(ctx: HqlParser.JoinTypeContext?, pred: Expression?, target: Path): CommonJoin {
         if (ctx == null || ctx.childCount == 0) return InnerJoin(target, pred)
         return when (ctx.getChild(0).let { it as TerminalNode }.symbol.type) {
             HqlParser.FULL -> FullJoin(target, pred)
@@ -290,31 +296,31 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         TODO("Not yet implemented")
     }
 
-    override fun visitJoinRestriction(ctx: HqlParser.JoinRestrictionContext): PredicateCtx {
-        return visit(ctx.predicate()) as PredicateCtx
+    override fun visitJoinRestriction(ctx: HqlParser.JoinRestrictionContext): Expression {
+        return visit(ctx.predicate()) as Expression
     }
 
-    override fun visitSelectClause(ctx: HqlParser.SelectClauseContext?): SelectFuntion? {
+    override fun visitSelectClause(ctx: HqlParser.SelectClauseContext?): SelectFunction? {
         if (ctx == null) return null
         val selections = visitSelectionList(ctx.selectionList())
-        val sCtx = SelectFuntion(ctx.DISTINCT() != null, selections)
+        val sCtx = SelectFunction(ctx.DISTINCT() != null, selections)
         return sCtx
     }
 
-    override fun visitSelectionList(ctx: HqlParser.SelectionListContext): List<SelectFuntion.SelectionCtx> {
-        val selections = mutableListOf<SelectFuntion.SelectionCtx>()
+    override fun visitSelectionList(ctx: HqlParser.SelectionListContext): List<SelectFunction.SelectionCtx> {
+        val selections = mutableListOf<SelectFunction.SelectionCtx>()
         ctx.selection().forEach { selections.add(visitSelection(it)) }
         return selections
     }
 
-    override fun visitSelection(ctx: HqlParser.SelectionContext): SelectFuntion.SelectionCtx {
+    override fun visitSelection(ctx: HqlParser.SelectionContext): SelectFunction.SelectionCtx {
         val alias = visitVariable(ctx.variable())
         val selection = visitSelectExpression(ctx.selectExpression())
         selection.alias = alias
         return selection
     }
 
-    override fun visitSelectExpression(ctx: HqlParser.SelectExpressionContext): SelectFuntion.SelectionCtx {
+    override fun visitSelectExpression(ctx: HqlParser.SelectExpressionContext): SelectFunction.SelectionCtx {
         return if (ctx.instantiation() != null) {
             val inst = visitInstantiation(ctx.instantiation())
             Instance(inst, null)
@@ -414,17 +420,26 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         TODO("Not yet implemented")
     }
 
-    override fun visitGroupByClause(ctx: HqlParser.GroupByClauseContext?): Any {
-        TODO("Not yet implemented")
+    override fun visitGroupByClause(ctx: HqlParser.GroupByClauseContext?): GroupBy? {
+        if (ctx == null) return null
+        val groupSpecs = ctx.groupByExpression().map { visitGroupByExpression(it) }
+        val group = GroupBy(groupSpecs)
+        return group
     }
 
-    override fun visitGroupByExpression(ctx: HqlParser.GroupByExpressionContext?): Any {
-        TODO("Not yet implemented")
+    override fun visitGroupByExpression(ctx: HqlParser.GroupByExpressionContext): GroupBySpec {
+        val spec = if (ctx.identifier() != null) {
+            visitIdentifier(ctx.identifier()).let(::ByIdent)
+        } else if (ctx.expression() != null) {
+            ByExpr(visit(ctx.expression()) as Expression)
+        } else {
+            intLiteral(ctx.INTEGER_LITERAL().text).let(::ByPos)
+        }
+        return GroupBySpec(spec)
     }
 
-    override fun visitHavingClause(ctx: HqlParser.HavingClauseContext?): Any {
-        TODO("Not yet implemented")
-    }
+    override fun visitHavingClause(ctx: HqlParser.HavingClauseContext?) =
+        ctx?.predicate()?.let { visit(it) as? Expression }?.also(Expression::bindGroupBy)?.let(::Having)
 
     override fun visitOrderByClause(ctx: HqlParser.OrderByClauseContext): Order {
         val sorts = mutableListOf<SortSpec>()
@@ -452,7 +467,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
     }
 
     override fun visitSortExpression(ctx: HqlParser.SortExpressionContext): SortSpec {
-        return if (ctx.identifier() != null) {
+        val spec = if (ctx.identifier() != null) {
             val ident = visitIdentifier(ctx.identifier())
             ByIdent(ident)
         } else if (ctx.expression() != null) {
@@ -462,6 +477,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
             val pos = intLiteral(ctx.INTEGER_LITERAL().text)
             ByPos(pos)
         }
+        return SortSpec(spec)
     }
 
     override fun visitSortDirection(ctx: HqlParser.SortDirectionContext?): Boolean? {
@@ -512,66 +528,66 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
 
     override fun visitWhereClause(ctx: HqlParser.WhereClauseContext?): Where? {
         if (ctx == null) return null
-        val pred = visit(ctx.predicate()) as PredicateCtx
+        val pred = visit(ctx.predicate()) as Expression
         val where = Where(pred)
         return where
     }
 
-    override fun visitIsDistinctFromPredicate(ctx: HqlParser.IsDistinctFromPredicateContext): PredicateCtx {
+    override fun visitIsDistinctFromPredicate(ctx: HqlParser.IsDistinctFromPredicateContext): Expression {
         val expr = visit(ctx.expression(0)) as Expression
         val from = visit(ctx.expression(1)) as Expression
         val pred = IsDistinct(expr, from)
-        return pred.makeNot(ctx.NOT())
+        return makeNot(ctx.NOT(), pred)
     }
 
-    override fun visitBetweenPredicate(ctx: HqlParser.BetweenPredicateContext): PredicateCtx {
+    override fun visitBetweenPredicate(ctx: HqlParser.BetweenPredicateContext): Expression {
         val exprs = ctx.expression()
         val expr = visit(exprs[0]) as Expression
         val left = visit(exprs[1]) as Expression
         val right = visit(exprs[2]) as Expression
         val pred = Between(expr, left, right)
-        return pred.makeNot(ctx.NOT())
+        return makeNot(ctx.NOT(), pred)
     }
 
-    override fun visitExistsPredicate(ctx: HqlParser.ExistsPredicateContext): PredicateCtx {
+    override fun visitExistsPredicate(ctx: HqlParser.ExistsPredicateContext): Expression {
         val expr = visit(ctx.expression()) as Expression
         val pred = Exist(expr)
         return pred
     }
 
-    override fun visitAndPredicate(ctx: HqlParser.AndPredicateContext): PredicateCtx {
-        val left = visit(ctx.predicate(0)) as PredicateCtx
-        val right = visit(ctx.predicate(1)) as PredicateCtx
-        val pred = PredicateCtx.And(left, right)
+    override fun visitAndPredicate(ctx: HqlParser.AndPredicateContext): Expression {
+        val left = visit(ctx.predicate(0)) as Expression
+        val right = visit(ctx.predicate(1)) as Expression
+        val pred = DoublePredicate.And(left, right)
         return pred
     }
 
-    override fun visitIsFalsePredicate(ctx: HqlParser.IsFalsePredicateContext): PredicateCtx {
+    override fun visitIsFalsePredicate(ctx: HqlParser.IsFalsePredicateContext): Expression {
         val expr = visit(ctx.expression()) as Expression
         val pred = IsTrue(expr)
-        return if (ctx.NOT() == null) return PredicateCtx.Not(pred) else pred
+        return if (ctx.NOT() == null) return SinglePredicate.Not(pred) else pred
     }
 
-    override fun visitGroupedPredicate(ctx: HqlParser.GroupedPredicateContext?): PredicateCtx {
-        return visitChildren(ctx) as PredicateCtx
+    override fun visitGroupedPredicate(ctx: HqlParser.GroupedPredicateContext?): Expression {
+        return visitChildren(ctx) as Expression
     }
 
-    override fun visitLikePredicate(ctx: HqlParser.LikePredicateContext): PredicateCtx {
+    override fun visitLikePredicate(ctx: HqlParser.LikePredicateContext): Expression {
         val expr = visit(ctx.expression(0)) as Expression
         val pattern = visit(ctx.expression(1)) as Expression
         val escape = visitLikeEscape(ctx.likeEscape())
         val pred = Like(expr, pattern, escape, ctx.LIKE() != null)
-        return pred.makeNot(ctx.NOT())
+        return makeNot(ctx.NOT(), pred)
     }
 
-    override fun visitInPredicate(ctx: HqlParser.InPredicateContext): PredicateCtx {
+    override fun visitInPredicate(ctx: HqlParser.InPredicateContext): Expression {
         val expr = visit(ctx.expression()) as Expression
         val inList = visit(ctx.inList()) as In.ListCtx
         val pred = In(expr, inList)
-        return pred.makeNot(ctx.NOT())
+        return makeNot(ctx.NOT(), pred)
     }
 
-    override fun visitComparisonPredicate(ctx: HqlParser.ComparisonPredicateContext): PredicateCtx {
+    override fun visitComparisonPredicate(ctx: HqlParser.ComparisonPredicateContext): Expression {
         val left = visit(ctx.expression(0)) as Expression
         val right = visit(ctx.expression(1)) as Expression
         val comparator = visitComparisonOperator(ctx.comparisonOperator())
@@ -579,55 +595,52 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         return pred
     }
 
-    override fun visitExistsCollectionPartPredicate(ctx: HqlParser.ExistsCollectionPartPredicateContext): PredicateCtx {
+    override fun visitExistsCollectionPartPredicate(ctx: HqlParser.ExistsCollectionPartPredicateContext): Expression {
         val quant = visitCollectionQuantifier(ctx.collectionQuantifier())
         val path = visitSimplePath(ctx.simplePath())
         val pred = ExistCollection(quant, path)
         return pred
     }
 
-    override fun visitNegatedPredicate(ctx: HqlParser.NegatedPredicateContext): PredicateCtx {
-        val pred = visit(ctx.predicate()) as PredicateCtx
-        val notPred = PredicateCtx.Not(pred)
+    override fun visitNegatedPredicate(ctx: HqlParser.NegatedPredicateContext): Expression {
+        val pred = visit(ctx.predicate()) as Expression
+        val notPred = SinglePredicate.Not(pred)
         return notPred
     }
 
-    override fun visitBooleanExpressionPredicate(ctx: HqlParser.BooleanExpressionPredicateContext): PredicateCtx {
-        val expr = visit(ctx.expression()) as Expression
-        val pred = PredicateCtx.BoolExpr(expr)
+    override fun visitBooleanExpressionPredicate(ctx: HqlParser.BooleanExpressionPredicateContext) =
+        visit(ctx.expression()) as Expression
+
+    override fun visitOrPredicate(ctx: HqlParser.OrPredicateContext): Expression {
+        val left = visit(ctx.predicate(0)) as Expression
+        val right = visit(ctx.predicate(1)) as Expression
+        val pred = DoublePredicate.Or(left, right)
         return pred
     }
 
-    override fun visitOrPredicate(ctx: HqlParser.OrPredicateContext): PredicateCtx {
-        val left = visit(ctx.predicate(0)) as PredicateCtx
-        val right = visit(ctx.predicate(1)) as PredicateCtx
-        val pred = PredicateCtx.Or(left, right)
-        return pred
-    }
-
-    override fun visitMemberOfPredicate(ctx: HqlParser.MemberOfPredicateContext): PredicateCtx {
+    override fun visitMemberOfPredicate(ctx: HqlParser.MemberOfPredicateContext): Expression {
         val expr = visit(ctx.expression()) as Expression
         val path = visitPath(ctx.path())
         val pred = Member(expr, path)
-        return pred.makeNot(ctx.NOT())
+        return makeNot(ctx.NOT(), pred)
     }
 
-    override fun visitIsEmptyPredicate(ctx: HqlParser.IsEmptyPredicateContext): PredicateCtx {
+    override fun visitIsEmptyPredicate(ctx: HqlParser.IsEmptyPredicateContext): Expression {
         val expr = visit(ctx.expression()) as Expression
         val pred = IsEmpty(expr)
-        return pred.makeNot(ctx.NOT())
+        return makeNot(ctx.NOT(), pred)
     }
 
-    override fun visitIsNullPredicate(ctx: HqlParser.IsNullPredicateContext): PredicateCtx {
+    override fun visitIsNullPredicate(ctx: HqlParser.IsNullPredicateContext): Expression {
         val expr = visit(ctx.expression()) as Expression
         val pred = IsNull(expr)
-        return pred.makeNot(ctx.NOT())
+        return makeNot(ctx.NOT(), pred)
     }
 
-    override fun visitIsTruePredicate(ctx: HqlParser.IsTruePredicateContext): PredicateCtx {
+    override fun visitIsTruePredicate(ctx: HqlParser.IsTruePredicateContext): Expression {
         val expr = visit(ctx.expression()) as Expression
         val pred = IsTrue(expr)
-        return pred.makeNot(ctx.NOT())
+        return makeNot(ctx.NOT(), pred)
     }
 
     override fun visitComparisonOperator(ctx: HqlParser.ComparisonOperatorContext): Compare.Operator {
@@ -681,8 +694,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
     }
 
     override fun visitTupleExpression(ctx: HqlParser.TupleExpressionContext): Expression {
-        val elems = mutableListOf<ExprOrPred>()
-        ctx.expressionOrPredicate().forEach { elems.add(visitExpressionOrPredicate(it)) }
+        val elems = ctx.expressionOrPredicate().map { visitExpressionOrPredicate(it) }
         val expr = TupleExpr(elems)
         return expr
     }
@@ -765,11 +777,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         return SyntacticPath() // TODO
     }
 
-    override fun visitFunctionExpression(ctx: HqlParser.FunctionExpressionContext): Expression {
-        val func = visitFunction(ctx.function())
-        val expr = FunctionExpr(func)
-        return expr
-    }
+    override fun visitFunctionExpression(ctx: HqlParser.FunctionExpressionContext) = visitFunction(ctx.function())
 
     override fun visitGeneralPathExpression(ctx: HqlParser.GeneralPathExpressionContext): Expression {
         val path = visitGeneralPathFragment(ctx.generalPathFragment())
@@ -777,9 +785,8 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         return expr
     }
 
-    override fun visitExpressionOrPredicate(ctx: HqlParser.ExpressionOrPredicateContext): ExprOrPred {
-        return ctx.expression()?.let { visit(it) as Expression } ?: visit(ctx.predicate()) as PredicateCtx
-    }
+    override fun visitExpressionOrPredicate(ctx: HqlParser.ExpressionOrPredicateContext) =
+        (ctx.expression()?.let { visit(it) } ?: visit(ctx.predicate())) as Expression
 
     override fun visitCollectionQuantifier(
         ctx: HqlParser.CollectionQuantifierContext
@@ -868,8 +875,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
 
     override fun visitSimpleCaseList(ctx: HqlParser.SimpleCaseListContext): Expression {
         val caseValue = visitExpressionOrPredicate(ctx.expressionOrPredicate())
-        val branches = mutableListOf<SimpleCaseList.BranchCtx>()
-        ctx.simpleCaseWhen().forEach { branches.add(visitSimpleCaseWhen(it)) }
+        val branches = ctx.simpleCaseWhen().map { visitSimpleCaseWhen(it) }
         val elseValue = visitCaseOtherwise(ctx.caseOtherwise())
         val expr = SimpleCaseList(caseValue, branches, elseValue)
         return expr
@@ -882,7 +888,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         return branch
     }
 
-    override fun visitCaseOtherwise(ctx: HqlParser.CaseOtherwiseContext): ExprOrPred {
+    override fun visitCaseOtherwise(ctx: HqlParser.CaseOtherwiseContext): Expression {
         return visitExpressionOrPredicate(ctx.expressionOrPredicate())
     }
 
@@ -895,7 +901,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
     }
 
     override fun visitSearchedCaseWhen(ctx: HqlParser.SearchedCaseWhenContext): CaseList.BranchCtx {
-        val pattern = visit(ctx.predicate()) as PredicateCtx
+        val pattern = visit(ctx.predicate()) as Expression
         val value = visitExpressionOrPredicate(ctx.expressionOrPredicate())
         val branch = CaseList.BranchCtx(pattern, value)
         return branch
@@ -1114,9 +1120,7 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         return param
     }
 
-    override fun visitFunction(ctx: HqlParser.FunctionContext): machine.interpreter.transformers.springjpa.query.function.Function {
-        TODO("Not yet implemented")
-    }
+    override fun visitFunction(ctx: HqlParser.FunctionContext) = visit(ctx.getChild(0)) as SqlFunction
 
     override fun visitJpaNonstandardFunction(ctx: HqlParser.JpaNonstandardFunctionContext?): Any {
         TODO("Not yet implemented")
@@ -1126,17 +1130,20 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         TODO("Not yet implemented")
     }
 
-    override fun visitGenericFunction(ctx: HqlParser.GenericFunctionContext?): Any {
-        TODO("Not yet implemented")
+    override fun visitGenericFunction(ctx: HqlParser.GenericFunctionContext): SqlFunction {
+        val functionName = visitSimplePath(ctx.genericFunctionName().simplePath()).root.uppercase()
+        val func = SqlFunction.Function.valueOf(functionName)
+        val args = ctx.ASTERISK()?.let { emptyList() } ?: visitGenericFunctionArguments(ctx.genericFunctionArguments())
+        return SqlFunction(func, args)
     }
 
+    // unused
     override fun visitGenericFunctionName(ctx: HqlParser.GenericFunctionNameContext?): Any {
         TODO("Not yet implemented")
     }
 
-    override fun visitGenericFunctionArguments(ctx: HqlParser.GenericFunctionArgumentsContext?): Any {
-        TODO("Not yet implemented")
-    }
+    override fun visitGenericFunctionArguments(ctx: HqlParser.GenericFunctionArgumentsContext) =
+        ctx.expressionOrPredicate().map(::visitExpressionOrPredicate)
 
     override fun visitCollectionSizeFunction(ctx: HqlParser.CollectionSizeFunctionContext?): Any {
         TODO("Not yet implemented")
@@ -1154,27 +1161,36 @@ class JPAQueryVisitor : AbstractParseTreeVisitor<Any>(), HqlParserVisitor<Any> {
         TODO("Not yet implemented")
     }
 
-    override fun visitAggregateFunction(ctx: HqlParser.AggregateFunctionContext?): Any {
-        TODO("Not yet implemented")
+    // any and exist
+    override fun visitAggregateFunction(ctx: HqlParser.AggregateFunctionContext): SqlFunction {
+        return ctx.everyFunction()?.let(::visitEveryFunction)
+            ?: ctx.anyFunction()?.let(::visitAnyFunction)
+            ?: visitListaggFunction(ctx.listaggFunction()!!)
     }
 
-    override fun visitEveryFunction(ctx: HqlParser.EveryFunctionContext?): Any {
-        TODO("Not yet implemented")
+    override fun visitEveryFunction(ctx: HqlParser.EveryFunctionContext): SqlFunction {
+        // TODO: predicate may be null
+        val args = listOf(ctx.predicate()!!.let { visit(it) as Expression })
+        return SqlFunction(SqlFunction.Function.EVERY, args)
     }
 
-    override fun visitAnyFunction(ctx: HqlParser.AnyFunctionContext?): Any {
-        TODO("Not yet implemented")
+    override fun visitAnyFunction(ctx: HqlParser.AnyFunctionContext): SqlFunction {
+        // TODO: predicate may be null
+        val args = listOf(ctx.predicate()!!.let { visit(it) as Expression })
+        return SqlFunction(SqlFunction.Function.ANY, args)
     }
 
+    // not used
     override fun visitEveryAllQuantifier(ctx: HqlParser.EveryAllQuantifierContext?): Any {
         TODO("Not yet implemented")
     }
 
+    // not used
     override fun visitAnySomeQuantifier(ctx: HqlParser.AnySomeQuantifierContext?): Any {
         TODO("Not yet implemented")
     }
 
-    override fun visitListaggFunction(ctx: HqlParser.ListaggFunctionContext?): Any {
+    override fun visitListaggFunction(ctx: HqlParser.ListaggFunctionContext): SqlFunction {
         TODO("Not yet implemented")
     }
 

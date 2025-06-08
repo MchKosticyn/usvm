@@ -66,6 +66,9 @@ class JcTableInfoCollector(
         val fields = collectFields(clazz)
         val idField = fields.single { contains(it.annotations, "Id") }
         val isAutoGenerateId = contains(idField.annotations, "GeneratedValue")
+        val idGenerationStrategy = find(idField.annotations, "GeneratedValue")?.values?.get("strategy")?.
+                let { it as? JcField }?.name?.let(IdGenerationStrategy::valueOf)
+            ?: IdGenerationStrategy.NO_STRATEGY
         val idColumn = idField.let { TableInfo.ColumnInfo(getColumnName(it), it.type, idField, true, listOf()) }
         val idType = idField.type
 
@@ -199,6 +202,20 @@ open class TableInfo(
     fun indexOfField(field: JcField) = columns.sortedBy { it.name }.indexOfFirst { it.origField == field }
 
     fun orderedRelations() = relations.sortedBy { it.toString() }
+}
+
+// AUTO -> Sequence / Identity
+// IDENTITY -> IdentityGenerator (хочет именно сейвить)
+// SEQUENCE -> SequenceStyleGenerator
+// TABLE -> TableGenerator
+// UUID -> UUIDGenerator
+enum class IdGenerationStrategy {
+    TABLE,
+    SEQUENCE,
+    IDENTITY,
+    UUID,
+    AUTO,
+    NO_STRATEGY;
 }
 
 sealed class Relation(
