@@ -1,5 +1,5 @@
 plugins {
-    antlr
+//    antlr
     id("usvm.kotlin-conventions")
 }
 
@@ -18,5 +18,5 @@ dependencies {
     implementation(Libs.jacodb_approximations)
 }
 
-tasks.getByName("compileTestKotlin").dependsOn("generateTestGrammarSource")
-tasks.getByName("compileKotlin").dependsOn("generateGrammarSource")
+//tasks.getByName("compileTestKotlin").dependsOn("generateTestGrammarSource")
+//tasks.getByName("compileKotlin").dependsOn("generateGrammarSource")

@@ -60,8 +60,8 @@ val junitVersion = "5.3.1"
 val springTestDeps by configurations.creating
 
 dependencies {
-    springTestDeps("org.junit.jupiter:junit-jupiter-api:$junitVersion")
-    springTestDeps("org.springframework.boot:spring-boot-starter-test:$springVersion")
+//    springTestDeps("org.junit.jupiter:junit-jupiter-api:$junitVersion")
+//    springTestDeps("org.springframework.boot:spring-boot-starter-test:$springVersion")
 }
 
 fun createOrClear(file: File) {
