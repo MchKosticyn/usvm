@@ -2,10 +2,12 @@ package org.usvm.jvm.rendering.testTransformers
 
 import org.usvm.jvm.rendering.testRenderer.JcTestVisitor
 import java.util.*
+import org.jacodb.api.jvm.ext.objectType
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestArraySetStatement
 import org.usvm.test.api.UTestCall
+import org.usvm.test.api.UTestConstructorCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestGlobalMock
 import org.usvm.test.api.UTestInst
@@ -92,7 +94,11 @@ class JcDeadCodeTransformer: JcTestTransformer() {
 
         override fun visit(call: UTestCall) {
             if (call is UTestAllocateMemoryCall || call in roots) return
-            roots.add(call)
+
+            if (call !is UTestConstructorCall || call.type != call.type.classpath.objectType) {
+                roots.add(call)
+            }
+
             reachable.add(call)
             withReachable { super.visit(call) }
         }
