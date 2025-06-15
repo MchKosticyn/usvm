@@ -16,13 +16,11 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.isAssignable
-import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.UConcreteHeapRef
@@ -33,7 +31,6 @@ import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
-import org.usvm.api.writeField
 import org.usvm.collection.field.UFieldLValue
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcContext
@@ -44,8 +41,6 @@ import org.usvm.util.classesOfLocations
 import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.state.newStmt
-import org.usvm.test.api.spring.JcSpringTestKind
-import org.usvm.test.api.spring.WebMvcTest
 import util.isDeserializationMethod
 import util.isSpringController
 import util.isSpringRepository
@@ -85,8 +80,8 @@ class JcSpringMethodApproximationResolver (
         val enclosingClass = method.enclosingClass
         val className = enclosingClass.name
 
-        if (className.contains("org.springframework.boot")) {
-            if (approximateSpringBootStaticMethod(methodCall)) return true
+        if (className.contains("SpringEngine")) {
+            if (approximateSpringEngineStaticMethod(methodCall)) return true
         }
 
         if (className == "com.fasterxml.jackson.databind.deser.BeanDeserializer") {
@@ -111,10 +106,6 @@ class JcSpringMethodApproximationResolver (
     private fun approximateRegularMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         val enclosingClass = method.enclosingClass
         val className = enclosingClass.name
-
-        if (className.contains("org.springframework.boot")) {
-            if (approximateSpringBootMethod(methodCall)) return true
-        }
 
         if (enclosingClass.isSpringRepository) {
             if (approximateSpringRepositoryMethod(methodCall)) return true
@@ -401,80 +392,14 @@ class JcSpringMethodApproximationResolver (
         return false
     }
 
-    private fun approximateSpringBootMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        val methodName = method.name
-        if (methodName == "deduceMainApplicationClass") {
-            scope.doWithState {
-                val memory = memory as JcConcreteMemory
-                val firstMethod = callStack.firstMethod()
-                val mainApplicationClass = JcConcreteMemoryClassLoader.loadClass(firstMethod.enclosingClass)
-                val typeRef = memory.tryAllocateConcrete(mainApplicationClass, ctx.classType)!!
-                skipMethodInvocationWithValue(methodCall, typeRef)
-            }
-
-            return true
-        }
-
-        if (methodName == "printBanner") {
-            val bannerType = ctx.cp.findTypeOrNull(method.returnType.typeName) as JcClassType
-            val bannerModeType = bannerType.innerTypes.single()
-            check(bannerModeType.jcClass.isEnum)
-            val enumField = bannerModeType.declaredFields.single { it.isStatic && it.name == "OFF" }
-            val fieldRef = JcFieldRef(instance = null, field = enumField)
-            val bannerModeOffValue = fieldRef.accept(exprResolver)?.asExpr(ctx.addressSort) ?: return true
-            val bannerModeField =
-                method.enclosingClass
-                    .declaredFields
-                    .singleOrNull { it.name == "bannerMode" }
-            val springApplication = arguments.first().asExpr(ctx.addressSort)
-            scope.doWithState {
-                if (bannerModeField != null)
-                    memory.writeField(springApplication, bannerModeField, ctx.addressSort, bannerModeOffValue, ctx.trueExpr)
-                skipMethodInvocationWithValue(methodCall, ctx.nullRef)
-            }
-
-            return true
-        }
-
-        val className = method.enclosingClass.name
-        if (className.contains("SpringApplicationShutdownHook") && methodName == "registerApplicationContext") {
-            scope.doWithState {
-                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
-            }
-
-            return true
-        }
-
-        if (methodName == "_startAnalysis") {
-            scope.doWithState {
-                println("starting, state.id = $id")
-                val framesToDrop = callStack.size - 1
-                callStack.dropFromBottom(framesToDrop)
-                memory.stack.dropFromBottom(framesToDrop)
-                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
-            }
-
-            return true
-        }
-
-        if (methodName == "_allControllerPaths") {
-            scope.doWithState {
-                val allControllerPaths = allControllerPaths(this as JcSpringState)
-                val memory = memory as JcConcreteMemory
-                val type = allControllerPaths.javaClass
-                val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
-                val heapRef = memory.tryAllocateConcrete(allControllerPaths, jcType)!!
-                skipMethodInvocationWithValue(methodCall, heapRef)
-            }
-
-            return true
-        }
-
+    @Suppress("UNUSED_PARAMETER")
+    private fun shouldMock(method: JcMethod): Boolean {
+        // TODO: implement optional service/repository mocking system: get info from user of the plugin
         return false
     }
 
     private fun approximateSpringRepositoryMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        if (jcSpringMachineOptions.springTestKind is WebMvcTest) {
+        if (jcSpringMachineOptions.springAnalysisMode == JcSpringAnalysisMode.SpringBootTest && shouldMock(method)) {
             if (methodCall.returnSite is JcMockMethodInvokeResult)
                 return false
 
@@ -492,7 +417,7 @@ class JcSpringMethodApproximationResolver (
     }
 
     private fun approximateSpringServiceMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        if (jcSpringMachineOptions.springTestKind is WebMvcTest) {
+        if (jcSpringMachineOptions.springAnalysisMode == JcSpringAnalysisMode.SpringBootTest && shouldMock(method)) {
             val returnType = ctx.cp.findType(methodCall.method.returnType.typeName)
             val mockedValue: UExpr<out USort>
             val mockedValueType: JcType
@@ -678,21 +603,8 @@ class JcSpringMethodApproximationResolver (
         return fieldTypes
     }
 
-    private fun approximateSpringBootStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
+    private fun approximateSpringEngineStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         val methodName = method.name
-        if (methodName == "deduceFromClasspath") {
-            val returnType = ctx.cp.findTypeOrNull(method.returnType.typeName) as? JcClassType
-                ?: return false
-            check(returnType.jcClass.isEnum)
-            val enumField = returnType.declaredFields.single { it.isStatic && it.name == "SERVLET" }
-            val fieldRef = JcFieldRef(instance = null, field = enumField)
-            val value = fieldRef.accept(exprResolver) ?: return true
-            scope.doWithState {
-                skipMethodInvocationWithValue(methodCall, value)
-            }
-
-            return true
-        }
 
         if (methodName == "_println") {
             scope.doWithState {
@@ -707,6 +619,31 @@ class JcSpringMethodApproximationResolver (
                 val message = memory.tryHeapRefToObject(messageExpr) as String
                 println("\u001B[36m$message\u001B[0m")
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        if (methodName == "_startAnalysis") {
+            scope.doWithState {
+                println("starting, state.id = $id")
+                val framesToDrop = callStack.size - 1
+                callStack.dropFromBottom(framesToDrop)
+                memory.stack.dropFromBottom(framesToDrop)
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
+            }
+
+            return true
+        }
+
+        if (methodName == "_allControllerPaths") {
+            scope.doWithState {
+                val allControllerPaths = allControllerPaths(this as JcSpringState)
+                val memory = memory as JcConcreteMemory
+                val type = allControllerPaths.javaClass
+                val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
+                val heapRef = memory.tryAllocateConcrete(allControllerPaths, jcType)!!
+                skipMethodInvocationWithValue(methodCall, heapRef)
             }
 
             return true

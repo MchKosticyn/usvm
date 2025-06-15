@@ -1,6 +1,7 @@
 package bench
 
 import machine.interpreter.transformers.springjpa.APPROX_NAME
+import machine.interpreter.transformers.springjpa.DATABASES
 import machine.interpreter.transformers.springjpa.JAVA_BOOL
 import machine.interpreter.transformers.springjpa.JAVA_CLASS
 import machine.interpreter.transformers.springjpa.JAVA_INIT
@@ -17,6 +18,7 @@ import org.jacodb.api.jvm.cfg.JcRawNewArrayExpr
 import org.jacodb.api.jvm.cfg.JcRawNewExpr
 import org.jacodb.api.jvm.cfg.JcRawSpecialCallExpr
 import org.jacodb.api.jvm.ext.findClass
+import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.impl.cfg.JcRawBool
 import org.jacodb.impl.cfg.JcRawInt
 import org.jacodb.impl.cfg.JcRawString
@@ -44,11 +46,10 @@ class DatabaseGenerator(
     private val dir: File,
     private val repositories: List<JcClassOrInterface>
 ) {
-
-    val databasesClass = cp.findClass("generated.org.springframework.boot.databases.samples.SpringDatabases")
-    val clinitMethod = databasesClass.declaredMethods.single { it.name == "<clinit>" }
-    val tableInfoCollector = JcTableInfoCollector(cp)
-    val newBodyContext = JcMethodNewBodyContext(clinitMethod)
+    private val databasesClass = cp.findClass(DATABASES)
+    private val clinitMethod = databasesClass.declaredMethods.single { it.name == "<clinit>" }
+    private val tableInfoCollector = JcTableInfoCollector(cp)
+    private val newBodyContext = JcMethodNewBodyContext(clinitMethod)
 
     fun generateJPADatabase(needTrack: Boolean): JcTableInfoCollector {
 
@@ -63,7 +64,7 @@ class DatabaseGenerator(
         databasesClass.withAsmNode { classNode ->
 
             val annot = AnnotationNode(cp.findClass(APPROX_NAME).jvmDescriptor)
-            annot.values = listOf("value", Type.getType("Lstub/spring/SpringDatabases;"))
+            annot.values = listOf("value", Type.getType(DATABASES.jvmName()))
 
             classNode.visibleAnnotations = listOf(annot)
 

@@ -59,6 +59,7 @@ import org.usvm.isAllocatedConcreteHeapRef
 import org.usvm.isStaticHeapRef
 import org.usvm.isTrue
 import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.toJavaField
 import org.usvm.logger
 import org.usvm.machine.JcContext
 import org.usvm.machine.extractBool
@@ -314,9 +315,13 @@ abstract class JcTestStateResolver<T>(
             // If superclass have a decoder, apply decoder and copy fields values
             val decoder = decoders.findDecoder(cls.jcClass)
             if (decoder != null) {
+
                 val fields = cls.allInstanceFields
                     // Don't copy approximation-specific fields
-                    .filterNot { it.field is JcEnrichedVirtualField }
+                    .filterNot {
+                        // TODO: check if field exists in original class via `cpWithoutApproximations` #FIELD
+                        it.field is JcEnrichedVirtualField
+                    }
 
                 if (fields.isEmpty())
                     continue
@@ -326,15 +331,10 @@ abstract class JcTestStateResolver<T>(
                 // Decoder can overwrite cached instance. Restore correct instance
                 saveResolvedRef(ref.address, instance)
 
-                generateSequence(cls) { it.superType }
-                    .flatMap { it.declaredFields }
-                    .filterNot { it.isStatic }
-                    // Don't copy approximation-specific fields
-                    .filterNot { it.field is JcEnrichedVirtualField }
-                    .forEach { field ->
-                        val fieldValue = decoderApi.getField(field.field, decodedCls)
-                        decoderApi.setField(field.field, instance, fieldValue)
-                    }
+                for (field in fields) {
+                    val fieldValue = decoderApi.getField(field.field, decodedCls)
+                    decoderApi.setField(field.field, instance, fieldValue)
+                }
 
                 // No need to process other superclasses since we already decode them
                 break

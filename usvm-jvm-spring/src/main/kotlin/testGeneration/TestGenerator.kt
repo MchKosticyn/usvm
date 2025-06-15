@@ -1,5 +1,6 @@
 package testGeneration
 
+import machine.JcSpringAnalysisMode
 import machine.state.JcSpringState
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcSpringMockedCalls
@@ -20,6 +21,7 @@ import org.usvm.test.api.spring.JcSpringTestBuilder
 import org.usvm.test.api.spring.JcSpringTestKind
 import org.usvm.test.api.spring.JcTableEntities
 import org.usvm.test.api.spring.ResolvedSpringException
+import org.usvm.test.api.spring.SpringBootTest
 import org.usvm.test.api.spring.SpringException
 import org.usvm.test.api.spring.UTString
 import org.usvm.test.api.spring.UnhandledSpringException
@@ -89,7 +91,20 @@ private class JcStateSpringTestBuilder(
     override fun buildMockBeans(): List<UTestMockObject> {
         return getSpringMocks(state.mockedMethodCalls, resolver)
     }
+}
 
+private fun JcSpringState.createSpringTestKind(testClass: JcClassOrInterface): JcSpringTestKind {
+    return when (springAnalysisMode) {
+        JcSpringAnalysisMode.SpringBootTest -> {
+            val testAnnotation = testClass.annotations.find {
+                it.name == "org.springframework.boot.test.context.SpringBootTest"
+            } ?: error("SpringBootTest annotation not found")
+            val annotationValues = testAnnotation.values["classes"] as List<*>
+            val applicationClass = annotationValues.single() as JcClassOrInterface
+            SpringBootTest(applicationClass)
+        }
+        JcSpringAnalysisMode.SpringJpaTest -> TODO("not implemented")
+    }
 }
 
 internal fun JcSpringState.generateTest(): SpringTestInfo {
@@ -111,6 +126,7 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
     val controller = handler.enclosingClass
     val testClass = getGeneratedTestClass(ctx.cp)
 
+    val testKind = createSpringTestKind(testClass)
     val testBuilder = JcStateSpringTestBuilder(ctx.cp, controller, testKind, testClass, this, resolver)
     val uTest = testBuilder.build()
     return SpringTestInfo(handler, isExceptional, uTest)

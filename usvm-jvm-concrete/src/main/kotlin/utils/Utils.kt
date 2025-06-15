@@ -188,6 +188,7 @@ fun JcField.findJavaField(javaFields: List<Field>): Field? {
 // TODO: unify with `Jacodb.toJavaField`
 internal val JcField.toJavaField: Field?
     get() {
+        // TODO: to check if field exists in original class use `cpWithoutApproximations` #FIELD
         try {
             val type = JcConcreteMemoryClassLoader.loadClass(enclosingClass)
             val fields = if (isStatic) type.staticFields else type.allInstanceFields

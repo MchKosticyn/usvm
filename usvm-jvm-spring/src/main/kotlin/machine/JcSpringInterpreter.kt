@@ -51,7 +51,7 @@ class JcSpringInterpreter(
             pathConstraints = pathConstraints,
             memory = memory,
             targets = targets,
-            testKind = jcSpringMachineOptions.springTestKind
+            springAnalysisMode = jcSpringMachineOptions.springAnalysisMode
         )
     }
 
