@@ -61,7 +61,8 @@ import util.database.nameEquals
 
 // region GeneratedFunctions
 
-const val STATIC_INIT_NAME = "\$staticInit"
+const val STATIC_INIT_NAME = "\$static_init"
+const val STATIC_BLANK_INIT_NAME = "\$static_blank_init"
 const val SERIALIZER_NAME = "\$serializer"
 const val SERIALIZER_WITH_SKIPS_NAME = "\$serializer_with_skips"
 const val GET_ID_NAME = "\$special_get_id"
@@ -154,9 +155,10 @@ const val APPROX_NAME = "org.jacodb.approximation.annotation.Approximate"
 // region DummyAnnotation
 
 const val CHECK_FIELD_ANNOT = "\$check_field_annot"
-const val INIT_ANNOT = "\$generated_init_anot"
+const val INIT_ANNOT = "\$generated_init_annot"
 const val INIT_FETCH_ANNOT = "\$generated_fetched_annot"
 const val STATIC_INIT_FETCH_ANNOT = "\$generated_static_fetched_annot"
+const val STATIC_BLANK_INIT_ANNOT = "\$generated_static_blank_init_annot"
 const val GET_ID_ANNOT = "\$generated_get_id"
 const val STATIC_GET_ID_ANNOT = "\$generated_static_get_id"
 const val DATACLASS_GETTER = "\$generated_dataclass_getter"
@@ -184,6 +186,7 @@ const val PREDICATE = "java.util.function.Predicate"
 const val FUNCTION = "java.util.function.Function"
 const val FUNCTION2 = "java.util.function.BiFunction"
 const val FUNCTION3 = "org.assertj.core.util.TriFunction"
+const val SUPPLIER = "java.util.function.Supplier"
 const val CONSUMER = "java.util.function.Consumer"
 const val CONSUMER2 = "java.util.function.BiConsumer"
 
@@ -211,6 +214,7 @@ val JcMethod.generatedStaticSerializerWithSkips: Boolean
 val JcMethod.generatedInit: Boolean get() = contains(this.annotations, INIT_ANNOT)
 val JcMethod.generatedFetchInit: Boolean get() = contains(this.annotations, INIT_FETCH_ANNOT)
 val JcMethod.generatedStaticFetchInit: Boolean get() = contains(this.annotations, STATIC_INIT_FETCH_ANNOT)
+val JcMethod.generatedStaticBlankInit: Boolean get() = contains(this.annotations, STATIC_BLANK_INIT_ANNOT)
 val JcMethod.generatedSaveUpdate: Boolean get() = contains(this.annotations, SAVE_UPDATE_ANNOT)
 val JcMethod.generatedDelete: Boolean get() = contains(this.annotations, DELETE_ANNOT)
 val JcMethod.repositoryLambda: Boolean get() = contains(annotations, REPOSITORY_LAMBDA)
@@ -494,7 +498,10 @@ fun BlockGenerationContext.generateGlobalTableAccess(
     val cast = JcCastExpr(baseType, tblV)
     addInstruction { loc -> JcAssignInst(loc, casted, cast) }
 
-    if (!isNoIdTable) putSetDeserializerCall(cp, name, casted, clazz!!)
+    if (!isNoIdTable) {
+        putSetDeserializerCall(cp, name, casted, clazz)
+        putSetFunctionsGeneratedIdTableCall(cp, name, casted, clazz)
+    }
 
     return casted
 }
@@ -512,6 +519,22 @@ private fun BlockGenerationContext.putSetDeserializerCall(
     generateVoidVirtualCall("setDeserializerTrackTable", manager, table, listOf(deserializer))
 }
 
+private fun BlockGenerationContext.putSetFunctionsGeneratedIdTableCall(
+    cp: JcClasspath,
+    name: String,
+    table: JcLocalVar,
+    clazz: JcClassOrInterface
+) {
+    val blankInitMethod = clazz.declaredMethods.single { it.generatedStaticBlankInit }
+    val blankInit = generateLambda(cp, "blak_init_${name}", blankInitMethod)
+
+    val getIdMethod = clazz.declaredMethods.single { it.generatedStaticGetId }
+    val getId = generateLambda(cp, "get_id_${name}", getIdMethod)
+
+    val manager = cp.findType(BASE_TABLE_MANAGER) as JcClassType
+    generateVoidVirtualCall("setFunctionsGeneratedIdTable", manager, table, listOf(blankInit, getId))
+}
+
 fun BlockGenerationContext.generateLambda(
     cp: JcClasspath,
     name: String,
@@ -520,6 +543,7 @@ fun BlockGenerationContext.generateLambda(
     val dynMethodRet = if (method.isVoid) JAVA_VOID.typeName else cp.objectType.getTypename()
 
     val (callSiteRetTypeName, callSiteName) = when ((method.parameters.size) to (method.isVoid)) {
+        (0 to false) -> SUPPLIER to "get"
         (1 to true) -> CONSUMER to "accept"
         (2 to true) -> CONSUMER2 to "accept"
         (1 to false) -> FUNCTION to "apply"

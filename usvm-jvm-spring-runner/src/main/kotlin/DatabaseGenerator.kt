@@ -16,6 +16,7 @@ import org.jacodb.api.jvm.cfg.JcRawFieldRef
 import org.jacodb.api.jvm.cfg.JcRawLocalVar
 import org.jacodb.api.jvm.cfg.JcRawNewArrayExpr
 import org.jacodb.api.jvm.cfg.JcRawNewExpr
+import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.cfg.JcRawSpecialCallExpr
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.jvmName
@@ -69,12 +70,13 @@ class DatabaseGenerator(
             classNode.visibleAnnotations = listOf(annot)
 
             classNode.name = className
-            classNode.fields.removeAll { true }
+            classNode.fields.removeAll { it.name != "entityManager" }
 
             tableInfoCollector.allTables().forEach { table ->
                 table.addNewField(cp, classNode)
                 newBodyContext.generateFieldInitialize(cp, table, classNode, needTrack)
             }
+            newBodyContext.addInstruction { owner -> JcRawReturnInst(owner, null) }
 
             clinitMethod.withAsmNode { clinitAsmNode ->
                 val newInst = newBodyContext.buildNewBody()

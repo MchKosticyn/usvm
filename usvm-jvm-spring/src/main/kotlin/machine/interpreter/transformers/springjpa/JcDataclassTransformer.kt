@@ -108,6 +108,7 @@ private class SignatureGenerator(
         val getters = getters()
         val funs = persistentListOf(
             init,
+            getStaticBlankInit(),
             getId,
             staticGetId,
             serializer,
@@ -148,6 +149,17 @@ private class SignatureGenerator(
             .addFreshParam(JAVA_OBJ_ARR)
             .let { relTables.fold(it) { b, _ -> b.addFreshParam(ITABLE) } }
             .addFillerFuture(JcInitTransformer(dataclassTransformer, cp, classTable, origInit))
+            .buildMethod()
+    }
+
+    fun getStaticBlankInit(): JcMethod {
+        val origInit = originalMethods.single { it.name == JAVA_INIT && it.parameters.isEmpty() }
+        return JcMethodBuilder(clazz)
+            .setName(STATIC_BLANK_INIT_NAME)
+            .addBlanckAnnot(STATIC_BLANK_INIT_ANNOT)
+            .setAccess(Opcodes.ACC_STATIC)
+            .setRetType(clazz.typename.typeName)
+            .addFillerFuture(JcStaticBlankInitTransformer(dataclassTransformer, cp, classTable, origInit))
             .buildMethod()
     }
 

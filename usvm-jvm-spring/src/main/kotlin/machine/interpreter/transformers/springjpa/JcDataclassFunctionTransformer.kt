@@ -64,7 +64,7 @@ open class JcInitTransformer(
 ) : JcDataclassFunctionTransformer(dataclassTransformer, cp) {
 
     val clazz = classTable.origClass
-    val classType = clazz.toType()
+    val classType = cp.findType(classTable.origClass.name) as JcClassType
     val parlessInitRef = VirtualMethodRefImpl.of(classType, JcTypedMethodImpl(classType, origInit, JcSubstitutorImpl()))
 
     override fun condition(method: JcMethod) = method.generatedInit
@@ -238,6 +238,22 @@ open class JcInitTransformer(
     }
 }
 
+// static SomeClass $static_blank_init() { return new SomeClass() }
+class JcStaticBlankInitTransformer(
+    dataclassTransformer: JcDataclassTransformer,
+    cp: JcClasspath,
+    classTable: TableInfo.TableWithIdInfo,
+    origInit: JcMethod
+) : JcInitTransformer(dataclassTransformer, cp, classTable, origInit) {
+
+    override fun condition(method: JcMethod) = method.generatedStaticBlankInit
+
+    override fun BlockGenerationContext.generateBody(method: JcMethod) {
+        val blankObj = generateNewWithInit("blank_obj", classType, listOf())
+        addInstruction { loc -> JcReturnInst(loc, blankObj) }
+    }
+}
+
 // new(Object[] row) {
 // ITable<SomeClass> tbl1 = new MappedTable(Databases.some_class, SomeClass::new);
 // ...
@@ -301,14 +317,12 @@ class JcStaticFetchedInitTransformer(
     val fetchedInit: JcMethod
 ) : JcBodyFillerFeature() {
 
-    override fun condition(method: JcMethod): Boolean {
-        return method.name == STATIC_INIT_NAME
-    }
+    override fun condition(method: JcMethod) = method.name == STATIC_INIT_NAME
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
         val classType = cp.findType(classTable.origClass.name) as JcClassType
 
-        val obj = nextLocalVar("statObj", classType)
+        val obj = nextLocalVar("stat_obj", classType)
         val newCall = JcNewExpr(classType)
         addInstruction { loc -> JcAssignInst(loc, obj, newCall) }
 
@@ -376,9 +390,7 @@ class JcGetterTransformer(
     val name: String
 ) : JcBodyFillerFeature() {
 
-    override fun condition(method: JcMethod): Boolean {
-        return name == method.name && method.generatedGetter
-    }
+    override fun condition(method: JcMethod) = name == method.name && method.generatedGetter
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
 
