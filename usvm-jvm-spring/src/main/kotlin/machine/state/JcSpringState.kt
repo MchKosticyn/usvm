@@ -1,6 +1,7 @@
 package machine.state
 
 import machine.HandlerMethodData
+import machine.JcSpringAnalysisMode
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcPinnedValue
@@ -16,18 +17,15 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
-import org.usvm.api.readField
 import org.usvm.api.targets.JcTarget
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
-import org.usvm.jvm.util.allInstanceFields
 import org.usvm.machine.JcContext
 import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
-import org.usvm.test.api.spring.JcSpringTestKind
 
 typealias tableContent = Pair<List<UHeapRef>, JcClassType>
 
@@ -43,7 +41,7 @@ class JcSpringState(
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
     methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
-    internal val testKind: JcSpringTestKind
+    internal val springAnalysisMode: JcSpringAnalysisMode,
 ) : JcState(
     ctx,
     ownership,

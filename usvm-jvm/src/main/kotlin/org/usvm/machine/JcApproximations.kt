@@ -459,6 +459,7 @@ open class JcMethodApproximationResolver(
         scope.forkMulti(arrayTypeConstraints + (unknownArrayType to allocateException(ctx.illegalArgumentExceptionType)))
     }
 
+    // TODO: move to java-stdlib-appoximations
     private fun JcExprResolver.resolveGetArrayElem(methodCall: JcMethodCall, arrayRef: UHeapRef, index: UExpr<USizeSort>) = scope.doWithState {
         checkNullPointer(arrayRef) ?: return@doWithState
 
@@ -483,6 +484,7 @@ open class JcMethodApproximationResolver(
         scope.forkMulti(arrayTypeConstraints + (unknownArrayType to allocateException(ctx.illegalArgumentExceptionType)))
     }
 
+    // TODO: move to java-stdlib-appoximations
     private fun JcExprResolver.resolveSetArrayElem(
         methodCall: JcMethodCall,
         arrayRef: UHeapRef,

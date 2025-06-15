@@ -7,40 +7,8 @@ import features.JcEncodingFeature
 import features.JcGeneratedTypesFeature
 import features.JcInitFeature
 import kotlinx.coroutines.runBlocking
-import org.jacodb.api.jvm.JcByteCodeLocation
-import org.jacodb.api.jvm.JcClassOrInterface
-import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcDatabase
-import org.jacodb.api.jvm.cfg.JcRawAssignInst
-import org.jacodb.api.jvm.cfg.JcRawClassConstant
-import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.api.jvm.ext.packageName
-import org.jacodb.api.jvm.ext.toType
-import org.jacodb.approximation.Approximations
-import org.jacodb.impl.JcRamErsSettings
-import org.jacodb.impl.cfg.MethodNodeBuilder
-import org.jacodb.impl.features.InMemoryHierarchy
-import org.jacodb.impl.features.Usages
-import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.jacodb.impl.features.classpaths.UnknownClasses
-import org.jacodb.impl.features.hierarchyExt
-import org.jacodb.impl.jacodb
-import org.objectweb.asm.Opcodes
-import org.objectweb.asm.tree.AnnotationNode
-import org.objectweb.asm.tree.FieldNode
-import org.objectweb.asm.Type
-import org.usvm.PathSelectionStrategy
-import org.usvm.SolverType
-import org.usvm.UMachineOptions
-import org.usvm.jvm.util.isSameSignature
-import org.usvm.jvm.util.replace
-import org.usvm.jvm.util.write
-import org.usvm.logger
-import org.usvm.machine.JcMachineOptions
-import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
-import util.database.JcTableInfoCollector
-import org.usvm.util.classpathWithApproximations
 import machine.JcConcreteMachineOptions
+import machine.JcSpringAnalysisMode
 import machine.JcSpringMachine
 import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
@@ -48,18 +16,49 @@ import machine.interpreter.transformers.springjpa.JcDataclassTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
+import org.jacodb.api.jvm.JcByteCodeLocation
+import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcDatabase
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.jvmName
-import org.jacodb.impl.cfg.JcInstListImpl
-import org.jacodb.impl.types.TypeNameImpl
+import org.jacodb.api.jvm.ext.packageName
+import org.jacodb.api.jvm.ext.toType
+import org.jacodb.approximation.Approximations
+import org.jacodb.impl.JcRamErsSettings
+import org.jacodb.impl.features.InMemoryHierarchy
+import org.jacodb.impl.features.Usages
+import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.jacodb.impl.features.classpaths.UnknownClasses
+import org.jacodb.impl.features.hierarchyExt
+import org.jacodb.impl.jacodb
+import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
+import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.FieldInsnNode
+import org.objectweb.asm.tree.FieldNode
+import org.objectweb.asm.tree.LdcInsnNode
+import org.objectweb.asm.tree.MethodInsnNode
+import org.objectweb.asm.tree.MultiANewArrayInsnNode
+import org.objectweb.asm.tree.TypeInsnNode
 import org.usvm.CoverageZone
+import org.usvm.PathSelectionStrategy
+import org.usvm.SolverType
+import org.usvm.UMachineOptions
 import org.usvm.jvm.rendering.spring.webMvcTestRenderer.JcSpringMvcTestInfo
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
+import org.usvm.jvm.util.write
+import org.usvm.logger
+import org.usvm.machine.JcMachineOptions
+import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.test.api.UTest
 import org.usvm.test.api.spring.JcSpringTestKind
 import org.usvm.test.api.spring.SpringBootTest
 import org.usvm.test.api.spring.WebMvcTest
+import org.usvm.util.classpathWithApproximations
 import testGeneration.SpringTestInfo
+import util.database.JcTableInfoCollector
 import java.io.File
 import java.io.PrintStream
 import java.nio.file.Path
@@ -222,8 +221,6 @@ private val JcClassOrInterface.jvmDescriptor: String get() = name.jvmName()
 fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: String) =
     allClasses.filter { it.annotations.any { annotation -> annotation.name == annotationName } }
 
-const val enableSecurity: Boolean = false
-
 private fun addSecurityConfigs(testClassNode: ClassNode, nonAbstractClasses: Sequence<JcClassOrInterface>) {
     val importAnnotationName = "org.springframework.context.annotation.Import".jvmName()
     val securityConfigs = allByAnnotation(
@@ -236,68 +233,106 @@ private fun addSecurityConfigs(testClassNode: ClassNode, nonAbstractClasses: Seq
     testClassNode.visibleAnnotations.add(importAnnotationNode)
 }
 
-private fun disableSecurity(testClassNode: ClassNode) {
-    /* Result:
-        @WebMvcTest(
-            excludeFilters = {
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, value = WebSecurityConfigurer.class)
-            },
-            excludeAutoConfiguration = {
-                SecurityAutoConfiguration.class,
-                SecurityFilterAutoConfiguration.class,
-                OAuth2ClientAutoConfiguration.class,
-                OAuth2ResourceServerAutoConfiguration.class
-            }
-        )
-     */
-//    val webMvcTestClassName = "org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest".jvmName()
-//    val webMvcTestAnnotation =
-//        testClassNode.visibleAnnotations.find { it.desc == webMvcTestClassName }
-//            ?: error("WebMvcTest annotation not found for ${testClassNode.name}")
-//    val filterClassName = "org.springframework.context.annotation.ComponentScan\$Filter".jvmName()
-//    val filterAnnotation = AnnotationNode(filterClassName)
-//    val filterTypeName = "org.springframework.context.annotation.FilterType".jvmName()
-//    val assignableFilterType = arrayOf(filterTypeName, "ASSIGNABLE_TYPE")
-//    val configurerName = "org.springframework.security.config.annotation.web.WebSecurityConfigurer".jvmName()
-//    filterAnnotation.values = listOf(
-//        "type", assignableFilterType,
-//        "value", listOf(Type.getType(configurerName))
-//    )
-//
-//    val excludedConfigurations = listOf(
-//        "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
-//        "org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration",
-//        "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration",
-//        "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration"
-//    )
-//    webMvcTestAnnotation.values = listOf(
-//        "excludeFilters", listOf(filterAnnotation),
-//        "excludeAutoConfiguration", excludedConfigurations.map { Type.getType(it.jvmName()) }
-//    )
-}
+private fun replaceTypeInClassNode(
+    classNode: ClassNode,
+    oldClassName: String,
+    newClassName: String
+) {
+    check(oldClassName.contains('.') && !oldClassName.contains('/'))
+    check(newClassName.contains('.') && !newClassName.contains('/'))
 
-private enum class InternalTestKind {
-    WebMvcTest,
-    SpringBootTest,
-    SpringJpaTest,
+    val oldClassSlashName = oldClassName.replace(".", "/")
+    val oldClassJvmName = "L$oldClassSlashName;"
+    val newClassSlashName = newClassName.replace(".", "/")
+    val newClassJvmName = "L$newClassSlashName;"
+
+    // Transform all field descriptors and signatures
+    classNode.fields?.forEach { field ->
+        field.desc = field.desc.replace(oldClassJvmName, newClassJvmName)
+        field.signature = field.signature?.replace(oldClassJvmName, newClassJvmName)
+    }
+
+    // Transform all methods
+    classNode.methods?.forEach { method ->
+        // Update method descriptor and signature
+        method.desc = method.desc.replace(oldClassJvmName, newClassJvmName)
+        method.signature = method.signature?.replace(oldClassJvmName, newClassJvmName)
+
+        // Process all instructions in the method
+        for (inst in method.instructions) {
+            when (inst) {
+                is TypeInsnNode -> {
+                    // NEW, ANEWARRAY, CHECKCAST, INSTANCEOF
+                    if (inst.desc == oldClassSlashName) {
+                        inst.desc = newClassSlashName
+                    }
+                }
+                is FieldInsnNode -> {
+                    // GETFIELD, PUTFIELD, GETSTATIC, PUTSTATIC
+                    if (inst.owner == oldClassSlashName) {
+                        inst.owner = newClassSlashName
+                    }
+                    inst.desc = inst.desc.replace(oldClassJvmName, newClassJvmName)
+                }
+                is MethodInsnNode -> {
+                    // INVOKEVIRTUAL, INVOKESPECIAL, INVOKESTATIC, INVOKEINTERFACE
+                    if (inst.owner == oldClassSlashName) {
+                        inst.owner = newClassSlashName
+                    }
+                    inst.desc = inst.desc.replace(oldClassJvmName, newClassJvmName)
+                }
+                is LdcInsnNode -> {
+                    // LDC Class constants
+                    if (inst.cst is Type) {
+                        val type = inst.cst as Type
+                        if (type.className == oldClassName) {
+                            inst.cst = Type.getType(newClassJvmName)
+                        }
+                    }
+                }
+                is MultiANewArrayInsnNode -> {
+                    // MULTIANEWARRAY
+                    inst.desc = inst.desc.replace(oldClassJvmName, newClassJvmName)
+                }
+            }
+        }
+
+        // Transform local variable types
+        method.localVariables?.forEach { localVar ->
+            localVar.desc = localVar.desc.replace(oldClassJvmName, newClassJvmName)
+            localVar.signature = localVar.signature?.replace(oldClassJvmName, newClassJvmName)
+        }
+
+        // Transform exception types in try-catch blocks
+        method.tryCatchBlocks?.forEach { tryCatch ->
+            if (tryCatch.type == oldClassSlashName) {
+                tryCatch.type = newClassSlashName
+            }
+        }
+    }
+
+    // Transform class signature (for generics)
+    classNode.signature = classNode.signature?.replace(oldClassJvmName, newClassJvmName)
 }
 
 @Suppress("SameParameterValue")
-private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTestKind): BenchCp {
+private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMode): BenchCp {
     val cp = benchmark.cp
 
     val springDirFile = File(System.getenv("springDir"))
     check(springDirFile.exists()) { "Generated directory ${springDirFile.absolutePath} does not exist" }
     val classLocations = benchmark.classLocations
     val nonAbstractClasses = cp.nonAbstractClasses(classLocations)
-    val testClass = cp.findClass("generated.org.springframework.boot.TestClass")
+    val oldTestClassName = "generated.org.springframework.boot.SpringBootTestClass"
+
+    val testClass = cp.findClass(oldTestClassName)
     val applicationClass = allByAnnotation(
         nonAbstractClasses,
         "org.springframework.boot.autoconfigure.SpringBootApplication"
     ).singleOrNull() ?: error("No entry classes found (with SpringBootApplication annotation)")
     val entryPackagePath = applicationClass.packageName.replace('.', '/')
-    val testClassName = "StartSpringTestClass"
-    val testClassFullName = "$entryPackagePath/$testClassName"
+    val testClassName = "NewSpringBootTestClass"
+    val newTestClassSlashName = "$entryPackagePath/$testClassName"
 
     val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
     val repositories = runBlocking { cp.hierarchyExt() }
@@ -307,93 +342,33 @@ private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTest
 
     var testKind: JcSpringTestKind? = null
     testClass.withAsmNode { classNode ->
-        classNode.name = testClassFullName
+        classNode.name = newTestClassSlashName
 
-        when (internalTestKind) {
-            InternalTestKind.WebMvcTest -> {
-                testKind = WebMvcTest(null)
-                val webMvcTestAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest".jvmName())
-                classNode.visibleAnnotations.add(webMvcTestAnnotation)
-                val mockBeanAnnotationName = "org.springframework.boot.test.mock.mockito.MockBean".jvmName()
-                val services = allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Service")
-                val mockBeans = repositories + services
-                mockBeans.forEach { mockBeanType ->
-                    val name = mockBeanType.simpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }
-                    val field = FieldNode(Opcodes.ACC_PRIVATE, name, mockBeanType.jvmDescriptor, null, null)
-                    field.visibleAnnotations = listOf(AnnotationNode(mockBeanAnnotationName))
-                    classNode.fields.add(field)
-                }
-
-                // TODO: find better way to check if application uses security #hack
-                val isSecured = cp.findClassOrNull("org.springframework.security.config.annotation.web.WebSecurityConfigurer") != null
-                if (isSecured) {
-                    if (enableSecurity) {
-                        addSecurityConfigs(classNode, nonAbstractClasses)
-                    } else {
-                        disableSecurity(classNode)
-                    }
-                }
-            }
-            InternalTestKind.SpringBootTest -> {
+        when (springAnalysisMode) {
+            JcSpringAnalysisMode.SpringBootTest -> {
                 testKind = SpringBootTest(applicationClass)
-                val autoConfigureMockMvcAnnotation = AnnotationNode("org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc".jvmName())
-                val transactionalAnnotation = AnnotationNode("jakarta.transaction.Transactional".jvmName())
-                val dirtiesContextAnnotation = AnnotationNode("org.springframework.test.annotation.DirtiesContext".jvmName())
-                val sprintBootTestAnnotation = AnnotationNode("org.springframework.boot.test.context.SpringBootTest".jvmName())
-                val testPropertySourceAnnotation = AnnotationNode("org.springframework.test.context.TestPropertySource".jvmName())
-                val disabledInAotModeAnnotation = AnnotationNode("org.springframework.test.context.aot.DisabledInAotMode".jvmName())
+                val sprintBootTestAnnotation = classNode.visibleAnnotations.find {
+                    it.desc == "org.springframework.boot.test.context.SpringBootTest".jvmName()
+                } ?: error("SpringBootTest annotation not found")
                 sprintBootTestAnnotation.values = listOf(
                     "classes", listOf(Type.getType(applicationClass.jvmDescriptor))
                 )
-                testPropertySourceAnnotation.values = listOf(
-                    "properties", listOf(
-                        "spring.sql.init.mode=never",
-                        "spring.jpa.hibernate.ddl-auto=create-drop",
-                        "spring.jpa.defer-datasource-initialization=true"
-                    )
-                )
-                classNode.visibleAnnotations.add(sprintBootTestAnnotation)
-                classNode.visibleAnnotations.add(autoConfigureMockMvcAnnotation)
-                classNode.visibleAnnotations.add(testPropertySourceAnnotation)
-                classNode.visibleAnnotations.add(disabledInAotModeAnnotation)
-                val fakeTestMethodNode = classNode.methods.find { it.name == "fakeTest" }
-                    ?: error("Could not find `fakeTest` method")
-                fakeTestMethodNode.visibleAnnotations = listOf(transactionalAnnotation, dirtiesContextAnnotation)
-                val entityManagerClass = cp.findClassOrNull("jakarta.persistence.EntityManager")
-                val persistenceContextClass = cp.findClassOrNull("jakarta.persistence.PersistenceContext")
-                if (entityManagerClass != null && persistenceContextClass != null) {
-                    val name = "entityManager"
-                    val field = FieldNode(Opcodes.ACC_PRIVATE, name, entityManagerClass.jvmDescriptor, null, null)
-                    field.visibleAnnotations = listOf(AnnotationNode(persistenceContextClass.jvmDescriptor))
-                    classNode.fields.add(field)
-                }
             }
-            InternalTestKind.SpringJpaTest -> TODO("not supported yet")
+            JcSpringAnalysisMode.SpringJpaTest -> TODO("not supported yet")
         }
 
-        classNode.write(cp, springDirFile.resolve("$testClassFullName.class").toPath(), checkClass = true)
+        classNode.write(cp, springDirFile.resolve("$newTestClassSlashName.class").toPath(), checkClass = true)
     }
 
-    System.setProperty("generatedTestClass", testClassFullName.replace('/', '.'))
+    val newTestClassName = newTestClassSlashName.replace('/', '.')
+    System.setProperty("generatedTestClass", newTestClassName)
 
     val tablesInfo = DatabaseGenerator(cp, springDirFile, repositories)
-        .generateJPADatabase(internalTestKind == InternalTestKind.SpringBootTest)
+        .generateJPADatabase(springAnalysisMode == JcSpringAnalysisMode.SpringBootTest)
 
     val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
     startSpringClass.withAsmNode { startSpringAsmNode ->
-        val startSpringMethod = startSpringClass.declaredMethods.find { it.name == "startSpring" }!!
-        startSpringMethod.withAsmNode { startSpringMethodAsmNode ->
-            val rawInstList = startSpringMethod.rawInstList.instructions.toMutableList()
-            val assign = rawInstList[3] as JcRawAssignInst
-            val classConstant = assign.rhv as JcRawClassConstant
-            val newClassConstant = JcRawClassConstant(TypeNameImpl.fromTypeName(testClassFullName), classConstant.typeName)
-            val newAssign = JcRawAssignInst(assign.owner, assign.lhv, newClassConstant)
-            rawInstList[3] = newAssign
-            val newNode = MethodNodeBuilder(startSpringMethod, JcInstListImpl(rawInstList)).build()
-            val asmMethods = startSpringAsmNode.methods
-            val asmMethod = asmMethods.find { startSpringMethodAsmNode.isSameSignature(it) }
-            check(asmMethods.replace(asmMethod, newNode))
-        }
+        replaceTypeInClassNode(startSpringAsmNode, oldTestClassName, newTestClassName)
         startSpringAsmNode.name = "NewStartSpring"
         startSpringAsmNode.write(cp, springDirFile.resolve("NewStartSpring.class").toPath(), checkClass = true)
     }
@@ -414,20 +389,19 @@ private fun generateTestClass(benchmark: BenchCp, internalTestKind: InternalTest
     )
 }
 
-
 private fun analyzeBench(benchmark: BenchCp) {
-    val newBench = generateTestClass(benchmark, InternalTestKind.SpringBootTest)
+    val springAnalysisMode = JcSpringAnalysisMode.SpringBootTest
+    val newBench = generateTestClass(benchmark, springAnalysisMode)
 
     val jcConcreteMachineOptions = JcConcreteMachineOptions(
         projectLocations = newBench.classLocations,
         dependenciesLocations = newBench.depsLocations,
     )
-
     newBench.bindMachineOptions(jcConcreteMachineOptions)
-
     val jcSpringMachineOptions = JcSpringMachineOptions(
-        springTestKind = newBench.testKind!!
+        springAnalysisMode = springAnalysisMode
     )
+
     val cp = newBench.cp
     val nonAbstractClasses = cp.nonAbstractClasses(newBench.classLocations)
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
