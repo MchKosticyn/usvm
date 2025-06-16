@@ -17,7 +17,7 @@ internal class JcSpringMachineLoopTracker(
         val loopMethod = loop.loop.head.method
         val name = loopMethod.name
         val className = loopMethod.enclosingClass.name
-        if (name == "startSpring" && className.contains("NewStartSpring")) {
+        if (name == "perform" && className.contains("SpringMvcPerformer")) {
             return false
         }
 
