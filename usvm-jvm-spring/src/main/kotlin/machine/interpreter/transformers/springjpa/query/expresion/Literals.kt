@@ -5,7 +5,7 @@ import machine.interpreter.transformers.springjpa.methodRef
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.type.Null
 import machine.interpreter.transformers.springjpa.query.type.Primitive
-import machine.interpreter.transformers.springjpa.query.type.Type
+import machine.interpreter.transformers.springjpa.query.type.SqlType
 import org.jacodb.api.jvm.cfg.JcArrayAccess
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcBool
@@ -31,7 +31,7 @@ enum class Datetime {
     Year, Month, Day, Week, Quarter, Hour, Minute, Second, Nanosecond, Epoch
 }
 
-class LString(val value: String) : Expression() {
+class LString(val value: String): NoLambdaExpression() {
 
     override val type = Primitive.String()
 
@@ -43,7 +43,7 @@ class LString(val value: String) : Expression() {
     }
 }
 
-class LNull : Expression() {
+class LNull: NoLambdaExpression() {
 
     override val type = Null()
 
@@ -55,7 +55,7 @@ class LNull : Expression() {
     }
 }
 
-class LBool(val value: Boolean) : Expression() {
+class LBool(val value: Boolean): NoLambdaExpression() {
 
     override val type = Primitive.Bool()
 
@@ -67,7 +67,7 @@ class LBool(val value: Boolean) : Expression() {
     }
 }
 
-class LInt(val value: Int) : Expression() {
+class LInt(val value: Int): NoLambdaExpression() {
 
     override val type = Primitive.Int()
 
@@ -88,7 +88,7 @@ class LInt(val value: Int) : Expression() {
     }
 }
 
-class LLong(val value: Long) : Expression() {
+class LLong(val value: Long): NoLambdaExpression() {
 
     override val type = Primitive.Long()
 
@@ -100,7 +100,7 @@ class LLong(val value: Long) : Expression() {
     }
 }
 
-class LBigInt(val value: String) : Expression() {
+class LBigInt(val value: String): NoLambdaExpression() {
 
     override val type = Primitive.BigInt()
 
@@ -118,7 +118,7 @@ class LBigInt(val value: String) : Expression() {
     }
 }
 
-class LFloat(val value: Float) : Expression() {
+class LFloat(val value: Float): NoLambdaExpression() {
 
     override val type = Primitive.Float()
 
@@ -130,7 +130,7 @@ class LFloat(val value: Float) : Expression() {
     }
 }
 
-class LDouble(val value: Double) : Expression() {
+class LDouble(val value: Double): NoLambdaExpression() {
 
     override val type = Primitive.Double()
 
@@ -142,7 +142,7 @@ class LDouble(val value: Double) : Expression() {
     }
 }
 
-class LBigDecimal(val value: String) : Expression() {
+class LBigDecimal(val value: String): NoLambdaExpression() {
 
     override val type = Primitive.BigDecimal()
 
@@ -160,7 +160,7 @@ class LBigDecimal(val value: String) : Expression() {
     }
 }
 
-class LBinary(val bins: ByteArray) : Expression() {
+class LBinary(val bins: ByteArray): NoLambdaExpression() {
 
     override val type = Primitive.Binary()
 
@@ -180,9 +180,9 @@ class LBinary(val bins: ByteArray) : Expression() {
     }
 }
 
-class LTime(val time: LocalDateTime) : Expression() {
+class LTime(val time: LocalDateTime): NoLambdaExpression() {
 
-    override val type: Type
+    override val type: SqlType
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {

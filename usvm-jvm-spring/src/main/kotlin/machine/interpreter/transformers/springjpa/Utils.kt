@@ -20,6 +20,7 @@ import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcBool
 import org.jacodb.api.jvm.cfg.JcCallInst
 import org.jacodb.api.jvm.cfg.JcCastExpr
+import org.jacodb.api.jvm.cfg.JcClassConstant
 import org.jacodb.api.jvm.cfg.JcConditionExpr
 import org.jacodb.api.jvm.cfg.JcEqExpr
 import org.jacodb.api.jvm.cfg.JcFieldRef
@@ -60,7 +61,8 @@ import util.database.nameEquals
 
 // region GeneratedFunctions
 
-const val STATIC_INIT_NAME = "\$staticInit"
+const val STATIC_INIT_NAME = "\$static_init"
+const val STATIC_BLANK_INIT_NAME = "\$static_blank_init"
 const val SERIALIZER_NAME = "\$serializer"
 const val SERIALIZER_WITH_SKIPS_NAME = "\$serializer_with_skips"
 const val GET_ID_NAME = "\$special_get_id"
@@ -122,11 +124,14 @@ const val BASE_TABLE_MANAGER = "generated.org.springframework.boot.databases.bas
 const val NO_ID_TABLE_MANAGER = "generated.org.springframework.boot.databases.basetables.NoIdTableManager"
 const val MAP_TABLE = "generated.org.springframework.boot.databases.MappedTable"
 const val FILTER_TABLE = "generated.org.springframework.boot.databases.FiltredTable"
+const val HAVING_TABLE = "generated.org.springframework.boot.databases.HavingTable"
 const val SORTED_TABLE = "generated.org.springframework.boot.databases.SortedTable"
+const val GROUP_BY_TABLE = "generated.org.springframework.boot.databases.GroupByTable"
 const val JOIN_TABLE = "generated.org.springframework.boot.databases.JoinedTable"
 const val DISTINCT_TABLE = "generated.org.springframework.boot.databases.DistinctTable"
 const val FLAT_TABLE = "generated.org.springframework.boot.databases.FlatTable"
 const val SINGLETON_TABLE = "generated.org.springframework.boot.databases.SingletonTable"
+const val AGGREGATORS = "generated.org.springframework.boot.databases.utils.Aggregators"
 const val DATABASE_UTILS = "generated.org.springframework.boot.databases.utils.DatabaseSupportFunctions"
 
 // endregion
@@ -150,9 +155,10 @@ const val APPROX_NAME = "org.jacodb.approximation.annotation.Approximate"
 // region DummyAnnotation
 
 const val CHECK_FIELD_ANNOT = "\$check_field_annot"
-const val INIT_ANNOT = "\$generated_init_anot"
+const val INIT_ANNOT = "\$generated_init_annot"
 const val INIT_FETCH_ANNOT = "\$generated_fetched_annot"
 const val STATIC_INIT_FETCH_ANNOT = "\$generated_static_fetched_annot"
+const val STATIC_BLANK_INIT_ANNOT = "\$generated_static_blank_init_annot"
 const val GET_ID_ANNOT = "\$generated_get_id"
 const val STATIC_GET_ID_ANNOT = "\$generated_static_get_id"
 const val DATACLASS_GETTER = "\$generated_dataclass_getter"
@@ -179,6 +185,8 @@ const val METAFACTORY = "metafactory"
 const val PREDICATE = "java.util.function.Predicate"
 const val FUNCTION = "java.util.function.Function"
 const val FUNCTION2 = "java.util.function.BiFunction"
+const val FUNCTION3 = "org.assertj.core.util.TriFunction"
+const val SUPPLIER = "java.util.function.Supplier"
 const val CONSUMER = "java.util.function.Consumer"
 const val CONSUMER2 = "java.util.function.BiConsumer"
 
@@ -206,6 +214,7 @@ val JcMethod.generatedStaticSerializerWithSkips: Boolean
 val JcMethod.generatedInit: Boolean get() = contains(this.annotations, INIT_ANNOT)
 val JcMethod.generatedFetchInit: Boolean get() = contains(this.annotations, INIT_FETCH_ANNOT)
 val JcMethod.generatedStaticFetchInit: Boolean get() = contains(this.annotations, STATIC_INIT_FETCH_ANNOT)
+val JcMethod.generatedStaticBlankInit: Boolean get() = contains(this.annotations, STATIC_BLANK_INIT_ANNOT)
 val JcMethod.generatedSaveUpdate: Boolean get() = contains(this.annotations, SAVE_UPDATE_ANNOT)
 val JcMethod.generatedDelete: Boolean get() = contains(this.annotations, DELETE_ANNOT)
 val JcMethod.repositoryLambda: Boolean get() = contains(annotations, REPOSITORY_LAMBDA)
@@ -339,6 +348,14 @@ fun BlockGenerationContext.toInt(cp: JcClasspath, value: JcLocalVar): JcLocalVar
     return generateVirtualCall("to_int_${value.name}", "intValue", integerType, value, listOf())
 }
 
+fun BlockGenerationContext.toJavaClass(cp: JcClasspath, name: String, type: JcType): JcLocalVar {
+    val classType = cp.findType(JAVA_CLASS) as JcClassType
+    val typeVar = nextLocalVar("${name}_type_const", classType)
+    val typ = JcClassConstant(type, classType)
+    addInstruction { loc -> JcAssignInst(loc, typeVar, typ) }
+    return typeVar
+}
+
 fun BlockGenerationContext.generatedMethodArgumentVar(name: String, method: JcMethod, pos: Int): JcLocalVar {
     val arg = method.parameters[pos].toArgument
     val vari = nextLocalVar(name, arg.type)
@@ -368,6 +385,27 @@ fun BlockGenerationContext.putArgumentsToArray(cp: JcClasspath, name: String, me
         addInstruction { loc -> JcAssignInst(loc, access, p.toArgument) }
     }
     return arr
+}
+
+fun BlockGenerationContext.putValuesWithSameTypeToArray(
+    cp: JcClasspath,
+    name: String,
+    values : List<JcLocalVar>
+): JcLocalVar {
+    if (values.isEmpty()) return generateObjectArray(cp, name, 0)
+
+    val valueType = values.first().type
+    val arrType = cp.arrayTypeOf(valueType, true, emptyList())
+    val vari = nextLocalVar("arr#$name", arrType)
+    val arr = JcNewArrayExpr(arrType, listOf(JcInt(values.size, cp.int)))
+    addInstruction { loc -> JcAssignInst(loc, vari, arr) }
+
+    values.forEachIndexed { ix, v ->
+        val arrAcc = JcArrayAccess(vari, JcInt(ix, cp.int), valueType)
+        addInstruction { loc -> JcAssignInst(loc, arrAcc, v) }
+    }
+
+    return vari
 }
 
 fun BlockGenerationContext.generateNewWithInit(name: String, type: JcClassType, args: List<JcValue>): JcLocalVar {
@@ -435,6 +473,7 @@ fun BlockGenerationContext.generateVoidVirtualCall(
     inst: JcValue,
     args: List<JcValue>
 ) {
+
     val method = findMethod(clazz, methodName, args) { !it.isStatic && it.returnType.typeName == JAVA_VOID }
     val ref = VirtualMethodRefImpl.of(clazz, method)
     val call = JcVirtualCallExpr(ref, inst, args)
@@ -459,7 +498,10 @@ fun BlockGenerationContext.generateGlobalTableAccess(
     val cast = JcCastExpr(baseType, tblV)
     addInstruction { loc -> JcAssignInst(loc, casted, cast) }
 
-    if (!isNoIdTable) putSetDeserializerCall(cp, name, casted, clazz!!)
+    if (!isNoIdTable) {
+        putSetDeserializerCall(cp, name, casted, clazz)
+        putSetFunctionsGeneratedIdTableCall(cp, name, casted, clazz)
+    }
 
     return casted
 }
@@ -477,6 +519,22 @@ private fun BlockGenerationContext.putSetDeserializerCall(
     generateVoidVirtualCall("setDeserializerTrackTable", manager, table, listOf(deserializer))
 }
 
+private fun BlockGenerationContext.putSetFunctionsGeneratedIdTableCall(
+    cp: JcClasspath,
+    name: String,
+    table: JcLocalVar,
+    clazz: JcClassOrInterface
+) {
+    val blankInitMethod = clazz.declaredMethods.single { it.generatedStaticBlankInit }
+    val blankInit = generateLambda(cp, "blak_init_${name}", blankInitMethod)
+
+    val getIdMethod = clazz.declaredMethods.single { it.generatedStaticGetId }
+    val getId = generateLambda(cp, "get_id_${name}", getIdMethod)
+
+    val manager = cp.findType(BASE_TABLE_MANAGER) as JcClassType
+    generateVoidVirtualCall("setFunctionsGeneratedIdTable", manager, table, listOf(blankInit, getId))
+}
+
 fun BlockGenerationContext.generateLambda(
     cp: JcClasspath,
     name: String,
@@ -485,10 +543,12 @@ fun BlockGenerationContext.generateLambda(
     val dynMethodRet = if (method.isVoid) JAVA_VOID.typeName else cp.objectType.getTypename()
 
     val (callSiteRetTypeName, callSiteName) = when ((method.parameters.size) to (method.isVoid)) {
+        (0 to false) -> SUPPLIER to "get"
         (1 to true) -> CONSUMER to "accept"
         (2 to true) -> CONSUMER2 to "accept"
         (1 to false) -> FUNCTION to "apply"
         (2 to false) -> FUNCTION2 to "apply"
+        (3 to false) -> FUNCTION3 to "apply"
         else -> error("unknown lambda type")
     }
 

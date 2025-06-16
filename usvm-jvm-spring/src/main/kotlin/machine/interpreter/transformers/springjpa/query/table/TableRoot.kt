@@ -4,7 +4,6 @@ import machine.interpreter.transformers.springjpa.generateGlobalTableAccess
 import machine.interpreter.transformers.springjpa.query.CommonInfo
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.jacodb.api.jvm.JcField
-import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import util.database.TableInfo
 
@@ -16,21 +15,12 @@ class TableRoot(
 
     // Name of class (may contain points: java.lang.Boolean)
     // TODO: polymorphism like FROM java.lang.Object
-    class EntityNameCtx(val names: List<String>) {
+    class EntityNameCtx(names: List<String>) {
         val name = names.joinToString(separator = ".")
-
-        override fun toString(): String {
-            return name
-        }
+        override fun toString() = name
     }
 
-    override fun getAlisas(info: CommonInfo): Pair<String, String>? {
-        return alias?.let { it to entityName.name }
-    }
-
-    override fun genLambas(): List<JcMethod> {
-        return listOf()
-    }
+    override fun getAlisas(info: CommonInfo) = alias?.let { it to entityName.name }
 
     private var cachedTbl: TableInfo.TableWithIdInfo? = null
     override fun getTbl(info: CommonInfo): TableInfo.TableWithIdInfo {

@@ -6,22 +6,21 @@ import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawLocalVar
 import org.jacodb.api.jvm.cfg.JcRawReturnInst
+import org.jacodb.api.jvm.cfg.JcRawThrowInst
 
 class JcMethodNewBodyContext(
     val owner: JcMethod
 ) {
     private val rawInst = owner.rawInstList.toMutableList()
         .also { insts ->
-            insts.removeAll(
-                insts.filter { it !is JcRawReturnInst }
-            )
+            insts.removeAll(insts.take(insts.size - 1))
         }
-    private val retInst = rawInst.single()
+    private val lastInst = rawInst.single()
     private val localsManager = LocalVarsManager(0)
 
     fun newVar(typ: TypeName): JcRawLocalVar = localsManager.newLocalVar(typ)
 
-    fun addInstruction(body: (JcMethod) -> JcRawInst) = rawInst.insertBefore(retInst, body(owner))
+    fun addInstruction(body: (JcMethod) -> JcRawInst) = rawInst.insertBefore(lastInst, body(owner))
 
     class LocalVarsManager {
 
@@ -36,5 +35,5 @@ class JcMethodNewBodyContext(
         fun newLocalVar(typ: TypeName) = JcRawLocalVar(lastIndex++, newName(), typ)
     }
 
-    fun buildNewBody(): JcInstList<JcRawInst> = rawInst
+    fun buildNewBody(): JcInstList<JcRawInst> = rawInst.also { it.remove(lastInst) }
 }

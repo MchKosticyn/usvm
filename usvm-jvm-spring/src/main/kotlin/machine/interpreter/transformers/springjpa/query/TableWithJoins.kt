@@ -9,12 +9,7 @@ import org.jacodb.api.jvm.cfg.JcLocalVar
 class TableWithJoins(
     val root: Table,
     val joins: List<Join>
-) {
-
-    fun getLambdas(info: CommonInfo): List<JcMethod> {
-        return joins.fold(root.genLambas()) { acc, join -> acc + join.getLambdas(info) }
-    }
-
+): ManyLambdable(joins + root) {
     fun getAlises(info: CommonInfo): Map<String, String> {
         val aliases = joins.mapNotNull { it.getAlias() }.toMutableList()
         root.getAlisas(info)?.also { aliases.add(it) }

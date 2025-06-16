@@ -14,10 +14,6 @@ class TableSubquery(val subquery: Select, alias: String?) : Table(alias) {
         return alias?.let { it to info.names.getQueryName() }
     }
 
-    override fun genLambas(): List<JcMethod> {
-        TODO("Not yet implemented")
-    }
-
     override fun collectNames(info: CommonInfo): Map<String, List<JcField>> {
         TODO("Not yet implemented")
     }

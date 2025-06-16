@@ -3,12 +3,12 @@ package machine.interpreter.transformers.springjpa.query.expresion
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.path.GeneralPath
 import machine.interpreter.transformers.springjpa.query.type.Path
-import machine.interpreter.transformers.springjpa.query.type.Type
+import machine.interpreter.transformers.springjpa.query.type.SqlType
 import org.jacodb.api.jvm.cfg.JcLocalVar
 
-class SyntacticPath() : Expression() {
+class SyntacticPath(): NoLambdaExpression() {
 
-    override val type: Type
+    override val type: SqlType
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -16,7 +16,7 @@ class SyntacticPath() : Expression() {
     }
 }
 
-class ExprPath(val path: GeneralPath) : Expression() {
+class ExprPath(val path: GeneralPath): NoLambdaExpression() {
 
     val simplePath = path.fullPath() // TODO: indexing
 
@@ -24,6 +24,9 @@ class ExprPath(val path: GeneralPath) : Expression() {
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         val sPath = path.path
-        return if (path.isSimple()) ctx.genObj(sPath.root) else ctx.genField(sPath.root, sPath.cont)
+        return if (path.isSimple())
+            ctx.genObj(sPath.root, isGrouped)
+        else
+            ctx.genField(sPath.root, sPath.cont, isGrouped)
     }
 }

@@ -8,24 +8,24 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.util.toJcType
 
-abstract class Type {
+abstract class SqlType {
     abstract fun getType(info: CommonInfo): JcType
 }
 
-class Null : Type() {
+class Null : SqlType() {
     override fun getType(info: CommonInfo): JcType {
         TODO("Not yet implemented")
     }
 }
 
-class Param(val param: Parameter) : Type() {
+class Param(val param: Parameter) : SqlType() {
     override fun getType(info: CommonInfo): JcType {
         val pos = param.position(info)
         return info.origMethod.parameters.get(pos).type.toJcType(info.cp)!!
     }
 }
 
-class Path(val name: SimplePath) : Type() {
+class Path(val name: SimplePath) : SqlType() {
     override fun getType(info: CommonInfo): JcType {
         val aliased = info.aliases[name.root] ?: name.root
         val base = info.collector.getTableByPartName(aliased).single().origClass.toType()
@@ -40,7 +40,7 @@ class Path(val name: SimplePath) : Type() {
     }
 }
 
-class Tuple(val types: List<Type>) : Type() {
+class Tuple(val types: List<SqlType>) : SqlType() {
     override fun getType(info: CommonInfo): JcType {
         TODO("Not yet implemented")
     }

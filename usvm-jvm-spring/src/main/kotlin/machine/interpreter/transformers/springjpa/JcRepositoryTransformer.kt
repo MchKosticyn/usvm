@@ -101,7 +101,7 @@ object JcRepositoryQueryTransformer : JcBodyFillerFeature() {
         val repo = method.enclosingClass
         val cp = repo.classpath
 
-        val parserRes = JcRepositoryTransformer.getCtx(method)!! // TODO: query by name
+        val parserRes = JcRepositoryTransformer.getCtx(method)!!
         val res = parserRes.genInst(cp, repo, method, this)
         addInstruction { loc -> JcReturnInst(loc, res) }
     }

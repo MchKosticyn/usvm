@@ -1,7 +1,7 @@
 package machine.interpreter.transformers.springjpa.query
 
 import machine.interpreter.transformers.springjpa.generateNewWithInit
-import machine.interpreter.transformers.springjpa.query.sortspec.SortSpec
+import machine.interpreter.transformers.springjpa.query.specification.SortSpec
 import org.jacodb.api.jvm.cfg.JcBool
 import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
@@ -12,9 +12,7 @@ class Order(
     val sorts: List<SortSpec>,
     private var limit: ParamOrInt? = null,
     private var offset: ParamOrInt? = null
-) {
-    fun getLambdas(info: CommonInfo) = sorts.flatMap { it.getLambdas(info) }
-
+): ManyLambdable(sorts) {
     fun setLimit(lim: ParamOrInt?) {
         limit = lim
     }
@@ -26,17 +24,16 @@ class Order(
     fun applyOrder(
         tbl: JcLocalVar,
         ctx: MethodCtx
-    ): JcLocalVar {
-        val methodArgs = ctx.getMethodArgs()
-        return sorts.foldIndexed(tbl) { ix, acc, spec ->
-            val translate = spec.getTranslate(ctx)
-            val comparer = spec.getComparer(ctx)
-            val lim = if (ix + 1 != sorts.size || limit == null) JcInt(-1, ctx.cp.int) else limit!!.genInst(ctx)
-            val off = if (ix + 1 != sorts.size || offset == null) JcInt(0, ctx.cp.int) else offset!!.genInst(ctx)
-            val dir = JcBool(spec.isAscending, ctx.cp.boolean)
-            val nulls = JcBool(spec.isNullsLast, ctx.cp.boolean)
-            val args = listOf(acc, lim, off, dir, nulls, translate, comparer, methodArgs)
-            ctx.genCtx.generateNewWithInit("sort_wrap_$ix", ctx.common.orderType, args)
+    ) = with(ctx) {
+        sorts.foldIndexed(tbl) { ix, acc, spec ->
+            val translate = spec.getTranslate(this)
+            val comparer = spec.getComparer(this)
+            val lim = if (ix + 1 != sorts.size || limit == null) JcInt(-1, cp.int) else limit!!.genInst(this)
+            val off = if (ix + 1 != sorts.size || offset == null) JcInt(0, cp.int) else offset!!.genInst(this)
+            val dir = JcBool(spec.isAscending, cp.boolean)
+            val nulls = JcBool(spec.isNullsLast, cp.boolean)
+            val args = listOf(acc, lim, off, dir, nulls, translate, comparer, getMethodArgs())
+            genCtx.generateNewWithInit("sort_wrap_$ix", common.orderType, args)
         }
     }
 }

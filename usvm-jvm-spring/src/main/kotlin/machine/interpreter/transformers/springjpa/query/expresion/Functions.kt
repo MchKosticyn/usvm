@@ -1,17 +1,18 @@
 package machine.interpreter.transformers.springjpa.query.expresion
 
+import machine.interpreter.transformers.springjpa.query.CommonInfo
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.Parameter
-import machine.interpreter.transformers.springjpa.query.function.Function
+import machine.interpreter.transformers.springjpa.query.function.SqlFunction
 import machine.interpreter.transformers.springjpa.query.path.Path
 import machine.interpreter.transformers.springjpa.query.path.SimplePath
 import machine.interpreter.transformers.springjpa.query.type.Primitive
-import machine.interpreter.transformers.springjpa.query.type.Type
+import machine.interpreter.transformers.springjpa.query.type.SqlType
 import org.jacodb.api.jvm.cfg.JcLocalVar
 
-class TypeOfParameter(val param: Parameter) : Expression() {
+class TypeOfParameter(val param: Parameter): NoLambdaExpression() {
 
-    override val type: Type
+    override val type: SqlType
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -19,9 +20,9 @@ class TypeOfParameter(val param: Parameter) : Expression() {
     }
 }
 
-class TypeOfPath(val path: Path) : Expression() {
+class TypeOfPath(val path: Path): NoLambdaExpression() {
 
-    override val type: Type
+    override val type: SqlType
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -29,7 +30,7 @@ class TypeOfPath(val path: Path) : Expression() {
     }
 }
 
-class Id(val path: Path, val cont: SimplePath?) : Expression() {
+class Id(val path: Path, val cont: SimplePath?): NoLambdaExpression() {
 
     override val type = Primitive.Bool()
 
@@ -38,9 +39,9 @@ class Id(val path: Path, val cont: SimplePath?) : Expression() {
     }
 }
 
-class Version(val path: Path) : Expression() {
+class Version(val path: Path): NoLambdaExpression() {
 
-    override val type: Type
+    override val type: SqlType
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -48,9 +49,9 @@ class Version(val path: Path) : Expression() {
     }
 }
 
-class NaturalId(val path: Path, val cont: SimplePath?) : Expression() {
+class NaturalId(val path: Path, val cont: SimplePath?): NoLambdaExpression() {
 
-    override val type: Type
+    override val type: SqlType
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -58,19 +59,7 @@ class NaturalId(val path: Path, val cont: SimplePath?) : Expression() {
     }
 }
 
-
-class FunctionExpr(val function: Function) : Expression() {
-
-    override val type: Type
-        get() = TODO("Not yet implemented")
-
-    override fun genInst(ctx: MethodCtx): JcLocalVar {
-        TODO("Not yet implemented")
-    }
-}
-
-
-class Minus(val expr: Expression) : Expression() {
+class Minus(expr: Expression): SingleArgumentExpression(expr) {
 
     override val type = expr.type
 
@@ -79,8 +68,8 @@ class Minus(val expr: Expression) : Expression() {
     }
 }
 
-class ToDuration(val expr: Expression, val datetime: Datetime) : Expression() {
-    override val type: Type
+class ToDuration(expr: Expression, val datetime: Datetime): SingleArgumentExpression(expr) {
+    override val type: SqlType
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -88,8 +77,8 @@ class ToDuration(val expr: Expression, val datetime: Datetime) : Expression() {
     }
 }
 
-class FromDuration(val expr: Expression, val datetime: Datetime) : Expression() {
-    override val type: Type
+class FromDuration(expr: Expression, val datetime: Datetime): SingleArgumentExpression(expr) {
+    override val type: SqlType
         get() = TODO("Not yet implemented")
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -97,7 +86,7 @@ class FromDuration(val expr: Expression, val datetime: Datetime) : Expression() 
     }
 }
 
-class BinOperator(val left: Expression, val right: Expression, val operator: Operator) : Expression() {
+class BinOperator(left: Expression, right: Expression, val operator: Operator) : DoubleArgumentExpression(left, right) {
 
     override val type = left.type
 
