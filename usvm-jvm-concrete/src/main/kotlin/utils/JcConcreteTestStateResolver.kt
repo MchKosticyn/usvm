@@ -3,10 +3,8 @@
 import machine.state.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.ext.findType
-import org.jacodb.approximation.JcEnrichedVirtualField
 import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 import org.usvm.api.util.JcTestStateResolver
@@ -22,16 +20,6 @@ abstract class JcConcreteTestStateResolver<T>(
 ) : JcTestStateResolver<T>(ctx, model, finalStateMemory, method) {
 
     protected val concreteMemory = finalStateMemory as JcConcreteMemory
-
-    private fun shouldNotSetField(typedField: JcTypedField): Boolean {
-        // TODO: remove?
-        val cls = typedField.enclosingType as JcClassType
-        return cls.isAbstract && typedField.field is JcEnrichedVirtualField
-    }
-
-    override fun shouldIgnoreField(typedField: JcTypedField): Boolean {
-        return super.shouldIgnoreField(typedField) || shouldNotSetField(typedField)
-    }
 
     override fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): T {
         if (type == ctx.stringType) {

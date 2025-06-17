@@ -5,10 +5,10 @@ import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.impl.features.classpaths.JcUnknownType
+import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.allocateInstance
-import org.usvm.jvm.util.isExecutorThread
+import org.usvm.jvm.util.staticFields
 import org.usvm.machine.JcContext
-import utils.allInstanceFields
 import utils.allInstanceFieldsAreFinal
 import utils.getFieldValue
 import utils.getStaticFieldValue
@@ -22,7 +22,6 @@ import utils.notTracked
 import utils.notTrackedWithSubtypes
 import utils.setFieldValue
 import utils.setStaticFieldValue
-import utils.staticFields
 import utils.toJcType
 import java.lang.reflect.Field
 import java.util.IdentityHashMap

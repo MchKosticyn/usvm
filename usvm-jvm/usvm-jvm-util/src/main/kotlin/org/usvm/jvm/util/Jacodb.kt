@@ -3,13 +3,25 @@ package org.usvm.jvm.util
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.*
+import org.jacodb.impl.bytecode.JcMethodImpl
+import org.jacodb.impl.features.JcFeaturesChain
+import org.jacodb.approximation.Approximations
+import org.jacodb.impl.bytecode.JcClassOrInterfaceImpl
+import org.jacodb.impl.bytecode.JcFieldImpl
+import org.jacodb.impl.bytecode.joinFeatureFields
+import org.jacodb.impl.bytecode.joinFeatureMethods
+import org.jacodb.impl.bytecode.toJcMethod
+import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.types.JcClassTypeImpl
+import org.jacodb.impl.types.MethodInfo
+import org.jacodb.impl.types.ParameterInfo
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.tree.MethodNode
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
+import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaMethod
 
@@ -55,8 +67,23 @@ fun JcType.toJcClass(): JcClassOrInterface? =
         else -> error("Unexpected type")
     }
 
-fun JcField.toJavaField(classLoader: ClassLoader): Field? =
-    enclosingClass.toType().toJavaClass(classLoader).getFieldByName(name)
+fun JcField.findJavaField(javaFields: List<Field>): Field? {
+    val field = javaFields.find { it.name == name }
+    check(field == null || field.type.typeName == this.type.typeName) {
+        "invalid field: types of field $field and $this differ ${field?.type?.typeName} and ${this.type.typeName}"
+    }
+    return field
+}
+
+fun JcField.toJavaField(classLoader: ClassLoader): Field? {
+    try {
+        val type = enclosingClass.toJavaClass(classLoader)
+        val fields = if (isStatic) type.staticFields else type.allInstanceFields
+        return this.findJavaField(fields)
+    } catch (e: Throwable) {
+        return null
+    }
+}
 
 val JcClassOrInterface.allDeclaredFields
     get(): List<JcField> {
@@ -184,3 +211,81 @@ val String.genericTypesFromSignature : List<String> get() {
 
     return res.map { it.substringAfter(":").jcdbName() }
 }
+
+private val cpWithoutApproximationsCache = HashMap<JcClasspath, JcCpWithoutApproximations>()
+
+private class JcCpWithoutApproximations(val cp: JcClasspath) : JcClasspath by cp {
+
+    init {
+        check(cp !is JcCpWithoutApproximations)
+    }
+
+    override val features: List<JcClasspathFeature> by lazy {
+        cp.featuresWithoutApproximations()
+    }
+}
+
+private fun JcClasspath.featuresWithoutApproximations(): List<JcClasspathFeature> {
+    val featuresChainField = this.javaClass.getDeclaredField("featuresChain")
+    featuresChainField.isAccessible = true
+    val featuresChain = featuresChainField.get(this) as JcFeaturesChain
+    return featuresChain.features.filterNot { it is Approximations || it is ClasspathCache }
+}
+
+private val JcClasspath.withoutApproximations: JcCpWithoutApproximations get() {
+    if (this is JcCpWithoutApproximations)
+        return this
+
+    return cpWithoutApproximationsCache.getOrPut(this) { JcCpWithoutApproximations(this) }
+}
+
+private class JcClassWithoutApproximations(
+    private val cls: JcClassOrInterface, private val cp: JcCpWithoutApproximations
+) : JcClassOrInterface by cls {
+    override val classpath: JcClasspath get() = cp
+    private val featuresChain by lazy {
+        JcFeaturesChain(cp.features)
+    }
+
+    override val declaredFields: List<JcField> by lazy {
+        if (cls !is JcClassOrInterfaceImpl)
+            return@lazy cls.declaredFields
+
+        val default = cls.info.fields.map { JcFieldImpl(this, it) }
+        default.joinFeatureFields(this, featuresChain)
+    }
+
+    override val declaredMethods: List<JcMethod> by lazy {
+        if (cls !is JcClassOrInterfaceImpl)
+            return@lazy cls.declaredMethods
+
+        val default = cls.info.methods.map { toJcMethod(it, featuresChain) }
+        default.joinFeatureMethods(this, featuresChain)
+    }
+}
+
+// TODO: remove global cache someday #Valya
+private val classWithoutApproximationsCache = HashMap<JcClassOrInterface, JcClassWithoutApproximations>()
+
+val JcClassOrInterface.withoutApproximations: JcClassOrInterface get() {
+    if (this is JcClassWithoutApproximations)
+        return this
+
+    return classWithoutApproximationsCache.getOrPut(this) {
+        JcClassWithoutApproximations(this, this.classpath.withoutApproximations)
+    }
+}
+
+val JcMethod.withoutApproximations: JcMethod? get() {
+    return this.enclosingClass.withoutApproximations.declaredMethods.find {
+        this.name == it.name && this.description == it.description
+    }
+}
+
+val JcField.withoutApproximations: JcField? get() {
+    return this.enclosingClass.withoutApproximations.declaredFields.find {
+        it.name == this.name && it.isStatic == this.isStatic
+    }
+}
+
+val JcField.isOriginalField: Boolean get() = withoutApproximations != null

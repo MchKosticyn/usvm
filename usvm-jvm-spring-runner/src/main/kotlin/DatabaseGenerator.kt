@@ -70,7 +70,6 @@ class DatabaseGenerator(
             classNode.visibleAnnotations = listOf(annot)
 
             classNode.name = className
-            classNode.fields.removeAll { it.name != "entityManager" }
 
             tableInfoCollector.allTables().forEach { table ->
                 table.addNewField(cp, classNode)

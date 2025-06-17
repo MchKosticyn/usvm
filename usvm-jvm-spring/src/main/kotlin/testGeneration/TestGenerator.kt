@@ -201,12 +201,13 @@ private fun getSpringTables(
     return tables.mapNotNull { (tableName, entitiesWithType) ->
         val (entities, type) = entitiesWithType
         if (entities.isEmpty()) return@mapNotNull null
-        val resolveEntities = entities.map { entity ->
+        val resolvedIndexedEntities = entities.map { (entity, index) ->
             val resolved = exprResolver.resolveExpr(entity, type)
             check(resolved !is UTestNullExpression)
-            resolved
+            resolved to index
         }
-        JcTableEntities(tableName, resolveEntities)
+        val sortedEntities = resolvedIndexedEntities.sortedBy { it.second }.map { it.first }
+        JcTableEntities(tableName, sortedEntities)
     }
 }
 

@@ -44,7 +44,7 @@ abstract class CommonJoin(
         ctx: MethodCtx,
         leftTbl: JcLocalVar,
         rightTbl: JcLocalVar,
-        leftSrializer: JcLocalVar,
+        leftSerializer: JcLocalVar,
         rightSerializer: JcLocalVar,
         onMethod: JcLocalVar
     ): List<JcValue>
@@ -57,7 +57,7 @@ abstract class CommonJoin(
 
     override fun collectNames(info: CommonInfo): Map<String, List<JcField>> {
         val name = target.applyAliases(info)
-        val path = target.root.path // TODO: varinats with other types of paths
+        val path = target.root.path // TODO: variants with other types of paths
         fun alias(n: String): String {
             return info.aliases.getOrDefault(n, n)
         }
@@ -72,7 +72,13 @@ abstract class CommonJoin(
         return mapOf(name to columns)
     }
 
-    override fun getLambdas(info: CommonInfo) = pred?.let { it.getLambdas(info) + getOnMethod(info) } ?: emptyList()
+    override fun getLambdas(info: CommonInfo): List<JcMethod> {
+        val predicateLambdas = pred?.let {
+            it.getLambdas(info) + getOnMethod(info)
+        } ?: emptyList()
+
+        return predicateLambdas + getMapperMethod(info)
+    }
 
     private fun getOnMethod(info: CommonInfo) = pred!!.toLambda(info)
 
@@ -94,8 +100,8 @@ abstract class CommonJoin(
 
         val tbl = ctx.genCtx.generateGlobalTableAccess(ctx.cp, ctx.getVarName(), targetTbl.name, targetTbl.origClass)
 
-        val serilizer = targetTbl.origClass.declaredMethods.single { it.generatedStaticSerializer }
-        val ser = ctx.genCtx.generateLambda(ctx.cp, ctx.getLambdaName(), serilizer)
+        val serializer = targetTbl.origClass.declaredMethods.single { it.generatedStaticSerializer }
+        val ser = ctx.genCtx.generateLambda(ctx.cp, ctx.getLambdaName(), serializer)
 
         val onMethod = genOnMethod(ctx)
         val leftSerializer = LNull().genInst(ctx)
@@ -196,13 +202,13 @@ class InnerJoin(
         ctx: MethodCtx,
         leftTbl: JcLocalVar,
         rightTbl: JcLocalVar,
-        leftSrializer: JcLocalVar,
+        leftSerializer: JcLocalVar,
         rightSerializer: JcLocalVar,
         onMethod: JcLocalVar
     ): List<JcValue> {
         val rightSize = JcInt(-1, ctx.cp.int)
         val isLeft = JcBool(false, ctx.cp.boolean)
-        return listOf(leftTbl, rightTbl, leftSrializer, rightSerializer, rightSize, onMethod, isLeft)
+        return listOf(leftTbl, rightTbl, leftSerializer, rightSerializer, rightSize, onMethod, isLeft)
     }
 }
 
@@ -214,7 +220,7 @@ class FullJoin(
         ctx: MethodCtx,
         leftTbl: JcLocalVar,
         rightTbl: JcLocalVar,
-        leftSrializer: JcLocalVar,
+        leftSerializer: JcLocalVar,
         rightSerializer: JcLocalVar,
         onMethod: JcLocalVar
     ): List<JcValue> {
@@ -230,13 +236,13 @@ class RightJoin(
         ctx: MethodCtx,
         leftTbl: JcLocalVar,
         rightTbl: JcLocalVar,
-        leftSrializer: JcLocalVar,
+        leftSerializer: JcLocalVar,
         rightSerializer: JcLocalVar,
         onMethod: JcLocalVar
     ): List<JcValue> {
         val rightSize = JcInt(ctx.columns(target).size, ctx.cp.int)
         val isLeft = JcBool(false, ctx.cp.boolean)
-        return listOf(rightTbl, leftTbl, rightSerializer, leftSrializer, rightSize, onMethod, isLeft)
+        return listOf(rightTbl, leftTbl, rightSerializer, leftSerializer, rightSize, onMethod, isLeft)
     }
 }
 
@@ -248,12 +254,12 @@ class LeftJoin(
         ctx: MethodCtx,
         leftTbl: JcLocalVar,
         rightTbl: JcLocalVar,
-        leftSrializer: JcLocalVar,
+        leftSerializer: JcLocalVar,
         rightSerializer: JcLocalVar,
         onMethod: JcLocalVar
     ): List<JcValue> {
         val rightSize = JcInt(-1, ctx.cp.int)
         val isLeft = JcBool(true, ctx.cp.boolean)
-        return listOf(leftTbl, rightTbl, leftSrializer, rightSerializer, rightSize, onMethod, isLeft)
+        return listOf(leftTbl, rightTbl, leftSerializer, rightSerializer, rightSize, onMethod, isLeft)
     }
 }

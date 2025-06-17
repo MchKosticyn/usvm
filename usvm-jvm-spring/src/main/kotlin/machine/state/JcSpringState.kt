@@ -27,7 +27,7 @@ import org.usvm.machine.state.JcState
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
-typealias tableContent = Pair<List<UHeapRef>, JcClassType>
+typealias tableContent = Pair<List<Pair<UHeapRef, Int>>, JcClassType>
 
 class JcSpringState(
     ctx: JcContext,
@@ -65,10 +65,10 @@ class JcSpringState(
     internal val springMemory: JcSpringMemory
         get() = this.memory as JcSpringMemory
 
-    fun addTableEntity(tableName: String, entity: UHeapRef, type: JcClassType) {
-        val (entities, currentType) = tableEntities.getOrDefault(tableName, emptyList<UHeapRef>() to type)
+    fun addTableEntity(tableName: String, entity: UHeapRef, type: JcClassType, idx: Int) {
+        val (entities, currentType) = tableEntities.getOrDefault(tableName, emptyList<Pair<UHeapRef, Int>>() to type)
         check(currentType == type)
-        val updatedEntities = (entities + listOf(entity)).distinct() to currentType
+        val updatedEntities = (entities + listOf(entity to idx)).distinct() to currentType
         tableEntities += tableName to updatedEntities
     }
 

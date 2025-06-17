@@ -30,38 +30,23 @@ import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.getFieldValue as getFieldValueUnsafe
 import org.usvm.jvm.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.jvm.util.allFields
+import org.usvm.jvm.util.isStatic
 import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.javaName
 import org.usvm.jvm.util.name
+import org.usvm.jvm.util.staticFields
+import org.usvm.jvm.util.toJavaField
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 import java.nio.ByteBuffer
 
-private val Class<*>.safeDeclaredFields: List<Field>
-    get() {
-        return try {
-            declaredFields.toList()
-        } catch (e: Throwable) {
-            emptyList()
-        }
-    }
-
 internal val JcClassType.declaredInstanceFields: List<JcTypedField>
     get() = declaredFields.filter { !it.isStatic }
 
-val Class<*>.allInstanceFields: List<Field>
-    get() = allFields.filter { !Modifier.isStatic(it.modifiers) }
-
 internal val JcClassOrInterface.staticFields: List<JcField>
     get() = declaredFields.filter { it.isStatic }
-
-internal val Class<*>.staticFields: List<Field>
-    get() = safeDeclaredFields.filter { Modifier.isStatic(it.modifiers) }
-
-internal val Field.isStatic: Boolean
-    get() = Modifier.isStatic(modifiers)
 
 internal fun Field.getFieldValue(obj: Any): Any? {
     check(!isStatic)
@@ -177,26 +162,7 @@ internal fun <Value> Any.setArrayValue(index: Int, value: Value) {
     }
 }
 
-fun JcField.findJavaField(javaFields: List<Field>): Field? {
-    val field = javaFields.find { it.name == name }
-    check(field == null || field.type.typeName == this.type.typeName) {
-        "invalid field: types of field $field and $this differ ${field?.type?.typeName} and ${this.type.typeName}"
-    }
-    return field
-}
-
-// TODO: unify with `Jacodb.toJavaField`
-internal val JcField.toJavaField: Field?
-    get() {
-        // TODO: to check if field exists in original class use `cpWithoutApproximations` #FIELD
-        try {
-            val type = JcConcreteMemoryClassLoader.loadClass(enclosingClass)
-            val fields = if (isStatic) type.staticFields else type.allInstanceFields
-            return this.findJavaField(fields)
-        } catch (e: Throwable) {
-            return null
-        }
-    }
+internal val JcField.toJavaField: Field? get() = toJavaField(JcConcreteMemoryClassLoader)
 
 internal val JcMethod.toJavaMethod: Executable?
     get() = this.toJavaExecutable(JcConcreteMemoryClassLoader)

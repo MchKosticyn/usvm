@@ -9,10 +9,10 @@ import org.usvm.NULL_ADDRESS
 import org.usvm.UConcreteHeapAddress
 import org.usvm.jvm.util.allocateInstance
 import org.usvm.constraints.UTypeConstraints
+import org.usvm.jvm.util.allInstanceFields
 import org.usvm.machine.JcContext
 import utils.ForbiddenModificationException
 import utils.LambdaInvocationHandler
-import utils.allInstanceFields
 import utils.createDefault
 import utils.getFieldValue
 import utils.isEnum

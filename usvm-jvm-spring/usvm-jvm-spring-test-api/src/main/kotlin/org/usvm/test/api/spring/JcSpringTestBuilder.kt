@@ -81,8 +81,8 @@ abstract class JcSpringTestBuilder {
 
         if (testKind.shouldInitTables) {
             val tableEntities = buildTableEntities()
-            val tables = generateTablesDSL(tableEntities, testExecBuilder.testClassExpr)
-            decoderApi.addInstructions(tables)
+            val tableInitialization = generateTablesDSL(tableEntities, testExecBuilder.testClassExpr)
+            decoderApi.addInstructions(tableInitialization)
         }
 
         val mockBeans = buildMockBeans()

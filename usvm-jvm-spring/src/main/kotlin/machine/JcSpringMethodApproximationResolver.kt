@@ -37,6 +37,7 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.findJavaField
 import org.usvm.util.classesOfLocations
 import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.JcConcreteMethodCallInst
@@ -44,8 +45,6 @@ import org.usvm.machine.state.newStmt
 import util.isDeserializationMethod
 import util.isSpringController
 import util.isSpringRepository
-import utils.allInstanceFields
-import utils.findJavaField
 import utils.toJcType
 import java.util.ArrayList
 
@@ -506,7 +505,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldAnalyzePath(path: String, handlerName: String, controllerTypeName: String): Boolean {
-        return true
+        return handlerName == "showOwner"
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
@@ -658,16 +657,19 @@ class JcSpringMethodApproximationResolver (
             val tableNameExpr = methodCall.arguments[0].asExpr(ctx.addressSort)
             val entityExpr = methodCall.arguments[1].asExpr(ctx.addressSort)
             val typeRefExpr = methodCall.arguments[2].asExpr(ctx.addressSort)
+            val indexExpr = methodCall.arguments[3]
             check(tableNameExpr is UConcreteHeapRef)
             scope.doWithState {
                 this as JcSpringState
                 val memory = memory as JcSpringMemory
+                val index = memory.tryExprToInt(indexExpr)
+                    ?: error("approximateTableTracker: symbolic index!")
                 val tableName = memory.tryHeapRefToObject(tableNameExpr) as String
                 val typeRepresentative =
                     memory.read(UFieldLValue(ctx.addressSort, typeRefExpr, ctx.classTypeSyntheticField))
                 typeRepresentative as UConcreteHeapRef
                 val classType = memory.types.typeOf(typeRepresentative.address) as JcClassType
-                this.addTableEntity(tableName, entityExpr, classType)
+                this.addTableEntity(tableName, entityExpr, classType, index)
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
             }
 

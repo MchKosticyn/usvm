@@ -279,3 +279,17 @@ fun JcMethod.invoke(classLoader: ClassLoader, instance: Any?, args: List<Any?>):
             javaMethod.invoke(instance, *args.toTypedArray())
         }
     }
+
+private val Class<*>.safeDeclaredFields: List<Field> get() {
+    return try {
+        declaredFields.toList()
+    } catch (e: Throwable) {
+        emptyList()
+    }
+}
+
+val Class<*>.allInstanceFields: List<Field>
+    get() = allFields.filter { !Modifier.isStatic(it.modifiers) }
+
+val Class<*>.staticFields: List<Field>
+    get() = safeDeclaredFields.filter { Modifier.isStatic(it.modifiers) }

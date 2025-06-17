@@ -58,8 +58,11 @@ import org.usvm.collection.set.ref.refSetEntries
 import org.usvm.isAllocatedConcreteHeapRef
 import org.usvm.isStaticHeapRef
 import org.usvm.isTrue
+import org.usvm.jvm.util.allFields
 import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.isOriginalField
 import org.usvm.jvm.util.toJavaField
+import org.usvm.jvm.util.withoutApproximations
 import org.usvm.logger
 import org.usvm.machine.JcContext
 import org.usvm.machine.extractBool
@@ -295,7 +298,9 @@ abstract class JcTestStateResolver<T>(
     }
 
     open fun shouldIgnoreField(typedField: JcTypedField): Boolean {
-        return typedField.isStatic || typedField.field.annotations.any { it.name == DummyField::class.java.name }
+        return typedField.isStatic
+                || typedField.field.annotations.any { it.name == DummyField::class.java.name }
+                || !typedField.field.isOriginalField
     }
 
     fun allocateAndInitializeObject(
@@ -316,12 +321,9 @@ abstract class JcTestStateResolver<T>(
             val decoder = decoders.findDecoder(cls.jcClass)
             if (decoder != null) {
 
-                val fields = cls.allInstanceFields
+                val fields = cls.allFields
                     // Don't copy approximation-specific fields
-                    .filterNot {
-                        // TODO: check if field exists in original class via `cpWithoutApproximations` #FIELD
-                        it.field is JcEnrichedVirtualField
-                    }
+                    .filterNot { shouldIgnoreField(it) }
 
                 if (fields.isEmpty())
                     continue

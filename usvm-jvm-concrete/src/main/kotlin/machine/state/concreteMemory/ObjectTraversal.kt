@@ -1,7 +1,7 @@
 package machine.state.concreteMemory
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue
-import utils.allInstanceFields
+import org.usvm.jvm.util.allInstanceFields
 import utils.getFieldValue
 import utils.isThreadLocal
 import java.lang.reflect.Field

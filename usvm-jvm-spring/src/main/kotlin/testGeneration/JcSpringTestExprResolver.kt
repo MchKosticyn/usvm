@@ -30,7 +30,12 @@ class JcSpringTestExprResolver(
         return body()
     }
 
+    override fun shouldIgnoreField(typedField: JcTypedField): Boolean {
+        val field = typedField.field
+        return super.shouldIgnoreField(typedField)
+                || field.annotations.any { it.name == "jakarta.persistence.GeneratedValue" }
+    }
+
     override fun allocateClassInstance(type: JcClassType) = UTestAllocateMemoryCall(type.jcClass)
     fun resolvePinnedValue(value: JcPinnedValue) = resolveExpr(value.getExpr(), value.getType())
-    fun getInstructions() = decoderApi.initializerInstructions()
 }

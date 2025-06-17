@@ -23,6 +23,8 @@ import org.usvm.jvm.util.JcClassLoaderExt
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.toByteArray
 import org.usvm.jvm.util.javaName
+import org.usvm.jvm.util.staticFields
+import org.usvm.jvm.util.withoutApproximations
 import utils.isInstrumentedClinit
 import utils.isInstrumentedInit
 import utils.isInstrumentedInternalInit
@@ -289,41 +291,6 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         defineClassRecursively(jcClass, hashSetOf())
             ?: error("Can't define class $jcClass")
 
-    private class JcCpWithoutApproximations(val cp: JcClasspath) : JcClasspath by cp {
-        override val features: List<JcClasspathFeature> by lazy {
-            cp.featuresWithoutApproximations()
-        }
-    }
-
-    private class JcClassWithoutApproximations(
-        private val cls: JcClassOrInterface, private val cp: JcCpWithoutApproximations
-    ) : JcClassOrInterface by cls {
-        override val classpath: JcClasspath get() = cp
-    }
-
-    private val cpWithoutApproximations by lazy { JcCpWithoutApproximations(cp) }
-
-    private fun JcMethod.methodWithoutApproximations(): JcMethod {
-        val parameters = parameters.map {
-            ParameterInfo(it.type.typeName, it.index, it.access, it.name, emptyList())
-        }
-        val info = MethodInfo(name, description, signature, access, emptyList(), emptyList(), parameters)
-
-        val cp = cpWithoutApproximations
-        check(cp.cp === enclosingClass.classpath) { "Classpath mismatch" }
-
-        val featuresChain = JcFeaturesChain(cp.features)
-        val cls = JcClassWithoutApproximations(enclosingClass, cp)
-        return JcMethodImpl(info, featuresChain, cls)
-    }
-
-    private fun JcClasspath.featuresWithoutApproximations(): List<JcClasspathFeature> {
-        val featuresChainField = this.javaClass.getDeclaredField("featuresChain")
-        featuresChainField.isAccessible = true
-        val featuresChain = featuresChainField.get(this) as JcFeaturesChain
-        return featuresChain.features.filterNot { it is Approximations || it is ClasspathCache }
-    }
-
     private fun getBytecode(jcClass: JcClassOrInterface): ByteArray {
         val instrumentedMethods = jcClass.declaredMethods.filter {
             it.isInstrumentedClinit || it.isInstrumentedInit || it.isInstrumentedInternalInit
@@ -340,7 +307,8 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
                     continue
 
                 val rawInstList = if (isApproximated) {
-                    val newMethod = method.methodWithoutApproximations()
+                    val newMethod = method.withoutApproximations
+                        ?: error("JcConcreteMemoryClassLoader.getBytecode: unable to find original method $method")
                     newMethod.rawInstList
                 } else { method.rawInstList }
 
