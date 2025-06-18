@@ -104,6 +104,12 @@ class JcSpringMemory(
             "org.springframework.security.web.context.RequestAttributeSecurityContextRepository#loadContext(org.springframework.security.web.context.HttpRequestResponseHolder):org.springframework.security.core.context.SecurityContext",
             "org.springframework.security.core.context.ThreadLocalSecurityContextHolderStrategy#lambda\$getDeferredContext\$0(org.springframework.security.core.context.SecurityContext):org.springframework.security.core.context.SecurityContext",
             "org.springframework.security.core.context.ThreadLocalSecurityContextHolderStrategy#getDeferredContext():java.util.function.Supplier",
+            "org.springframework.security.core.context.SecurityContextImpl#getAuthentication():org.springframework.security.core.Authentication",
+            "org.springframework.util.function.SingletonSupplier#get():java.lang.Object",
+            "org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor#getAuthentication():org.springframework.security.core.Authentication",
+            "org.springframework.security.authorization.AuthorizationManager#authorize(java.util.function.Supplier,java.lang.Object):org.springframework.security.authorization.AuthorizationResult",
+            "org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager#check(java.util.function.Supplier,java.lang.Object):org.springframework.security.authorization.AuthorizationDecision",
+            "java.lang.ThreadLocal#get():java.lang.Object",
 
             "org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodArgumentResolver\$EmptyBodyCheckingHttpInputMessage#hasBody():boolean",
             "org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter#read(java.lang.reflect.Type,java.lang.Class,org.springframework.http.HttpInputMessage):java.lang.Object",
