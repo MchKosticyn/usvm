@@ -97,6 +97,16 @@ class JcSpringInterpreter(
                 }
             }
 
+            is JcGetAuthorityMethod -> {
+                scope.doWithState {
+                    this as JcSpringState
+                    if (methodResult is JcMethodResult.Success) {
+                        val methodResult = methodResult as JcMethodResult.Success
+                        roleStrings += methodResult.value
+                    }
+                }
+            }
+
             else -> super.callMethod(scope, stmt, exprResolver)
         }
     }

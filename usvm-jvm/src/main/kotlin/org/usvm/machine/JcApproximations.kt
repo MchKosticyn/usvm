@@ -577,7 +577,7 @@ open class JcMethodApproximationResolver(
         return false
     }
 
-    private fun JcState.stringEquals(firstStr: UHeapRef, secondStr: UHeapRef): UBoolExpr = with(ctx) {
+    protected fun JcState.stringEquals(firstStr: UHeapRef, secondStr: UHeapRef): UBoolExpr = with(ctx) {
         val valuesArrayDescriptor = arrayDescriptorOf(stringValueField.type as JcArrayType)
         val elementType = requireNotNull(stringValueField.type.ifArrayGetElementType)
         val elementSort = typeToSort(elementType)

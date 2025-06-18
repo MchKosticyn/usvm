@@ -60,6 +60,7 @@ class JcSpringState(
     var mockedMethodCalls: JcSpringMockedCalls = JcSpringMockedCalls()
 
     var handlerData: List<HandlerMethodData> = listOf()
+    var roleStrings: List<UExpr<out USort>> = listOf()
 
     var tableEntities = emptyMap<String, tableContent>()
 

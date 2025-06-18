@@ -40,6 +40,17 @@ data class JcMockMethodInvokeResult(
     override val originalInst: JcInst = returnSite
 }
 
+data class JcGetAuthorityMethod(
+    private val methodCall: JcMethodCall
+) : JcMethodCallBaseInst, JcMethodCall {
+    override val location = methodCall.location
+    override val method = methodCall.method
+    override val arguments = methodCall.arguments
+    override val returnSite = methodCall.returnSite
+    override val originalInst: JcInst = returnSite
+}
+
+
 data class JcReflectionConstructorInvokeResult(
     private val methodCall: JcMethodCall,
     val invokeMethod: JcTypedMethod,

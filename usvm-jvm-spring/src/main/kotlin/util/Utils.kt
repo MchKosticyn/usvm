@@ -44,6 +44,10 @@ internal val JcClassOrInterface.isSpringRepository: Boolean
             || classpath.findClassOrNull("org.springframework.data.repository.Repository")
                 ?.let { isSubClassOf(it) } ?: false
 
+internal val JcClassOrInterface.isGrantedAuthority: Boolean
+    get() = classpath.findClassOrNull("org.springframework.security.core.GrantedAuthority")
+        ?.let{ isSubClassOf(it) } ?: false
+
 internal val JcClassOrInterface.isSpringRequest: Boolean
     get() = classpath.findClassOrNull("jakarta.servlet.http.HttpServletRequest")
         ?.let { this.isSubClassOf(it) } ?: false
