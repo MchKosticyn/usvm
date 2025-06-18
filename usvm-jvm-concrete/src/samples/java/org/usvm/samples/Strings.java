@@ -1,5 +1,7 @@
 package org.usvm.samples;
 
+import org.usvm.api.Engine;
+
 public class Strings {
 
     public static void concretize() { }
@@ -9,5 +11,13 @@ public class Strings {
         if ("".equals(s) || s.isEmpty() || s.isBlank())
             return false;
         return true;
+    }
+
+    public static String isEqualToAaa(String input) {
+        Engine.assume(input != null);
+        if (Engine.forceStringEquals(input, "Aaa")) {
+            return "String is Aaa";
+        }
+        return "String is not Aaa";
     }
 }

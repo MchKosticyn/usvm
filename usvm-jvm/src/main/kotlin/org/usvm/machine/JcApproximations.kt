@@ -1053,6 +1053,11 @@ open class JcMethodApproximationResolver(
                 scope.doWithState { pathConstraints.addSoftConstraint(arg) }
                 ctx.voidValue
             }
+            dispatchUsvmApiMethod(Engine::forceStringEquals) {
+                val first = it.arguments[0].asExpr(ctx.addressSort)
+                val second = it.arguments[1].asExpr(ctx.addressSort)
+                scope.calcOnState { stringEquals(first, second) }
+            }
             dispatchUsvmApiMethod(Engine::makeSymbolicBoolean) {
                 scope.calcOnState { makeSymbolicPrimitive(ctx.booleanSort) }
             }
