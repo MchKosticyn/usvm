@@ -65,7 +65,7 @@ class JcTableInfoCollector(
 
         // TODO: think about cache
         val name = getTableName(clazz)
-        val fields = collectFields(clazz)
+        val fields = collectFields(clazz).filter { !it.isStatic }
         val idField = fields.single { contains(it.annotations, "Id") }
         val isAutoGenerateId = contains(idField.annotations, "GeneratedValue")
         val idColumn = idField.let { TableInfo.ColumnInfo(getColumnName(it), it.type, idField, true, listOf()) }

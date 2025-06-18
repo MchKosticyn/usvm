@@ -32,7 +32,6 @@ import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
-import org.usvm.api.writeField
 import org.usvm.collection.field.UFieldLValue
 import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.toJavaClass
@@ -42,7 +41,6 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
-import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.findJavaField
 import org.usvm.util.classesOfLocations
 import org.usvm.jvm.util.toJavaClass
@@ -529,8 +527,7 @@ class JcSpringMethodApproximationResolver (
 
     @Suppress("UNUSED_PARAMETER")
     private fun shouldAnalyzePath(path: String, methods: List<String>, controllerTypeName: String): Boolean {
-        // skibidi
-        return path == "/save/test"
+        return true
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
