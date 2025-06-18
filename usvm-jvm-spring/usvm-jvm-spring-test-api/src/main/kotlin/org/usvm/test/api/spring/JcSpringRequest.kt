@@ -5,6 +5,7 @@ interface JcSpringRequest {
     fun getHeaders(): List<JcSpringHttpHeader>
     fun getMethod(): JcSpringRequestMethod
     fun getPath(): UTString
+    fun getUser(): UTAny?
     fun getContent(): UTAny?
     fun getContentTypeName(): UTString?
     fun getParameters(): List<JcSpringHttpParameter>

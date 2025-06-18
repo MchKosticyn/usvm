@@ -100,6 +100,12 @@ class JcSpringPinnedValuesRequest(
         return UTString(path.value + matrixSuffix, stringType)
     }
 
+    override fun getUser(): UTAny? {
+        val user = pinnedValues.getValue(JcPinnedKey.requestUser())
+            ?.let { exprResolver.resolvePinnedValue(it) }
+        return user
+    }
+
     override fun getContent(): UTAny? {
         val body = pinnedValues.getValue(JcPinnedKey.requestBody()) ?: return null
         return withJsonSerialize(exprResolver.resolvePinnedValue(body))

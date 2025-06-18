@@ -35,6 +35,9 @@ class SpringRequestBuilder private constructor(
         private const val MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS =
             "org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder"
 
+        private const val SECURITY_MOCK_MVC_REQUEST_POST_PROCESSORS =
+            "org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors"
+
         private fun commonReqDSLBuilder(
             cp: JcClasspath,
             method: JcSpringRequestMethod,
@@ -75,6 +78,26 @@ class SpringRequestBuilder private constructor(
     fun addParameter(parameter: JcSpringHttpParameter): SpringRequestBuilder {
         val method = cp.findJcMethod(MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS, "param")
         addMethodCall(method, parameter.getName(), parameter.getValues())
+        return this
+    }
+
+    fun addUser(user: UTAny): SpringRequestBuilder {
+        val withMethod = cp.findJcMethod(
+            MOCK_HTTP_SERVLET_REQUEST_BUILDER_CLASS,
+            "with"
+        )
+        val userMethod = cp.findJcMethod(
+            SECURITY_MOCK_MVC_REQUEST_POST_PROCESSORS,
+            "user",
+            listOf("org.springframework.security.core.userdetails.UserDetails")
+        )
+
+        val userRequestPostProcessor = UTestStaticMethodCall(userMethod, listOf(user))
+        reqDSL = UTestMethodCall(
+            instance = reqDSL,
+            method = withMethod,
+            args = listOf(userRequestPostProcessor),
+        )
         return this
     }
 
