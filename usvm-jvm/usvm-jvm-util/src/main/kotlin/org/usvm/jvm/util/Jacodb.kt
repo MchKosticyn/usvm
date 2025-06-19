@@ -6,6 +6,7 @@ import org.jacodb.api.jvm.ext.*
 import org.jacodb.impl.bytecode.JcMethodImpl
 import org.jacodb.impl.features.JcFeaturesChain
 import org.jacodb.approximation.Approximations
+import org.jacodb.impl.JcClasspathImpl
 import org.jacodb.impl.bytecode.JcClassOrInterfaceImpl
 import org.jacodb.impl.bytecode.JcFieldImpl
 import org.jacodb.impl.bytecode.joinFeatureFields
@@ -226,6 +227,9 @@ private class JcCpWithoutApproximations(val cp: JcClasspath) : JcClasspath by cp
 }
 
 private fun JcClasspath.featuresWithoutApproximations(): List<JcClasspathFeature> {
+    if (this !is JcClasspathImpl)
+        error("unexpected JcClasspath: $this")
+
     val featuresChainField = this.javaClass.getDeclaredField("featuresChain")
     featuresChainField.isAccessible = true
     val featuresChain = featuresChainField.get(this) as JcFeaturesChain
