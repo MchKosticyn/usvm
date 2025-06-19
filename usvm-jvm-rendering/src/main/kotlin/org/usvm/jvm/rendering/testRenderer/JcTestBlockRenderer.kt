@@ -519,9 +519,6 @@ open class JcTestBlockRenderer protected constructor(
             if (mockValues.isEmpty())
                 continue
 
-            if (method.returnType.typeName == PredefinedPrimitives.Void)
-                continue
-
             val mockInitialization = renderSingleMockObjectMethod(mockVar, method, mockValues)
 
             addExpression(mockInitialization)
@@ -723,11 +720,19 @@ open class JcTestBlockRenderer protected constructor(
         return args
     }
 
+    private fun isExceptionalMockMethodArgs(mockValues: List<UTestExpression>): Boolean = mockValues.all { value ->
+        value is UTestClassExpression && value.type.isAssignable(cp.findType("java.lang.Throwable"))
+    }
+
     private fun renderSingleMockObjectMethod(
         mockVar: NameExpr,
         method: JcMethod,
         mockValues: List<UTestExpression>
     ): Expression {
+        check(method.returnType.typeName != PredefinedPrimitives.Void || isExceptionalMockMethodArgs(mockValues)) {
+            "non-exceptional void mock"
+        }
+
         val typedMethod = method.toTypedMethod
         val args = mockMethodMatchersList(typedMethod)
 
