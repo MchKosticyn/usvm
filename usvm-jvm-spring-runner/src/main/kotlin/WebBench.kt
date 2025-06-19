@@ -20,24 +20,29 @@ import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
+import org.jacodb.api.jvm.cfg.JcRawAssignInst
+import org.jacodb.api.jvm.cfg.JcRawClassConstant
+import org.jacodb.api.jvm.cfg.JcRawInst
+import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcRamErsSettings
+import org.jacodb.impl.cfg.JcInstListImpl
+import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.features.classpaths.UnknownClasses
 import org.jacodb.impl.features.hierarchyExt
 import org.jacodb.impl.jacodb
-import org.objectweb.asm.Opcodes
+import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldInsnNode
-import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.LdcInsnNode
 import org.objectweb.asm.tree.MethodInsnNode
 import org.objectweb.asm.tree.MultiANewArrayInsnNode
@@ -48,6 +53,8 @@ import org.usvm.SolverType
 import org.usvm.UMachineOptions
 import org.usvm.jvm.rendering.spring.webMvcTestRenderer.JcSpringMvcTestInfo
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
+import org.usvm.jvm.util.isSameSignature
+import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
 import org.usvm.logger
 import org.usvm.machine.JcMachineOptions
@@ -55,14 +62,12 @@ import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.test.api.UTest
 import org.usvm.test.api.spring.JcSpringTestKind
 import org.usvm.test.api.spring.SpringBootTest
-import org.usvm.test.api.spring.WebMvcTest
 import org.usvm.util.classpathWithApproximations
 import testGeneration.SpringTestInfo
 import util.database.JcTableInfoCollector
 import java.io.File
 import java.io.PrintStream
 import java.nio.file.Path
-import java.util.Locale
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.Path
 import kotlin.io.path.PathWalkOption
@@ -218,7 +223,7 @@ private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp 
 
 private val JcClassOrInterface.jvmDescriptor: String get() = name.jvmName()
 
-fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: String) =
+private fun allByAnnotation(allClasses: Sequence<JcClassOrInterface>, annotationName: String) =
     allClasses.filter { it.annotations.any { annotation -> annotation.name == annotationName } }
 
 private fun addSecurityConfigs(testClassNode: ClassNode, nonAbstractClasses: Sequence<JcClassOrInterface>) {
@@ -238,8 +243,8 @@ private fun replaceTypeInClassNode(
     oldClassName: String,
     newClassName: String
 ) {
-    check(oldClassName.contains('.') && !oldClassName.contains('/'))
-    check(newClassName.contains('.') && !newClassName.contains('/'))
+    check(!oldClassName.contains('/'))
+    check(!newClassName.contains('/'))
 
     val oldClassSlashName = oldClassName.replace(".", "/")
     val oldClassJvmName = "L$oldClassSlashName;"
@@ -323,9 +328,19 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
     check(springDirFile.exists()) { "Generated directory ${springDirFile.absolutePath} does not exist" }
     val classLocations = benchmark.classLocations
     val nonAbstractClasses = cp.nonAbstractClasses(classLocations)
-    val oldTestClassName = "generated.org.springframework.boot.SpringBootTestClass"
 
-    val testClass = cp.findClass(oldTestClassName)
+    val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
+    val repositories = runBlocking { cp.hierarchyExt() }
+        .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
+        .filter { classLocations.contains(it.declaration.location.jcLocation) }
+        .toList() + allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Repository")
+    val entityManagerType = cp.findClassOrNull("jakarta.persistence.EntityManager")
+    val hasJpa = repositories.isNotEmpty() || entityManagerType != null
+
+    val testClassTemplateName =
+        if (hasJpa) "generated.org.springframework.boot.testClasses.SpringBootJpaTestClass"
+        else "generated.org.springframework.boot.testClasses.SpringBootTestClass"
+
     val applicationClass = allByAnnotation(
         nonAbstractClasses,
         "org.springframework.boot.autoconfigure.SpringBootApplication"
@@ -333,15 +348,11 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
     val entryPackagePath = applicationClass.packageName.replace('.', '/')
     val testClassName = "NewSpringBootTestClass"
     val newTestClassSlashName = "$entryPackagePath/$testClassName"
-
-    val repositoryType = cp.findClass("org.springframework.data.repository.Repository")
-    val repositories = runBlocking { cp.hierarchyExt() }
-        .findSubClasses(repositoryType, entireHierarchy = true, includeOwn = false)
-        .filter { classLocations.contains(it.declaration.location.jcLocation) }
-        .toList() + allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Repository")
+    val newTestClassName = newTestClassSlashName.replace('/', '.')
 
     var testKind: JcSpringTestKind? = null
-    testClass.withAsmNode { classNode ->
+    val testClassTemplate = cp.findClass(testClassTemplateName)
+    testClassTemplate.withAsmNode { classNode ->
         classNode.name = newTestClassSlashName
 
         when (springAnalysisMode) {
@@ -357,20 +368,37 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
             JcSpringAnalysisMode.SpringJpaTest -> TODO("not supported yet")
         }
 
+        replaceTypeInClassNode(classNode, testClassTemplateName, newTestClassName)
         classNode.write(cp, springDirFile.resolve("$newTestClassSlashName.class").toPath(), checkClass = true)
     }
 
-    val newTestClassName = newTestClassSlashName.replace('/', '.')
     System.setProperty("generatedTestClass", newTestClassName)
 
     val tablesInfo = DatabaseGenerator(cp, springDirFile, repositories)
         .generateJPADatabase(springAnalysisMode == JcSpringAnalysisMode.SpringBootTest)
 
-    val startSpringClass = cp.findClassOrNull("generated.org.springframework.boot.StartSpring")!!
+    val startSpringTemplateName = "generated.org.springframework.boot.StartSpring"
+    val newStartSpringName = "NewStartSpring"
+    val startSpringClass = cp.findClassOrNull(startSpringTemplateName)!!
     startSpringClass.withAsmNode { startSpringAsmNode ->
-        replaceTypeInClassNode(startSpringAsmNode, oldTestClassName, newTestClassName)
-        startSpringAsmNode.name = "NewStartSpring"
-        startSpringAsmNode.write(cp, springDirFile.resolve("NewStartSpring.class").toPath(), checkClass = true)
+        val chooseTestClassMethod = startSpringClass.declaredMethods.find { it.name == "chooseTestClass" }!!
+        chooseTestClassMethod.withAsmNode { chooseTestClassMethodAsmNode ->
+            val classConstant = JcRawClassConstant(
+                TypeNameImpl.fromTypeName(newTestClassName),
+                TypeNameImpl.fromTypeName("java.lang.Class")
+            )
+            val returnStmt = JcRawReturnInst(chooseTestClassMethod, classConstant)
+            val newNode = MethodNodeBuilder(
+                chooseTestClassMethod,
+                JcInstListImpl(listOf(returnStmt))
+            ).build()
+            val asmMethods = startSpringAsmNode.methods
+            val asmMethod = asmMethods.find { chooseTestClassMethodAsmNode.isSameSignature(it) }
+            check(asmMethods.replace(asmMethod, newNode))
+        }
+        startSpringAsmNode.name = newStartSpringName
+        replaceTypeInClassNode(startSpringAsmNode, startSpringTemplateName, newStartSpringName)
+        startSpringAsmNode.write(cp, springDirFile.resolve("$newStartSpringName.class").toPath(), checkClass = true)
     }
     runBlocking {
         benchmark.db.load(springDirFile)

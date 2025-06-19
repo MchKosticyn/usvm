@@ -4,33 +4,25 @@ import features.JcGeneratedTypesFeature
 import machine.state.concreteMemory.JcConcreteEffectStorage
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcClasspathFeature
-import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
 import org.jacodb.approximation.ApproximationClassName
 import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualMethod
-import org.jacodb.impl.bytecode.JcMethodImpl
 import org.jacodb.impl.cfg.MethodNodeBuilder
-import org.jacodb.impl.features.JcFeaturesChain
-import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.jacodb.impl.types.MethodInfo
-import org.jacodb.impl.types.ParameterInfo
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.concrete.JcConcreteClassLoader
 import org.usvm.jvm.util.JcClassLoaderExt
-import org.usvm.jvm.util.replace
-import org.usvm.jvm.util.toByteArray
 import org.usvm.jvm.util.javaName
+import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.staticFields
+import org.usvm.jvm.util.toByteArray
 import org.usvm.jvm.util.withoutApproximations
 import utils.isInstrumentedClinit
 import utils.isInstrumentedInit
 import utils.isInstrumentedInternalInit
 import utils.isLambdaTypeName
 import utils.setStaticFieldValue
-import utils.staticFields
 import utils.typeIsRuntimeGenerated
 import java.io.File
 import java.net.URI
@@ -255,12 +247,17 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         JcGeneratedTypesFeature.addGeneratedTypeBytes(className, typeBytes)
     }
 
-    override fun loadClass(jcClass: JcClassOrInterface): Class<*> {
+    override fun loadClass(jcClass: JcClassOrInterface, initialize: Boolean): Class<*> {
         val name = jcClass.name
-        if (name.isLambdaTypeName)
-            return loadLambdaClass(name)
+        val loadedClass =
+            if (name.isLambdaTypeName)
+                loadLambdaClass(name)
+            else defineClassRecursively(jcClass)
 
-        return defineClassRecursively(jcClass)
+        if (initialize)
+            Class.forName(loadedClass.name, true, this)
+
+        return loadedClass
     }
 
     private fun defineClass(name: String, code: ByteArray): Class<*> {

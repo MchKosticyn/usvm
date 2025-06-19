@@ -14,7 +14,14 @@ import java.security.SecureClassLoader
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
  */
 object JcClassLoader : SecureClassLoader(ClassLoader.getSystemClassLoader()), JcClassLoaderExt {
-    override fun loadClass(jcClass: JcClassOrInterface): Class<*> = defineClassRecursively(jcClass)
+
+    override fun loadClass(jcClass: JcClassOrInterface, initialize: Boolean): Class<*> {
+        val loadedClass = defineClassRecursively(jcClass)
+        if (initialize)
+            Class.forName(loadedClass.name, true, this)
+
+        return loadedClass
+    }
 
     private fun defineClass(name: String, code: ByteArray): Class<*> {
         return defineClass(name, ByteBuffer.wrap(code), null as CodeSource?)

@@ -219,7 +219,7 @@ fun JcClassOrInterface.toJavaClass(classLoader: ClassLoader, initialize: Boolean
 
 private fun ClassLoader.loadClass(jcClass: JcClassOrInterface, initialize: Boolean): Class<*> {
     if (this is JcClassLoaderExt)
-        loadClass(jcClass)
+        return loadClass(jcClass, initialize)
 
     return Class.forName(jcClass.name, initialize, this)
 }
