@@ -51,7 +51,7 @@ dependencies {
 }
 
 // TODO: make versions flexible (JHipster needs 2.7.3, petclinic needs 3.2.0)
-val springVersion = "3.2.0"
+val springVersion = "3.5.0"
 val junitVersion = "5.3.1"
 
 //dependencies {
@@ -89,7 +89,9 @@ tasks.register<JavaExec>("runWebBench") {
     val currentDir = File(System.getProperty("user.dir"))
     val generatedDir = currentDir.resolve("generated")
     createOrClear(generatedDir)
+
     val lambdaDir = generatedDir.resolve("lambdas")
+    print("Lambda dir here " + lambdaDir)
     createOrClear(lambdaDir)
     environment("lambdaDir", lambdaDir.absolutePath)
     val springDir = generatedDir.resolve("spring")

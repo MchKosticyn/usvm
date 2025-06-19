@@ -50,6 +50,7 @@ import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.memory.UMemory
 import org.usvm.jvm.util.findJavaField
+import org.usvm.sizeSort
 import org.usvm.util.classesOfLocations
 import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.JcConcreteMethodCallInst

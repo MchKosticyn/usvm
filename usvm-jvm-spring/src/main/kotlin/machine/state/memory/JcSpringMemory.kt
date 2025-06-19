@@ -89,6 +89,9 @@ class JcSpringMemory(
             "org.springframework.security.web.session.DisableEncodeUrlFilter#doFilterInternal(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
             "org.springframework.security.web.header.HeaderWriterFilter#doHeadersAfter(jakarta.servlet.http.HttpServletRequest,jakarta.servlet.http.HttpServletResponse,jakarta.servlet.FilterChain):void",
 
+            "org.springframework.security.web.FilterChainProxy#lambda\$doFilterInternal\$3(org.springframework.security.web.firewall.FirewalledRequest,jakarta.servlet.FilterChain,jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse):void",
+            "org.springframework.web.filter.DelegatingFilterProxy#invokeDelegate(jakarta.servlet.Filter,jakarta.servlet.ServletRequest,jakarta.servlet.ServletResponse,jakarta.servlet.FilterChain):void",
+
             "org.springframework.mock.web.MockHttpServletRequest#getParameterMap():java.util.Map",
             "org.springframework.mock.web.MockHttpServletRequest#_getHeaderMap():java.util.Map",
             "org.springframework.mock.web.MockHttpServletRequest#_getMatrixMap():java.util.Map",
