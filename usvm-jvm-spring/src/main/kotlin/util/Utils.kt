@@ -76,3 +76,7 @@ internal val JcMethod.isServletRequestMethod: Boolean
 internal val JcMethod.isDeserializationMethod: Boolean
     get() = name == "readWithMessageConverters"
             && enclosingClass.isArgumentResolver
+
+internal val JcMethod.isSecurityExpressionRootMethod: Boolean
+    get() = enclosingClass.classpath.findClassOrNull("org.springframework.security.access.expression.SecurityExpressionRoot")
+        ?.let{ enclosingClass.isSubClassOf(it) } ?: false

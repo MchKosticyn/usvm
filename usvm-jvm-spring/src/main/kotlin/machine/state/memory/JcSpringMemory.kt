@@ -7,6 +7,7 @@ import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UTypeConstraints
 import org.usvm.machine.JcContext
+import util.*
 import util.isArgumentResolverMethod
 import util.isDeserializationMethod
 import util.isHttpRequestMethod
@@ -32,7 +33,8 @@ class JcSpringMemory(
                 method.isArgumentResolverMethod ||
                 method.isHttpRequestMethod ||
                 method.isServletRequestMethod ||
-                method.isDeserializationMethod
+                method.isDeserializationMethod ||
+                method.isSecurityExpressionRootMethod
     }
 
     override fun shouldConcretizeMethod(method: JcMethod): Boolean {
