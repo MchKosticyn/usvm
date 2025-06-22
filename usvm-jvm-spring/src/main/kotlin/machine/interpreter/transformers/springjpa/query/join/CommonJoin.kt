@@ -33,6 +33,7 @@ import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.genericTypesFromSignature
+import org.usvm.jvm.util.toJcClass
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 
 abstract class CommonJoin(

@@ -21,6 +21,7 @@ import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcNewArrayExpr
 import org.jacodb.api.jvm.cfg.JcNewExpr
+import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcSpecialCallExpr
 import org.jacodb.api.jvm.cfg.JcThis
@@ -48,11 +49,12 @@ abstract class JcDataclassFunctionTransformer(
     val dataclassTransformer: JcDataclassTransformer,
     val cp: JcClasspath
 ) : JcBodyFillerFeature() {
-    val itableType = cp.findType(ITABLE)
+    val itableType = cp.findType(ITABLE) as JcClassType
     val setType = cp.findType(SET_WRAPPER) as JcClassType
     val listType = cp.findType(LIST_WRAPPER) as JcClassType
     val mapType = cp.findType(MAP_TABLE) as JcClassType
     val filterType = cp.findType(FILTER_TABLE) as JcClassType
+    val managerType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
     val cTyp = cp.findType(JAVA_CLASS) as JcClassType
 }
 
@@ -87,8 +89,7 @@ open class JcInitTransformer(
             addInstruction { loc -> JcAssignInst(loc, argVar, arg) }
             when (rel) {
                 is Relation.OneToOne, is Relation.ManyToOne ->
-                    generateSingleObj(thisVal, argVar, rel as Relation.RelationByColumn)
-
+                    generateSingleObj(thisVal, argVar, rel)
                 is Relation.OneToManyByColumn -> generateMultyObj(thisVal, argVar, rel)
                 is Relation.RelationByTable -> generateTableObj(thisVal, argVar, rel)
             }
@@ -284,27 +285,56 @@ class JcFetchedInitTransformer(
         classTable.orderedRelations().forEachIndexed { ix, rel ->
             val relClass = rel.relatedDataclass(cp)
             val relTblName = getTableName(relClass)
+            val relTable = dataclassTransformer.collector.getTable(relClass)!!
+
+            val thisId = JcArrayAccess(rowArg, JcInt(classTable.idColIndex(), cp.int), cp.objectType)
+            val relIdIx = JcInt(relTable.idColIndex(), cp.int)
 
             val tblField = generateGlobalTableAccess(cp, "fetch_tbl_$ix", relTblName, relClass)
 
-            val fetchInit = rel.relatedDataclass(cp).declaredMethods.single {
-                it.name == STATIC_INIT_NAME
+            val fieldValue = when (rel) {
+                is Relation.OneToOne, is Relation.ManyToOne -> {
+                    val check = dataclassTransformer.relationChecks.get(clazz, rel.origField)
+                    val checkVar = generateVirtualCall(
+                        "one_to_one_check_$ix",
+                        getterName(check),
+                        classType,
+                        thisVal,
+                        emptyList()
+                    )
+
+                    val args = listOf(checkVar, relIdIx)
+                    val tbl = generateVirtualCall("one_to_one_$ix", "getRowsWithValueAt", managerType, tblField, args)
+                    generateVirtualCall("one_to_one_first_$ix", "first", itableType, tbl, emptyList())
+                }
+                is Relation.OneToManyByColumn -> {
+                    val checkIx = JcInt(relTable.indexOfField(rel.origField), cp.int)
+                    val args = listOf(thisId, checkIx)
+                    val objs = generateVirtualCall("one_to_many_$ix", "getRowsWithValueAt", managerType, tblField, args)
+
+                    generateWrapper(rel, objs)
+                }
+                is Relation.RelationByTable -> {
+                    val btwTable = generateGlobalTableAccess(cp, "many_to_many_table_$ix", rel.joinTable.name, null)
+
+                    val shouldShuffle =
+                        JcInt((if (rel.joinTable.joinCol.origField.enclosingClass.name == clazz.name) 0 else 1), cp.int)
+
+                    val args = listOf(thisId, shouldShuffle, btwTable)
+                    val objs = generateVirtualCall(
+                        "many_to_many_$ix",
+                        "getRowsRelatedByTable",
+                        managerType,
+                        tblField,
+                        args
+                    )
+
+                    generateWrapper(rel, objs)
+                }
             }
 
-            val typeVar = nextLocalVar("fetch_type_$ix", cTyp)
-            val type = JcClassConstant(rel.relatedDataclassType(cp), cTyp)
-            addInstruction { loc -> JcAssignInst(loc, typeVar, type) }
-
-            val const = generateLambda(cp, "init_mapper_$ix", fetchInit)
-            val mapped = generateNewWithInit("mapped_fecth_$ix", mapType, listOf(tblField, const, typeVar))
-
-            when (rel) {
-                is Relation.OneToOne, is Relation.ManyToOne ->
-                    generateSingleObj(thisVal, mapped, rel as Relation.RelationByColumn)
-
-                is Relation.OneToManyByColumn -> generateMultyObj(thisVal, mapped, rel)
-                is Relation.RelationByTable -> generateTableObj(thisVal, mapped, rel)
-            }
+            val fieldRef = JcFieldRef(thisVal, rel.origField.typedField)
+            addInstruction { loc -> JcAssignInst(loc, fieldRef, fieldValue) }
         }
 
         addInstruction { loc -> JcReturnInst(loc, null) }
