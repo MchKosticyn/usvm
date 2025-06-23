@@ -112,6 +112,10 @@ class JcSpringMethodApproximationResolver (
             if (approximateServletRequestDataBinder(methodCall)) return true
         }
 
+        if (className == "org.springframework.security.core.context.SecurityContextImpl") {
+            if (approximateSecurityContextImpl(methodCall)) return true
+        }
+
         if (className == "generated.org.springframework.boot.databases.basetables.TableTracker") {
             if (approximateTableTracker(methodCall)) return true
         }

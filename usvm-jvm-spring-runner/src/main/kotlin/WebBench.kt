@@ -435,7 +435,7 @@ private fun analyzeBench(benchmark: BenchCp) {
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
     // using file instead of console
-    val fileStream = PrintStream("springLog.ansi")
+    val fileStream = PrintStream(System.getenv("usvm.log") ?: "springLog.ansi")
     System.setOut(fileStream)
     val options = UMachineOptions(
         useSoftConstraints = false,

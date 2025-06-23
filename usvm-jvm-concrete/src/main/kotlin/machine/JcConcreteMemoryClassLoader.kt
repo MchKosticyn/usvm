@@ -254,7 +254,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
                 loadLambdaClass(name)
             else defineClassRecursively(jcClass)
 
-        if (initialize)
+        if (initialize && !loadedClass.name.isLambdaTypeName)
             Class.forName(loadedClass.name, true, this)
 
         return loadedClass
