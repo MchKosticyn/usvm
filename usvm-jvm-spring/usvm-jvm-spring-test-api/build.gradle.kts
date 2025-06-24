@@ -7,7 +7,7 @@ dependencies {
     implementation(Libs.jacodb_core)
     implementation(project(":usvm-jvm:usvm-jvm-util"))
     implementation(project(":usvm-jvm:usvm-jvm-test-api"))
-    implementation(project(":usvm-jvm:usvm-jvm-api"))
+    api(project(":usvm-jvm:usvm-jvm-api"))
 }
 
 publishing {
