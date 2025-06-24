@@ -29,7 +29,8 @@ val JcClassType.isUsvmInternalClass: Boolean
 
 suspend fun JcDatabase.classpathWithApproximations(
     dirOrJars: List<File>,
-    features: List<JcClasspathFeature> = emptyList()
+    features: List<JcClasspathFeature> = emptyList(),
+    otherApproximations: List<File> = emptyList()
 ): JcClasspath {
     val usvmApiJarPath = System.getenv(USVM_API_JAR_PATH)
     val usvmApproximationsJarPath = System.getenv(USVM_APPROXIMATIONS_JAR_PATH)
@@ -41,7 +42,7 @@ suspend fun JcDatabase.classpathWithApproximations(
     logger.info { "Load USVM API: $usvmApiJarPath" }
     logger.info { "Load USVM Approximations: $usvmApproximationsJarPath" }
 
-    val approximationsPath = setOf(File(usvmApiJarPath), File(usvmApproximationsJarPath))
+    val approximationsPath = setOf(File(usvmApiJarPath), File(usvmApproximationsJarPath)) + otherApproximations
 
     val cpWithApproximations = dirOrJars + approximationsPath
     val featuresWithApproximations = features + listOf(Approximations)

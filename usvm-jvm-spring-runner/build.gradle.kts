@@ -45,6 +45,19 @@ dependencies {
     approximations(approximationsRepo, "approximations", approximationsVersion)
 }
 
+val usvmSpringApiJarConfiguration by configurations.creating
+dependencies {
+    usvmSpringApiJarConfiguration(project(":usvm-jvm-spring:usvm-jvm-spring-api"))
+}
+
+val springApproximations by configurations.creating
+val springApproximationsRepo = "org.usvm.approximations.spring-3-x-x"
+val springApproximationsVersion = "0.0.0"
+
+dependencies {
+    springApproximations(springApproximationsRepo, "approximations-3-x-x", springApproximationsVersion)
+}
+
 val agentJarConfiguration by configurations.creating
 dependencies {
     agentJarConfiguration(project(":usvm-jvm-concrete:agent"))
@@ -104,6 +117,12 @@ tasks.register<JavaExec>("runWebBench") {
 
     val usvmConcreteApiJarPath = usvmConcreteApiJarConfiguration.resolvedConfiguration.files.single()
     environment("usvm.jvm.concrete.api.jar.path", usvmConcreteApiJarPath)
+
+    val usvmSpringApiJarPath = usvmSpringApiJarConfiguration.resolvedConfiguration.files.single()
+    environment("usvm.jvm.spring.api.jar.path", usvmSpringApiJarPath.absolutePath)
+
+    val usvmSpringApproximationJarPath = springApproximations.resolvedConfiguration.files.single()
+    environment("usvm.jvm.spring.approximations.jar.path", usvmSpringApproximationJarPath.absolutePath)
 
     environment(
         "usvm-jvm-instrumentation-jar",

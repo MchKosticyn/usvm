@@ -20,9 +20,7 @@ import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
-import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
-import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.jvmName
@@ -62,8 +60,8 @@ import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.test.api.UTest
 import org.usvm.test.api.spring.JcSpringTestKind
 import org.usvm.test.api.spring.SpringBootTest
-import org.usvm.util.classpathWithApproximations
 import testGeneration.SpringTestInfo
+import util.classpathWithSpringApproximations
 import util.database.JcTableInfoCollector
 import java.io.File
 import java.io.PrintStream
@@ -150,7 +148,8 @@ private fun loadBench(
     testKind: JcSpringTestKind? = null
 ) = runBlocking {
     val features = mutableListOf(
-        UnknownClasses,
+        // TODO: add after testing
+//        UnknownClasses,
         JcStringConcatTransformer,
         JcClinitFeature,
         JcInitFeature,
@@ -168,7 +167,7 @@ private fun loadBench(
         features.addAll(dbFeatures)
     }
 
-    val cp = db.classpathWithApproximations(cpFiles, features)
+    val cp = db.classpathWithSpringApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
     val depsLocations = cp.locations.filter { it.jarOrFolder in dependencies }
