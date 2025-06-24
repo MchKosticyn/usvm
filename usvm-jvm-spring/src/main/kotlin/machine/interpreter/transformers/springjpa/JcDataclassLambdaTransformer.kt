@@ -50,7 +50,7 @@ class JcOneToManyFilterTransformer(
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
 
-        val idVar = generateStaticCall("id", STATIC_GET_ID_NAME, classType, listOf(thisVal))
+        val idVar = generateVirtualCall("id", GET_ID_NAME, classType, thisVal, listOf())
 
         val inst = method.parameters.single().toArgument
         val relField = dataclassTransformer.relationChecks.get(subTable.origClass, rel.origField)

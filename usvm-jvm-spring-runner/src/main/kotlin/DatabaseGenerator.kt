@@ -64,7 +64,7 @@ class DatabaseGenerator(
         val className = "SpringDatabases"
         databasesClass.withAsmNode { classNode ->
 
-            val annot = AnnotationNode(cp.findClass(APPROX_NAME).jvmDescriptor)
+            val annot = AnnotationNode(APPROX_NAME.jvmName())
             annot.values = listOf("value", Type.getType(DATABASES.jvmName()))
 
             classNode.visibleAnnotations = listOf(annot)

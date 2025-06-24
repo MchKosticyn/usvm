@@ -335,7 +335,7 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
         .filter { classLocations.contains(it.declaration.location.jcLocation) }
         .toList() + allByAnnotation(nonAbstractClasses, "org.springframework.stereotype.Repository")
     val entityManagerType = cp.findClassOrNull("jakarta.persistence.EntityManager")
-    val hasJpa = repositories.isNotEmpty() || entityManagerType != null
+    val hasJpa = repositories.isNotEmpty() || entityManagerType != null && entityManagerType !is JcUnknownClass
 
     val testClassTemplateName =
         if (hasJpa) "generated.org.springframework.boot.testClasses.SpringBootJpaTestClass"

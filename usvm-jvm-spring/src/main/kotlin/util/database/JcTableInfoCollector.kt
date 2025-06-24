@@ -31,6 +31,8 @@ class JcTableInfoCollector(
 
     fun getTable(clazz: JcClassOrInterface): TableInfo.TableWithIdInfo? = tablesInfo[getTableName(clazz)]
 
+    fun getTable(type: JcClassType): TableInfo.TableWithIdInfo? = tablesInfo[getTableName(type.jcClass)]
+
     fun getTableByPartName(name: String): List<TableInfo.TableWithIdInfo> {
 
         fun isPartOf(clazz: JcClassOrInterface): Boolean =
@@ -194,9 +196,9 @@ open class TableInfo(
 
     fun insertRelation(rel: Relation) { relations.add(rel) }
 
-    fun indexOfCol(col: ColumnInfo) = columns.sortedBy { it.name }.indexOfFirst { it.name == col.name }
+    fun indexOfCol(col: ColumnInfo) = columnsInOrder().indexOfFirst { it.name == col.name }
 
-    fun indexOfField(field: JcField) = columns.sortedBy { it.name }.indexOfFirst { it.origField == field }
+    fun indexOfField(field: JcField) = columnsInOrder().indexOfFirst { it.origField.name == field.name }
 
     fun orderedRelations() = relations.sortedBy { it.toString() }
 }
