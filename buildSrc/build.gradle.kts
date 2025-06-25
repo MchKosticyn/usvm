@@ -2,7 +2,7 @@ plugins {
     `kotlin-dsl`
 }
 
-val kotlinVersion = "1.9.0"
+val kotlinVersion = "1.9.25"
 val detektVersion = "1.23.5"
 val gjavahVersion = "0.3.1"
 

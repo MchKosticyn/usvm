@@ -150,15 +150,15 @@ class JcSpringTestClassesFeature: JcClasspathExtFeature {
     fun testClassFor(name: String, controller: JcClassOrInterface, testKind: JcSpringTestKind): JcClassOrInterface {
         val testClassCtor = JcVirtualMethodImpl(
             name = CONSTRUCTOR,
-            returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
+            returnType = TypeNameImpl(PredefinedPrimitives.Void),
             parameters = emptyList(),
             description = ""
         )
 
         val testClassIgnoreResultMethod = JcVirtualMethodImpl(
             name = "ignoreResult",
-            returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
-            parameters = listOf(JcVirtualParameter(0, TypeNameImpl.fromTypeName("java.lang.Object"))),
+            returnType = TypeNameImpl(PredefinedPrimitives.Void),
+            parameters = listOf(JcVirtualParameter(0, TypeNameImpl("java.lang.Object"))),
             description = "",
             access = Opcodes.ACC_PUBLIC.or(Opcodes.ACC_STATIC)
         )

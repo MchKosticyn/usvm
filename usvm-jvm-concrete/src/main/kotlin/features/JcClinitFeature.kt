@@ -33,10 +33,10 @@ object JcClinitFeature: JcInstExtFeature {
 
         val mutableList = list.toMutableList()
         val callExpr = JcRawStaticCallExpr(
-            declaringClass = TypeNameImpl.fromTypeName(InitHelper::class.java.typeName),
+            declaringClass = TypeNameImpl(InitHelper::class.java.typeName),
             methodName = InitHelper::afterClinit.javaName,
-            argumentTypes = listOf(TypeNameImpl.fromTypeName("java.lang.String")),
-            returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
+            argumentTypes = listOf(TypeNameImpl("java.lang.String")),
+            returnType = TypeNameImpl(PredefinedPrimitives.Void),
             args = listOf(JcRawString(method.enclosingClass.name))
         )
 

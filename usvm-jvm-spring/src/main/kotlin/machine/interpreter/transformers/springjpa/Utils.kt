@@ -499,7 +499,7 @@ fun BlockGenerationContext.generateGlobalTableAccess(
     addInstruction { loc -> JcAssignInst(loc, casted, cast) }
 
     if (!isNoIdTable) {
-        putSetDeserializerCall(cp, name, casted, clazz)
+        putSetDeserializerCall(cp, name, casted, clazz!!)
         putSetFunctionsGeneratedIdTableCall(cp, name, casted, clazz)
     }
 

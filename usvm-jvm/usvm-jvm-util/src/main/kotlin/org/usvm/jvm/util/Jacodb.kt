@@ -3,7 +3,6 @@ package org.usvm.jvm.util
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.*
-import org.jacodb.impl.bytecode.JcMethodImpl
 import org.jacodb.impl.features.JcFeaturesChain
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcClasspathImpl
@@ -14,15 +13,12 @@ import org.jacodb.impl.bytecode.joinFeatureMethods
 import org.jacodb.impl.bytecode.toJcMethod
 import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.types.JcClassTypeImpl
-import org.jacodb.impl.types.MethodInfo
-import org.jacodb.impl.types.ParameterInfo
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.tree.MethodNode
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
-import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaMethod
 
@@ -39,7 +35,7 @@ fun JcClasspath.findFieldByFullNameOrNull(fieldFullName: String): JcField? {
 operator fun JcClasspath.get(klass: Class<*>) = this.findClassOrNull(klass.typeName)
 
 val JcClassOrInterface.typename
-    get() = TypeNameImpl.fromTypeName(this.name)
+    get() = TypeNameImpl(this.name)
 
 fun JcType.toStringType(): String =
     when (this) {
@@ -49,7 +45,7 @@ fun JcType.toStringType(): String =
         else -> typeName
     }
 
-fun JcType.getTypename() = TypeNameImpl.fromTypeName(this.typeName)
+fun JcType.getTypename() = TypeNameImpl(this.typeName)
 
 val JcInst.enclosingClass
     get() = this.location.method.enclosingClass
@@ -188,7 +184,7 @@ fun JcMethod.isSame(other: JcMethod) =
 val JcMethod.isVoid: Boolean get() = returnType.typeName == "void"
 
 val String.typeName: TypeName
-    get() = TypeNameImpl.fromTypeName(this)
+    get() = TypeNameImpl(this)
 
 val JcClassOrInterface.jvmDescriptor : String get() = "L${name.replace('.','/')};"
 

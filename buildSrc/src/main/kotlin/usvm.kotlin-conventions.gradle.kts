@@ -35,6 +35,7 @@ tasks {
     withType<KotlinCompile> {
         kotlinOptions {
             jvmTarget = JavaVersion.VERSION_11.toString()
+            freeCompilerArgs += "-Xallow-result-return-type"
             freeCompilerArgs += "-Xsam-conversions=class"
             allWarningsAsErrors = true
         }

@@ -34,12 +34,12 @@ object JcInitFeature: JcInstExtFeature {
             return list
 
         val mutableList = list.toMutableList()
-        val typeName = TypeNameImpl.fromTypeName(method.enclosingClass.name)
+        val typeName = TypeNameImpl(method.enclosingClass.name)
         val callExpr = JcRawStaticCallExpr(
-            declaringClass = TypeNameImpl.fromTypeName(InitHelper::class.java.typeName),
+            declaringClass = TypeNameImpl(InitHelper::class.java.typeName),
             methodName = InitHelper::afterInit.javaName,
-            argumentTypes = listOf(TypeNameImpl.fromTypeName("java.lang.Object")),
-            returnType = TypeNameImpl.fromTypeName(PredefinedPrimitives.Void),
+            argumentTypes = listOf(TypeNameImpl("java.lang.Object")),
+            returnType = TypeNameImpl(PredefinedPrimitives.Void),
             args = listOf(JcRawThis(typeName))
         )
 

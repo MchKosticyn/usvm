@@ -257,7 +257,7 @@ abstract class JcCodeRenderer<T: Node>(
     protected val JcField.isSpy: Boolean
         get() = this is JcVirtualField &&
                 name == "\$isSpyGenerated239" &&
-                type == TypeNameImpl.fromTypeName("java.lang.Object")
+                type == TypeNameImpl("java.lang.Object")
 
     fun mockitoMockMethodCall(classToMock: JcClassType): MethodCallExpr {
         return MethodCallExpr(

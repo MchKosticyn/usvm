@@ -544,7 +544,7 @@ open class JcTestBlockRenderer protected constructor(
 
                 val signature = sigAndInvokeIdx.first()
 
-                val method = allMockMethods.entries.single { (method, _) -> method.jcdbSignature == signature }
+                val methodMockValues = allMockMethods.entries.single { (method, _) -> method.jcdbSignature == signature }
                 val invocationIndex = sigAndInvokeIdx.last().toInt()
 
                 check(insts.first() is UTestInstList) {
@@ -552,7 +552,7 @@ open class JcTestBlockRenderer protected constructor(
                 }
 
                 val instList = insts.first() as UTestInstList
-                val retVal = method.value.getOrNull(invocationIndex)
+                val retVal = methodMockValues.value.getOrNull(invocationIndex)
 
                 val args = sigToArgs[signature]?.filter { descriptor ->
                     descriptor.invocation == invocationIndex
@@ -560,7 +560,7 @@ open class JcTestBlockRenderer protected constructor(
                     descriptor.expr to descriptor.position
                 } ?: emptyMap()
 
-                return DoAnswerInvocationDescriptor(method.key, invocationIndex, args, instList, retVal)
+                return DoAnswerInvocationDescriptor(methodMockValues.key, invocationIndex, args, instList, retVal)
             }
         }
     }

@@ -6,14 +6,14 @@ object Versions {
     const val clikt = "5.0.0"
     const val detekt = "1.23.7"
     const val ini4j = "0.5.4"
-    const val jacodb = "4ff7243d3a"
+    const val jacodb = "140a6f0ce9"
     const val juliet = "1.3.2"
     const val junit = "5.9.3"
-    const val kotlin = "1.9.0"
-    const val kotlin_logging = "3.0.5"
-    const val kotlinx_collections = "0.3.8"
-    const val kotlinx_coroutines = "1.10.0"
-    const val kotlinx_serialization = "1.7.3"
+    const val kotlin = "1.9.25"
+    const val kotlin_logging = "1.8.3"
+    const val kotlinx_collections = "0.3.5"
+    const val kotlinx_coroutines = "1.6.4"
+    const val kotlinx_serialization = "1.4.1"
     const val ksmt = "0.5.26"
     const val logback = "1.4.8"
     const val mockk = "1.13.4"
@@ -116,7 +116,7 @@ object Libs {
     )
 
     // https://github.com/UnitTestBot/jacodb
-    private const val jacodbPackage = "com.github.UnitTestBot.jacodb" // use "org.jacodb" with includeBuild
+    private const val jacodbPackage = "com.github.MchKosticyn.jacodb" // use "org.jacodb" with includeBuild
     val jacodb_core = dep(
         group = jacodbPackage,
         name = "jacodb-core",

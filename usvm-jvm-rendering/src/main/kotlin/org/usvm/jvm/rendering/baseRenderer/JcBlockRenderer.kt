@@ -136,6 +136,7 @@ open class JcBlockRenderer private constructor(
         )
     }
 
+    @Suppress("UNUSED_PARAMETER")
     protected fun addThrownException(typeName: String, cp: JcClasspath) {
         val thrown = renderClass(typeName)
         thrownExceptions.add(thrown)

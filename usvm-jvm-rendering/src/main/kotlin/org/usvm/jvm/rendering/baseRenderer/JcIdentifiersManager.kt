@@ -14,7 +14,7 @@ class JcIdentifiersManager private constructor(
             values.forEach { value ->
                 val index = value.takeLastWhile { it.isDigit() }.toIntOrNull() ?: 0
                 val prefix = value.dropLastWhile { it.isDigit() }
-                compute(prefix) { pref, curMax -> max(curMax ?: 0, index) }
+                compute(prefix) { _, curMax -> max(curMax ?: 0, index) }
             }
         }
     }

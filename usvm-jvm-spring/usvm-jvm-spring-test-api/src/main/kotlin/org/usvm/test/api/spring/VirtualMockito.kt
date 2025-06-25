@@ -35,8 +35,8 @@ internal object VirtualMockito {
     private val mockitoWhen: JcVirtualMethod by lazy {
         JcVirtualMethodImpl(
             name = "when",
-            returnType = TypeNameImpl.fromTypeName("org.mockito.stubbing.OngoingStubbing"),
-            parameters = listOf(JcVirtualParameter(0, TypeNameImpl.fromTypeName("java.lang.Object"))),
+            returnType = TypeNameImpl("org.mockito.stubbing.OngoingStubbing"),
+            parameters = listOf(JcVirtualParameter(0, TypeNameImpl("java.lang.Object"))),
             description = "",
             access = Opcodes.ACC_STATIC.or(Opcodes.ACC_PUBLIC)
         )
@@ -55,8 +55,8 @@ internal object VirtualMockito {
     private val ongoingStubbingThenReturn by lazy {
         JcVirtualMethodImpl(
             name = "thenReturn",
-            returnType = TypeNameImpl.fromTypeName("org.mockito.stubbing.OngoingStubbing"),
-            parameters = listOf(JcVirtualParameter(0, TypeNameImpl.fromTypeName("java.lang.Object"))),
+            returnType = TypeNameImpl("org.mockito.stubbing.OngoingStubbing"),
+            parameters = listOf(JcVirtualParameter(0, TypeNameImpl("java.lang.Object"))),
             description = "",
             access = Opcodes.ACC_PUBLIC
         )
@@ -65,10 +65,10 @@ internal object VirtualMockito {
     private val ongoingStubbingMultipleThenReturn by lazy {
         JcVirtualMethodImpl(
             name = "thenReturn",
-            returnType = TypeNameImpl.fromTypeName("org.mockito.stubbing.OngoingStubbing"),
+            returnType = TypeNameImpl("org.mockito.stubbing.OngoingStubbing"),
             parameters = listOf(
-                JcVirtualParameter(0, TypeNameImpl.fromTypeName("java.lang.Object")),
-                JcVirtualParameter(1, TypeNameImpl.fromTypeName("java.lang.Object[]"))
+                JcVirtualParameter(0, TypeNameImpl("java.lang.Object")),
+                JcVirtualParameter(1, TypeNameImpl("java.lang.Object[]"))
             ),
             description = "",
             access = Opcodes.ACC_PUBLIC
@@ -113,7 +113,7 @@ internal object VirtualMockito {
             matchers.add(
                 JcVirtualMethodImpl(
                     name = "any${suffix.replaceFirstChar(Char::titlecase)}",
-                    returnType = TypeNameImpl.fromTypeName(returnTypeName),
+                    returnType = TypeNameImpl(returnTypeName),
                     parameters = listOf(),
                     description = "",
                     access = Opcodes.ACC_STATIC.or(Opcodes.ACC_PUBLIC)

@@ -374,8 +374,8 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
         val chooseTestClassMethod = startSpringClass.declaredMethods.find { it.name == "chooseTestClass" }!!
         chooseTestClassMethod.withAsmNode { chooseTestClassMethodAsmNode ->
             val classConstant = JcRawClassConstant(
-                TypeNameImpl.fromTypeName(newTestClassName),
-                TypeNameImpl.fromTypeName("java.lang.Class")
+                TypeNameImpl(newTestClassName),
+                TypeNameImpl("java.lang.Class")
             )
             val returnStmt = JcRawReturnInst(chooseTestClassMethod, classConstant)
             val newNode = MethodNodeBuilder(
