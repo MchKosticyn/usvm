@@ -159,6 +159,7 @@ abstract class JcSpringTestBuilder {
         request.getParameters().forEach { builder.addParameter(it) }
         request.getHeaders().forEach { builder.addHeader(it) }
         request.getContent()?.let { builder.addContent(it) }
+        request.getUser()?.let { builder.addUser(it) }
         request.getContentTypeName()?.let { builder.addContentType(it) }
 
         return builder.getDSL() to builder.getInitDSL()
