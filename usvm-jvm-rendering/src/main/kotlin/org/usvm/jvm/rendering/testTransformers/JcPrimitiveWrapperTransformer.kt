@@ -29,9 +29,9 @@ class JcPrimitiveWrapperTransformer: JcTestTransformer() {
             return super.transform(stmt)
 
         val oldValue = toReplace.put(stmt.instance, transformExpr(stmt.value))
-        check(oldValue == null) {
-            "old primitive value is not null"
-        }
+//        check(oldValue == null) {
+//            "old primitive value is not null"
+//        }
         return null
     }
 

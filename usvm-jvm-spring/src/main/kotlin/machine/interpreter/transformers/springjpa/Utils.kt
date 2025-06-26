@@ -227,10 +227,12 @@ fun JcMethod.isGeneratedGetter(fieldName: String): Boolean {
     return contains(annotations, DATACLASS_GETTER) && contains(annotations, fieldName)
 }
 
+private val repositoryNames = setOf("org.springframework.data.repository.Repository", "org.springframework.data.jpa.repository.JpaRepository")
+
 val JcClassOrInterface.isDataClass: Boolean get() = contains(annotations, "Entity")
 val JcClassOrInterface.isJpaRepository: Boolean
     get() =
-        interfaces.any { it.name == "org.springframework.data.repository.Repository" }
+        interfaces.any { repositoryNames.contains(it.name) }
 
 val JcTypedMethod.methodRef: TypedMethodRefImpl
     get() = TypedMethodRefImpl(
