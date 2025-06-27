@@ -16,16 +16,8 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.ext.autoboxIfNeeded
-import org.jacodb.api.jvm.ext.boolean
-import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.api.jvm.ext.findType
-import org.jacodb.api.jvm.ext.isAssignable
-import org.jacodb.api.jvm.ext.isSubClassOf
-import org.jacodb.api.jvm.ext.objectType
-import org.jacodb.api.jvm.ext.toType
+import org.jacodb.api.jvm.ext.*
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.jacodb.api.jvm.ext.void
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -45,7 +37,6 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.JcVirtualMethodCallInst
 import org.usvm.machine.USizeSort
-import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.memory.UMemory
@@ -764,6 +755,17 @@ class JcSpringMethodApproximationResolver (
                 val jcType = ctx.cp.findTypeOrNull(type.typeName)!!
                 val heapRef = memory.tryAllocateConcrete(allControllerPaths, jcType)!!
                 skipMethodInvocationWithValue(methodCall, heapRef)
+            }
+
+            return true
+        }
+
+        if (methodName == "_isSecurityEnabled") {
+            scope.doWithState {
+                val userDetails ="org.springframework.security.core.userdetails.UserDetails"
+                val userClass = ctx.cp.findClassOrNull(userDetails)
+                val enabled = userClass != null
+                skipMethodInvocationWithValue(methodCall, ctx.mkBool(enabled))
             }
 
             return true
