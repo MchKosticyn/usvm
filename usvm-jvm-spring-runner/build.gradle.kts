@@ -51,7 +51,7 @@ dependencies {
 }
 
 val springApproximations by configurations.creating
-val springApproximationsRepo = "org.usvm.approximations.spring-3-x-x"
+val springApproximationsRepo = "org.usvm.approximations.spring"
 val springApproximationsVersion = "0.0.0"
 
 dependencies {
