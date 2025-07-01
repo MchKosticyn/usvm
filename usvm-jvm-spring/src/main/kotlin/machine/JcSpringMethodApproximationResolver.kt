@@ -37,7 +37,6 @@ import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
-import org.usvm.machine.JcVirtualMethodCallInst
 import org.usvm.machine.USizeSort
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
@@ -46,7 +45,6 @@ import org.usvm.jvm.util.findJavaField
 import org.usvm.sizeSort
 import org.usvm.util.classesOfLocations
 import util.isDeserializationMethod
-import util.isGrantedAuthority
 import util.isSpringController
 import util.isSpringRepository
 import utils.toJcType
