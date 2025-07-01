@@ -727,7 +727,7 @@ class JcSpringMethodApproximationResolver (
                     return@doWithState
                 }
 
-                val message = memory.tryHeapRefToObject(messageExpr) as String
+                val message = memory.tryHeapRefToObject(messageExpr) as String?
                 println("\u001B[36m$message\u001B[0m")
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
             }
