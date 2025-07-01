@@ -36,8 +36,7 @@ class StringsTest : ApproximationsTestRunner() {
             Strings::isEqualToAaa,
             ignoreNumberOfAnalysisResults,
             invariants = arrayOf(
-                { i, result -> result.getOrNull() == "String is Aaa" && i == "Aaa" },
-                { i, result -> result.getOrNull() == "String is not Aaa" && i != "Aaa" }
+                { i, result -> result.getOrNull() == (i == "Aaa") },
             )
         )
     }

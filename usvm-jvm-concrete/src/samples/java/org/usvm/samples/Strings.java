@@ -13,11 +13,11 @@ public class Strings {
         return true;
     }
 
-    public static String isEqualToAaa(String input) {
+    public static boolean isEqualToAaa(String input) {
         Engine.assume(input != null);
         if (Engine.forceStringEquals(input, "Aaa")) {
-            return "String is Aaa";
+            return true;
         }
-        return "String is not Aaa";
+        return false;
     }
 }
