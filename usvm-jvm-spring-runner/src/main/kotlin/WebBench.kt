@@ -206,10 +206,6 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
 
         loadByteCode(cpFiles)
 
-        caching {
-            this.classes = JcCacheSegmentSettings(maxSize = 30_000)
-            this.types = JcCacheSegmentSettings(maxSize = 30_000)
-        }
 //        val persistenceLocation = classes.first().parentFile.resolve("jcdb.db")
 //        persistent(persistenceLocation.absolutePath)
     }
@@ -453,7 +449,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 2.minutes,
+        timeout = 3.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
