@@ -705,7 +705,7 @@ class JcSpringMethodApproximationResolver (
             .findClass("org.springframework.security.core.userdetails.UserDetails")
         val userClass = runBlocking { ctx.cp.hierarchyExt() }
             .findSubClasses(userDetailsClass, entireHierarchy = true, includeOwn = false)
-            .firstOrNull()
+            .firstOrNull { !it.name.startsWith("org.springframework.security") }
         val foundUserType = userClass?.toJavaClass(JcConcreteMemoryClassLoader)
         return foundUserType ?: ctx.cp
             .findClass("org.springframework.security.core.userdetails.User")

@@ -57,10 +57,10 @@ internal val JcClassOrInterface.isServletWebRequest: Boolean
         ?.let { this.isSubClassOf(it) } ?: false
 
 internal val JcMethod.isSpringFilterMethod: Boolean
-    get() = enclosingClass.isSpringFilter && (name == "doFilter" || name == "doFilterInternal")
+    get() = enclosingClass.isSpringFilter
 
 internal val JcMethod.isSpringFilterChainMethod: Boolean
-    get() = enclosingClass.isSpringFilterChain && (name == "doFilter" || name == "doFilterInternal")
+    get() = enclosingClass.isSpringFilterChain
 
 private val argumentResolverMethods = setOf("convertIfNecessary", "resolveArgument", "resolveName", "handleNullValue")
 

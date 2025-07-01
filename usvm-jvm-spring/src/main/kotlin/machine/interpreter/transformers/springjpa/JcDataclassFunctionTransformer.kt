@@ -357,7 +357,9 @@ class JcStaticFetchedInitTransformer(
         addInstruction { loc -> JcAssignInst(loc, obj, newCall) }
 
         val initMethod = classType.declaredMethods.single {
-            it.name == JAVA_INIT && it.parameters.size == fetchedInit.parameters.size
+            it.name == JAVA_INIT
+            && it.parameters.size == fetchedInit.parameters.size
+            && it.parameters.zip(fetchedInit.parameters).all { it.first.type.typeName == it.second.type.typeName}
         }.methodRef
         val args = listOf(method.parameters.first().toArgument)
         val initCall = JcSpecialCallExpr(initMethod, obj, args)
