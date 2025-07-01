@@ -1,6 +1,7 @@
 package machine
 
 import io.ksmt.utils.asExpr
+import kotlinx.coroutines.runBlocking
 import machine.state.JcSpringState
 import machine.state.concreteMemory.JcConcreteMemory
 import machine.state.memory.JcSpringMemory
@@ -18,6 +19,7 @@ import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.*
 import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.jacodb.impl.features.hierarchyExt
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -362,7 +364,7 @@ class JcSpringMethodApproximationResolver (
                 val first = arguments[0].asExpr(ctx.addressSort)
                 val second = arguments[1].asExpr(ctx.addressSort)
 
-                val hasRoleString = roleStrings.contains(arguments[0]) || roleStrings.contains(arguments[1])
+                val hasRoleString = roleStrings.contains(first) || roleStrings.contains(second)
                 val hasConcreteString = hasConcreteLength(memory, first) || hasConcreteLength(memory, second)
 
                 if (hasRoleString && hasConcreteString) {
@@ -701,17 +703,13 @@ class JcSpringMethodApproximationResolver (
     private fun getTypeOfUser(): Class<*> {
         val userDetailsClass = ctx.cp
             .findClass("org.springframework.security.core.userdetails.UserDetails")
-        val fallbackUserType = ctx.cp
+        val userClass = runBlocking { ctx.cp.hierarchyExt() }
+            .findSubClasses(userDetailsClass, entireHierarchy = true, includeOwn = false)
+            .firstOrNull()
+        val foundUserType = userClass?.toJavaClass(JcConcreteMemoryClassLoader)
+        return foundUserType ?: ctx.cp
             .findClass("org.springframework.security.core.userdetails.User")
             .toJavaClass(JcConcreteMemoryClassLoader)
-        val nonAbstractClasses = ctx.cp.locations
-            .asSequence()
-            .flatMap { it.classNames ?: emptySet() }
-            .mapNotNull { ctx.cp.findClassOrNull(it) }
-            .filterNot { it is JcUnknownClass || it.isAbstract || it.isInterface || it.isAnonymous }
-        val userClass = nonAbstractClasses.firstOrNull { it.isSubClassOf(userDetailsClass) }
-        val foundUserType = userClass?.toJavaClass(JcConcreteMemoryClassLoader)
-        return foundUserType ?: fallbackUserType
     }
 
     private fun approximateSpringEngineStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {

@@ -55,6 +55,7 @@ import org.usvm.UMachineOptions
 import org.usvm.jvm.rendering.spring.webMvcTestRenderer.JcSpringMvcTestInfo
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.util.isSameSignature
+import org.usvm.jvm.util.nonAbstractClasses
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
 import org.usvm.logger
@@ -531,15 +532,6 @@ private fun reproduceTests(
 
     println("Reproduced ${reproducedTests.size} of ${tests.size} tests")
 }
-
-private fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =
-    locations
-        .asSequence()
-        .flatMap { it.classNames ?: emptySet() }
-        .mapNotNull { findClassOrNull(it) }
-        .filterNot { it is JcUnknownClass }
-        .filterNot { it.isAbstract || it.isInterface || it.isAnonymous }
-        .sortedBy { it.name }
 
 private fun <T> logTime(message: String, body: () -> T): T {
     val result: T
