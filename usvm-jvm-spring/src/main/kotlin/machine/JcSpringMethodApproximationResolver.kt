@@ -45,9 +45,6 @@ import org.usvm.memory.UMemory
 import org.usvm.jvm.util.findJavaField
 import org.usvm.sizeSort
 import org.usvm.util.classesOfLocations
-import org.usvm.jvm.util.toJavaClass
-import org.usvm.machine.JcConcreteMethodCallInst
-import org.usvm.machine.state.newStmt
 import util.isDeserializationMethod
 import util.isGrantedAuthority
 import util.isSpringController
@@ -703,13 +700,20 @@ class JcSpringMethodApproximationResolver (
     private fun getTypeOfUser(): Class<*> {
         val userDetailsClass = ctx.cp
             .findClass("org.springframework.security.core.userdetails.UserDetails")
+
         val userClass = runBlocking { ctx.cp.hierarchyExt() }
             .findSubClasses(userDetailsClass, entireHierarchy = true, includeOwn = false)
             .firstOrNull { !it.name.startsWith("org.springframework.security") }
-        val foundUserType = userClass?.toJavaClass(JcConcreteMemoryClassLoader)
-        return foundUserType ?: ctx.cp
-            .findClass("org.springframework.security.core.userdetails.User")
-            .toJavaClass(JcConcreteMemoryClassLoader)
+            ?.toJavaClass(JcConcreteMemoryClassLoader)
+
+        if (userClass == null) {
+            val fallbackUserClass = ctx.cp
+                .findClass("org.springframework.security.core.userdetails.User")
+                .toJavaClass(JcConcreteMemoryClassLoader)
+            return fallbackUserClass
+        }
+
+        return userClass
     }
 
     private fun approximateSpringEngineStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {

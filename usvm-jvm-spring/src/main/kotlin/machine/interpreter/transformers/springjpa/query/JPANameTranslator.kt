@@ -86,7 +86,7 @@ class JPANameTranslator(
         append(classAlias)
 
         // getSegment returns Book.id or Author.firstName
-        val classProp = prop.segment // .dropWhile { it != '.' }
+        val classProp = prop.segment.dropWhile { it != '.' }
         check(classProp.isNotBlank())
         append(classProp)
 

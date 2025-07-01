@@ -126,15 +126,11 @@ object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
     val JcMethod.isCrud: Boolean get() = crudNames.contains(name)
     val JcMethod.isSaveUpdDel: Boolean get() = listOf("save", "delete").contains(name)
 
-    override fun condition(method: JcMethod): Boolean {
-        if (method.name == "findById") {
-            println()
-        }
-        return !method.repositoryLambda
+    override fun condition(method: JcMethod) =
+        !method.repositoryLambda
                 && method.query == null
                 && method.enclosingClass.isJpaRepository
                 && method.isCrud
-    }
 
     override fun JcSingleInstructionTransformer.BlockGenerationContext.generateBody(method: JcMethod) {
 

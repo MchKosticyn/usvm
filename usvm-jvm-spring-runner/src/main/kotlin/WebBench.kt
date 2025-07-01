@@ -112,9 +112,14 @@ private fun loadJHipsterBench(): BenchCp {
     return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
 }
 
+private fun loadBenchFromEnv(): BenchCp {
+    val benchDir = Path(System.getenv("usvm.benchmark"))
+    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
+}
+
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadWebPetClinicBench()
+        loadBenchFromEnv()
     }
 
     logTime("Analysis ALL") {

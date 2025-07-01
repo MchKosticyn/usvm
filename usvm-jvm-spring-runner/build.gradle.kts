@@ -93,7 +93,6 @@ tasks.register<JavaExec>("runWebBench") {
     createOrClear(generatedDir)
 
     val lambdaDir = generatedDir.resolve("lambdas")
-    print("Lambda dir here " + lambdaDir)
     createOrClear(lambdaDir)
     environment("lambdaDir", lambdaDir.absolutePath)
     val springDir = generatedDir.resolve("spring")
