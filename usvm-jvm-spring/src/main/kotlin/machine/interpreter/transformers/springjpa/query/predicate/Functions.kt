@@ -1,16 +1,13 @@
 package machine.interpreter.transformers.springjpa.query.predicate
 
 import machine.interpreter.transformers.springjpa.compare
-import machine.interpreter.transformers.springjpa.query.CommonInfo
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.expresion.Expression
 import machine.interpreter.transformers.springjpa.query.expresion.LNull
-import machine.interpreter.transformers.springjpa.query.expresion.SingleArgumentExpression
 import machine.interpreter.transformers.springjpa.query.path.Path
 import machine.interpreter.transformers.springjpa.query.path.SimplePath
 import machine.interpreter.transformers.springjpa.toBoolean
 import machine.interpreter.transformers.springjpa.toInt
-import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcBool
 import org.jacodb.api.jvm.cfg.JcConditionExpr
@@ -26,35 +23,35 @@ import org.jacodb.api.jvm.cfg.JcValue
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.int
 
-class IsNull(expr: Expression): SinglePredicate(expr) {
+class IsNull(expr: Expression) : SinglePredicate(expr) {
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         TODO("Not yet implemented")
     }
 }
 
-class IsEmpty(expr: Expression): SinglePredicate(expr) {
+class IsEmpty(expr: Expression) : SinglePredicate(expr) {
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         TODO("Not yet implemented")
     }
 }
 
-class IsTrue(expr: Expression): SinglePredicate(expr) {
+class IsTrue(expr: Expression) : SinglePredicate(expr) {
     override fun genInst(ctx: MethodCtx) = expr.genInst(ctx)
 }
 
-class IsDistinct(expr: Expression, val from: Expression): DoublePredicate(expr, from) {
+class IsDistinct(expr: Expression, val from: Expression) : DoublePredicate(expr, from) {
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         TODO("Not yet implemented")
     }
 }
 
-class Member(expr: Expression, val of: Path): SinglePredicate(expr) {
+class Member(expr: Expression, val of: Path) : SinglePredicate(expr) {
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         TODO("Not yet implemented")
     }
 }
 
-class In(expr: Expression, val list: ListCtx): SinglePredicate(expr) {
+class In(expr: Expression, val list: ListCtx) : SinglePredicate(expr) {
     class ListCtx()
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -62,7 +59,8 @@ class In(expr: Expression, val list: ListCtx): SinglePredicate(expr) {
     }
 }
 
-class Between(val expr: Expression, val left: Expression, val right: Expression): ManyPredicate(listOf(expr, left, right)) {
+class Between(val expr: Expression, val left: Expression, val right: Expression) :
+    ManyPredicate(listOf(expr, left, right)) {
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         TODO("Not yet implemented")
     }
@@ -73,7 +71,7 @@ class Like(
     val pattern: Expression,
     val escape: Expression?,
     val caseSenc: Boolean
-): ManyPredicate(listOfNotNull(expr, pattern, escape)) {
+) : ManyPredicate(listOfNotNull(expr, pattern, escape)) {
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         val expr = expr.genInst(ctx)
         val pattern = pattern.genInst(ctx)
@@ -84,7 +82,7 @@ class Like(
     }
 }
 
-class Compare(left: Expression, right: Expression, val operator: Operator): DoublePredicate(left, right) {
+class Compare(left: Expression, right: Expression, val operator: Operator) : DoublePredicate(left, right) {
     enum class Operator {
         Equal, NotEqual, Greater, GreaterEqual, Less, LessEqual
     }
@@ -133,7 +131,7 @@ class Compare(left: Expression, right: Expression, val operator: Operator): Doub
     }
 }
 
-class ExistCollection(val quantifier: ColQuantifierCtx, val path: SimplePath): NoArgsPredicate() {
+class ExistCollection(val quantifier: ColQuantifierCtx, val path: SimplePath) : NoArgsPredicate() {
     class ColQuantifierCtx()
 
     override fun genInst(ctx: MethodCtx): JcLocalVar {
@@ -141,7 +139,7 @@ class ExistCollection(val quantifier: ColQuantifierCtx, val path: SimplePath): N
     }
 }
 
-class Exist(expr: Expression): SinglePredicate(expr) {
+class Exist(expr: Expression) : SinglePredicate(expr) {
     override fun genInst(ctx: MethodCtx): JcLocalVar {
         TODO("Not yet implemented")
     }

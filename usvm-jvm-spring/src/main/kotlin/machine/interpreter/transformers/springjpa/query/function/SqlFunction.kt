@@ -1,5 +1,6 @@
 package machine.interpreter.transformers.springjpa.query.function
 
+import machine.interpreter.transformers.springjpa.DATA_ROW
 import machine.interpreter.transformers.springjpa.JAVA_OBJ_ARR
 import machine.interpreter.transformers.springjpa.JcBodyFillerFeature
 import machine.interpreter.transformers.springjpa.JcMethodBuilder
@@ -22,29 +23,29 @@ import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.objectweb.asm.Opcodes
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
 
-open class SqlFunction(val func: Function, val args: List<Expression>): Expression() {
+open class SqlFunction(val func: Function, val args: List<Expression>) : Expression() {
 
     override val type: SqlType = func.retType(args)
 
     override fun genInst(ctx: MethodCtx): JcLocalVar = with(ctx) {
-        // Query is ITable<ITable> or ITable<Object[]> and we need to take 'this' table to aggregate
+        // Query is ITable<ITable> or ITable<DataRow> and we need to take 'this' table to aggregate
         val tblToAggr = method.parameters.get(if (isGrouped) 0 else 2).toArgument
         val aggrLambda = genCtx.generateLambda(cp, "aggr_lambda_${getLambdaName()}", getOwnMethod(common))
         val origMethodArgs = method.parameters.get(1).toArgument
         val args = listOf(tblToAggr, aggrLambda, origMethodArgs)
         val mapped = genCtx.generateNewWithInit("aggr_mapper_${getVarName()}", common.mapperType, args)
 
-        val aggr_args = mutableListOf(mapped)
+        val aggrArgs = mutableListOf(mapped)
         if (!func.hasCommonRetType) {
             val typ = type.getType(common).let { genCtx.toJavaClass(cp, "aggr_${getVarName()}", it) }
-            aggr_args.add(typ)
+            aggrArgs.add(typ)
         }
 
         genCtx.generateStaticCall(
             "aggr_call_${getVarName()}",
             func.functionName,
             common.aggregatorsType,
-            aggr_args
+            aggrArgs
         )
     }
 
@@ -58,10 +59,10 @@ open class SqlFunction(val func: Function, val args: List<Expression>): Expressi
         val methodName = info.names.getLambdaName()
         val method = JcMethodBuilder(info.repo)
             .setName(methodName)
-            .setRetType(JAVA_OBJ_ARR)
+            .setRetType(DATA_ROW)
             .setAccess(Opcodes.ACC_STATIC)
             .addBlanckAnnot(REPOSITORY_LAMBDA)
-            .addFreshParam(JAVA_OBJ_ARR)
+            .addFreshParam(DATA_ROW)
             .addFreshParam(JAVA_OBJ_ARR)
             .addFillerFuture(SqlFunctionInnerLambdaFeature(info, this, methodName))
             .buildMethod()
@@ -77,7 +78,7 @@ open class SqlFunction(val func: Function, val args: List<Expression>): Expressi
         // https://docs.jboss.org/hibernate/orm/6.4/querylanguage/html_single/Hibernate_Query_Language.html#aggregation
         COUNT("count", true, { _ -> Primitive.Long() }),
         AVG("avg", true, { _ -> Primitive.Double() }),
-        MIN("min", false, { args -> args.single().type } ),
+        MIN("min", false, { args -> args.single().type }),
         MAX("max", false, { args -> args.single().type }),
         SUM("sum", false, { args -> args.single().type.upcastSumRetType() }),
         VAR_POP("varPop", true, { _ -> Primitive.Double() }),

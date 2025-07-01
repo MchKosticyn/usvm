@@ -19,7 +19,6 @@ import org.jacodb.api.jvm.cfg.JcClassConstant
 import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
-import org.jacodb.api.jvm.ext.JAVA_OBJECT
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.objectType
@@ -48,7 +47,10 @@ object JcRepositoryTransformer : JcClassExtFeature {
         machineOptions = options
     }
 
-    private fun addCtx(method: JcMethod, ctx: Select) { visitedCtx[visitedName(method)] = ctx }
+    private fun addCtx(method: JcMethod, ctx: Select) {
+        visitedCtx[visitedName(method)] = ctx
+    }
+
     fun getCtx(method: JcMethod) = visitedCtx[visitedName(method)]
 
     // TODO: may failed

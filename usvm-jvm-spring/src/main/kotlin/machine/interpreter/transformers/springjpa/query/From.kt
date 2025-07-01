@@ -6,7 +6,7 @@ import machine.interpreter.transformers.springjpa.generateNewWithInit
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.cfg.JcLocalVar
 
-class From(val tables: List<TableWithJoins>): ManyLambdable(tables) {
+class From(val tables: List<TableWithJoins>) : ManyLambdable(tables) {
 
     fun collectRowPositions(info: CommonInfo): Map<String, Map<String, Pair<JcField, Int>>> =
         tables.map { it.collectNames(info) }

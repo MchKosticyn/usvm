@@ -92,9 +92,10 @@ public class Engine {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T[] makeSymbolicArray(Class<T> clazz, int size) {
-        assert clazz.isArray();
+    public static <T> T[] makeSymbolicArray(Class<T> clazz, int size) { return (T[]) Array.newInstance(clazz, size); }
 
+    @SuppressWarnings("unchecked")
+    public static <T> T[] makeConcreteArrayWithSymbolicSize(Class<T> clazz, int size) {
         return (T[]) Array.newInstance(clazz, size);
     }
 

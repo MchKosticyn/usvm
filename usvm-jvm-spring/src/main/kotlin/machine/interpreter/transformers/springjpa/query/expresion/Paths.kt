@@ -6,7 +6,7 @@ import machine.interpreter.transformers.springjpa.query.type.Path
 import machine.interpreter.transformers.springjpa.query.type.SqlType
 import org.jacodb.api.jvm.cfg.JcLocalVar
 
-class SyntacticPath(): NoLambdaExpression() {
+class SyntacticPath() : NoLambdaExpression() {
 
     override val type: SqlType
         get() = TODO("Not yet implemented")
@@ -16,7 +16,7 @@ class SyntacticPath(): NoLambdaExpression() {
     }
 }
 
-class ExprPath(val path: GeneralPath): NoLambdaExpression() {
+class ExprPath(val path: GeneralPath) : NoLambdaExpression() {
 
     val simplePath = path.fullPath() // TODO: indexing
 

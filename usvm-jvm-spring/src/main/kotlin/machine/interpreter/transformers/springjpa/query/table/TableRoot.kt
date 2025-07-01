@@ -1,10 +1,11 @@
 package machine.interpreter.transformers.springjpa.query.table
 
-import machine.interpreter.transformers.springjpa.generateGlobalTableAccess
+import machine.interpreter.transformers.springjpa.generateGlobalTableAccessWithDataRow
 import machine.interpreter.transformers.springjpa.query.CommonInfo
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.cfg.JcLocalVar
+import org.jacodb.api.jvm.ext.findClass
 import util.database.TableInfo
 
 // ... FROM SomeTable AS st
@@ -33,9 +34,10 @@ class TableRoot(
         return mapOf(entityName.name to getTbl(info).columnsInOrder().map { it.origField })
     }
 
-    override fun genInst(ctx: MethodCtx): JcLocalVar {
-        val classTable = getTbl(ctx.common)
-        val varName = "${ctx.getVarName()}_${classTable.name}"
-        return ctx.genCtx.generateGlobalTableAccess(ctx.cp, varName, classTable.name, classTable.origClass)
+    override fun genInst(ctx: MethodCtx): JcLocalVar = with(ctx) {
+        val classTable = getTbl(common)
+        val varName = "${getVarName()}_${classTable.name}"
+        val origClass = cp.findClass(classTable.origClassName)
+        return genCtx.generateGlobalTableAccessWithDataRow(cp, varName, classTable.name, origClass, alias!!)
     }
 }

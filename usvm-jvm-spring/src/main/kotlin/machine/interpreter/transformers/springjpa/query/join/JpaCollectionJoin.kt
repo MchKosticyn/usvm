@@ -7,7 +7,7 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 
 // deprecated syntax (never documented)
-class JpaCollectionJoin: Join() {
+class JpaCollectionJoin : Join() {
     override fun positions(info: CommonInfo): List<String> {
         TODO("Not yet implemented")
     }

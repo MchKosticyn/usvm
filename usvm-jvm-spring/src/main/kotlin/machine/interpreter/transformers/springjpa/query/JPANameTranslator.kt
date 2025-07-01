@@ -98,7 +98,7 @@ class JPANameTranslator(
     }
 
     fun buildOp(type: Part.Type) =
-        when(type) {
+        when (type) {
             Part.Type.BETWEEN -> "BETWEEN"
             Part.Type.IS_NOT_NULL -> "IS NOT NULL"
             Part.Type.IS_NULL -> "IS NULL"
@@ -147,13 +147,25 @@ class JPANameTranslator(
                 appendWithSpaces("AND")
                 appendWithSpaces("?${freshArgumentNum()}")
             }
+
             1 -> {
                 append(" ")
-                if (listOf(Part.Type.ENDING_WITH, Part.Type.CONTAINING, Part.Type.NOT_CONTAINING).contains(type)) append("%")
+                if (listOf(
+                        Part.Type.ENDING_WITH,
+                        Part.Type.CONTAINING,
+                        Part.Type.NOT_CONTAINING
+                    ).contains(type)
+                ) append("%")
                 append("?${freshArgumentNum()}")
-                if (listOf(Part.Type.STARTING_WITH, Part.Type.CONTAINING, Part.Type.NOT_CONTAINING).contains(type)) append("%")
+                if (listOf(
+                        Part.Type.STARTING_WITH,
+                        Part.Type.CONTAINING,
+                        Part.Type.NOT_CONTAINING
+                    ).contains(type)
+                ) append("%")
                 append(" ")
             }
+
             0 -> ""
         }
     }

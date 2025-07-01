@@ -25,6 +25,10 @@ fun getterName(field: JcField): String {
     return "\$get_${field.name}"
 }
 
+fun setterName(field: JcField): String {
+    return "\$set_${field.name}"
+}
+
 fun toAnnotation(cp: JcClasspath, info: AnnotationInfo): JcAnnotation {
     return JcAnnotationImpl(info, cp)
 }

@@ -11,6 +11,7 @@ import machine.interpreter.transformers.springjpa.JAVA_SHORT
 import machine.interpreter.transformers.springjpa.JAVA_STRING
 import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.TypeName
+import org.jacodb.api.jvm.cfg.JcRawArrayAccess
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawBool
 import org.jacodb.api.jvm.cfg.JcRawByte
@@ -22,6 +23,7 @@ import org.jacodb.api.jvm.cfg.JcRawFloat
 import org.jacodb.api.jvm.cfg.JcRawInt
 import org.jacodb.api.jvm.cfg.JcRawLocalVar
 import org.jacodb.api.jvm.cfg.JcRawLong
+import org.jacodb.api.jvm.cfg.JcRawNewArrayExpr
 import org.jacodb.api.jvm.cfg.JcRawNullConstant
 import org.jacodb.api.jvm.cfg.JcRawShort
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
@@ -33,6 +35,20 @@ fun JcMethodNewBodyContext.putValueToVar(value: JcRawExpr, typ: TypeName): JcRaw
     val variable = newVar(typ)
     addInstruction { owner -> JcRawAssignInst(owner, variable, value) }
     return variable
+}
+
+fun JcMethodNewBodyContext.generateIntArray(values: List<Int>): JcRawLocalVar {
+    fun rawInt(value: Int) = JcRawInt(value, "int".typeName)
+    val array = putValueToVar(
+        JcRawNewArrayExpr("int".typeName, rawInt(values.size)),
+        "int[]".typeName
+    )
+    values.forEachIndexed { ix, value ->
+        val arrayAccess = JcRawArrayAccess(array, rawInt(ix), "int".typeName)
+        val rawValue = rawInt(value)
+        addInstruction { owner -> JcRawAssignInst(owner, arrayAccess, rawValue) }
+    }
+    return array
 }
 
 private fun <T> JcMethodNewBodyContext.buildConstantWithUpcast(
@@ -47,7 +63,7 @@ private fun <T> JcMethodNewBodyContext.buildConstantWithUpcast(
     typ: TypeName,
     upType: TypeName,
     build: (T, TypeName) -> JcRawConstant
-) : JcRawLocalVar {
+): JcRawLocalVar {
     val const = putValueToVar(build(value, typ), typ)
 
     val upcastCall = JcRawStaticCallExpr(
@@ -72,7 +88,7 @@ fun JcMethodNewBodyContext.resolveRawObject(value: Any?): JcRawLocalVar {
         is Double -> buildConstantWithUpcast(value, PredefinedPrimitives.Double, JAVA_DOUBLE, ::JcRawDouble)
         is Float -> buildConstantWithUpcast(value, PredefinedPrimitives.Float, JAVA_FLOAT, ::JcRawFloat)
         is Int -> buildConstantWithUpcast(value, PredefinedPrimitives.Int, JAVA_INTEGER, ::JcRawInt)
-        is Long -> buildConstantWithUpcast(value, PredefinedPrimitives.Long, JAVA_LONG,  ::JcRawLong)
+        is Long -> buildConstantWithUpcast(value, PredefinedPrimitives.Long, JAVA_LONG, ::JcRawLong)
         is Short -> buildConstantWithUpcast(value, PredefinedPrimitives.Short, JAVA_SHORT, ::JcRawShort)
         is String -> putValueToVar(JcRawString(value), JAVA_STRING.typeName)
         else -> error("resolveRawObject: unexpected type")

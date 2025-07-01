@@ -4,8 +4,10 @@ import machine.interpreter.transformers.springjpa.APPROX_NAME
 import machine.interpreter.transformers.springjpa.DATABASES
 import machine.interpreter.transformers.springjpa.JAVA_BOOL
 import machine.interpreter.transformers.springjpa.JAVA_CLASS
+import machine.interpreter.transformers.springjpa.JAVA_CLINIT
 import machine.interpreter.transformers.springjpa.JAVA_INIT
 import machine.interpreter.transformers.springjpa.JAVA_STRING
+import machine.interpreter.transformers.springjpa.JAVA_VOID
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.cfg.JcRawArrayAccess
@@ -39,6 +41,7 @@ import org.usvm.jvm.util.write
 import util.database.JcMethodNewBodyContext
 import util.database.JcTableInfoCollector
 import util.database.TableInfo
+import util.database.generateIntArray
 import util.database.putValueToVar
 import java.io.File
 
@@ -48,11 +51,11 @@ class DatabaseGenerator(
     private val repositories: List<JcClassOrInterface>
 ) {
     private val databasesClass = cp.findClass(DATABASES)
-    private val clinitMethod = databasesClass.declaredMethods.single { it.name == "<clinit>" }
+    private val clinitMethod = databasesClass.declaredMethods.single { it.name == JAVA_CLINIT }
     private val tableInfoCollector = JcTableInfoCollector(cp)
     private val newBodyContext = JcMethodNewBodyContext(clinitMethod)
 
-    fun generateJPADatabase(needTrack: Boolean): JcTableInfoCollector {
+    fun generateJPADatabase(): JcTableInfoCollector {
 
         repositories.filter { it.signature != null }.forEach { repo ->
             val genericTypes = repo.signature!!.genericTypesFromSignature
@@ -73,7 +76,7 @@ class DatabaseGenerator(
 
             tableInfoCollector.allTables().forEach { table ->
                 table.addNewField(cp, classNode)
-                newBodyContext.generateFieldInitialize(cp, table, classNode, needTrack)
+                newBodyContext.generateFieldInitialize(table, classNode)
             }
             newBodyContext.addInstruction { owner -> JcRawReturnInst(owner, null) }
 
@@ -108,83 +111,23 @@ private fun TableInfo.addNewField(
 }
 
 private fun JcMethodNewBodyContext.generateFieldInitialize(
-    cp: JcClasspath,
     table: TableInfo,
-    classNode: ClassNode,
-    needTrack: Boolean
+    classNode: ClassNode
 ) {
-    val idColumn = if (table is TableInfo.TableWithIdInfo) table.idColumn else null
-    idColumn?.let { table.columns.toMutableList().add(it) }
-    val allColumns = table.columns.sortedBy { it.name }
-
     val tblType = table.approximateManagerClassName.typeName
-
     val newTblVar = putValueToVar(JcRawNewExpr(tblType), tblType)
 
-    val typeArrVar = putValueToVar(
-        JcRawNewArrayExpr(JAVA_CLASS.typeName, listOf(JcRawInt(allColumns.count()))),
-        "java.lang.Class[]".typeName
-    )
-
-    allColumns.forEachIndexed { index, col ->
-        val typeVar = putValueToVar(JcRawClassConstant(col.type, JAVA_CLASS.typeName), JAVA_CLASS.typeName)
-        val arrAcc = JcRawArrayAccess(typeArrVar, JcRawInt(index), JAVA_CLASS.typeName)
-        addInstruction { owner -> JcRawAssignInst(owner, arrAcc, typeVar) }
-    }
-
-    val initMethod = cp.findClass(table.approximateManagerClassName)
-        .declaredMethods.single { it.name == JAVA_INIT && it.parameters.isNotEmpty() }
-    val args = idColumn?.let {
-        val idColIndex = JcRawInt((table as TableInfo.TableWithIdInfo).idColIndex())
-        val entityType = putValueToVar(JcRawClassConstant(table.origClass.typename, JAVA_CLASS.typeName), JAVA_CLASS.typeName)
-        val validators = generateValidators(table)
-        val tableName = putValueToVar(JcRawString(table.name), JAVA_STRING.typeName)
-        val isAutoGenerateId = putValueToVar(JcRawBool(table.isAutoGenerateId), "boolean".typeName)
-        val needTrackValue = putValueToVar(JcRawBool(needTrack), "boolean".typeName)
-        listOf(idColIndex, entityType, typeArrVar, validators, tableName, isAutoGenerateId, needTrackValue)
-    } ?: listOf(typeArrVar)
     val initCall = JcRawSpecialCallExpr(
         tblType,
         JAVA_INIT,
-        initMethod.parameters.map { it.type },
-        initMethod.returnType,
+        listOf(JAVA_STRING.typeName),
+        JAVA_VOID.typeName,
         newTblVar,
-        args
+        listOf(JcRawString(table.name))
     )
 
     addInstruction { owner -> JcRawCallInst(owner, initCall) }
 
     val fieldRef = JcRawFieldRef(null, classNode.name.typeName, table.name, tblType)
     addInstruction { owner -> JcRawAssignInst(owner, fieldRef, newTblVar) }
-}
-
-private fun JcMethodNewBodyContext.generateValidators(
-    table: TableInfo
-): JcRawLocalVar {
-    val contValidatorName = "jakarta.validation.ConstraintValidator"
-
-    val tableValidators = putValueToVar(
-        JcRawNewArrayExpr("${contValidatorName}[][]".typeName, listOf(JcRawInt(table.columns.size))),
-        "${contValidatorName}[][]".typeName
-    )
-
-    table.columnsInOrder().forEachIndexed { ix, col ->
-        val validators = col.validators
-
-        val validatorsArr = putValueToVar(
-            JcRawNewArrayExpr(contValidatorName.typeName, listOf(JcRawInt(validators.size))),
-            "${contValidatorName}[]".typeName
-        )
-
-        validators.forEachIndexed { valIx, (annot, validator) ->
-            val valid = validator.initializeValidator(this, annot)
-            val vsAccess = JcRawArrayAccess(validatorsArr, JcRawInt(valIx), contValidatorName.typeName)
-            addInstruction { owner -> JcRawAssignInst(owner, vsAccess, valid) }
-        }
-
-        val vsAccess = JcRawArrayAccess(tableValidators, JcRawInt(ix), "${contValidatorName}[]".typeName)
-        addInstruction { owner -> JcRawAssignInst(owner, vsAccess, validatorsArr) }
-    }
-
-    return tableValidators
 }

@@ -3,7 +3,6 @@ package machine.interpreter.transformers.springjpa.query.table
 import machine.interpreter.transformers.springjpa.query.CommonInfo
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.jacodb.api.jvm.JcField
-import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.usvm.machine.interpreter.transformers.springjpa.Select
 import util.database.TableInfo

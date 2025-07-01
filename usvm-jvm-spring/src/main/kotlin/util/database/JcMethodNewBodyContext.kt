@@ -5,8 +5,6 @@ import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawLocalVar
-import org.jacodb.api.jvm.cfg.JcRawReturnInst
-import org.jacodb.api.jvm.cfg.JcRawThrowInst
 
 class JcMethodNewBodyContext(
     val owner: JcMethod

@@ -5,26 +5,22 @@ import machine.interpreter.transformers.springjpa.JAVA_INIT
 import machine.interpreter.transformers.springjpa.JAVA_STRING
 import machine.interpreter.transformers.springjpa.JAVA_VOID
 import org.jacodb.api.jvm.JcAnnotation
-import org.jacodb.api.jvm.cfg.JcAssignInst
-import org.jacodb.api.jvm.cfg.JcRawAssignInst
+import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawCastExpr
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
-import org.jacodb.api.jvm.cfg.JcRawConstant
-import org.jacodb.api.jvm.cfg.JcRawFieldRef
 import org.jacodb.api.jvm.cfg.JcRawLocalVar
 import org.jacodb.api.jvm.cfg.JcRawNewExpr
 import org.jacodb.api.jvm.cfg.JcRawSpecialCallExpr
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.cfg.JcRawVirtualCallExpr
 import org.jacodb.api.jvm.ext.JAVA_OBJECT
-import org.jacodb.impl.cfg.JcRawInt
-import org.jacodb.impl.cfg.JcRawString
 import org.usvm.jvm.util.typeName
 import org.usvm.jvm.util.typename
 
 enum class JcValidateAnnotation(val annotationSimpleName: String, val validatorName: String) {
 
+    // TODO: adds other enums validators!!
     NotNull("NotNull", "org.hibernate.validator.internal.constraintvalidators.bv.NotNullValidator"),
     NotBlank("NotBlank", "org.hibernate.validator.internal.constraintvalidators.bv.NotBlankValidator"),
     Digits("Digits", "org.hibernate.validator.internal.constraintvalidators.bv.DigitsValidatorForCharSequence");
@@ -111,4 +107,11 @@ enum class JcValidateAnnotation(val annotationSimpleName: String, val validatorN
 
         return validator
     }
+}
+
+
+fun JcField.getValidators() = annotations.mapNotNull { annot ->
+    // TODO: adds other enums validators!!
+    JcValidateAnnotation.entries.find { it.annotationSimpleName == annot.jcClass!!.simpleName }
+        ?.let { annot to it }
 }

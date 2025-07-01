@@ -2,6 +2,7 @@ package machine.interpreter.transformers.springjpa.query
 
 import machine.interpreter.transformers.springjpa.AGGREGATORS
 import machine.interpreter.transformers.springjpa.DATABASE_UTILS
+import machine.interpreter.transformers.springjpa.DATA_ROW
 import machine.interpreter.transformers.springjpa.DISTINCT_TABLE
 import machine.interpreter.transformers.springjpa.FILTER_TABLE
 import machine.interpreter.transformers.springjpa.FLAT_TABLE
@@ -26,41 +27,34 @@ import machine.interpreter.transformers.springjpa.PAGE_WRAPPER
 import machine.interpreter.transformers.springjpa.SET_WRAPPER
 import machine.interpreter.transformers.springjpa.SINGLETON_TABLE
 import machine.interpreter.transformers.springjpa.SORTED_TABLE
-import machine.interpreter.transformers.springjpa.generateObjectArray
+import machine.interpreter.transformers.springjpa.generateCast
 import machine.interpreter.transformers.springjpa.generateStaticCall
 import machine.interpreter.transformers.springjpa.generateVirtualCall
-import machine.interpreter.transformers.springjpa.generatedStaticFetchInit
-import machine.interpreter.transformers.springjpa.isGeneratedGetter
+import machine.interpreter.transformers.springjpa.generatedGetter
 import machine.interpreter.transformers.springjpa.methodRef
 import machine.interpreter.transformers.springjpa.parameterName
 import machine.interpreter.transformers.springjpa.putArgumentsToArray
-import machine.interpreter.transformers.springjpa.query.path.Path
-import machine.interpreter.transformers.springjpa.staticMethodRef
 import machine.interpreter.transformers.springjpa.toArgument
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.cfg.JcArrayAccess
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcBool
 import org.jacodb.api.jvm.cfg.JcClassConstant
-import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcSpecialCallExpr
-import org.jacodb.api.jvm.cfg.JcStaticCallExpr
+import org.jacodb.api.jvm.cfg.JcStringConstant
 import org.jacodb.api.jvm.cfg.JcValue
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.byte
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
-import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
-import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.util.genericTypesFromSignature
+import org.usvm.jvm.util.stringType
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 import util.database.JcTableInfoCollector
 
@@ -83,14 +77,15 @@ data class CommonInfo(
     val names = NamesManager(method)
 
     val origMethodArguments = origMethod.parameters.mapIndexed { ix, p -> p.parameterName to ix }.toMap()
-    val origReturnGeneric = origMethod.signature?.let { it.genericTypesFromSignature[0] } ?: origMethod.returnType.typeName
+    val origReturnGeneric =
+        origMethod.signature?.let { it.genericTypesFromSignature[0] } ?: origMethod.returnType.typeName
 
     val aliases = query.collectAliases(this) // alias to full name
-    val positions = query.collectRowPositions(this) // Foo.bar <-> (columnName <-> origField and index in row)
 
     val comparerName = "comparer"
     val valueOfName = "valueOf"
     val firstEnsureName = "firstEnsure"
+    val getName = "get"
 
     val wrapperType = cp.findType(IWRAPPER) as JcClassType
     val pageType = cp.findType(PAGE_WRAPPER) as JcClassType
@@ -109,6 +104,7 @@ data class CommonInfo(
     val singletonType = cp.findType(SINGLETON_TABLE) as JcClassType
     val aggregatorsType = cp.findType(AGGREGATORS) as JcClassType
     val utilsType = cp.findType(DATABASE_UTILS) as JcClassType
+    val dataRowType = cp.findType(DATA_ROW) as JcClassType
 
     val boolType = cp.findType(JAVA_BOOL) as JcClassType
     val integerType = cp.findType(JAVA_INTEGER) as JcClassType
@@ -118,7 +114,7 @@ data class CommonInfo(
     val strType = cp.findType(JAVA_STRING) as JcClassType
     val bigIntType = cp.findType(JAVA_BIG_INT) as JcClassType
     val bigDecimalType = cp.findType(JAVA_BIG_DECIMAL) as JcClassType
-    val byteArrType = cp.arrayTypeOf(cp.byte, false, listOf()) // TODO: check nullability = false
+    val byteArrType = cp.arrayTypeOf(cp.byte, false, listOf())
     val objectArrType = cp.arrayTypeOf(cp.objectType, false, listOf())
     val classType = cp.findType(JAVA_CLASS)
 
@@ -174,11 +170,6 @@ class MethodCtx(
         return methodArgs!!
     }
 
-    fun columns(path: Path): Map<String, Pair<JcField, Int>> {
-        val fullName = path.applyAliases(common)
-        return common.positions[fullName]!!
-    }
-
     fun applyAliases(alias: String) = common.aliases.getOrDefault(alias, alias)
 
     fun getLambdaName() = names.getLambdaName()
@@ -201,9 +192,6 @@ class MethodCtx(
         currObj?.also { return it }
 
         val aliased = applyAliases(name)
-        val columns = common.positions[aliased]!!.values
-
-        val newRow = genCtx.generateObjectArray(cp, common.names.getVarName(), columns.count())
 
         val row = common.method.parameters.first().toArgument
             .let {
@@ -223,21 +211,20 @@ class MethodCtx(
                     )
                 }
             }
-        columns.forEachIndexed { ix, (_, oldIx) ->
-            val elem = JcArrayAccess(newRow, JcInt(ix, cp.int), cp.objectType)
-            val value = JcArrayAccess(row, JcInt(oldIx, cp.int), cp.objectType)
-            genCtx.addInstruction { loc -> JcAssignInst(loc, elem, value) }
-        }
 
-        val origClass = common.collector.getTableByPartName(aliased).single().origClass
+        val res = genCtx.generateVirtualCall(
+            "data_row_get_${getVarName()}",
+            common.getName,
+            common.dataRowType,
+            row,
+            listOf(JcStringConstant(name, cp.stringType))
+        )
 
-        val res = newVar(origClass.toType())
-        val statInit = origClass.toType().declaredMethods.single { it.method.generatedStaticFetchInit }
-        val call = JcStaticCallExpr(statInit.staticMethodRef, listOf(newRow))
-        genCtx.addInstruction { loc -> JcAssignInst(loc, res, call) }
+        val objType = cp.findType(common.collector.getTableByPartName(aliased).single().origClassName)
+        val casted = genCtx.generateCast("cast_${getVarName()}", res, objType)
 
-        currObj = res
-        return res
+        currObj = casted
+        return casted
     }
 
     fun genField(root: String, fields: List<String>, isGrouped: Boolean = false) =
@@ -247,7 +234,7 @@ class MethodCtx(
         val obj = genObj(root, isGrouped)
         return fields.fold(obj) { acc, fieldName ->
             val classType = acc.type as JcClassType
-            val getter = classType.declaredMethods.single { it.method.isGeneratedGetter(fieldName) }
+            val getter = classType.declaredMethods.single { it.method.generatedGetter(fieldName, false) }
             val v = newVar(getter.returnType)
             val call = JcSpecialCallExpr(getter.methodRef, acc, listOf())
             genCtx.addInstruction { loc -> JcAssignInst(loc, v, call) }

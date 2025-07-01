@@ -12,7 +12,7 @@ class Order(
     val sorts: List<SortSpec>,
     private var limit: ParamOrInt? = null,
     private var offset: ParamOrInt? = null
-): ManyLambdable(sorts) {
+) : ManyLambdable(sorts) {
     fun setLimit(lim: ParamOrInt?) {
         limit = lim
     }

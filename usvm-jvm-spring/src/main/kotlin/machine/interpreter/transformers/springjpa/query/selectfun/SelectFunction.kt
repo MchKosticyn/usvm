@@ -1,6 +1,6 @@
 package machine.interpreter.transformers.springjpa.query.selectfun
 
-import kotlinx.collections.immutable.persistentListOf
+import machine.interpreter.transformers.springjpa.DATA_ROW
 import machine.interpreter.transformers.springjpa.ITABLE
 import machine.interpreter.transformers.springjpa.JAVA_OBJ_ARR
 import machine.interpreter.transformers.springjpa.JcBodyFillerFeature
@@ -23,7 +23,7 @@ import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.
 class SelectFunction(
     val isDistinct: Boolean,
     val selections: List<SelectionCtx>
-): ManyWithOwnLambdable(selections) {
+) : ManyWithOwnLambdable(selections) {
 
     var isGrouped: Boolean = false
 
@@ -32,7 +32,7 @@ class SelectFunction(
         selections.forEach(SelectionCtx::bindGroupBy)
     }
 
-    abstract class SelectionCtx(var alias: String?): Lambdable() {
+    abstract class SelectionCtx(var alias: String?) : Lambdable() {
         abstract fun genInst(ctx: MethodCtx): JcLocalVar
         abstract fun bindGroupBy()
     }
@@ -51,7 +51,7 @@ class SelectFunction(
             .setRetType(info.origReturnGeneric)
             .setAccess(Opcodes.ACC_STATIC)
             .addBlanckAnnot(REPOSITORY_LAMBDA)
-            .addFreshParam(if (isGrouped) ITABLE else JAVA_OBJ_ARR) // Query is ITable<ITable> or ITable<Object[]>
+            .addFreshParam(if (isGrouped) ITABLE else DATA_ROW) // Query is ITable<ITable> or ITable<DataRow>
             .addFreshParam(JAVA_OBJ_ARR) // top-level method's args
             .addFreshParam(ITABLE) // ref to current query for aggregators
             .addFillerFuture(SelectFuture(info, this, methodName))
@@ -60,7 +60,7 @@ class SelectFunction(
         return method
     }
 
-    fun getLambdaVar(ctx: MethodCtx)= with(ctx) {
+    fun getLambdaVar(ctx: MethodCtx) = with(ctx) {
         genCtx.generateLambda(cp, "selector_${getLambdaName()}", getOwnMethod(common))
     }
 

@@ -7,7 +7,7 @@ class SortSpec(
     val spec: Specification,
     var isAscending: Boolean = true, // true -  ASC, false - DESC
     var isNullsLast: Boolean = true // true - LAST, false - FIRST
-): SingleLambdable(spec) {
+) : SingleLambdable(spec) {
     fun getTranslate(ctx: MethodCtx) = spec.getTranslate(ctx)
     fun getTranslateRetType(ctx: MethodCtx) = spec.getTranslateRetType(ctx)
     fun getComparer(ctx: MethodCtx) = spec.getComparer(ctx)

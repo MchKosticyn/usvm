@@ -5,18 +5,18 @@ import machine.interpreter.transformers.springjpa.query.DoubleLambdable
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.Parameter
 import machine.interpreter.transformers.springjpa.query.type.Param
-import machine.interpreter.transformers.springjpa.query.type.Tuple
 import machine.interpreter.transformers.springjpa.query.type.SqlType
+import machine.interpreter.transformers.springjpa.query.type.Tuple
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.usvm.machine.interpreter.transformers.springjpa.Select
 
-class ParameterExpr(val param: Parameter): SingleArgumentExpression(param) {
+class ParameterExpr(val param: Parameter) : SingleArgumentExpression(param) {
     override val type = Param(param)
     override fun genInst(ctx: MethodCtx) = param.genInst(ctx)
 }
 
-class TupleExpr(val elems: List<Expression>): ManyArgumentExpression(elems) {
+class TupleExpr(val elems: List<Expression>) : ManyArgumentExpression(elems) {
     override val type: SqlType = Tuple(elems.map { it.type })
 
     override fun getLambdas(info: CommonInfo) = elems.flatMap { it.getLambdas(info) }
@@ -26,7 +26,7 @@ class TupleExpr(val elems: List<Expression>): ManyArgumentExpression(elems) {
     }
 }
 
-class Subquery(val query: Select): Expression() {
+class Subquery(val query: Select) : Expression() {
     override val type: SqlType
         get() = TODO("Not yet implemented")
 
@@ -42,8 +42,8 @@ class SimpleCaseList(
     val caseValue: Expression,
     val branches: List<BranchCtx>,
     val elseBranch: Expression?
-): Expression() {
-    class BranchCtx(val expr: Expression, val value: Expression): DoubleLambdable(expr, value)
+) : Expression() {
+    class BranchCtx(val expr: Expression, val value: Expression) : DoubleLambdable(expr, value)
 
     override val type: SqlType = branches.first().value.type
 
@@ -58,8 +58,8 @@ class SimpleCaseList(
 }
 
 // CASE WHEN a == 'a' THEN 1 WHEN a == 'b' THEN 2 ELSE 3 END
-class CaseList(val branches: List<BranchCtx>, val elseBranch: Expression?): Expression() {
-    class BranchCtx(val pred: Expression, val value: Expression): DoubleLambdable(pred, value)
+class CaseList(val branches: List<BranchCtx>, val elseBranch: Expression?) : Expression() {
+    class BranchCtx(val pred: Expression, val value: Expression) : DoubleLambdable(pred, value)
 
     override val type: SqlType = branches.first().value.type
 

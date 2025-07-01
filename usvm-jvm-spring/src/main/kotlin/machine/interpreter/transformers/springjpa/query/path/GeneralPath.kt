@@ -1,7 +1,6 @@
 package machine.interpreter.transformers.springjpa.query.path
 
 import machine.interpreter.transformers.springjpa.query.CommonInfo
-import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.expresion.Expression
 
 class GeneralPath(

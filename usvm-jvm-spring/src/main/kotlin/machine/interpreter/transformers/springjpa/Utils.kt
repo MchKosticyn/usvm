@@ -1,9 +1,9 @@
 package machine.interpreter.transformers.springjpa
 
+import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcParameter
 import org.jacodb.api.jvm.JcPrimitiveType
@@ -35,6 +35,7 @@ import org.jacodb.api.jvm.cfg.JcNewExpr
 import org.jacodb.api.jvm.cfg.JcRawArgument
 import org.jacodb.api.jvm.cfg.JcSpecialCallExpr
 import org.jacodb.api.jvm.cfg.JcStaticCallExpr
+import org.jacodb.api.jvm.cfg.JcStringConstant
 import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
@@ -48,36 +49,41 @@ import org.jacodb.impl.cfg.TypedMethodRefImpl
 import org.jacodb.impl.cfg.TypedStaticMethodRefImpl
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
 import org.jacodb.impl.types.AnnotationInfo
+import org.objectweb.asm.Opcodes
 import org.usvm.api.decoder.DummyField
 import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.getTypename
 import org.usvm.jvm.util.isVoid
+import org.usvm.jvm.util.stringType
 import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.typeName
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
+import util.database.Relation
 import util.database.contains
+import util.database.containsAll
 import util.database.nameEquals
 
 // region GeneratedFunctions
 
-const val STATIC_INIT_NAME = "\$static_init"
 const val STATIC_BLANK_INIT_NAME = "\$static_blank_init"
-const val SERIALIZER_NAME = "\$serializer"
-const val SERIALIZER_WITH_SKIPS_NAME = "\$serializer_with_skips"
 const val GET_ID_NAME = "\$special_get_id"
-const val STATIC_GET_ID_NAME = "\$static_get_id"
-const val STATIC_SERIALIZER_NAME = "\$stat_serializer"
-const val STATIC_SERIALIZER_WITH_SKIPS_NAME = "\$stat_serializer_with_skips"
-const val IDENTITY_NAME = "\$identity"
+const val SET_ID_NAME = "\$special_set_id"
+const val GET_DTO_NAME = "\$get_dto"
+const val BUILD_ID_NAME = "\$generated_build_id"
 const val SAVE_UPDATE_NAME = "\$save_update"
 const val DELETE_NAME = "\$delete"
+const val RELATIONS_INIT_NAME = "\$relations_init"
+const val COPY_NAME = "\$copy"
+const val BUILD_FROM_IDS = "\$generated_build_from_ids"
+const val BUILD_IDS = "\$generated_build_ids"
 
 // endregion
 
 // region JavaNames
 
 const val JAVA_INIT = "<init>"
+const val JAVA_CLINIT = "<clinit>"
 
 const val JAVA_VOID = "void"
 const val JAVA_OBJ_ARR = "java.lang.Object[]"
@@ -106,14 +112,25 @@ const val JAVA_BIG_DECIMAL = "java.math.BigDecimal"
 const val DATABASES = "stub.spring.SpringDatabases"
 const val CRUD_MANAGER = "generated.org.springframework.boot.databases.saveupddel.CrudManager"
 const val SAVE_UPD_DEL_CTX = "generated.org.springframework.boot.databases.saveupddel.SaveUpdDelCtx"
+const val DTO_INFO = "generated.org.springframework.boot.databases.utils.DTOInfo"
 const val GET_REC_UPD = "getAllowRecursiveUpdate"
 const val SET_REC_UPD = "setAllowRecursiveUpdate"
 const val SAVE_UPD_DEL_MANY_MANAGER = "generated.org.springframework.boot.databases.saveupddel.SaveUpdDelManyManager"
-const val SUD_SET_SHOULD_SHUFFLE = "setShouldShuffle"
+const val SUD_SET_PARENT_JOINS = "setParentJoinIds"
+const val SUD_SET_CHILD_JOINS = "setChildJoinIds"
 const val SUD_SAVE_NO_TABLE = "saveUpdWithoutRelationTable"
 const val SUD_SAVE_WITH_TABLE = "saveUpd"
 const val SUD_DEL_NO_TABLE = "delWithoutRelationTable"
 const val SUD_DEL_WITH_TABLE = "delete"
+const val IS_NULL_FUNCTION = "isNull"
+const val TABLE_INITIALIZE = "initialize"
+const val TABLE_IS_INITIALIZED = "isInitialized"
+const val TABLE_GET_DTO_INFO = "getDTOInfo"
+const val TABLE_GET_COPIED = "getCopiedTable"
+const val TABLE_VALUES_WITH_ID = "getValuesWithId"
+const val TABLE_VALUES_WITH_FIELDS = "getValuesWithFields"
+const val TABLE_VALUES_BY_TABLE = "getValuesRelatedByTable"
+const val DATA_ROW_OF = "ofLambda"
 
 // endregion
 
@@ -133,6 +150,7 @@ const val FLAT_TABLE = "generated.org.springframework.boot.databases.FlatTable"
 const val SINGLETON_TABLE = "generated.org.springframework.boot.databases.SingletonTable"
 const val AGGREGATORS = "generated.org.springframework.boot.databases.utils.Aggregators"
 const val DATABASE_UTILS = "generated.org.springframework.boot.databases.utils.DatabaseSupportFunctions"
+const val DATA_ROW = "generated.org.springframework.boot.databases.utils.DataRow"
 
 // endregion
 
@@ -143,6 +161,9 @@ const val PAGE_WRAPPER = "org.springframework.data.domain.Page"
 const val PAGE_IMPL_WRAPPER = "org.springframework.data.domain.PageImpl"
 const val SET_WRAPPER = "generated.org.springframework.boot.databases.wrappers.SetWrapper"
 const val LIST_WRAPPER = "generated.org.springframework.boot.databases.wrappers.ListWrapper"
+const val IMMUTABLE_SET_WRAPPER = "generated.org.springframework.boot.databases.wrappers.immutable.ImmutableSetWrapper"
+const val IMMUTABLE_LIST_WRAPPER =
+    "generated.org.springframework.boot.databases.wrappers.immutable.ImmutableListWrapper"
 
 // endregion
 
@@ -155,23 +176,20 @@ const val APPROX_NAME = "org.jacodb.approximation.annotation.Approximate"
 // region DummyAnnotation
 
 const val CHECK_FIELD_ANNOT = "\$check_field_annot"
-const val INIT_ANNOT = "\$generated_init_annot"
-const val INIT_FETCH_ANNOT = "\$generated_fetched_annot"
+const val RELATIONS_INIT_ANNOT = "\$relations_init_annot"
+const val COPY_ANNOT = "\$copy_annot"
 const val STATIC_INIT_FETCH_ANNOT = "\$generated_static_fetched_annot"
 const val STATIC_BLANK_INIT_ANNOT = "\$generated_static_blank_init_annot"
-const val GET_ID_ANNOT = "\$generated_get_id"
-const val STATIC_GET_ID_ANNOT = "\$generated_static_get_id"
-const val DATACLASS_GETTER = "\$generated_dataclass_getter"
-const val ONE_TO_MANY_FILTER_ANNOT = "\$generated_onetomany_filter"
-const val MANY_TO_ONE_FILTER_ANNOT = "\$generated_manytoone_filter"
-const val FILTER_BTW_ANNOT = "\$generated_btw_filter"
-const val SELECT_BTW_ANNOT = "\$generated_btw_selector"
-const val FILTER_SET_ANNOT = "\$generated_set_filter"
+const val GET_ID_ANNOT = "\$generated_get_id_annot"
+const val SET_ID_ANNOT = "\$generated_set_id_annot"
+const val GET_DTO_ANNOT = "\$generated_get_dto_annot"
+const val BUILD_ID_ANNOT = "\$generated_build_id_annot"
+const val GENERATED_GETTER = "\$generated_getter"
+const val GENERATED_SETTER = "\$generated_setter"
+const val BUILD_FROM_IDS_ANNOT = "\$generated_build_from_ids_annot"
+const val BUILD_IDS_ANNOT = "\$generated_build_ids_annot"
 const val SERIALIZER_ANNOT = "\$generated_serializer"
 const val SERIALIZER_WITH_SKIPS_ANNOT = "\$generated_serializer_with_skips"
-const val STATIC_SERIALIZER_ANNOT = "\$generated_stat_serializer"
-const val STATIC_SERIALIZER_WITH_SKIPS_ANNOT = "\$generated_stat_serializer_with_skips"
-const val IDENTITY_ANNOT = "\$generated_ident"
 const val SAVE_UPDATE_ANNOT = "\$save_update_annot"
 const val DELETE_ANNOT = "\$delete_annotw"
 const val REPOSITORY_LAMBDA = "\$query_lambda"
@@ -194,38 +212,29 @@ const val CONSUMER2 = "java.util.function.BiConsumer"
 
 // region AnnotationCheck
 
-val JcMethod.generatedOneToManyFilter: Boolean get() = contains(this.annotations, ONE_TO_MANY_FILTER_ANNOT)
-val JcMethod.generatedManyToOneFilter: Boolean get() = contains(this.annotations, MANY_TO_ONE_FILTER_ANNOT)
-val JcMethod.generatedBtwFilter: Boolean get() = contains(this.annotations, FILTER_BTW_ANNOT)
-val JcMethod.generatedBtwSelect: Boolean get() = contains(this.annotations, SELECT_BTW_ANNOT)
-val JcMethod.generatedSetFilter: Boolean get() = contains(this.annotations, FILTER_SET_ANNOT)
-val JcMethod.generatedGetId: Boolean get() = contains(annotations, GET_ID_ANNOT)
-val JcMethod.generatedStaticGetId: Boolean get() = contains(annotations, STATIC_GET_ID_ANNOT)
-val JcMethod.generatedGetter: Boolean get() = contains(annotations, DATACLASS_GETTER)
-val JcMethod.generatedIdentity: Boolean get() = contains(annotations, IDENTITY_ANNOT)
+val JcMethod.generatedGetter: Boolean get() = contains(annotations, GENERATED_GETTER)
+val JcMethod.generatedSetter: Boolean get() = contains(annotations, GENERATED_SETTER)
+val JcMethod.generatedSpecialGetId: Boolean get() = contains(annotations, GET_ID_ANNOT)
+val JcMethod.generatedSpecialSetId: Boolean get() = contains(annotations, SET_ID_ANNOT)
+val JcMethod.generatedCopy: Boolean get() = contains(annotations, COPY_ANNOT)
+val JcMethod.generatedBuildId: Boolean get() = contains(annotations, BUILD_ID_ANNOT)
+val JcMethod.generatedBuildIds: Boolean get() = contains(annotations, BUILD_IDS)
+val JcMethod.generatedBuildFromIds: Boolean get() = contains(annotations, BUILD_FROM_IDS_ANNOT)
+val JcMethod.generatedGetDTOInfo: Boolean get() = contains(annotations, GET_DTO_ANNOT)
+fun JcMethod.generatedGetter(fieldName: String, static: Boolean) =
+    containsAll(annotations, listOf(GENERATED_GETTER, fieldName)) && isStatic == static
+
 val JcMethod.generatedSerializer: Boolean get() = contains(annotations, SERIALIZER_ANNOT)
 val JcMethod.generatedSerializerWithSkips: Boolean get() = contains(annotations, SERIALIZER_WITH_SKIPS_ANNOT)
-val JcMethod.generatedStaticSerializer: Boolean get() = contains(annotations, STATIC_SERIALIZER_ANNOT)
-val JcMethod.generatedStaticSerializerWithSkips: Boolean
-    get() = contains(
-        annotations,
-        STATIC_SERIALIZER_WITH_SKIPS_ANNOT
-    )
-val JcMethod.generatedInit: Boolean get() = contains(this.annotations, INIT_ANNOT)
-val JcMethod.generatedFetchInit: Boolean get() = contains(this.annotations, INIT_FETCH_ANNOT)
+val JcMethod.generatedStaticSerializer: Boolean get() = contains(annotations, SERIALIZER_ANNOT) && isStatic
 val JcMethod.generatedStaticFetchInit: Boolean get() = contains(this.annotations, STATIC_INIT_FETCH_ANNOT)
 val JcMethod.generatedStaticBlankInit: Boolean get() = contains(this.annotations, STATIC_BLANK_INIT_ANNOT)
+val JcMethod.generatedRelationsInit: Boolean get() = contains(this.annotations, RELATIONS_INIT_ANNOT)
 val JcMethod.generatedSaveUpdate: Boolean get() = contains(this.annotations, SAVE_UPDATE_ANNOT)
 val JcMethod.generatedDelete: Boolean get() = contains(this.annotations, DELETE_ANNOT)
 val JcMethod.repositoryLambda: Boolean get() = contains(annotations, REPOSITORY_LAMBDA)
 
-val JcField.checkField: Boolean get() = contains(annotations, CHECK_FIELD_ANNOT)
-
 // endregion
-
-fun JcMethod.isGeneratedGetter(fieldName: String): Boolean {
-    return contains(annotations, DATACLASS_GETTER) && contains(annotations, fieldName)
-}
 
 private val repositoryNames = setOf("org.springframework.data.repository.Repository", "org.springframework.data.jpa.repository.JpaRepository")
 
@@ -249,6 +258,28 @@ val JcTypedMethod.staticMethodRef: TypedStaticMethodRefImpl
         method.parameters.map { it.type },
         method.returnType
     )
+
+private val hasWrapperList = listOf(JAVA_LIST, JAVA_SET)
+val TypeName.hasWrapper: Boolean get() = hasWrapperList.contains(this.typeName)
+
+private val validatorsPackages = listOf(
+    "org.hibernate.validator.internal.constraintvalidators",
+    "jakarta.validation.constraints.NotBlank"
+)
+val JcAnnotation.isValidator: Boolean get() = validatorsPackages.any { name.startsWith(it) }
+
+fun makeStaticClassMethod(cp: JcClasspath, clazz: JcClassOrInterface, method: JcMethod): JcMethod {
+    val newName = "${method.name}_static"
+    val builder = JcMethodBuilder(clazz)
+        .setName(newName)
+        .setAccess(Opcodes.ACC_STATIC)
+        .addFreshParam(clazz.name)
+        .setRetType(method.returnType.typeName)
+        .addFillerFuture(JcStaticClassMethod(cp, newName, method))
+    method.annotations.forEach { builder.addBlanckAnnot(it.name) }
+    method.parameters.forEach { builder.addFreshParam(it.type.typeName) }
+    return builder.buildMethod()
+}
 
 val JcMethod.query: String?
     get() =
@@ -377,7 +408,7 @@ fun BlockGenerationContext.generateObjectArray(cp: JcClasspath, name: String, si
     val vari = nextLocalVar(name, objArrayType)
     val arr = JcNewArrayExpr(objArrayType, listOf(JcInt(size, cp.int)))
     addInstruction { loc -> JcAssignInst(loc, vari, arr) }
-    return vari;
+    return vari
 }
 
 fun BlockGenerationContext.putArgumentsToArray(cp: JcClasspath, name: String, method: JcMethod): JcLocalVar {
@@ -389,12 +420,31 @@ fun BlockGenerationContext.putArgumentsToArray(cp: JcClasspath, name: String, me
     return arr
 }
 
+fun BlockGenerationContext.putValuesToObjectArray(cp: JcClasspath, name: String, values: List<JcLocalVar>): JcLocalVar {
+    val arr = generateObjectArray(cp, "arr#$name", values.size)
+    values.forEachIndexed { ix, v ->
+        val access = JcArrayAccess(arr, JcInt(ix, cp.int), cp.objectType)
+        addInstruction { loc -> JcAssignInst(loc, access, v) }
+    }
+    return arr
+}
+
+fun BlockGenerationContext.generateIntArray(cp: JcClasspath, name: String, values: List<Int>) =
+    values.map { JcInt(it, cp.int) }.let { putValuesWithSameTypeToArray(cp, name, it) }
+
 fun BlockGenerationContext.putValuesWithSameTypeToArray(
     cp: JcClasspath,
     name: String,
-    values : List<JcLocalVar>
+    values: List<JcValue>,
+    commonType: JcType = cp.objectType
 ): JcLocalVar {
-    if (values.isEmpty()) return generateObjectArray(cp, name, 0)
+    if (values.isEmpty()) {
+        val arrType = cp.arrayTypeOf(commonType, true, emptyList())
+        val vari = nextLocalVar("arr#$name", arrType)
+        val arr = JcNewArrayExpr(arrType, listOf(JcInt(0, cp.int)))
+        addInstruction { loc -> JcAssignInst(loc, vari, arr) }
+        return vari
+    }
 
     val valueType = values.first().type
     val arrType = cp.arrayTypeOf(valueType, true, emptyList())
@@ -455,6 +505,7 @@ fun BlockGenerationContext.generateVirtualCall(
     val res = nextLocalVar(name, method.returnType)
     val call = JcVirtualCallExpr(ref, inst, args)
     if (method.returnType.typeName != JAVA_VOID) addInstruction { loc -> JcAssignInst(loc, res, call) }
+    else error("Expected not void method")
     return res
 }
 
@@ -475,66 +526,113 @@ fun BlockGenerationContext.generateVoidVirtualCall(
     inst: JcValue,
     args: List<JcValue>
 ) {
-
     val method = findMethod(clazz, methodName, args) { !it.isStatic && it.returnType.typeName == JAVA_VOID }
     val ref = VirtualMethodRefImpl.of(clazz, method)
     val call = JcVirtualCallExpr(ref, inst, args)
     addInstruction { loc -> JcCallInst(loc, call) }
 }
 
+fun BlockGenerationContext.generateClassConstant(cp: JcClasspath, name: String, type: JcType): JcLocalVar {
+    val classType = cp.findType(JAVA_CLASS)
+    val vari = nextLocalVar(name, classType)
+    val const = JcClassConstant(type, classType)
+    addInstruction { loc -> JcAssignInst(loc, vari, const) }
+    return vari
+}
+
+fun BlockGenerationContext.generateCast(name: String, value: JcValue, type: JcType): JcLocalVar {
+    val casted = nextLocalVar("${name}_casted", type)
+    val cast = JcCastExpr(type, value)
+    addInstruction { loc -> JcAssignInst(loc, casted, cast) }
+    return casted
+}
+
+fun BlockGenerationContext.generateManagerAccess(
+    cp: JcClasspath,
+    name: String,
+    tableName: String,
+    managerType: JcClassType? = null
+): JcLocalVar {
+    val baseType = managerType ?: cp.findType(BASE_TABLE_MANAGER) as JcClassType
+    val manager = nextLocalVar(name, baseType)
+    val tblField = (cp.findType(DATABASES) as JcClassType).fields.single { it.name == tableName }
+    val tblRef = JcFieldRef(null, tblField)
+    addInstruction { loc -> JcAssignInst(loc, manager, tblRef) }
+
+    return manager
+}
+
+fun BlockGenerationContext.generateManagerAccessWithInit(
+    cp: JcClasspath,
+    name: String,
+    tableName: String,
+    clazz: JcClassOrInterface
+): JcLocalVar {
+    val baseType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
+
+    val manager = generateManagerAccess(cp, name, tableName, baseType)
+    val dtoInfo = generateStaticCall("get_dto_$name", GET_DTO_NAME, clazz.toType(), emptyList())
+    generateVoidVirtualCall(TABLE_INITIALIZE, baseType, manager, listOf(dtoInfo))
+
+    return manager
+}
+
 fun BlockGenerationContext.generateGlobalTableAccess(
     cp: JcClasspath,
     name: String,
     tableName: String,
-    clazz: JcClassOrInterface?
+    clazz: JcClassOrInterface
 ): JcLocalVar {
-    val isNoIdTable = clazz == null
+    val baseType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
 
-    val tblV = nextLocalVar(name, cp.findType(ITABLE))
-    val tblField = (cp.findType(DATABASES) as JcClassType).fields.single { it.name == tableName }
+    val manager = generateManagerAccess(cp, name, tableName)
+    val dtoInfo = generateStaticCall("get_dto_$name", GET_DTO_NAME, clazz.toType(), emptyList())
+    generateVoidVirtualCall(TABLE_INITIALIZE, baseType, manager, listOf(dtoInfo))
+
+    return generateVirtualCall("get_table_$name", TABLE_GET_COPIED, baseType, manager, emptyList())
+}
+
+fun BlockGenerationContext.generateGlobalTableAccessWithDataRow(
+    cp: JcClasspath,
+    name: String,
+    tableName: String,
+    clazz: JcClassOrInterface,
+    aliasName: String
+): JcLocalVar {
+    val access = generateGlobalTableAccess(cp, name, tableName, clazz)
+    return generateDataRowOf(cp, name, aliasName, access)
+}
+
+fun BlockGenerationContext.generateDataRowOf(
+    cp: JcClasspath,
+    name: String,
+    aliasName: String,
+    table: JcLocalVar
+): JcLocalVar {
+    val mapType = cp.findType(MAP_TABLE) as JcClassType
+    val aliasValue = JcStringConstant(aliasName, cp.stringType)
+    val dataRow = cp.findType(DATA_ROW) as JcClassType
+    val dataRowOf = generateStaticCall("data_row_of_$name", DATA_ROW_OF, dataRow, listOf(aliasValue))
+    return generateNewWithInit("map_data_row_$name", mapType, listOf(table, dataRowOf))
+}
+
+fun BlockGenerationContext.generateGlobalNoIdTableAccess(
+    cp: JcClasspath,
+    name: String,
+    noIdTable: Relation.JoinTable
+): JcLocalVar {
+    val tbl = nextLocalVar(name, cp.findType(ITABLE))
+    val tblField = (cp.findType(DATABASES) as JcClassType).fields.single { it.name == noIdTable.name }
     val tblRef = JcFieldRef(null, tblField)
-    addInstruction { loc -> JcAssignInst(loc, tblV, tblRef) }
+    addInstruction { loc -> JcAssignInst(loc, tbl, tblRef) }
 
-    val baseType = cp.findType(if (isNoIdTable) NO_ID_TABLE_MANAGER else BASE_TABLE_MANAGER)
-    val casted = nextLocalVar("casted_$name", baseType)
-    val cast = JcCastExpr(baseType, tblV)
-    addInstruction { loc -> JcAssignInst(loc, casted, cast) }
+    val baseType = cp.findType(NO_ID_TABLE_MANAGER) as JcClassType
+    val types = noIdTable.toTable().columnsInOrder().mapIndexed { ix, col ->
+        generateClassConstant(cp, "col_type_${name}_${ix}", col.type.toJcType(cp)!!)
+    }.let { putValuesWithSameTypeToArray(cp, "table_types_${name}", it) }
+    generateVoidVirtualCall(TABLE_INITIALIZE, baseType, tbl, listOf(types))
 
-    if (!isNoIdTable) {
-        putSetDeserializerCall(cp, name, casted, clazz)
-        putSetFunctionsGeneratedIdTableCall(cp, name, casted, clazz)
-    }
-
-    return casted
-}
-
-private fun BlockGenerationContext.putSetDeserializerCall(
-    cp: JcClasspath,
-    name: String,
-    table: JcLocalVar,
-    clazz: JcClassOrInterface
-) {
-    val deserializerMethod = clazz.declaredMethods.single { it.generatedStaticFetchInit }
-    val deserializer = generateLambda(cp, "deserializer_${name}", deserializerMethod)
-
-    val manager = cp.findType(BASE_TABLE_MANAGER) as JcClassType
-    generateVoidVirtualCall("setDeserializerTrackTable", manager, table, listOf(deserializer))
-}
-
-private fun BlockGenerationContext.putSetFunctionsGeneratedIdTableCall(
-    cp: JcClasspath,
-    name: String,
-    table: JcLocalVar,
-    clazz: JcClassOrInterface
-) {
-    val blankInitMethod = clazz.declaredMethods.single { it.generatedStaticBlankInit }
-    val blankInit = generateLambda(cp, "blak_init_${name}", blankInitMethod)
-
-    val getIdMethod = clazz.declaredMethods.single { it.generatedStaticGetId }
-    val getId = generateLambda(cp, "get_id_${name}", getIdMethod)
-
-    val manager = cp.findType(BASE_TABLE_MANAGER) as JcClassType
-    generateVoidVirtualCall("setFunctionsGeneratedIdTable", manager, table, listOf(blankInit, getId))
+    return tbl
 }
 
 fun BlockGenerationContext.generateLambda(

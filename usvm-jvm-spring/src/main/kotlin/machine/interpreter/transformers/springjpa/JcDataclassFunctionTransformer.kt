@@ -5,14 +5,9 @@ import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.cfg.JcArgument
 import org.jacodb.api.jvm.cfg.JcArrayAccess
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcBool
-import org.jacodb.api.jvm.cfg.JcCallInst
-import org.jacodb.api.jvm.cfg.JcCastExpr
-import org.jacodb.api.jvm.cfg.JcClassConstant
 import org.jacodb.api.jvm.cfg.JcEqExpr
 import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.cfg.JcIfInst
@@ -20,316 +15,118 @@ import org.jacodb.api.jvm.cfg.JcInstRef
 import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcNewArrayExpr
-import org.jacodb.api.jvm.cfg.JcNewExpr
 import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcReturnInst
-import org.jacodb.api.jvm.cfg.JcSpecialCallExpr
+import org.jacodb.api.jvm.cfg.JcStringConstant
 import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
-import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
 import org.jacodb.api.jvm.ext.boolean
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
-import org.jacodb.impl.cfg.VirtualMethodRefImpl
 import org.jacodb.impl.types.JcTypedFieldImpl
-import org.jacodb.impl.types.JcTypedMethodImpl
 import org.jacodb.impl.types.substition.JcSubstitutorImpl
+import org.usvm.jvm.util.genericTypesFromSignature
+import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.name
+import org.usvm.jvm.util.stringType
+import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.typedField
-import org.usvm.jvm.util.typename
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
+import util.database.IdColumnInfo
+import util.database.JcTableInfoCollector
 import util.database.Relation
 import util.database.TableInfo
 import util.database.getTableName
 
-abstract class JcDataclassFunctionTransformer(
-    val dataclassTransformer: JcDataclassTransformer,
-    val cp: JcClasspath
-) : JcBodyFillerFeature() {
-    val itableType = cp.findType(ITABLE) as JcClassType
-    val setType = cp.findType(SET_WRAPPER) as JcClassType
-    val listType = cp.findType(LIST_WRAPPER) as JcClassType
-    val mapType = cp.findType(MAP_TABLE) as JcClassType
-    val filterType = cp.findType(FILTER_TABLE) as JcClassType
-    val managerType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
-    val cTyp = cp.findType(JAVA_CLASS) as JcClassType
-}
-
-open class JcInitTransformer(
-    dataclassTransformer: JcDataclassTransformer,
-    cp: JcClasspath,
-    val classTable: TableInfo.TableWithIdInfo,
-    origInit: JcMethod
-) : JcDataclassFunctionTransformer(dataclassTransformer, cp) {
-
-    val clazz = classTable.origClass
-    val classType = cp.findType(classTable.origClass.name) as JcClassType
-    val parlessInitRef = VirtualMethodRefImpl.of(classType, JcTypedMethodImpl(classType, origInit, JcSubstitutorImpl()))
-
-    override fun condition(method: JcMethod) = method.generatedInit
-
-    override fun BlockGenerationContext.generateBody(method: JcMethod) {
-        val thisVal = JcThis(classType)
-        val callInit = JcSpecialCallExpr(parlessInitRef, thisVal, listOf())
-        addInstruction { loc -> JcCallInst(loc, callInit) }
-
-        val rowArg = method.parameters.first().toArgument
-        classTable.columnsInOrder()
-            .filter { !it.origField.checkField }
-            .forEachIndexed { ix, col -> generateColAssign(thisVal, rowArg, ix, col) }
-
-        classTable.relations.filterIsInstance<Relation.RelationByTable>().forEach { generateSetAssign(thisVal, it) }
-
-        classTable.orderedRelations().forEachIndexed { ix, rel ->
-            val arg = method.parameters[ix + 1].toArgument
-            val argVar = nextLocalVar("initArg$ix", arg.type)
-            addInstruction { loc -> JcAssignInst(loc, argVar, arg) }
-            when (rel) {
-                is Relation.OneToOne, is Relation.ManyToOne ->
-                    generateSingleObj(thisVal, argVar, rel)
-                is Relation.OneToManyByColumn -> generateMultyObj(thisVal, argVar, rel)
-                is Relation.RelationByTable -> generateTableObj(thisVal, argVar, rel)
-            }
-        }
-
-        addInstruction { loc -> JcReturnInst(loc, null) }
-    }
-
-    protected fun BlockGenerationContext.generateColAssign(
-        thisVal: JcValue,
-        rowArg: JcArgument,
-        ix: Int,
-        col: TableInfo.ColumnInfo
-    ) {
-
-        val rowVal = nextLocalVar("${col.name}_row", cp.objectType)
-        val access = JcArrayAccess(rowArg, JcInt(ix, cp.int), cp.objectType)
-        addInstruction { loc -> JcAssignInst(loc, rowVal, access) }
-
-        val relField = if (col.isOrig) col.origField else dataclassTransformer.relationChecks.get(clazz, col.origField)
-
-        val type = relField.type.toJcType(cp)!!
-        val casted = nextLocalVar("${col.name}_row_casted", type)
-        val cast = JcCastExpr(type, rowVal)
-        addInstruction { loc -> JcAssignInst(loc, casted, cast) }
-
-        val fieldRef = JcFieldRef(
-            thisVal,
-            JcTypedFieldImpl(relField.enclosingClass.toType(), relField, JcSubstitutorImpl())
-        )
-        addInstruction { loc -> JcAssignInst(loc, fieldRef, casted) }
-    }
-
-    protected fun BlockGenerationContext.generateSingleObj(
-        thisVal: JcValue,
-        arg: JcLocalVar,
-        rel: Relation.RelationByColumn
-    ) {
-
-        val fieldName = rel.origField.name
-
-        val method = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single()
-        val lambdaVar = generateLambda(cp, "${fieldName}_lambda", method)
-
-        val filterVar = generateNewWithInit("${fieldName}_single", filterType, listOf(arg, lambdaVar))
-
-        val fstVal = nextLocalVar("${fieldName}_fst", cp.objectType)
-        val fstMethod = VirtualMethodRefImpl.of(
-            filterType, filterType.declaredMethods.single { it.name == "firstEnsure" }
-        )
-        val fstCall = JcVirtualCallExpr(fstMethod, filterVar, listOf())
-        addInstruction { loc -> JcAssignInst(loc, fstVal, fstCall) }
-
-        val relField = rel.origField
-        val relType = relField.type.toJcType(cp)!!
-
-        val castedFstVal = nextLocalVar("${fstVal.name}_casted", relType)
-        val cast = JcCastExpr(relType, fstVal)
-        addInstruction { loc -> JcAssignInst(loc, castedFstVal, cast) }
-
-        val fieldRef = JcFieldRef(thisVal, relField.typedField)
-        addInstruction { loc -> JcAssignInst(loc, fieldRef, castedFstVal) }
-    }
-
-    protected fun BlockGenerationContext.generateMultyObj(
-        thisVal: JcValue,
-        arg: JcLocalVar,
-        rel: Relation.OneToManyByColumn
-    ) {
-
-        val fieldName = rel.origField.name
-
-        val method = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single()
-        val lambdaVar = generateLambda(cp, "${fieldName}_lambda", method)
-
-        val filterVar = generateNewWithInit("${fieldName}_filter", filterType, listOf(arg, lambdaVar))
-
-        val wrapperVar = generateWrapper(rel, filterVar)
-        val fieldRef = JcFieldRef(thisVal, rel.origField.typedField)
-        addInstruction { loc -> JcAssignInst(loc, fieldRef, wrapperVar) }
-    }
-
-    protected fun BlockGenerationContext.generateTableObj(
-        thisVal: JcValue,
-        arg: JcLocalVar,
-        rel: Relation.RelationByTable
-    ) {
-
-        val fieldName = rel.origField.name
-
-        val pred = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single { it.generatedSetFilter }
-        val predVar = generateLambda(cp, "${fieldName}_pred", pred)
-
-        val filterVar = generateNewWithInit("${fieldName}_filter_wrapper", filterType, listOf(arg, predVar))
-
-        val wrapperVar = generateWrapper(rel, filterVar)
-        val fieldRef = JcFieldRef(thisVal, rel.origField.typedField)
-        addInstruction { loc -> JcAssignInst(loc, fieldRef, wrapperVar) }
-    }
-
-    protected fun BlockGenerationContext.generateSetAssign(thisVal: JcValue, rel: Relation.RelationByTable) {
-
-        val fieldName = rel.origField.name
-
-        val btwVar = nextLocalVar("${fieldName}_btw", itableType)
-        val btwTable = cp.findType(DATABASES).let { it as JcClassType }.declaredFields
-            .single { it.name == rel.joinTable.name }
-        val btw = JcFieldRef(null, btwTable)
-        addInstruction { loc -> JcAssignInst(loc, btwVar, btw) }
-
-        val pred = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single { it.generatedBtwFilter }
-        val predVar = generateLambda(cp, "${fieldName}_lambda", pred)
-
-        val filterVar = generateNewWithInit("${fieldName}_filter", filterType, listOf(btwVar, predVar))
-
-        val sel = dataclassTransformer.relationLambdas.get(clazz, rel.origField).single { it.generatedBtwSelect }
-        val selVar = generateLambda(cp, "${fieldName}_sel", sel)
-
-        val typeVar = nextLocalVar("${fieldName}_map_type", cTyp)
-        val type = JcClassConstant(sel.returnType.toJcType(cp)!!, cTyp)
-        addInstruction { loc -> JcAssignInst(loc, typeVar, type) }
-
-        val mapVar = generateNewWithInit("${fieldName}_map", mapType, listOf(filterVar, selVar, typeVar))
-
-        val setVar = generateNewWithInit("${fieldName}_set", setType, listOf(mapVar))
-
-        val relField = dataclassTransformer.relationSets.get(clazz, rel.origField)
-        val fieldRef = JcFieldRef(thisVal, relField.typedField)
-        addInstruction { loc -> JcAssignInst(loc, fieldRef, setVar) }
-    }
-
-    protected fun BlockGenerationContext.generateWrapper(rel: Relation, tblVar: JcLocalVar): JcLocalVar {
-        val relType = rel.origField.type
-        val fieldName = rel.origField.name
-
-        val type = when (relType.typeName) {
-            JAVA_SET -> setType
-            JAVA_LIST -> listType
-            // TODO: more collections
-            else -> {
-                assert(false)
-                setType
-            }
-        }
-
-        return generateNewWithInit("${fieldName}_wrapper", type, listOf(tblVar))
-    }
-}
-
 // static SomeClass $static_blank_init() { return new SomeClass() }
-class JcStaticBlankInitTransformer(
-    dataclassTransformer: JcDataclassTransformer,
-    cp: JcClasspath,
-    classTable: TableInfo.TableWithIdInfo,
-    origInit: JcMethod
-) : JcInitTransformer(dataclassTransformer, cp, classTable, origInit) {
+class JcStaticBlankInitTransformer() : JcBodyFillerFeature() {
 
     override fun condition(method: JcMethod) = method.generatedStaticBlankInit
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
-        val blankObj = generateNewWithInit("blank_obj", classType, listOf())
+        val blankObj = generateNewWithInit("blank_obj", method.enclosingClass.toType(), listOf())
         addInstruction { loc -> JcReturnInst(loc, blankObj) }
     }
 }
 
-// new(Object[] row) {
-// ITable<SomeClass> tbl1 = new MappedTable(Databases.some_class, SomeClass::new);
-// ...
-// return new(row, tbl1, tbl2, ...  )
-// }
-class JcFetchedInitTransformer(
-    dataclassTransformer: JcDataclassTransformer,
-    cp: JcClasspath,
-    classTable: TableInfo.TableWithIdInfo,
-    origInit: JcMethod
-) : JcInitTransformer(dataclassTransformer, cp, classTable, origInit) {
+// see in java-stdlib-approximations FirstDataClass's _relationsInit method
+class JcRelationsInitTransformer(
+    val dataclassTransformer: JcDataclassTransformer,
+    val relationChecks: RelationMap<JcField>,
+    val cp: JcClasspath,
+    val classTable: TableInfo.TableWithIdInfo
+) : JcBodyFillerFeature() {
 
-    override fun condition(method: JcMethod) = method.generatedFetchInit
+    private val clazz = cp.findClass(classTable.origClassName)
+    private val classType = clazz.toType()
+
+    override fun condition(method: JcMethod) = method.generatedRelationsInit
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
-
         val thisVal = JcThis(classType)
-        val callInit = JcSpecialCallExpr(parlessInitRef, thisVal, listOf())
-        addInstruction { loc -> JcCallInst(loc, callInit) }
-
-        val rowArg = method.parameters.first().toArgument
-        classTable.columnsInOrder()
-            .filter { !it.origField.checkField }
-            .forEachIndexed { ix, col -> generateColAssign(thisVal, rowArg, ix, col) }
-
-        classTable.relations.filterIsInstance<Relation.RelationByTable>().forEach { generateSetAssign(thisVal, it) }
+        val tableManagerType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
+        val itableType = cp.findType(ITABLE) as JcClassType
 
         classTable.orderedRelations().forEachIndexed { ix, rel ->
             val relClass = rel.relatedDataclass(cp)
             val relTblName = getTableName(relClass)
-            val relTable = dataclassTransformer.collector.getTable(relClass)!!
 
-            val thisId = JcArrayAccess(rowArg, JcInt(classTable.idColIndex(), cp.int), cp.objectType)
-            val relIdIx = JcInt(relTable.idColIndex(), cp.int)
-
-            val tblField = generateGlobalTableAccess(cp, "fetch_tbl_$ix", relTblName, relClass)
+            val tblField = generateManagerAccessWithInit(cp, "fetch_tbl_$ix", relTblName, relClass)
 
             val fieldValue = when (rel) {
                 is Relation.OneToOne, is Relation.ManyToOne -> {
-                    val check = dataclassTransformer.relationChecks.get(clazz, rel.origField)
-                    val checkVar = generateVirtualCall(
-                        "one_to_one_check_$ix",
-                        getterName(check),
-                        classType,
-                        thisVal,
-                        emptyList()
-                    )
-
-                    val args = listOf(checkVar, relIdIx)
-                    val tbl = generateVirtualCall("one_to_one_$ix", "getRowsWithValueAt", managerType, tblField, args)
-                    generateVirtualCall("one_to_one_first_$ix", "first", itableType, tbl, emptyList())
-                }
-                is Relation.OneToManyByColumn -> {
-                    val checkIx = JcInt(relTable.indexOfField(rel.origField), cp.int)
-                    val args = listOf(thisId, checkIx)
-                    val objs = generateVirtualCall("one_to_many_$ix", "getRowsWithValueAt", managerType, tblField, args)
-
-                    generateWrapper(rel, objs)
-                }
-                is Relation.RelationByTable -> {
-                    val btwTable = generateGlobalTableAccess(cp, "many_to_many_table_$ix", rel.joinTable.name, null)
-
-                    val shouldShuffle =
-                        JcInt((if (rel.joinTable.joinCol.origField.enclosingClass.name == clazz.name) 0 else 1), cp.int)
-
-                    val args = listOf(thisId, shouldShuffle, btwTable)
-                    val objs = generateVirtualCall(
-                        "many_to_many_$ix",
-                        "getRowsRelatedByTable",
-                        managerType,
+                    val checks = relationChecks.get(clazz, rel.origField)
+                    val checkVar = checks.sortedBy(JcField::name).map { check ->
+                        generateVirtualCall("oto_${check.name}_$ix", getterName(check), classType, thisVal, emptyList())
+                    }.let { putValuesToObjectArray(cp, "oto_${rel.origField.name}_id_check", it) }
+                    val tbl = generateVirtualCall(
+                        "oto_$ix",
+                        TABLE_VALUES_WITH_ID,
+                        tableManagerType,
                         tblField,
-                        args
+                        listOf(checkVar)
                     )
+                    generateVirtualCall("oto_first_$ix", "first", itableType, tbl, emptyList())
+                }
 
-                    generateWrapper(rel, objs)
+                is Relation.OneToManyByColumn -> {
+                    val checkNames = relationChecks.get(relClass, rel.origField).sortedBy(JcField::name)
+                        .map { JcStringConstant(it.name, cp.stringType) }
+                        .let { putValuesWithSameTypeToArray(cp, "otm_names_$ix", it) }
+                    val buildedId = generateVirtualCall("otm_id_$ix", BUILD_ID_NAME, classType, thisVal, emptyList())
+                    val values = generateVirtualCall(
+                        "otm_$ix",
+                        TABLE_VALUES_WITH_FIELDS,
+                        tableManagerType,
+                        tblField,
+                        listOf(buildedId, checkNames)
+                    )
+                    generateWrapper(rel, values)
+                }
+
+                is Relation.RelationByTable -> {
+                    val btwTable = generateGlobalNoIdTableAccess(cp, "mtm_table_$ix", rel.joinTable)
+                    val buildedId = generateVirtualCall("otm_id_$ix", BUILD_ID_NAME, classType, thisVal, emptyList())
+
+                    val joinTableIxs = rel.joinTable.indexesOf(classTable.origClassName).let {
+                        generateIntArray(cp, "join_ixs_$ix", it)
+                    }
+                    val otherIxs = rel.joinTable.indexesOf(relClass.name).let {
+                        generateIntArray(cp, "inverse_join_ixs_$ix", it)
+                    }
+
+                    val values = generateVirtualCall(
+                        "mtm_$ix",
+                        TABLE_VALUES_BY_TABLE,
+                        tableManagerType,
+                        tblField,
+                        listOf(buildedId, btwTable, joinTableIxs, otherIxs)
+                    )
+                    generateWrapper(rel, values)
                 }
             }
 
@@ -339,85 +136,249 @@ class JcFetchedInitTransformer(
 
         addInstruction { loc -> JcReturnInst(loc, null) }
     }
+
+    private fun BlockGenerationContext.generateWrapper(rel: Relation, value: JcValue): JcValue {
+        val typeName = when (rel.origField.type.typeName) {
+            JAVA_SET -> IMMUTABLE_SET_WRAPPER
+            JAVA_LIST -> IMMUTABLE_LIST_WRAPPER
+            else -> {
+                assert(false)
+                IMMUTABLE_LIST_WRAPPER
+            }
+        }
+
+        return generateNewWithInit("${rel.origField.name}_wrapper", cp.findType(typeName) as JcClassType, listOf(value))
+    }
 }
 
-class JcStaticFetchedInitTransformer(
+// see in java-stdlib-approximations FirstDataClass's _copy method
+class JcCopyTransformer(
     val cp: JcClasspath,
-    val classTable: TableInfo.TableWithIdInfo,
-    val fetchedInit: JcMethod
+    val clazz: JcClassOrInterface,
+    val collector: JcTableInfoCollector
 ) : JcBodyFillerFeature() {
 
-    override fun condition(method: JcMethod) = method.name == STATIC_INIT_NAME
+    private val classType = clazz.toType()
+
+    override fun condition(method: JcMethod) = method.generatedCopy
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
-        val classType = cp.findType(classTable.origClass.name) as JcClassType
+        val thisVar = JcThis(classType)
+        val newObj = generateNewWithInit("new_obj", classType, emptyList())
 
-        val obj = nextLocalVar("stat_obj", classType)
-        val newCall = JcNewExpr(classType)
-        addInstruction { loc -> JcAssignInst(loc, obj, newCall) }
+        val fields = collector.collectFields(clazz) { !it.isStatic }
+        fields.forEach { field ->
+            val fieldTypeName = field.type
+            val fieldType = fieldTypeName.toJcType(cp)!! as JcClassType
 
-        val initMethod = classType.declaredMethods.single {
-            it.name == JAVA_INIT
-            && it.parameters.size == fetchedInit.parameters.size
-            && it.parameters.zip(fetchedInit.parameters).all { it.first.type.typeName == it.second.type.typeName}
-        }.methodRef
-        val args = listOf(method.parameters.first().toArgument)
-        val initCall = JcSpecialCallExpr(initMethod, obj, args)
-        addInstruction { loc -> JcCallInst(loc, initCall) }
+            val fieldValue =
+                generateVirtualCall("get_${field.name}", getterName(field), classType, thisVar, emptyList())
 
-        addInstruction { loc -> JcReturnInst(loc, obj) }
+            val fieldCopiedValue = if (fieldTypeName.hasWrapper) {
+                generatedWrapperCopy(fieldValue, field, fieldType)
+            } else {
+                val fieldCopyMethod = fieldType.declaredMethods.singleOrNull { it.method.generatedCopy }
+                if (fieldCopyMethod != null) generatedCloneableCopy(fieldValue, field, fieldType)
+                else fieldValue
+            }
+
+            generateVoidVirtualCall(setterName(field), classType, newObj, listOf(fieldCopiedValue))
+        }
+
+        addInstruction { loc -> JcReturnInst(loc, newObj) }
     }
 
+    private fun BlockGenerationContext.generatedWrapperCopy(
+        fieldValue: JcLocalVar,
+        field: JcField,
+        fieldType: JcClassType
+    ): JcLocalVar {
+        val wrapperType = cp.findType(IWRAPPER) as JcClassType
+        val castedValue = generateCast("cast_${field.name}", fieldValue, wrapperType)
+
+        val copyFunction = field.signature!!.genericTypesFromSignature.single()
+            .let { cp.findType(it) as JcClassType }
+            .declaredMethods
+            .single { it.method.generatedCopy && it.method.isStatic }
+            .let { generateLambda(cp, "copy_lambda_${field.name}", it.method) }
+        val copiedValue = generateVirtualCall(
+            "copy_${field.name}",
+            "copy",
+            wrapperType,
+            castedValue,
+            listOf(copyFunction)
+        )
+        return generateCast("backcast_${field.name}", copiedValue, fieldType)
+    }
+
+    private fun BlockGenerationContext.generatedCloneableCopy(
+        fieldValue: JcLocalVar,
+        field: JcField,
+        fieldType: JcClassType
+    ) = generateVirtualCall("copy_${field.name}", COPY_NAME, fieldType, fieldValue, emptyList())
 }
 
-// Integer $getId() { return id; }
-class JcGetIdTransformer(
+// see in java-stdlib-approximations FirstDataClass's getDTOInfo method
+class JcGetDTOTransformer(
+    val cp: JcClasspath,
+    val clazz: JcClassOrInterface,
+    val classTable: TableInfo.TableWithIdInfo,
+    val isNeedTrackTable: Boolean
+) : JcBodyFillerFeature() {
+
+    private val PACKAGES_FOR_SOFT = listOf("java.lang", "java.time", "java.math")
+    private fun isNeedToSoft(field: JcField) = PACKAGES_FOR_SOFT.any { field.type.typeName.startsWith(it) }
+
+    override fun condition(method: JcMethod) = method.generatedGetDTOInfo
+
+    override fun BlockGenerationContext.generateBody(method: JcMethod) {
+
+        val managerType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
+        val manager = generateManagerAccess(cp, "manager", classTable.name)
+        val cachedDTOInfo = generateVirtualCall("cached_dto", TABLE_GET_DTO_INFO, managerType, manager, emptyList())
+
+        val utilsType = cp.findType(DATABASE_UTILS) as JcClassType
+        val checkIsNull = generateStaticCall("check_null", IS_NULL_FUNCTION, utilsType, listOf(cachedDTOInfo))
+
+        addInstruction { loc ->
+            val cond = JcEqExpr(cp.boolean, checkIsNull, JcBool(false, cp.boolean))
+            val nextInst = JcInstRef(loc.index + 1) // return
+            val elseInst = JcInstRef(loc.index + 2) // body of function
+            JcIfInst(loc, cond, nextInst, elseInst)
+        }
+        addInstruction { loc -> JcReturnInst(loc, cachedDTOInfo) } // fast out
+
+        val allFields = classTable.origFieldsInOrder(cp).sortedBy(JcField::name)
+
+        // main part
+        val idType = classTable.idColumn.getType(cp).let { generateClassConstant(cp, "id_type", it) }
+        val classType = generateClassConstant(cp, "class_type", clazz.toType())
+        val tableName = JcStringConstant(classTable.name, cp.stringType)
+        val fieldsToValidateNames = allFields
+            .filter { it.annotations.any { it.isValidator } }
+            .map { JcStringConstant(it.name, cp.stringType) }
+            .let { putValuesWithSameTypeToArray(cp, "fields_to_validate_name", it, cp.stringType) }
+        val isAutoGeneratedId = JcBool(classTable.isAutoGenerateId(), cp.boolean)
+        val isNeedTrack = JcBool(isNeedTrackTable, cp.boolean)
+
+        val staticMethods = clazz.declaredMethods.filter(JcMethod::isStatic)
+        val blankInit = generateLambda(cp, "blank_init", staticMethods.single { it.generatedStaticBlankInit })
+        val relationsInit = generateLambda(cp, "relations_init", staticMethods.single { it.generatedRelationsInit })
+        val buildId = generateLambda(cp, "build_id", staticMethods.single { it.generatedBuildId })
+
+        val specialGetId = staticMethods.singleOrNull { it.generatedSpecialGetId }
+            ?.let { generateLambda(cp, "special_get_id", it) }
+            ?: JcNullConstant(cp.objectType)
+        val specialSetId = staticMethods.singleOrNull { it.generatedSpecialSetId }
+            ?.let { generateLambda(cp, "special_set_id", it) }
+            ?: JcNullConstant(cp.objectType)
+
+        val copy = generateLambda(cp, "copy", staticMethods.single { it.generatedCopy })
+
+        val fieldsNames = allFields
+            .map { JcStringConstant(it.name, cp.stringType) }
+            .let { putValuesWithSameTypeToArray(cp, "fields_names", it) }
+        val getters = staticMethods.filter { it.generatedGetter }.sortedBy(JcMethod::name)
+            .map { generateLambda(cp, "lambda_${it.name}", it) }
+            .let { putValuesWithSameTypeToArray(cp, "getters", it) }
+        val setters = staticMethods.filter { it.generatedSetter }.sortedBy(JcMethod::name)
+            .map { generateLambda(cp, "lambda_${it.name}", it) }
+            .let { putValuesWithSameTypeToArray(cp, "setters", it) }
+
+        val fieldsToSoft = allFields.filter(::isNeedToSoft)
+        val fieldsToSoftNames = putValuesWithSameTypeToArray(
+            cp,
+            "fields_to_soft_names",
+            fieldsToSoft.map { JcStringConstant(it.name, cp.stringType) }
+        )
+        val fieldsToSoftTypes = putValuesWithSameTypeToArray(
+            cp,
+            "fields_to_soft_types",
+            fieldsToSoft.map { generateClassConstant(cp, "type_${it.name}", it.type.toJcType(cp)!!) }
+        )
+
+        val args = listOf(
+            idType,
+            classType,
+            tableName,
+            fieldsToValidateNames,
+            isAutoGeneratedId,
+            isNeedTrack,
+            blankInit,
+            relationsInit,
+            buildId,
+            specialGetId,
+            specialSetId,
+            copy,
+            fieldsNames,
+            getters,
+            setters,
+            fieldsToSoftNames,
+            fieldsToSoftTypes
+        )
+        val newDTOInfo = generateNewWithInit("new_dto_info", cp.findType(DTO_INFO) as JcClassType, args)
+
+        addInstruction { loc -> JcReturnInst(loc, newDTOInfo) }
+    }
+}
+
+// Object[] $buildId() {
+//      val idPart1 = this.idPart1;
+//      val idPart2 = this.idPart2;
+//      val id = new Object[] { idPart1, idPart2 };
+//      return id;
+// }
+class JcBuildIdTransformer(
     val cp: JcClasspath,
     val classTable: TableInfo.TableWithIdInfo
 ) : JcBodyFillerFeature() {
 
-    override fun condition(method: JcMethod) = method.generatedGetId
+    override fun condition(method: JcMethod) = method.generatedBuildId
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
+        val idCol = classTable.idColumn
+        val classType = cp.findType(classTable.origClassName) as JcClassType
+        val thisVal = JcThis(classType)
 
-        val clazz = classTable.origClass
-        val classType = clazz.typename.toJcType(cp)!!
-        val idType = classTable.idColumn.type.toJcType(cp)!!
+        val ids = when (idCol) {
+            is IdColumnInfo.SingleId, is IdColumnInfo.ClassId -> {
+                idCol.orderedSimpleIds().mapIndexed { ix, col ->
+                    val getter = classType.declaredMethods.single { it.method.generatedGetter(col.name, false) }
+                    generateVirtualCall("id_part_$ix", getter.name, classType, thisVal, emptyList())
+                }
+            }
 
-        val lhv = nextLocalVar("%0", idType)
-        val rhv = JcFieldRef(
-            JcThis(classType), JcTypedFieldImpl(
-                classTable.idColumn.origField.enclosingClass.toType(),
-                classTable.idColumn.origField,
-                JcSubstitutorImpl()
-            )
-        )
-        addInstruction { loc -> JcAssignInst(loc, lhv, rhv) }
+            is IdColumnInfo.EmbeddedId -> {
+                val embeddedType = cp.findType(idCol.embeddedClassName) as JcClassType
+                val embeddedVar = nextLocalVar("embedded_id", embeddedType)
 
-        addInstruction { loc -> JcReturnInst(loc, lhv) }
+                val embeddedIdField = classType.fields.single { it.type.typeName.equals(idCol.embeddedClassName) }
+                val embeddedFieldRef = JcFieldRef(thisVal, embeddedIdField)
+                addInstruction { loc -> JcAssignInst(loc, embeddedVar, embeddedFieldRef) }
+
+                idCol.orderedSimpleIds().mapIndexed { ix, id ->
+                    val getterRes = generateVirtualCall(
+                        "embedded_call_${ix}",
+                        getterName(id.origField),
+                        embeddedType,
+                        embeddedVar,
+                        emptyList()
+                    )
+                    nextLocalVar("getter_res_${ix}", cp.objectType).also {
+                        addInstruction { loc -> JcAssignInst(loc, it, getterRes) }
+                    }
+                }
+            }
+        }
+        val id = putValuesWithSameTypeToArray(cp, "id", ids)
+
+        addInstruction { loc -> JcReturnInst(loc, id) }
     }
-}
-
-class JcStaticGetIdTransformer(
-    val cp: JcClasspath,
-    val clazz: JcClassType,
-    val getId: JcMethod
-) : JcBodyFillerFeature() {
-
-    override fun condition(method: JcMethod) = method.generatedStaticGetId
-
-    override fun BlockGenerationContext.generateBody(method: JcMethod) {
-        val obj = method.parameters.single().toArgument
-        val res = generateVirtualCall("res", getId.name, clazz, obj, listOf())
-        addInstruction { loc -> JcReturnInst(loc, res) }
-    }
-
 }
 
 // fieldType $getField() { return field; }
 class JcGetterTransformer(
     val cp: JcClasspath,
-    val clazz: JcClassOrInterface,
     val field: JcField,
     val name: String
 ) : JcBodyFillerFeature() {
@@ -425,46 +386,110 @@ class JcGetterTransformer(
     override fun condition(method: JcMethod) = name == method.name && method.generatedGetter
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
-
-        val classType = clazz.typename.toJcType(cp)!!
+        val classType = method.enclosingClass.toType()
         val type = field.type.toJcType(cp)!!
 
-        val lhv = nextLocalVar("%0", type)
-        val rhv = JcFieldRef(
-            JcThis(classType), JcTypedFieldImpl(
+        val vari = nextLocalVar("field", type)
+        val fieldRef = JcFieldRef(
+            JcThis(classType),
+            JcTypedFieldImpl(
                 field.enclosingClass.toType(),
                 field,
                 JcSubstitutorImpl()
             )
         )
-        addInstruction { loc -> JcAssignInst(loc, lhv, rhv) }
+        addInstruction { loc -> JcAssignInst(loc, vari, fieldRef) }
 
-        addInstruction { loc -> JcReturnInst(loc, lhv) }
+        addInstruction { loc -> JcReturnInst(loc, vari) }
     }
 
 }
 
-// someType $identity(someType v) { return v; }
-class JcIdentityTransformer(val type: JcType) : JcBodyFillerFeature() {
+// void $setField(fieldType field) { this.field = field; }
+class JcSetterTransformer(
+    val cp: JcClasspath,
+    val field: JcField,
+    val name: String
+) : JcBodyFillerFeature() {
 
-    override fun condition(method: JcMethod) = method.generatedIdentity
+    override fun condition(method: JcMethod) = name == method.name && method.generatedSetter
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
-        val argVal = nextLocalVar("v", type)
-        val arg = method.parameters.first().toArgument
-        addInstruction { loc -> JcAssignInst(loc, argVal, arg) }
-        addInstruction { loc -> JcReturnInst(loc, argVal) }
+        val arg = method.parameters.single().toArgument
+
+        val classType = method.enclosingClass.toType()
+        val fieldRef = JcFieldRef(
+            JcThis(classType),
+            JcTypedFieldImpl(
+                field.enclosingClass.toType(),
+                field,
+                JcSubstitutorImpl()
+            )
+        )
+        addInstruction { loc -> JcAssignInst(loc, fieldRef, arg) }
+
+        addInstruction { loc -> JcReturnInst(loc, null) }
+    }
+}
+
+class JcSpecialGetIdTransformer(
+    val cp: JcClasspath,
+    val idField: JcField
+) : JcBodyFillerFeature() {
+
+    override fun condition(method: JcMethod) = method.generatedSpecialGetId
+
+    override fun BlockGenerationContext.generateBody(method: JcMethod) {
+        val classType = method.enclosingClass.toType()
+        val type = idField.type.toJcType(cp)!!
+
+        val vari = nextLocalVar("field", type)
+        val fieldRef = JcFieldRef(
+            JcThis(classType),
+            JcTypedFieldImpl(
+                idField.enclosingClass.toType(),
+                idField,
+                JcSubstitutorImpl()
+            )
+        )
+        addInstruction { loc -> JcAssignInst(loc, vari, fieldRef) }
+
+        addInstruction { loc -> JcReturnInst(loc, vari) }
+    }
+}
+
+class JcSpecialSetIdTransformer(
+    val cp: JcClasspath,
+    val idField: JcField
+) : JcBodyFillerFeature() {
+
+    override fun condition(method: JcMethod) = method.generatedSpecialSetId
+
+    override fun BlockGenerationContext.generateBody(method: JcMethod) {
+        val arg = method.parameters.single().toArgument
+
+        val classType = method.enclosingClass.toType()
+        val fieldRef = JcFieldRef(
+            JcThis(classType),
+            JcTypedFieldImpl(
+                idField.enclosingClass.toType(),
+                idField,
+                JcSubstitutorImpl()
+            )
+        )
+        addInstruction { loc -> JcAssignInst(loc, fieldRef, arg) }
+
+        addInstruction { loc -> JcReturnInst(loc, null) }
     }
 }
 
 // see in java-stdlib-approximations FirstDataClass's _save method
 abstract class JcSaveUpdateDeleteTransformer(
-    val dataclassTransformer: JcDataclassTransformer,
+    val collector: JcTableInfoCollector,
     val cp: JcClasspath,
+    val relationChecks: RelationMap<JcField>,
     val classTable: TableInfo.TableWithIdInfo,
-    val clazz: JcClassOrInterface,
-    val classGetId: JcMethod,
-    val classGetters: List<JcMethod>
+    val clazz: JcClassOrInterface
 ) : JcBodyFillerFeature() {
 
     abstract val crudMethodName: String
@@ -499,25 +524,21 @@ abstract class JcSaveUpdateDeleteTransformer(
 
         val casted = generateGlobalTableAccess(cp, "tbl", getTableName(clazz), clazz)
 
-        val serializer = clazz.declaredMethods.single { it.generatedStaticSerializerWithSkips }
-        val serLmbd = generateLambda(cp, "serilizer", serializer)
+        val complexIdTranslator = if (classTable.idColumn is IdColumnInfo.SingleId) JcNullConstant(cp.objectType)
+        else {
+            val complexIdClassName = classTable.getComplexIdClassName()!!
+            val complexId = cp.findType(complexIdClassName) as JcClassType
+            val buildIdsMethod = complexId.declaredMethods.single { it.method.generatedBuildIds }.method
+            generateLambda(cp, "complexIdFieldTranslator", buildIdsMethod)
+        }
 
-        val deserializer = clazz.declaredMethods.single { it.generatedStaticFetchInit }
-        val desLmbd = generateLambda(cp, "deserilizer", deserializer)
-
-        val javaClassType = cp.findType(JAVA_CLASS)
-        val clTypeV = nextLocalVar("class_type", javaClassType)
-        val cl = JcClassConstant(classType, javaClassType)
-        addInstruction { loc -> JcAssignInst(loc, clTypeV, cl) }
-
-        val crud = generateNewWithInit("crud", crudType, listOf(casted, serLmbd, desLmbd, clTypeV))
+        val crud = generateNewWithInit("crud", crudType, listOf(casted, complexIdTranslator))
         val allowRecUpd = generateVirtualCall("allow_rec_upd", GET_REC_UPD, ctxType, ctxVar, listOf())
 
         val args = if (modifyCtxFlags) listOf(objVar, allowRecUpd) else listOf(objVar)
         generateVoidVirtualCall(crudMethodName, crudType, crud, args)
 
-        val clazzId = generateVirtualCall("id", classGetId.name, classType, objVar, listOf())
-        val shouldShuffle = JcInt(0, cp.int)
+        val clazzId = generateVirtualCall("id", BUILD_ID_NAME, classType, objVar, listOf())
         var ix = 0
         val saveUpdDelManagers = classTable.relatedClasses(cp).associate { subClass ->
 
@@ -528,7 +549,7 @@ abstract class JcSaveUpdateDeleteTransformer(
 
             val subSaveUpd = subType.declaredMethods.single { it.method.generatedSaveUpdate }
             val subDel = subType.declaredMethods.single { it.method.generatedDelete }
-            val subGetId = subType.declaredMethods.single { it.method.generatedStaticGetId }
+            val subGetId = subType.declaredMethods.single { it.method.generatedBuildId }
 
             val saveUpd = generateLambda(cp, "save_${nameSuffix}", subSaveUpd.method)
             val del = generateLambda(cp, "del_${nameSuffix}", subDel.method)
@@ -537,7 +558,7 @@ abstract class JcSaveUpdateDeleteTransformer(
             val manager = generateNewWithInit(
                 "manager_${nameSuffix}",
                 manyManager,
-                listOf(ctxVar, subTableField, saveUpd, del, clazzId, getId, shouldShuffle)
+                listOf(ctxVar, subTableField, saveUpd, del, clazzId, getId)
             )
 
             subClass.name to manager
@@ -546,47 +567,48 @@ abstract class JcSaveUpdateDeleteTransformer(
         classTable.relations.filter { relFilter(it) }.forEachIndexed { ix, rel ->
             val allowRecUpdate = JcBool(rel.isAllowUpdate, cp.boolean)
             val subClass = rel.relatedDataclass(cp).toType()
-            val getter = classGetters.single { it.isGeneratedGetter(rel.origField.name) }
-            val field = generateVirtualCall("fld_$ix", getter.name, classType, objVar, listOf())
+            val field = generateVirtualCall("fld_$ix", getterName(rel.origField), classType, objVar, listOf())
             val manager = saveUpdDelManagers[subClass.name]!!
             when (rel) {
                 is Relation.OneToOne, is Relation.ManyToOne -> {
                     if (modifyCtxFlags) generateVoidVirtualCall(SET_REC_UPD, ctxType, ctxVar, listOf(allowRecUpdate))
                     generateVoidStaticCall(SAVE_UPDATE_NAME, subClass, listOf(field, ctxVar))
                     val tbl = generateGlobalTableAccess(cp, "tbl_$ix", getTableName(clazz), clazz)
-                    val pos = JcInt(classTable.indexOfField(rel.origField), cp.int)
-                    assert(pos.value != -1)
+                    val relationFieldsNames = relationChecks.get(clazz, rel.origField).sortedBy(JcField::name)
+                        .map { JcStringConstant(it.name, cp.stringType) }
+                        .let { putValuesWithSameTypeToArray(cp, "fields_names_$ix", it) }
                     val subId = generateVirtualCall("b${ix}_id", "getId", manyManager, manager, listOf(field))
                     generateVoidVirtualCall(
-                        "changeSingleFieldByIdEnsure",
+                        "changeFieldsByIdEnsure",
                         cp.findType(BASE_TABLE_MANAGER) as JcClassType,
                         tbl,
-                        listOf(clazzId, pos, subId)
+                        listOf(clazzId, relationFieldsNames, subId)
                     )
                 }
 
                 is Relation.OneToManyByColumn -> {
                     if (modifyCtxFlags)
                         generateVoidVirtualCall(SET_REC_UPD, manyManager, manager, listOf(allowRecUpdate))
-                    val pos = JcInt(
-                        dataclassTransformer.collector.getTable(subClass.jcClass)!!.indexOfField(rel.origField),
-                        cp.int
-                    )
-                    assert(pos.value != -1)
-                    generateVoidVirtualCall(SUD_SAVE_NO_TABLE, manyManager, manager, listOf(field, pos))
+                    val relationFieldsNames =
+                        relationChecks.get(subClass.toJcClass()!!, rel.origField).sortedBy(JcField::name)
+                            .map { JcStringConstant(it.name, cp.stringType) }
+                            .let { putValuesWithSameTypeToArray(cp, "fields_names_$ix", it) }
+                    generateVoidVirtualCall(SUD_SAVE_NO_TABLE, manyManager, manager, listOf(field, relationFieldsNames))
                 }
 
                 is Relation.RelationByTable -> {
-                    val joinTable = rel.joinTable.toTable()
+                    val joinTable = rel.joinTable
                     if (modifyCtxFlags) {
-                        val shuffle =
-                            if (joinTable.columnsInOrder().first().origField.enclosingClass.name == clazz.name)
-                                JcInt(0, cp.int)
-                            else JcInt(1, cp.int)
                         generateVoidVirtualCall(SET_REC_UPD, manyManager, manager, listOf(allowRecUpd))
-                        generateVoidVirtualCall(SUD_SET_SHOULD_SHUFFLE, manyManager, manager, listOf(shuffle))
+
+                        val parentJoins = joinTable.indexesOf(classTable.origClassName)
+                            .let { generateIntArray(cp, "parent_joins_${ix}", it) }
+                        generateVoidVirtualCall(SUD_SET_PARENT_JOINS, manyManager, manager, listOf(parentJoins))
+                        val childJoins = joinTable.indexesOfOtherClass(classTable.origClassName)
+                            .let { generateIntArray(cp, "child_joins_${ix}", it) }
+                        generateVoidVirtualCall(SUD_SET_CHILD_JOINS, manyManager, manager, listOf(childJoins))
                     }
-                    val join = generateGlobalTableAccess(cp, "join_$ix", joinTable.name, null)
+                    val join = generateGlobalNoIdTableAccess(cp, "join_$ix", joinTable)
                     generateVoidVirtualCall(SUD_SAVE_WITH_TABLE, manyManager, manager, listOf(field, join))
                 }
             }
@@ -598,13 +620,12 @@ abstract class JcSaveUpdateDeleteTransformer(
 
 // see in java-stdlib-approximations FirstDataClass's _save method
 class JcDeleteTransformer(
-    dataclassTransformer: JcDataclassTransformer,
+    collector: JcTableInfoCollector,
     cp: JcClasspath,
+    relationChecks: RelationMap<JcField>,
     classTable: TableInfo.TableWithIdInfo,
-    clazz: JcClassOrInterface,
-    classGetId: JcMethod,
-    classGetters: List<JcMethod>
-) : JcSaveUpdateDeleteTransformer(dataclassTransformer, cp, classTable, clazz, classGetId, classGetters) {
+    clazz: JcClassOrInterface
+) : JcSaveUpdateDeleteTransformer(collector, cp, relationChecks, classTable, clazz) {
 
     override val crudMethodName = "delete"
     override val objMethodName = DELETE_NAME
@@ -618,13 +639,12 @@ class JcDeleteTransformer(
 }
 
 class JcSaveUpdateTransformer(
-    dataclassTransformer: JcDataclassTransformer,
+    collector: JcTableInfoCollector,
     cp: JcClasspath,
+    relationChecks: RelationMap<JcField>,
     classTable: TableInfo.TableWithIdInfo,
-    clazz: JcClassOrInterface,
-    classGetId: JcMethod,
-    classGetters: List<JcMethod>
-) : JcSaveUpdateDeleteTransformer(dataclassTransformer, cp, classTable, clazz, classGetId, classGetters) {
+    clazz: JcClassOrInterface
+) : JcSaveUpdateDeleteTransformer(collector, cp, relationChecks, classTable, clazz) {
 
     override val crudMethodName = "save"
     override val objMethodName = SAVE_UPDATE_NAME
@@ -646,7 +666,7 @@ class JcSaveUpdateTransformer(
 // }
 class JcSerializerTransformer(
     val cp: JcClasspath,
-    val dataclassTransformer: JcDataclassTransformer,
+    val relationChecks: RelationMap<JcField>,
     val classTable: TableInfo.TableWithIdInfo,
     val skipGeneratedFields: Boolean
 ) : JcBodyFillerFeature() {
@@ -668,20 +688,15 @@ class JcSerializerTransformer(
         columns.forEachIndexed { ix, col ->
 
             if (!(skipGeneratedFields && !col.isOrig)) {
-                val fieldVar = nextLocalVar("${col.name}_field", col.type.toJcType(cp)!!)
-                val field =
-                    if (col.isOrig) col.origField else dataclassTransformer.relationChecks.get(clazz, col.origField)
-                val fieldRef = JcFieldRef(
-                    JcThis(classType), JcTypedFieldImpl(
-                        field.enclosingClass.toType(),
-                        field,
-                        JcSubstitutorImpl()
-                    )
-                )
-                addInstruction { loc -> JcAssignInst(loc, fieldVar, fieldRef) }
+                (if (col.isOrig) listOf(col.origField) else relationChecks.get(clazz, col.origField)).forEach {
+                    val fieldVar = nextLocalVar("${it.name}_field_${ix}", col.type.toJcType(cp)!!)
+                    val field = it.enclosingClass.toType().fields.single { fld -> fld.name == it.name }
+                    val fieldRef = JcFieldRef(JcThis(classType), field)
+                    addInstruction { loc -> JcAssignInst(loc, fieldVar, fieldRef) }
 
-                val arrAcess = JcArrayAccess(arr, JcInt(ix, cp.int), cp.objectType)
-                addInstruction { loc -> JcAssignInst(loc, arrAcess, fieldVar) }
+                    val arrAcess = JcArrayAccess(arr, JcInt(ix, cp.int), cp.objectType)
+                    addInstruction { loc -> JcAssignInst(loc, arrAcess, fieldVar) }
+                }
             }
         }
 
@@ -689,32 +704,23 @@ class JcSerializerTransformer(
     }
 }
 
-class JcStaticSerializerTransformer(
+class JcStaticClassMethod(
     val cp: JcClasspath,
-    val classTable: TableInfo.TableWithIdInfo,
-    val serializer: JcMethod,
-    val skipGenerated: Boolean
+    val newName: String,
+    val targetMethod: JcMethod
 ) : JcBodyFillerFeature() {
-
     override fun condition(method: JcMethod) =
-        !skipGenerated && method.generatedStaticSerializer
-                || skipGenerated && method.generatedStaticSerializerWithSkips
+        method.name == newName && method.isStatic && method.enclosingClass.equals(targetMethod.enclosingClass)
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
-        val classType = cp.findType(classTable.origClass.name) as JcClassType
-
-        val arrType = cp.arrayTypeOf(cp.objectType, false, listOf())
-        val arrVar = nextLocalVar("ser_obj", arrType)
-
-        val serMethod = classType.declaredMethods.single {
-            it.name == serializer.name && it.parameters.size == serializer.parameters.size
+        val obj = method.parameters.first().toArgument
+        val args = method.parameters.takeLast(method.parameters.size - 1).map { it.toArgument }
+        if (method.isVoid) {
+            generateVoidVirtualCall(targetMethod.name, method.enclosingClass.toType(), obj, args)
+            addInstruction { loc -> JcReturnInst(loc, null) }
+        } else {
+            val call = generateVirtualCall("call", targetMethod.name, method.enclosingClass.toType(), obj, args)
+            addInstruction { loc -> JcReturnInst(loc, call) }
         }
-        val serMethodRef = VirtualMethodRefImpl.of(classType, serMethod)
-        val inst = method.parameters.single().toArgument
-        val serCall = JcVirtualCallExpr(serMethodRef, inst, listOf())
-
-        addInstruction { loc -> JcAssignInst(loc, arrVar, serCall) }
-
-        addInstruction { loc -> JcReturnInst(loc, arrVar) }
     }
 }
