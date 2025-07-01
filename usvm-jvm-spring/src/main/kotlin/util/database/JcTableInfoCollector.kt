@@ -81,7 +81,7 @@ class JcTableInfoCollector(
 
             val validators = field.annotations.mapNotNull { annot ->
                 // TODO: adds other enums validators!!
-                JcValidateAnnotation.entries.find { it.annotationSimpleName == annot.jcClass!!.simpleName }
+                JcValidateAnnotation.entries.find { it.annotationSimpleName == annot.jcClass?.simpleName }
                     ?.let { annot to it }
             }
 

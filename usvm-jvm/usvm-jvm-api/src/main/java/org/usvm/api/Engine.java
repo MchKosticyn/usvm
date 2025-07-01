@@ -16,7 +16,7 @@ public class Engine {
         assert expr;
     }
 
-    public static boolean forceStringEquals(String first, String second) { return false; }
+    public static boolean fastStringEquals(String first, String second) { return first.equals(second); }
 
     @SuppressWarnings("unused")
     public static <T> T makeSymbolic(Class<T> clazz) {

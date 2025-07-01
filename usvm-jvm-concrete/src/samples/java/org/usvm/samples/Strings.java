@@ -15,9 +15,11 @@ public class Strings {
 
     public static boolean isEqualToAaa(String input) {
         Engine.assume(input != null);
-        if (Engine.forceStringEquals(input, "Aaa")) {
+        // To force _assumeInvariants
+        Engine.assume(!input.isEmpty());
+        if (Engine.fastStringEquals(input, "Aaa"))
             return true;
-        }
+
         return false;
     }
 }
