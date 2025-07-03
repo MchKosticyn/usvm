@@ -2,13 +2,9 @@ package org.usvm.machine
 
 import io.ksmt.utils.asExpr
 import io.ksmt.utils.uncheckedCast
-import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcArrayType
-import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
-import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.BsmArg
 import org.jacodb.api.jvm.cfg.BsmDoubleArg
@@ -21,20 +17,14 @@ import org.jacodb.api.jvm.cfg.BsmStringArg
 import org.jacodb.api.jvm.cfg.BsmTypeArg
 import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.cfg.JcStringConstant
-import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.byte
 import org.jacodb.api.jvm.ext.char
 import org.jacodb.api.jvm.ext.double
-import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findClassOrNull
-import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.ifArrayGetElementType
 import org.jacodb.api.jvm.ext.int
-import org.jacodb.api.jvm.ext.isAssignable
-import org.jacodb.api.jvm.ext.isEnum
-import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.long
 import org.jacodb.api.jvm.ext.objectClass
 import org.jacodb.api.jvm.ext.objectType
@@ -49,8 +39,6 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UFpSort
 import org.usvm.UHeapRef
-import org.usvm.UNullRef
-import org.usvm.USort
 import org.usvm.api.Engine
 import org.usvm.api.SymbolicIdentityMap
 import org.usvm.api.SymbolicList
@@ -106,9 +94,6 @@ import org.usvm.api.readArrayIndex
 import org.usvm.api.readArrayLength
 import org.usvm.api.readField
 import org.usvm.api.writeField
-import org.usvm.collection.array.UArrayIndexLValue
-import org.usvm.collection.map.length.UMapLengthLValue
-import org.usvm.collection.map.ref.URefMapEntryLValue
 import org.usvm.getIntValue
 import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.newStmt
@@ -116,8 +101,7 @@ import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.javaName
-import org.usvm.jvm.util.stringType
-import java.util.ArrayList
+import org.usvm.machine.state.skipMethodInvocationAndBoxIfNeeded
 
 open class JcMethodApproximationResolver(
     protected val ctx: JcContext,
@@ -482,6 +466,77 @@ open class JcMethodApproximationResolver(
         }
 
         return false
+    }
+
+    private fun JcState.arrayContentEquals(
+        firstArray: UHeapRef,
+        secondArray: UHeapRef,
+        arrayType: JcArrayType,
+    ): UBoolExpr? = with(ctx) {
+        val arrayDesciptor = arrayDescriptorOf(arrayType)
+        val elementType = arrayType.elementType
+        val elementSort = typeToSort(elementType)
+
+        val firstLength = memory.readArrayLength(firstArray, arrayDesciptor, sizeSort)
+        val secondLength = memory.readArrayLength(secondArray, arrayDesciptor, sizeSort)
+
+        val concreteLength =
+            getIntValue(firstLength)
+                ?: getIntValue(secondLength)
+                ?: return@with null
+
+        return@with mkIte(mkEq(firstLength, secondLength).not(), { falseExpr }) {
+            val arrayEquals = List(concreteLength) {
+                val idx = mkSizeExpr(it)
+                val first = memory.readArrayIndex(firstArray, idx, arrayDesciptor, elementSort)
+                val second =
+                    memory.readArrayIndex(secondArray, idx, arrayDesciptor, elementSort)
+                mkEq(first, second)
+            }
+            mkAnd(arrayEquals)
+        }
+    }
+
+    private fun JcState.arrayEquals(methodCall: JcMethodCall, firstArray: UHeapRef, secondArray: UHeapRef) = with(ctx) {
+        val possibleElementTypes = primitiveTypes + cp.objectType
+        val possibleArrayTypes = possibleElementTypes.map { cp.arrayTypeOf(it) }
+
+        val branches = mutableListOf<Pair<UBoolExpr, (JcState) -> Unit>>()
+        var typeDiffersConstraint: UBoolExpr = trueExpr
+
+        val arrayRefsEqual = mkEq(firstArray, secondArray)
+        val oneArrayIsNull = mkOr(mkEq(firstArray, nullRef), mkEq(secondArray, nullRef))
+        branches += arrayRefsEqual to { state ->
+            state.skipMethodInvocationAndBoxIfNeeded(methodCall, cp.boolean, trueExpr)
+        }
+        branches += mkAnd(mkNot(arrayRefsEqual), oneArrayIsNull) to { state ->
+            state.skipMethodInvocationAndBoxIfNeeded(methodCall, cp.boolean, falseExpr)
+        }
+        val needToCheckContent = mkAnd(mkNot(arrayRefsEqual), mkNot(oneArrayIsNull))
+        for (arrayType in possibleArrayTypes) {
+            val typeConstraint = scope.calcOnState {
+                mkAnd(
+                    memory.types.evalIsSubtype(firstArray, arrayType),
+                    memory.types.evalIsSubtype(secondArray, arrayType)
+                )
+            }
+            typeDiffersConstraint = mkAnd(typeDiffersConstraint, ctx.mkNot(typeConstraint))
+            branches += mkAnd(needToCheckContent, typeConstraint) to { state ->
+                val checkResult = state.arrayContentEquals(firstArray, secondArray, arrayType)
+                if (checkResult == null) {
+                    // Unable to check
+                    state.skipMethodInvocationWithValue(methodCall, nullRef)
+                } else {
+                    state.skipMethodInvocationAndBoxIfNeeded(methodCall, cp.boolean, checkResult)
+                }
+            }
+        }
+
+        branches += typeDiffersConstraint to { state ->
+            state.skipMethodInvocationAndBoxIfNeeded(methodCall, cp.boolean, falseExpr)
+        }
+
+        scope.forkMulti(branches)
     }
 
     private fun JcState.stringEquals(firstStr: UHeapRef, secondStr: UHeapRef): UBoolExpr = with(ctx) {
