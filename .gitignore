@@ -21,6 +21,7 @@ run_python_with_gdb.sh
 
 # Ignoring generated files
 generated/*
+usvm-jvm-spring-runner/generatedTests/
 usvm-jvm-spring-runner/generated/*
 
 *.ansi

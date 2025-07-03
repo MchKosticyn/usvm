@@ -978,7 +978,7 @@ open class JcMethodApproximationResolver(
                 scope.doWithState { pathConstraints.addSoftConstraint(arg) }
                 ctx.voidValue
             }
-            dispatchUsvmApiMethod(Engine::fastStringEquals) {
+            dispatchUsvmApiMethod(Engine::arrayEquals) {
                 val first = it.arguments[0].asExpr(ctx.addressSort)
                 val second = it.arguments[1].asExpr(ctx.addressSort)
                 scope.doWithState { arrayEquals(it, first, second) }

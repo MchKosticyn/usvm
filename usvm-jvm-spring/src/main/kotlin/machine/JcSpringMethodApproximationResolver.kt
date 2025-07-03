@@ -141,14 +141,6 @@ class JcSpringMethodApproximationResolver (
             if (approximateArgumentResolver(methodCall)) return true
         }
 
-        if (enclosingClass == ctx.stringType) {
-            if (approximateStringMethod(methodCall)) return true
-        }
-
-        if (enclosingClass.isGrantedAuthority) {
-            if (approximateGrantedAuthorityMethod(methodCall)) return true
-        }
-
         return false
     }
 
@@ -353,30 +345,6 @@ class JcSpringMethodApproximationResolver (
         return concreteLength != null;
     }
 
-    private fun approximateStringMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        if (method.name == "equals") {
-            return scope.calcOnState {
-                this as JcSpringState
-                val memory = memory as JcSpringMemory
-                val first = arguments[0].asExpr(ctx.addressSort)
-                val second = arguments[1].asExpr(ctx.addressSort)
-
-                val hasRoleString = roleStrings.contains(first) || roleStrings.contains(second)
-                val hasConcreteString = hasConcreteLength(memory, first) || hasConcreteLength(memory, second)
-
-                if (hasRoleString && hasConcreteString) {
-                    println("Checking role string for equality")
-                    val equals = stringEquals(first, second)
-                    skipMethodInvocationWithValue(methodCall, equals)
-                    return@calcOnState true
-                }
-
-                return@calcOnState false
-            }
-        }
-        return false
-    }
-
     private fun approximateSecurityContextImpl(methodCall: JcMethodCall): Boolean = with(methodCall) {
         if (method.name == "_getUserClass") {
             scope.doWithState {
@@ -409,16 +377,6 @@ class JcSpringMethodApproximationResolver (
         }
 
         return@with false
-    }
-
-    private fun approximateGrantedAuthorityMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
-        if (method.name == "getAuthority") {
-            scope.doWithState {
-                val postProcessInst = JcGetAuthorityMethod(methodCall)
-                newStmt(JcVirtualMethodCallInst(location, method, arguments, postProcessInst))
-            }
-        }
-        return false
     }
 
     private fun approximateMockHttpRequest(methodCall: JcMethodCall): Boolean = with(methodCall) {
@@ -766,7 +724,7 @@ class JcSpringMethodApproximationResolver (
             scope.doWithState {
                 val userDetails ="org.springframework.security.core.userdetails.UserDetails"
                 val userClass = ctx.cp.findClassOrNull(userDetails)
-                val enabled = userClass != null
+                val enabled = userClass != null && userClass !is JcUnknownClass
                 skipMethodInvocationWithValue(methodCall, ctx.mkBool(enabled))
             }
 
