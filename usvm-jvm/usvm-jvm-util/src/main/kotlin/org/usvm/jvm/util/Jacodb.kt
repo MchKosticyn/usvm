@@ -13,6 +13,7 @@ import org.jacodb.impl.bytecode.joinFeatureFields
 import org.jacodb.impl.bytecode.joinFeatureMethods
 import org.jacodb.impl.bytecode.toJcMethod
 import org.jacodb.impl.features.classpaths.ClasspathCache
+import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.types.JcClassTypeImpl
 import org.jacodb.impl.types.MethodInfo
 import org.jacodb.impl.types.ParameterInfo
@@ -149,8 +150,9 @@ fun JcMethod.isSameSignature(mn: MethodNode): Boolean =
     withAsmNode { it.isSameSignature(mn) }
 
 val JcMethod.toTypedMethod: JcTypedMethod
-    get() = this.enclosingClass.toType().declaredMethods.first { typed -> typed.method == this }
-
+    get() = this.enclosingClass.toType().declaredMethods.first { typed ->
+        typed.method.name == this.name && typed.method.description == this.description
+    }
 val JcClassOrInterface.enumValuesField: JcTypedField
     get() = toType().findFieldOrNull("\$VALUES") ?: error("No \$VALUES field found for the enum type $this")
 
@@ -212,6 +214,15 @@ val String.genericTypesFromSignature : List<String> get() {
 
     return res.map { it.substringAfter(":").jcdbName() }
 }
+
+fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =
+    locations
+        .asSequence()
+        .flatMap { it.classNames ?: emptySet() }
+        .mapNotNull { findClassOrNull(it) }
+        .filterNot { it is JcUnknownClass }
+        .filterNot { it.isAbstract || it.isInterface || it.isAnonymous }
+        .sortedBy { it.name }
 
 private val cpWithoutApproximationsCache = HashMap<JcClasspath, JcCpWithoutApproximations>()
 

@@ -10,4 +10,10 @@ public class Strings {
             return false;
         return true;
     }
+
+    public static boolean isEqualToAaa(String input) {
+        if ("Aaa".equals(input))
+            return true;
+        return false;
+    }
 }

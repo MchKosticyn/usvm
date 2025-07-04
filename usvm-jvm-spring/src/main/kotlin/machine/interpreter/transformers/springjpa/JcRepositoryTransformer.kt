@@ -74,6 +74,7 @@ object JcRepositoryTransformer : JcClassExtFeature {
             if (it.query == null && JcRepositoryCrudTransformer.crudNames.contains(it.name))
                 return@flatMap emptyList<JcMethod>()
 
+            if (it.query == null) return@flatMap emptyList()
             val query = it.query ?: JPANameTranslator(it.name, dataClass).buildQuery()
             val queryCtx = HqlLexer(CharStreams.fromString(query))
                 .let(::CommonTokenStream)

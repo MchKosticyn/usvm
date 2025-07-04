@@ -44,6 +44,10 @@ internal val JcClassOrInterface.isSpringRepository: Boolean
             || classpath.findClassOrNull("org.springframework.data.repository.Repository")
                 ?.let { isSubClassOf(it) } ?: false
 
+internal val JcClassOrInterface.isGrantedAuthority: Boolean
+    get() = classpath.findClassOrNull("org.springframework.security.core.GrantedAuthority")
+        ?.let{ isSubClassOf(it) } ?: false
+
 internal val JcClassOrInterface.isSpringRequest: Boolean
     get() = classpath.findClassOrNull("jakarta.servlet.http.HttpServletRequest")
         ?.let { this.isSubClassOf(it) } ?: false
@@ -53,14 +57,15 @@ internal val JcClassOrInterface.isServletWebRequest: Boolean
         ?.let { this.isSubClassOf(it) } ?: false
 
 internal val JcMethod.isSpringFilterMethod: Boolean
-    get() = enclosingClass.isSpringFilter && (name == "doFilter" || name == "doFilterInternal")
+    get() = enclosingClass.isSpringFilter
 
 internal val JcMethod.isSpringFilterChainMethod: Boolean
-    get() = enclosingClass.isSpringFilterChain && (name == "doFilter" || name == "doFilterInternal")
+    get() = enclosingClass.isSpringFilterChain
+
+private val argumentResolverMethods = setOf("convertIfNecessary", "resolveArgument", "resolveName", "handleNullValue")
 
 internal val JcMethod.isArgumentResolverMethod: Boolean
-    get() = enclosingClass.isArgumentResolver &&
-            setOf("convertIfNecessary", "resolveArgument", "resolveName", "handleNullValue").contains(name)
+    get() = enclosingClass.isArgumentResolver && argumentResolverMethods.contains(name)
 
 internal val JcMethod.isHttpRequestMethod: Boolean
     get() = enclosingClass.isSpringRequest
@@ -71,3 +76,7 @@ internal val JcMethod.isServletRequestMethod: Boolean
 internal val JcMethod.isDeserializationMethod: Boolean
     get() = name == "readWithMessageConverters"
             && enclosingClass.isArgumentResolver
+
+internal val JcMethod.isSecurityExpressionRootMethod: Boolean
+    get() = enclosingClass.classpath.findClassOrNull("org.springframework.security.access.expression.SecurityExpressionRoot")
+        ?.let{ enclosingClass.isSubClassOf(it) } ?: false

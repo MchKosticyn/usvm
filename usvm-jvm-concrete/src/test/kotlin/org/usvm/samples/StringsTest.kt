@@ -29,4 +29,15 @@ class StringsTest : ApproximationsTestRunner() {
             )
         )
     }
+
+    @Test
+    fun checkStringEqualsTest() {
+        checkDiscoveredPropertiesWithExceptions(
+            Strings::isEqualToAaa,
+            ignoreNumberOfAnalysisResults,
+            invariants = arrayOf(
+                { i, result -> result.getOrNull() == ("Aaa" == i) },
+            )
+        )
+    }
 }

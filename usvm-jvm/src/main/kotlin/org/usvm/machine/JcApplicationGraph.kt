@@ -9,6 +9,7 @@ import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.SyncUsagesExtension
 import org.jacodb.impl.features.hierarchyExt
 import org.usvm.dataflow.jvm.graph.JcApplicationGraphImpl
+import org.usvm.jvm.util.toTypedMethod
 import org.usvm.statistics.ApplicationGraph
 import org.usvm.util.originalInst
 import java.util.concurrent.ConcurrentHashMap
@@ -50,9 +51,7 @@ class JcApplicationGraph(
     private val typedMethodsCache = ConcurrentHashMap<JcMethod, JcTypedMethod>()
 
     val JcMethod.typed: JcTypedMethod
-        get() = typedMethodsCache.getOrPut(this) {
-            enclosingClass.toType().declaredMethods.first { it.method == this }
-        }
+        get() = typedMethodsCache.getOrPut(this) { this.toTypedMethod }
 
     private val statementsOfMethodCache = ConcurrentHashMap<JcMethod, Collection<JcInst>>()
 

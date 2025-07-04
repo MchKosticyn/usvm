@@ -11,6 +11,7 @@ import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
+import org.jacodb.api.jvm.ext.void
 import org.usvm.PathNode
 import org.usvm.UCallStack
 import org.usvm.UConcreteHeapRef
@@ -73,6 +74,7 @@ class JcSpringState(
     }
 
     fun addMock(method: JcMethod, result: UExpr<out USort>, type: JcType) {
+        check(method.returnType.typeName != ctx.cp.void.typeName) { "Cannot mock void methods" }
         mockedMethodCalls.addMock(method, JcPinnedValue(result, type))
     }
 

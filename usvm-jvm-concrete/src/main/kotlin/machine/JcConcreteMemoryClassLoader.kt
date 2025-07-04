@@ -227,8 +227,12 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (name.isLambdaTypeName)
             return loadLambdaClass(name)
 
-        val jcClass = cp.findClassOrNull(name) ?: throw ClassNotFoundException(name)
-        return defineClassRecursively(jcClass)
+        val jcClass = cp.findClassOrNull(name)
+        return when {
+            jcClass == null && name.typeIsRuntimeGenerated -> super.loadClass(name)
+            jcClass == null -> throw ClassNotFoundException()
+            else -> defineClassRecursively(jcClass)
+        }
     }
 
     fun isLoaded(jcClass: JcClassOrInterface): Boolean {
@@ -254,7 +258,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
                 loadLambdaClass(name)
             else defineClassRecursively(jcClass)
 
-        if (initialize)
+        if (initialize && !loadedClass.name.isLambdaTypeName)
             Class.forName(loadedClass.name, true, this)
 
         return loadedClass
@@ -278,10 +282,6 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         } catch (e: Throwable) {
             error("Failed getting resources ${e.message}")
         }
-    }
-
-    private fun typeIsRuntimeGenerated(jcClass: JcClassOrInterface): Boolean { // TODO: remove #CM
-        return jcClass.name == "org.mockito.internal.creation.bytebuddy.inject.MockMethodDispatcher"
     }
 
     private fun defineClassRecursively(jcClass: JcClassOrInterface): Class<*> =
@@ -330,7 +330,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (!visited.add(jcClass))
             return null
 
-        if (jcClass.declaration.location.isRuntime || typeIsRuntimeGenerated(jcClass))
+        if (jcClass.declaration.location.isRuntime || jcClass is JcUnknownClass && jcClass.name.typeIsRuntimeGenerated)
             return super.loadClass(className)
 
         if (jcClass is JcUnknownClass)

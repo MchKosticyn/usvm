@@ -1,12 +1,13 @@
 package machine
 
 import io.ksmt.utils.asExpr
-import machine.state.pinnedValues.JcSpringPinnedValueSource
-import machine.state.concreteMemory.JcConcreteMemory
+import kotlinx.coroutines.runBlocking
 import machine.state.JcSpringState
+import machine.state.concreteMemory.JcConcreteMemory
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
 import machine.state.pinnedValues.JcPinnedValue
+import machine.state.pinnedValues.JcSpringPinnedValueSource
 import machine.state.pinnedValues.JcStringPinnedKey
 import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcArrayType
@@ -16,13 +17,9 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.ext.autoboxIfNeeded
-import org.jacodb.api.jvm.ext.boolean
-import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.api.jvm.ext.findType
-import org.jacodb.api.jvm.ext.isAssignable
-import org.jacodb.api.jvm.ext.objectType
-import org.jacodb.api.jvm.ext.toType
+import org.jacodb.api.jvm.ext.*
+import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.jacodb.impl.features.hierarchyExt
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -31,22 +28,32 @@ import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.makeSymbolicRef
 import org.usvm.api.makeSymbolicRefSubtype
+import org.usvm.api.readArrayLength
+import org.usvm.api.readField
 import org.usvm.collection.field.UFieldLValue
+import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.toJavaClass
 import org.usvm.machine.JcApplicationGraph
+import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodCall
-import org.usvm.machine.state.skipMethodInvocationWithValue
-import org.usvm.jvm.util.allInstanceFields
-import org.usvm.jvm.util.findJavaField
-import org.usvm.util.classesOfLocations
-import org.usvm.jvm.util.toJavaClass
-import org.usvm.machine.JcConcreteMethodCallInst
+import org.usvm.machine.JcVirtualMethodCallInst
+import org.usvm.machine.USizeSort
 import org.usvm.machine.state.newStmt
+import org.usvm.machine.state.skipMethodInvocationWithValue
+import org.usvm.memory.UMemory
+import org.usvm.jvm.util.findJavaField
+import org.usvm.sizeSort
+import org.usvm.util.classesOfLocations
 import util.isDeserializationMethod
+import util.isGrantedAuthority
 import util.isSpringController
 import util.isSpringRepository
 import utils.toJcType
-import java.util.ArrayList
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 data class HandlerMethodData(
     val pathTemplate: String,
@@ -93,6 +100,10 @@ class JcSpringMethodApproximationResolver (
 
         if (className == "org.springframework.web.bind.ServletRequestDataBinder") {
             if (approximateServletRequestDataBinder(methodCall)) return true
+        }
+
+        if (className == "org.springframework.security.core.context.SecurityContextImpl") {
+            if (approximateSecurityContextImpl(methodCall)) return true
         }
 
         if (className == "generated.org.springframework.boot.databases.basetables.TableTracker") {
@@ -207,20 +218,32 @@ class JcSpringMethodApproximationResolver (
         return concretizer.resolveExpr(value.getExpr(), value.getType())
     }
 
+    private fun serializeObject(target: Any): String {
+        val type = target.javaClass
+        val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        return when (type.simpleName) {
+            "LocalDate" -> (target as LocalDate).atStartOfDay().atOffset(ZoneOffset.UTC).format(dateFormatter)
+            "LocalDateTime" -> (target as LocalDateTime).atOffset(ZoneOffset.UTC).format(dateFormatter)
+            else -> target.toString()
+        }
+    }
+
     private fun pinnedValueToStringArray(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
         val memory = state.memory as JcSpringMemory
         val result = concretizePinnedValue(value, state) ?: return null
-        if (result.toString().isEmpty()) return null
+        val serialized = serializeObject(result)
+        if (serialized.isEmpty()) return null
         val stringArrayType = ctx.cp.arrayTypeOf(ctx.stringType)
-        val expr = memory.objectToExpr(arrayOf(result.toString()), stringArrayType)
+        val expr = memory.objectToExpr(arrayOf(serialized), stringArrayType)
         return JcPinnedValue(expr, stringArrayType)
     }
 
     private fun pinnedValueToString(value: JcPinnedValue, state: JcSpringState): JcPinnedValue? {
         val memory = state.memory as JcSpringMemory
         val result = concretizePinnedValue(value, state) ?: return null
+        val serialized = serializeObject(result)
         if (result.toString().isEmpty()) return null
-        val expr = memory.objectToExpr(result.toString(), ctx.stringType)
+        val expr = memory.objectToExpr(serialized, ctx.stringType)
         return JcPinnedValue(expr, ctx.stringType)
     }
 
@@ -304,7 +327,34 @@ class JcSpringMethodApproximationResolver (
             }
             return true
         }
+        return false
+    }
 
+    private fun getStringLength(memory: UMemory<*, *>, string: UConcreteHeapRef): UExpr<USizeSort> = with(ctx) {
+        val valuesArrayDescriptor = arrayDescriptorOf(stringValueField.type as JcArrayType)
+        val stringValue = memory.readField(string, stringValueField.field, addressSort)
+        val length = memory.readArrayLength(stringValue, valuesArrayDescriptor, sizeSort)
+        return length
+    }
+
+    private fun hasConcreteLength(memory: JcConcreteMemory, string: UExpr<out USort>): Boolean {
+        if (string !is UConcreteHeapRef)
+            return false
+        val stringLength = getStringLength(memory, string)
+        val concreteLength = memory.tryExprToInt(stringLength)
+        return concreteLength != null;
+    }
+
+    private fun approximateSecurityContextImpl(methodCall: JcMethodCall): Boolean = with(methodCall) {
+        if (method.name == "_getUserClass") {
+            scope.doWithState {
+                val memory = memory as JcConcreteMemory
+                val userClass = getTypeOfUser()
+                val heapRef = memory.tryAllocateConcrete(userClass, ctx.classType)!!
+                skipMethodInvocationWithValue(methodCall, heapRef)
+            }
+            return true
+        }
         return false
     }
 
@@ -403,13 +453,16 @@ class JcSpringMethodApproximationResolver (
                 return false
 
             println("[Mocked] Mocked repository method")
-            scope.doWithState {
+            return scope.calcOnState {
                 this as JcSpringState
+                if (methodCall.method.returnType.typeName == ctx.cp.void.typeName)
+                    return@calcOnState false
+
                 val postProcessInst = JcMockMethodInvokeResult(methodCall)
                 newStmt(JcConcreteMethodCallInst(location, method, arguments, postProcessInst))
-            }
 
-            return true
+                return@calcOnState true
+            }
         }
 
         return false
@@ -504,8 +557,8 @@ class JcSpringMethodApproximationResolver (
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun shouldAnalyzePath(path: String, handlerName: String, controllerTypeName: String): Boolean {
-        return handlerName == "showOwner"
+    private fun shouldAnalyzePath(path: String, methods: List<String>, controllerTypeName: String): Boolean {
+        return true
     }
 
     private fun shouldSkipController(controllerType: JcClassOrInterface): Boolean {
@@ -572,7 +625,7 @@ class JcSpringMethodApproximationResolver (
     private fun allControllerPaths(stateToFill: JcSpringState): ArrayList<ArrayList<Any>> {
         val handlerData =
             getHandlerData()
-            .filter { shouldAnalyzePath(it.pathTemplate, it.handler.name, it.controller.name) }
+            .filter { shouldAnalyzePath(it.pathTemplate, it.allowedMethods, it.controller.name) }
         stateToFill.handlerData = handlerData
 
         return handlerData
@@ -602,6 +655,25 @@ class JcSpringMethodApproximationResolver (
         return fieldTypes
     }
 
+    private fun getTypeOfUser(): Class<*> {
+        val userDetailsClass = ctx.cp
+            .findClass("org.springframework.security.core.userdetails.UserDetails")
+
+        val userClass = runBlocking { ctx.cp.hierarchyExt() }
+            .findSubClasses(userDetailsClass, entireHierarchy = true, includeOwn = false)
+            .filter { jcConcreteMachineOptions.projectLocations.contains(it.declaration.location.jcLocation) }
+            .firstOrNull { !it.name.startsWith("org.springframework.security") }
+            ?.toJavaClass(JcConcreteMemoryClassLoader)
+
+        if (userClass != null)
+            return userClass
+
+        val fallbackUserClass = ctx.cp
+            .findClass("org.springframework.security.core.userdetails.User")
+            .toJavaClass(JcConcreteMemoryClassLoader)
+        return fallbackUserClass
+    }
+
     private fun approximateSpringEngineStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         val methodName = method.name
 
@@ -615,7 +687,7 @@ class JcSpringMethodApproximationResolver (
                     return@doWithState
                 }
 
-                val message = memory.tryHeapRefToObject(messageExpr) as String
+                val message = memory.tryHeapRefToObject(messageExpr) as String?
                 println("\u001B[36m$message\u001B[0m")
                 skipMethodInvocationWithValue(methodCall, ctx.voidValue)
             }
@@ -645,6 +717,15 @@ class JcSpringMethodApproximationResolver (
                 skipMethodInvocationWithValue(methodCall, heapRef)
             }
 
+            return true
+        }
+
+        if (methodName == "_isSecurityEnabled") {
+            scope.doWithState {
+                val userClass = ctx.cp.findClassOrNull("org.springframework.security.core.userdetails.UserDetails")
+                val enabled = userClass != null && userClass !is JcUnknownClass
+                skipMethodInvocationWithValue(methodCall, ctx.mkBool(enabled))
+            }
             return true
         }
 

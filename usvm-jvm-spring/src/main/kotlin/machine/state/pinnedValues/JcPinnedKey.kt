@@ -22,6 +22,7 @@ abstract class JcPinnedKey(
         fun resolvedExceptionClass() = JcSimplePinnedKey(JcSpringPinnedValueSource.RESOLVED_EXCEPTION_CLASS)
         fun resolvedExceptionMessage() = JcSimplePinnedKey(JcSpringPinnedValueSource.RESOLVED_EXCEPTION_MESSAGE)
         fun unhandledExceptionClass() = JcSimplePinnedKey(JcSpringPinnedValueSource.UNHANDLED_EXCEPTION_CLASS)
+        fun requestUser() = JcSimplePinnedKey(JcSpringPinnedValueSource.REQUEST_USER)
     }
 
     fun getSource() = source

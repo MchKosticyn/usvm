@@ -3,12 +3,9 @@ package machine
 import io.ksmt.utils.asExpr
 import machine.state.JcConcreteState
 import machine.state.concreteMemory.JcConcreteMemory
-import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcInst
-import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.void
 import org.jacodb.impl.features.classpaths.JcUnknownMethod
 import org.usvm.UConcreteHeapRef
@@ -34,6 +31,7 @@ import org.usvm.machine.interpreter.makeLambdaCallSiteCall
 import org.usvm.machine.state.JcMethodResult
 import org.usvm.machine.state.JcState
 import org.usvm.machine.state.newStmt
+import org.usvm.machine.state.skipMethodInvocationAndBoxIfNeeded
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.memory.UMemory
 import org.usvm.targets.UTargetsSet
@@ -109,19 +107,7 @@ open class JcConcreteInterpreter(
 
             is JcBoxMethodCall -> {
                 scope.doWithState {
-                    val result = stmt.resultExpr
-                    when (val returnType = stmt.resultType) {
-                        is JcPrimitiveType -> {
-                            val boxedType = returnType.autoboxIfNeeded() as JcClassType
-                            val boxMethod = boxedType.declaredMethods.find {
-                                it.name == "valueOf" && it.isStatic && it.parameters.singleOrNull()?.type == returnType
-                            }!!
-                            methodResult = JcMethodResult.NoCall
-                            newStmt(JcConcreteMethodCallInst(stmt.location, boxMethod.method, listOf(result), stmt.returnSite))
-                        }
-
-                        else -> skipMethodInvocationWithValue(stmt, result)
-                    }
+                    skipMethodInvocationAndBoxIfNeeded(stmt, stmt.resultType, stmt.resultExpr)
                 }
             }
 

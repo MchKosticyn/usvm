@@ -17,6 +17,7 @@ import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
 import org.jacodb.api.jvm.JcByteCodeLocation
+import org.jacodb.api.jvm.JcCacheSegmentSettings
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
@@ -54,6 +55,7 @@ import org.usvm.UMachineOptions
 import org.usvm.jvm.rendering.spring.webMvcTestRenderer.JcSpringMvcTestInfo
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.util.isSameSignature
+import org.usvm.jvm.util.nonAbstractClasses
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
 import org.usvm.logger
@@ -110,9 +112,14 @@ private fun loadJHipsterBench(): BenchCp {
     return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
 }
 
+private fun loadBenchFromEnv(): BenchCp {
+    val benchDir = Path(System.getenv("usvm.benchmark"))
+    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
+}
+
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadWebPetClinicBench()
+        loadBenchFromEnv()
     }
 
     logTime("Analysis ALL") {
@@ -435,14 +442,14 @@ private fun analyzeBench(benchmark: BenchCp) {
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
     // using file instead of console
-    val fileStream = PrintStream("springLog.ansi")
+    val fileStream = PrintStream(System.getenv("usvm.log") ?: "springLog.ansi")
     System.setOut(fileStream)
     val options = UMachineOptions(
         useSoftConstraints = false,
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 2.minutes,
+        timeout = 3.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
@@ -526,15 +533,6 @@ private fun reproduceTests(
 
     println("Reproduced ${reproducedTests.size} of ${tests.size} tests")
 }
-
-private fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =
-    locations
-        .asSequence()
-        .flatMap { it.classNames ?: emptySet() }
-        .mapNotNull { findClassOrNull(it) }
-        .filterNot { it is JcUnknownClass }
-        .filterNot { it.isAbstract || it.isInterface || it.isAnonymous }
-        .sortedBy { it.name }
 
 private fun <T> logTime(message: String, body: () -> T): T {
     val result: T
