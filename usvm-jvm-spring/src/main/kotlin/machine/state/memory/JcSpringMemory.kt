@@ -7,7 +7,7 @@ import org.jacodb.api.jvm.ext.humanReadableSignature
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UTypeConstraints
 import org.usvm.machine.JcContext
-import util.*
+import util.isSecurityExpressionRootMethod
 import util.isArgumentResolverMethod
 import util.isDeserializationMethod
 import util.isHttpRequestMethod

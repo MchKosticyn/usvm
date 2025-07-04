@@ -661,17 +661,17 @@ class JcSpringMethodApproximationResolver (
 
         val userClass = runBlocking { ctx.cp.hierarchyExt() }
             .findSubClasses(userDetailsClass, entireHierarchy = true, includeOwn = false)
+            .filter { jcConcreteMachineOptions.projectLocations.contains(it.declaration.location.jcLocation) }
             .firstOrNull { !it.name.startsWith("org.springframework.security") }
             ?.toJavaClass(JcConcreteMemoryClassLoader)
 
-        if (userClass == null) {
-            val fallbackUserClass = ctx.cp
-                .findClass("org.springframework.security.core.userdetails.User")
-                .toJavaClass(JcConcreteMemoryClassLoader)
-            return fallbackUserClass
-        }
+        if (userClass != null)
+            return userClass
 
-        return userClass
+        val fallbackUserClass = ctx.cp
+            .findClass("org.springframework.security.core.userdetails.User")
+            .toJavaClass(JcConcreteMemoryClassLoader)
+        return fallbackUserClass
     }
 
     private fun approximateSpringEngineStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
@@ -722,12 +722,10 @@ class JcSpringMethodApproximationResolver (
 
         if (methodName == "_isSecurityEnabled") {
             scope.doWithState {
-                val userDetails ="org.springframework.security.core.userdetails.UserDetails"
-                val userClass = ctx.cp.findClassOrNull(userDetails)
+                val userClass = ctx.cp.findClassOrNull("org.springframework.security.core.userdetails.UserDetails")
                 val enabled = userClass != null && userClass !is JcUnknownClass
                 skipMethodInvocationWithValue(methodCall, ctx.mkBool(enabled))
             }
-
             return true
         }
 

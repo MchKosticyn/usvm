@@ -439,12 +439,7 @@ abstract class JcTestStateResolver<T>(
         requireNotNull(decodedObject) { "Object not properly decoded" }
         saveResolvedRef(ref.address, decodedObject)
 
-        try {
-            objectDecoder.initializeInstance(type.jcClass, refDecoder, decodedObject, decoderApi)
-        } catch (e: ClassCastException) {
-            if (!e.message!!.contains("class generated.java.util.map.AbstractMap_EntryImpl"))
-                throw e
-        }
+        objectDecoder.initializeInstance(type.jcClass, refDecoder, decodedObject, decoderApi)
         return decodedObject
     }
 

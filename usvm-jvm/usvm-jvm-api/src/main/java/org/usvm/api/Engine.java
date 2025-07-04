@@ -36,8 +36,7 @@ public class Engine {
             return Arrays.equals((short[])first, (short[])second);
         if (first instanceof Object[] && second instanceof Object[])
             return Arrays.equals((Object[])first, (Object[])second);
-        return null;
-
+        return false;
     }
 
     @SuppressWarnings("unused")

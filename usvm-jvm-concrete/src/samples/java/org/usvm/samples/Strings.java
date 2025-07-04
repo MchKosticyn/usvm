@@ -1,7 +1,5 @@
 package org.usvm.samples;
 
-import org.usvm.api.Engine;
-
 public class Strings {
 
     public static void concretize() { }
@@ -14,11 +12,8 @@ public class Strings {
     }
 
     public static boolean isEqualToAaa(String input) {
-        Engine.assume(input != null);
-
-        if (input.equals("Aaa"))
+        if ("Aaa".equals(input))
             return true;
-
         return false;
     }
 }

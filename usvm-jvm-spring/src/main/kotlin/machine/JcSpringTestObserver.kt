@@ -21,4 +21,3 @@ class JcSpringTestObserver : UMachineObserver<JcSpringState> {
 
     val generatedTests: List<SpringTestInfo> get() = tests
 }
- 
