@@ -982,7 +982,7 @@ open class JcMethodApproximationResolver(
                 val first = it.arguments[0].asExpr(ctx.addressSort)
                 val second = it.arguments[1].asExpr(ctx.addressSort)
                 scope.doWithState { arrayEquals(it, first, second) }
-                return@dispatchUsvmApiMethod ctx.voidValue
+                null
             }
             dispatchUsvmApiMethod(Engine::makeSymbolicBoolean) {
                 scope.calcOnState { makeSymbolicPrimitive(ctx.booleanSort) }
