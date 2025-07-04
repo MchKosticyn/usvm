@@ -11,8 +11,6 @@ public class SpringEngine {
 
     public static void startAnalysis() { }
 
-    public static void endAnalysis() { }
-
     public static List<List<Object>> allControllerPaths() {
         return new ArrayList<>();
     }

@@ -84,7 +84,7 @@ class JcSpringMethodApproximationResolver (
         val enclosingClass = method.enclosingClass
         val className = enclosingClass.name
 
-        if (className.contains("SpringEngine")) {
+        if (className == "org.usvm.spring.api.SpringEngine") {
             if (approximateSpringEngineStaticMethod(methodCall)) return true
         }
 
@@ -675,7 +675,7 @@ class JcSpringMethodApproximationResolver (
     private fun approximateSpringEngineStaticMethod(methodCall: JcMethodCall): Boolean = with(methodCall) {
         val methodName = method.name
 
-        if (methodName == "_println") {
+        if (methodName == "println") {
             scope.doWithState {
                 val memory = memory as JcConcreteMemory
                 val messageExpr = methodCall.arguments[0].asExpr(ctx.addressSort)
@@ -693,7 +693,7 @@ class JcSpringMethodApproximationResolver (
             return true
         }
 
-        if (methodName == "_startAnalysis") {
+        if (methodName == "startAnalysis") {
             scope.doWithState {
                 println("starting, state.id = $id")
                 val framesToDrop = callStack.size - 1
@@ -705,7 +705,7 @@ class JcSpringMethodApproximationResolver (
             return true
         }
 
-        if (methodName == "_allControllerPaths") {
+        if (methodName == "allControllerPaths") {
             scope.doWithState {
                 val allControllerPaths = allControllerPaths(this as JcSpringState)
                 val memory = memory as JcConcreteMemory
