@@ -156,8 +156,8 @@ private fun loadBench(
     testKind: JcSpringTestKind? = null
 ) = runBlocking {
     val features = mutableListOf(
-        // TODO: add after testing
-//        UnknownClasses,
+        // TODO: try to delete
+        UnknownClasses,
         JcStringConcatTransformer,
         JcClinitFeature,
         JcInitFeature,
