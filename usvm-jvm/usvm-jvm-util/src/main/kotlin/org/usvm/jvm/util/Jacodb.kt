@@ -3,7 +3,6 @@ package org.usvm.jvm.util
 import org.jacodb.api.jvm.*
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.*
-import org.jacodb.impl.bytecode.JcMethodImpl
 import org.jacodb.impl.features.JcFeaturesChain
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.JcClasspathImpl
@@ -15,15 +14,12 @@ import org.jacodb.impl.bytecode.toJcMethod
 import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.jacodb.impl.types.JcClassTypeImpl
-import org.jacodb.impl.types.MethodInfo
-import org.jacodb.impl.types.ParameterInfo
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.tree.MethodNode
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
-import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaMethod
 
@@ -149,10 +145,11 @@ fun Constructor<*>.isSameSignatures(jcMethod: JcMethod) =
 fun JcMethod.isSameSignature(mn: MethodNode): Boolean =
     withAsmNode { it.isSameSignature(mn) }
 
-val JcMethod.toTypedMethod: JcTypedMethod
-    get() = this.enclosingClass.toType().declaredMethods.first { typed ->
+val JcMethod.toTypedMethod: JcTypedMethod get() {
+    return this.enclosingClass.toType().declaredMethods.find { typed ->
         typed.method.name == this.name && typed.method.description == this.description
-    }
+    } ?: error("unable to find typed method for ${this.humanReadableSignature}")
+}
 
 val JcClassOrInterface.enumValuesField: JcTypedField
     get() = toType().findFieldOrNull("\$VALUES") ?: error("No \$VALUES field found for the enum type $this")
@@ -231,6 +228,7 @@ private class JcCpWithoutApproximations(val cp: JcClasspath) : JcClasspath by cp
 
     init {
         check(cp !is JcCpWithoutApproximations)
+        // TODO: try to set via reflection new featureChain
     }
 
     override val features: List<JcClasspathFeature> by lazy {
