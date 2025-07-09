@@ -211,8 +211,8 @@ abstract class JcCodeRenderer<T: Node>(
     fun renderClassExpression(type: JcClassOrInterface): Expression =
         ClassExpr(renderClass(type, false))
 
-    fun renderClassExpression(type: JcClassType): Expression =
-        ClassExpr(renderClass(type, false))
+    fun renderClassExpression(type: JcType): Expression =
+        ClassExpr(renderType(type, false))
 
     //endregion
 

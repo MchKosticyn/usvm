@@ -365,7 +365,7 @@ open class JcTestBlockRenderer protected constructor(
     )
 
     open fun renderClassExpression(expr: UTestClassExpression): Expression =
-        renderClassExpression(expr.type as JcClassType)
+        renderClassExpression(expr.type)
 
     open fun renderBooleanExpression(expr: UTestBooleanExpression): Expression = renderBooleanPrimitive(expr.value)
 
