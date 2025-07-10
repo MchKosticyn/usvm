@@ -14,4 +14,8 @@ public class SpringEngine {
     public static List<List<Object>> allControllerPaths() {
         return new ArrayList<>();
     }
+
+    public static boolean isSecurityEnabled() {
+        return false;
+    }
 }

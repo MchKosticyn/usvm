@@ -718,7 +718,7 @@ class JcSpringMethodApproximationResolver (
             return true
         }
 
-        if (methodName == "_isSecurityEnabled") {
+        if (methodName == "isSecurityEnabled") {
             scope.doWithState {
                 val userClass = ctx.cp.findClassOrNull("org.springframework.security.core.userdetails.UserDetails")
                 val enabled = userClass != null && userClass !is JcUnknownClass
