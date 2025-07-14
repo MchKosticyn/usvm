@@ -132,8 +132,7 @@ private class BenchCp(
     val depsLocations: List<JcByteCodeLocation>,
     val cpFiles: List<File>,
     val classes: List<File>,
-    val dependencies: List<File>,
-    val testKind: JcSpringTestKind?
+    val dependencies: List<File>
 ) : AutoCloseable {
     override fun close() {
         cp.close()
@@ -152,8 +151,7 @@ private fun loadBench(
     dependencies: List<File>,
     isPureClasspath: Boolean = true,
     tablesInfo: JcTableInfoCollector? = null,
-    isNeedTrackTable: Boolean = false,
-    testKind: JcSpringTestKind? = null
+    isNeedTrackTable: Boolean = false
 ) = runBlocking {
     val features = mutableListOf(
         // TODO: try to delete
@@ -180,7 +178,7 @@ private fun loadBench(
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
     val depsLocations = cp.locations.filter { it.jarOrFolder in dependencies }
-    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies, testKind)
+    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies)
 }
 
 private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
@@ -358,14 +356,12 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
     val newTestClassSlashName = "$entryPackagePath/$testClassName"
     val newTestClassName = newTestClassSlashName.replace('/', '.')
 
-    var testKind: JcSpringTestKind? = null
     val testClassTemplate = cp.findClass(testClassTemplateName)
     testClassTemplate.withAsmNode { classNode ->
         classNode.name = newTestClassSlashName
 
         when (springAnalysisMode) {
             JcSpringAnalysisMode.SpringBootTest -> {
-                testKind = SpringBootTest(applicationClass)
                 val sprintBootTestAnnotation = classNode.visibleAnnotations.find {
                     it.desc == "org.springframework.boot.test.context.SpringBootTest".jvmName()
                 } ?: error("SpringBootTest annotation not found")
@@ -421,8 +417,7 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
         benchmark.dependencies,
         false,
         tablesInfo,
-        isNeedTrackTable,
-        testKind
+        isNeedTrackTable
     )
 }
 
