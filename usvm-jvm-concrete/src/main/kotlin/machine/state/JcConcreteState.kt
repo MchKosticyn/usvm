@@ -15,7 +15,7 @@ import org.usvm.machine.state.JcState
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
-class JcConcreteState(
+open class JcConcreteState(
     ctx: JcContext,
     ownership: MutabilityOwnership,
     entrypoint: JcMethod,

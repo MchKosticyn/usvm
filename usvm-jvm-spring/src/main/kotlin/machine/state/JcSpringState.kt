@@ -24,7 +24,6 @@ import org.usvm.constraints.UPathConstraints
 import org.usvm.machine.JcContext
 import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.JcMethodResult
-import org.usvm.machine.state.JcState
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
@@ -43,7 +42,7 @@ class JcSpringState(
     methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
     internal val springAnalysisMode: JcSpringAnalysisMode,
-) : JcState(
+) : JcConcreteState(
     ctx,
     ownership,
     entrypoint,
