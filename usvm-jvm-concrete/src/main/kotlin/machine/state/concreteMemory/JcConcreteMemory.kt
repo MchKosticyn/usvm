@@ -659,6 +659,10 @@ open class JcConcreteMemory(
         bindings.reset()
     }
 
+    fun resetWeight(): Int {
+        return bindings.effectStorage.resetWeight()
+    }
+
     //endregion
 
     companion object {

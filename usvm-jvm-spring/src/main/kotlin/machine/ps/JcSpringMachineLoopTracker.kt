@@ -1,4 +1,4 @@
-package machine
+package machine.ps
 
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.machine.JcLoopTracker

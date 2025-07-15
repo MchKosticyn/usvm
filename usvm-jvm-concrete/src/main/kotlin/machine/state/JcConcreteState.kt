@@ -39,4 +39,7 @@ open class JcConcreteState(
     forkPoints,
     methodResult,
     targets
-)
+) {
+    internal val concreteMemory: JcConcreteMemory
+        get() = this.memory as JcConcreteMemory
+}

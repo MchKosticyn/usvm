@@ -1,4 +1,5 @@
-package machine
+package machine.ps
+import machine.JcSpringTimeStatistics
 import machine.state.JcSpringState
 import org.usvm.UPathSelector
 import org.usvm.machine.state.JcState

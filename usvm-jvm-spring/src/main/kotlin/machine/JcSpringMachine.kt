@@ -1,5 +1,7 @@
 package machine
 
+import machine.ps.JcSpringMachineLoopTracker
+import machine.ps.JcStatePathTimeoutPathSelector
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
@@ -19,8 +21,6 @@ import org.usvm.statistics.UMachineObserver
 import org.usvm.statistics.collectors.StatesCollector
 import org.usvm.statistics.distances.CallGraphStatistics
 import org.usvm.util.classesOfLocations
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import util.isSpringController
 import util.isSpringFilter
 import util.isSpringHandlerInterceptor

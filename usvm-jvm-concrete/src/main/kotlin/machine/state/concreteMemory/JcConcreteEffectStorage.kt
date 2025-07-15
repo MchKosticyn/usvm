@@ -297,6 +297,11 @@ private class JcConcreteSnapshotSequence(
             }
         }
     }
+
+    fun weight(): Int {
+        // TODO: add objects size
+        return objects.size + statics.size
+    }
 }
 
 private class JcConcreteEffect(
@@ -405,14 +410,7 @@ private class JcConcreteEffectSequence private constructor(
         return index
     }
 
-    fun resetTo(other: JcConcreteEffectSequence) {
-        check(other !== this)
-
-        if (seq === other.seq)
-            return
-
-        seq.lastOrNull()?.createAfterIfNeeded()
-
+    private fun createResetPath(other: JcConcreteEffectSequence): List<JcConcreteSnapshot> {
         val commonPartEnd = findCommonPartIndex(other) + 1
         val snapshots = mutableListOf<JcConcreteSnapshot>()
         for (i in seq.lastIndex downTo commonPartEnd) {
@@ -430,6 +428,19 @@ private class JcConcreteEffectSequence private constructor(
             }
         }
 
+        return snapshots
+    }
+
+    fun resetTo(other: JcConcreteEffectSequence) {
+        check(other !== this)
+
+        if (seq === other.seq)
+            return
+
+        seq.lastOrNull()?.createAfterIfNeeded()
+
+        val snapshots = createResetPath(other)
+
         if (snapshots.isNotEmpty()) {
             val snapshotSeq = JcConcreteSnapshotSequence(snapshots)
             snapshotSeq.resetObjects()
@@ -437,6 +448,21 @@ private class JcConcreteEffectSequence private constructor(
         }
 
         seq = other.seq
+    }
+
+    fun resetWeight(other: JcConcreteEffectSequence): Int {
+        check(other !== this)
+
+        if (seq === other.seq)
+            return 0
+
+        val snapshots = createResetPath(other)
+
+        if (snapshots.isEmpty())
+            return 0
+
+        val snapshotSeq = JcConcreteSnapshotSequence(snapshots)
+        return snapshotSeq.weight()
     }
 
     fun copy(ctx: JcContext, threadLocalHelper: ThreadLocalHelper): JcConcreteEffectSequence {
@@ -505,6 +531,10 @@ internal class JcConcreteEffectStorage private constructor(
         JcConcreteMemoryClassLoader.disableEffectStorage()
         current.resetTo(own)
         JcConcreteMemoryClassLoader.setEffectStorage(this)
+    }
+
+    fun resetWeight(): Int {
+        return current.resetWeight(own)
     }
 
     internal fun kill(force: Boolean) {

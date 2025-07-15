@@ -60,8 +60,6 @@ import org.usvm.logger
 import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import org.usvm.test.api.UTest
-import org.usvm.test.api.spring.JcSpringTestKind
-import org.usvm.test.api.spring.SpringBootTest
 import testGeneration.SpringTestInfo
 import util.classpathWithSpringApproximations
 import util.database.JcTableInfoCollector
