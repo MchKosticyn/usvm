@@ -68,20 +68,12 @@ val springVersion = "3.3.4"
 val springSecurityVersion = "6.5.0"
 val junitVersion = "5.3.1"
 
-//dependencies {
-//    implementation("org.springframework.boot:spring-boot-starter-web:$springVersion")
-//    implementation("org.springframework.boot:spring-boot-starter-test:$springVersion")
-//    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springVersion")
-//    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
-//    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:$springVersion")
-//}
-
 val springTestDeps by configurations.creating
 
 dependencies {
     springTestDeps("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     springTestDeps("org.springframework.boot:spring-boot-starter-test:$springVersion")
-    //springTestDeps("org.springframework.security:spring-security-test:$springSecurityVersion")
+//    springTestDeps("org.springframework.security:spring-security-test:$springSecurityVersion")
 }
 
 fun createOrClear(file: File) {
