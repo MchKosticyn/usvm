@@ -21,8 +21,8 @@ class JPANameTranslator(
 ) {
 
     val classJava = targetClass.toJavaClass(JcConcreteMemoryClassLoader)
-    val queryClassName = targetClass.name
-    val classAlias = targetClass.simpleName.lowercase()
+    val queryClassName = targetClass.simpleName
+    val classAlias = queryClassName.lowercase()
 
     private var lastArgumentNum = 0
 
@@ -38,9 +38,7 @@ class JPANameTranslator(
         }
 
         val query = { s: String -> buildOrParts(partTree)(s).let(subj) }
-        appendWithSpaces("WHERE")
         appendWithSpaces(query(""))
-
 
         // TODO: sorting
         //val order = partTree.sort
@@ -48,22 +46,27 @@ class JPANameTranslator(
 
     fun buildSubject(partTree: PartTree) = { s: String ->
         buildString {
-            // TODO: other statments
+            // TODO: other statements
             appendWithSpaces("SELECT")
             if (partTree.isDistinct) appendWithSpaces("DISTINCT")
             appendWithSpaces(classAlias)
             appendWithSpaces("FROM")
             appendWithSpaces(queryClassName)
             appendWithSpaces(classAlias)
-            appendWithSpaces(s)
+
+            if (s.isNotBlank()) {
+                appendWithSpaces("WHERE")
+                appendWithSpaces(s)
+            }
         }
     }
 
+
     private fun <T> buildWithSep(values: Iterable<T>, sep: String, builder: (T) -> (String) -> String) =
-        if (values.count() == 1) builder(values.single())
-        else { s: String ->
-            val last = values.reversed().first().let { builder(it) }(s)
-            values.reversed().drop(1).fold(last) { acc, part -> builder(part)(" $sep $acc") }
+        values.first().let(builder).let {
+            values.drop(1).fold(it) { acc, part ->
+                { s: String -> "${acc("")} $sep ${builder(part)(s)}" }
+            }
         }
 
     fun buildOrParts(tree: PartTree) = buildWithSep(tree, "OR", ::buildOrPart)
@@ -83,13 +86,13 @@ class JPANameTranslator(
 
     fun buildProp(prop: PropertyPath) = buildString {
         // TODO: isCollection, ignoreCase?
-        append(classAlias)
 
-        // getSegment returns Book.id or Author.firstName
-        val classProp = prop.segment.dropWhile { it != '.' }
+        append(classAlias)
+        append(".")
+
+        val classProp = prop.segment
         check(classProp.isNotBlank())
         append(classProp)
-
     }
 
     fun buildType(type: Part.Type) = buildString {
@@ -135,7 +138,7 @@ class JPANameTranslator(
             Part.Type.TRUE -> " = TRUE"
             Part.Type.FALSE -> " = FALSE"
             Part.Type.NEGATING_SIMPLE_PROPERTY -> "IS NOT"
-            Part.Type.SIMPLE_PROPERTY -> "IS"
+            Part.Type.SIMPLE_PROPERTY -> "="
         }
 
     fun buildOpArgs(type: Part.Type) = buildString {
