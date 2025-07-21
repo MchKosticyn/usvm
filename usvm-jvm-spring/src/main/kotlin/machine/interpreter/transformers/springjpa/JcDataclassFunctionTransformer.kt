@@ -71,6 +71,9 @@ class JcRelationsInitTransformer(
         val tableManagerType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
         val itableType = cp.findType(ITABLE) as JcClassType
 
+        // Call base init to initialize default field's values
+        generateVoidVirtualCall(JAVA_INIT, classType, thisVal, emptyList())
+
         classTable.orderedRelations().forEachIndexed { ix, rel ->
             val relClass = rel.relatedDataclass(cp)
             val relTblName = getTableName(relClass)
