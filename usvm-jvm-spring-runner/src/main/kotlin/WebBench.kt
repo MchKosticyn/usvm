@@ -166,10 +166,10 @@ private fun loadBench(
 
     if (!isPureClasspath) {
         val dbFeatures = listOf(
-            JcRepositoryCrudTransformer,
+            JcRepositoryCrudTransformer(tablesInfo!!),
             JcRepositoryQueryTransformer,
             JcRepositoryTransformer,
-            JcDataclassTransformer(tablesInfo!!, isNeedTrackTable),
+            JcDataclassTransformer(tablesInfo, isNeedTrackTable),
             JcTableIdClassTransformer(tablesInfo)
         )
         features.addAll(dbFeatures)

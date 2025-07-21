@@ -236,7 +236,11 @@ val JcMethod.repositoryLambda: Boolean get() = contains(annotations, REPOSITORY_
 
 // endregion
 
-private val repositoryNames = setOf("org.springframework.data.repository.Repository", "org.springframework.data.jpa.repository.JpaRepository")
+private val repositoryNames = setOf(
+    "org.springframework.data.repository.Repository",
+    "org.springframework.data.jpa.repository.JpaRepository",
+    "org.springframework.data.repository.CrudRepository"
+)
 
 val JcClassOrInterface.isDataClass: Boolean get() = contains(annotations, "Entity")
 val JcClassOrInterface.isJpaRepository: Boolean

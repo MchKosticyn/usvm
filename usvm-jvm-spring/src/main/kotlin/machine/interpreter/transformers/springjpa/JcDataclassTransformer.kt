@@ -92,9 +92,9 @@ private class SignatureGenerator(
 
         return functions + functions.map { makeStaticClassMethod(cp, clazz, it) } +
                 getStaticBlankInit() +
+                getGetDTO() +
                 getSaveUpdate(relationChecks) +
-                getDelete(relationChecks) +
-                getGetDTO()
+                getDelete(relationChecks)
     }
 
     fun getStaticBlankInit() =

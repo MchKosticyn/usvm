@@ -85,13 +85,6 @@ class JcTableInfoCollector(
         fields.filter { !contains(it.annotations, "Id") }.forEach { field ->
             val simpleColName = getColumnName(field)
 
-//            val validators = field.annotations.mapNotNull { annot ->
-//                // TODO: adds other enums validators!!
-//                JcValidateAnnotation.entries.find { it.annotationSimpleName == annot.jcClass!!.simpleName }
-//                    ?.let { annot to it }
-//            }
-            val validators = emptyList<Pair<JcAnnotation?, JcValidateAnnotation>>()
-
             if (
                 !contains(
                     field.annotations,
@@ -99,7 +92,7 @@ class JcTableInfoCollector(
                 )
             ) {
 
-                val colInfo = ColumnInfo(simpleColName, field.type, field, true, validators)
+                val colInfo = ColumnInfo(simpleColName, field.type, field, true)
                 classTable.insertColumn(colInfo)
                 return@forEach
             }
@@ -153,8 +146,7 @@ data class ColumnInfo(
     val name: String,
     val type: TypeName,
     val origField: JcField,
-    val isOrig: Boolean,
-    val validators: List<Pair<JcAnnotation?, JcValidateAnnotation>>
+    val isOrig: Boolean
 )
 
 sealed class IdColumnInfo {
@@ -180,7 +172,7 @@ sealed class IdColumnInfo {
         override fun getClassName() = null
         override fun getType(cp: JcClasspath) = type.toJcType(cp)!!
 
-        fun toColumnInfo() = ColumnInfo(name, type, origField, true, validators)
+        fun toColumnInfo() = ColumnInfo(name, type, origField, true)
     }
 
     data class EmbeddedId(
@@ -260,7 +252,7 @@ open class TableInfo(
 
         fun joinColumnsInfo() = idColumn.orderedSimpleIds().map {
             val name = "${name}_${it.name}"
-            ColumnInfo(name, it.type, it.origField, false, emptyList())
+            ColumnInfo(name, it.type, it.origField, false)
         }
 
         fun getIdColumns() = idColumn.orderedSimpleIds()
@@ -376,11 +368,11 @@ sealed class Relation(
             return if (idColumns.size == 1) {
                 val idColumn = idColumns.values.single()
                 val join = joinColumns.single()
-                listOf(ColumnInfo(join.name, idColumn.type, field, false, emptyList()))
+                listOf(ColumnInfo(join.name, idColumn.type, field, false))
             } else {
                 joinColumns.map {
                     val idColumn = idColumns[it.referencedColName!!]!!
-                    ColumnInfo(it.name, idColumn.type, field, false, emptyList())
+                    ColumnInfo(it.name, idColumn.type, field, false)
                 }
             }
         }

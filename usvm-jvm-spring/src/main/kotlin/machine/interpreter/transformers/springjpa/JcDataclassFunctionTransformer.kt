@@ -525,7 +525,7 @@ abstract class JcSaveUpdateDeleteTransformer(
 
         generateVoidVirtualCall("add", ctxType, ctxVar, listOf(objVar))
 
-        val casted = generateGlobalTableAccess(cp, "tbl", getTableName(clazz), clazz)
+        val manager = generateManagerAccessWithInit(cp, "tbl", getTableName(clazz), clazz)
 
         val complexIdTranslator = if (classTable.idColumn is IdColumnInfo.SingleId) JcNullConstant(cp.objectType)
         else {
@@ -535,7 +535,7 @@ abstract class JcSaveUpdateDeleteTransformer(
             generateLambda(cp, "complexIdFieldTranslator", buildIdsMethod)
         }
 
-        val crud = generateNewWithInit("crud", crudType, listOf(casted, complexIdTranslator))
+        val crud = generateNewWithInit("crud", crudType, listOf(manager, complexIdTranslator))
         val allowRecUpd = generateVirtualCall("allow_rec_upd", GET_REC_UPD, ctxType, ctxVar, listOf())
 
         val args = if (modifyCtxFlags) listOf(objVar, allowRecUpd) else listOf(objVar)
@@ -552,7 +552,7 @@ abstract class JcSaveUpdateDeleteTransformer(
 
             val subSaveUpd = subType.declaredMethods.single { it.method.generatedSaveUpdate }
             val subDel = subType.declaredMethods.single { it.method.generatedDelete }
-            val subGetId = subType.declaredMethods.single { it.method.generatedBuildId }
+            val subGetId = subType.declaredMethods.single { it.method.generatedBuildId && it.isStatic }
 
             val saveUpd = generateLambda(cp, "save_${nameSuffix}", subSaveUpd.method)
             val del = generateLambda(cp, "del_${nameSuffix}", subDel.method)
