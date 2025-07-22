@@ -379,7 +379,11 @@ class JcBuildIdTransformer(
     }
 }
 
-// fieldType $getField() { return field; }
+// upcastedFieldType $getField() {
+//      Integer res = Integer.of(field); // iff field is int
+//
+//      return res;
+// }
 class JcGetterTransformer(
     val cp: JcClasspath,
     val field: JcField,
@@ -403,12 +407,17 @@ class JcGetterTransformer(
         )
         addInstruction { loc -> JcAssignInst(loc, vari, fieldRef) }
 
-        addInstruction { loc -> JcReturnInst(loc, vari) }
+        val ref = upcastToRefTypeIfNeeded(cp, "field", vari, field.type)
+
+        addInstruction { loc -> JcReturnInst(loc, ref) }
     }
 
 }
 
-// void $setField(fieldType field) { this.field = field; }
+// void $setField(fieldType field) {
+//      int downcasted = field.intValue() // iif field is int
+//      this.field = field;
+// }
 class JcSetterTransformer(
     val cp: JcClasspath,
     val field: JcField,
@@ -429,7 +438,9 @@ class JcSetterTransformer(
                 JcSubstitutorImpl()
             )
         )
-        addInstruction { loc -> JcAssignInst(loc, fieldRef, arg) }
+
+        val downcasted = downcastRefTypeIfNeeded(cp, "field", arg, field.type)
+        addInstruction { loc -> JcAssignInst(loc, fieldRef, downcasted) }
 
         addInstruction { loc -> JcReturnInst(loc, null) }
     }

@@ -90,7 +90,7 @@ private class SignatureGenerator(
             functions.add(getSpecialSetId(idField))
         }
 
-        return functions + functions.map { makeStaticClassMethod(cp, clazz, it) } +
+        return functions + functions.map { makeStaticClassMethod(cp, it) } +
                 getStaticBlankInit() +
                 getGetDTO() +
                 getSaveUpdate(relationChecks) +

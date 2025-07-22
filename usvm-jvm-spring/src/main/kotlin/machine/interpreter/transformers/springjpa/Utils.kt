@@ -11,6 +11,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypeVariable
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.JcTypedMethodParameter
+import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.cfg.BsmHandleTag
 import org.jacodb.api.jvm.cfg.BsmMethodTypeArg
@@ -40,9 +41,11 @@ import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
 import org.jacodb.api.jvm.ext.boolean
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.isAssignable
+import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.cfg.TypedMethodRefImpl
@@ -104,6 +107,22 @@ const val JAVA_MAP = "java.util.Map"
 const val JAVA_STRING = "java.lang.String"
 const val JAVA_BIG_INT = "java.math.BigInteger"
 const val JAVA_BIG_DECIMAL = "java.math.BigDecimal"
+
+val javaTypesMatch = listOf(
+    JAVA_INTEGER to PredefinedPrimitives.Int,
+    JAVA_BOOL to PredefinedPrimitives.Boolean,
+    JAVA_BYTE to PredefinedPrimitives.Byte,
+    JAVA_CHAR to PredefinedPrimitives.Char,
+    JAVA_LONG to PredefinedPrimitives.Long,
+    JAVA_SHORT to PredefinedPrimitives.Short,
+    JAVA_FLOAT to PredefinedPrimitives.Float,
+    JAVA_DOUBLE to PredefinedPrimitives.Double
+)
+
+val TypeName.isPrimitiveType: Boolean get() = javaTypesMatch.any { it.second.equals(typeName) }
+val TypeName.isPrimitiveRefType: Boolean get() = javaTypesMatch.any { it.first.equals(typeName) }
+val TypeName.getPrimitiveFromRefType: String? get() = javaTypesMatch.singleOrNull { it.first.equals(typeName) }?.second
+val TypeName.getRefTypeFromPrimitive: String? get() = javaTypesMatch.singleOrNull { it.second.equals(typeName) }?.first
 
 // endregion
 
@@ -226,8 +245,6 @@ fun JcMethod.generatedGetter(fieldName: String, static: Boolean) =
 
 val JcMethod.generatedSerializer: Boolean get() = contains(annotations, SERIALIZER_ANNOT)
 val JcMethod.generatedSerializerWithSkips: Boolean get() = contains(annotations, SERIALIZER_WITH_SKIPS_ANNOT)
-val JcMethod.generatedStaticSerializer: Boolean get() = contains(annotations, SERIALIZER_ANNOT) && isStatic
-val JcMethod.generatedStaticFetchInit: Boolean get() = contains(this.annotations, STATIC_INIT_FETCH_ANNOT)
 val JcMethod.generatedStaticBlankInit: Boolean get() = contains(this.annotations, STATIC_BLANK_INIT_ANNOT)
 val JcMethod.generatedRelationsInit: Boolean get() = contains(this.annotations, RELATIONS_INIT_ANNOT)
 val JcMethod.generatedSaveUpdate: Boolean get() = contains(this.annotations, SAVE_UPDATE_ANNOT)
@@ -236,16 +253,9 @@ val JcMethod.repositoryLambda: Boolean get() = contains(annotations, REPOSITORY_
 
 // endregion
 
-private val repositoryNames = setOf(
-    "org.springframework.data.repository.Repository",
-    "org.springframework.data.jpa.repository.JpaRepository",
-    "org.springframework.data.repository.CrudRepository"
-)
-
 val JcClassOrInterface.isDataClass: Boolean get() = contains(annotations, "Entity")
-val JcClassOrInterface.isJpaRepository: Boolean
-    get() =
-        interfaces.any { repositoryNames.contains(it.name) }
+val JcClassOrInterface.isJpaRepository: Boolean get() =
+    isSubClassOf(classpath.findClass("org.springframework.data.repository.Repository"))
 
 val JcTypedMethod.methodRef: TypedMethodRefImpl
     get() = TypedMethodRefImpl(
@@ -272,7 +282,8 @@ private val validatorsPackages = listOf(
 )
 val JcAnnotation.isValidator: Boolean get() = validatorsPackages.any { name.startsWith(it) }
 
-fun makeStaticClassMethod(cp: JcClasspath, clazz: JcClassOrInterface, method: JcMethod): JcMethod {
+fun makeStaticClassMethod(cp: JcClasspath, method: JcMethod): JcMethod {
+    val clazz = method.enclosingClass
     val newName = "${method.name}_static"
     val builder = JcMethodBuilder(clazz)
         .setName(newName)
@@ -382,8 +393,24 @@ fun BlockGenerationContext.toBoolean(cp: JcClasspath, value: JcLocalVar): JcLoca
 
 fun BlockGenerationContext.toInt(cp: JcClasspath, value: JcLocalVar): JcLocalVar {
     val integerType = cp.findType(JAVA_INTEGER) as JcClassType
-    return generateVirtualCall("to_int_${value.name}", "intValue", integerType, value, listOf())
+    return generateVirtualCall("to_int_${value.name}", "intValue", integerType, value, emptyList())
 }
+
+fun BlockGenerationContext.upcastToRefTypeIfNeeded(cp: JcClasspath, name: String, value: JcValue, type: TypeName) =
+    type.getRefTypeFromPrimitive?.let {
+        generateStaticCall("upcast_to_ref_$name", "valueOf", cp.findType(it) as JcClassType, listOf(value))
+    } ?: value
+
+fun BlockGenerationContext.downcastRefTypeIfNeeded(cp: JcClasspath, name: String, value: JcValue, type: TypeName) =
+    type.getPrimitiveFromRefType?.let {
+        generateVirtualCall(
+            "downcast_ref_$name",
+            "${it}Value",
+            cp.findType(type.typeName) as JcClassType,
+            value,
+            emptyList()
+        )
+    } ?: value
 
 fun BlockGenerationContext.toJavaClass(cp: JcClasspath, name: String, type: JcType): JcLocalVar {
     val classType = cp.findType(JAVA_CLASS) as JcClassType

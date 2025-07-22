@@ -72,7 +72,7 @@ class JcTableIdClassTransformer(
             .buildMethod()
 
         return originalMethods + initFromIds + buildIds + gettersAndSetters +
-                gettersAndSetters.map { makeStaticClassMethod(cp, clazz, it) }
+                gettersAndSetters.map { makeStaticClassMethod(cp, it) }
     }
 
     private fun getInitFromIds(cp: JcClasspath, clazz: JcClassOrInterface, fields: List<JcField>): JcMethod {

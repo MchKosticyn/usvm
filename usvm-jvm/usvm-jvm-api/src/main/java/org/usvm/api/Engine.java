@@ -95,9 +95,7 @@ public class Engine {
     public static <T> T[] makeSymbolicArray(Class<T> clazz, int size) { return (T[]) Array.newInstance(clazz, size); }
 
     @SuppressWarnings("unchecked")
-    public static <T> T[] makeConcreteArrayWithSymbolicSize(Class<T> clazz, int size) {
-        return (T[]) Array.newInstance(clazz, size);
-    }
+    public static <T> T[] makeConcreteArray(Class<T> clazz, int size) { return (T[]) Array.newInstance(clazz, size); }
 
     public static boolean[] makeSymbolicBooleanArray(int size) {
         return new boolean[size];

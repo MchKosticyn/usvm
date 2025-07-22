@@ -1123,7 +1123,7 @@ open class JcMethodApproximationResolver(
                     makeSymbolicArray(ctx.cp.objectType, sizeExpr)
                 }
             }
-            dispatchMkRef2(Engine::makeConcreteArrayWithSymbolicSize) {
+            dispatchMkRef2(Engine::makeConcreteArray) {
                 val (elementClassRefExpr, sizeExpr) = it.arguments
 
                 val elementClassRef = elementClassRefExpr.asExpr(ctx.addressSort)
@@ -1132,7 +1132,7 @@ open class JcMethodApproximationResolver(
                 }
                 check(elementTypeRepresentative is UConcreteHeapRef)
                 val type = scope.calcOnState { memory.types.getTypeStream(elementTypeRepresentative).single() }
-                makeConcreteArrayWithSymbolicSize(type, sizeExpr)
+                makeConcreteArray(type, sizeExpr)
             }
             dispatchMkList(Engine::makeSymbolicList) {
                 scope.calcOnState { mkSymbolicList(symbolicListType) }
@@ -1386,7 +1386,7 @@ open class JcMethodApproximationResolver(
         return address
     }
 
-    private fun makeConcreteArrayWithSymbolicSize(elementType: JcType, size: UExpr<*>): UHeapRef {
+    private fun makeConcreteArray(elementType: JcType, size: UExpr<*>): UHeapRef {
         val arrayType = ctx.cp.arrayTypeOf(elementType)
         val sizeValue = size.asExpr(ctx.sizeSort)
 

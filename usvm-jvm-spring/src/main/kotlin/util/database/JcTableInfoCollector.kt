@@ -164,7 +164,6 @@ sealed class IdColumnInfo {
     data class SingleId(
         val name: String,
         val type: TypeName,
-        val validators: List<Pair<JcAnnotation?, JcValidateAnnotation>>,
         val isAutoGenerateId: Boolean,
         val origField: JcField
     ) : IdColumnInfo() {
@@ -203,12 +202,12 @@ sealed class IdColumnInfo {
                 val embeddedClassName = embeddedIdField.type.typeName
                 val embeddedClass = cp.findClass(embeddedClassName)
                 val embeddedFields = embeddedClass.fields.map {
-                    SingleId(getColumnName(it), it.type, emptyList(), false, it)
+                    SingleId(getColumnName(it), it.type, false, it)
                 }
                 EmbeddedId(getColumnName(embeddedIdField), embeddedClassName, embeddedFields)
             } else if (idFields.size > 1) {
                 val fields = idFields.map {
-                    SingleId(getColumnName(it), it.type, emptyList(), false, it)
+                    SingleId(getColumnName(it), it.type,  false, it)
                 }
                 val idClass = (find(idFields.first().enclosingClass.annotations, "IdClass")!!
                     .values["value"] as Type).typeName
@@ -216,8 +215,7 @@ sealed class IdColumnInfo {
             } else {
                 val idField = idFields.single()
                 val isAutoGenerateId = contains(idField.annotations, "GeneratedValue")
-                val validators = idField.getValidators()
-                SingleId(getColumnName(idField), idField.type, validators, isAutoGenerateId, idField)
+                SingleId(getColumnName(idField), idField.type, isAutoGenerateId, idField)
             }
         }
     }
@@ -407,9 +405,7 @@ sealed class Relation(
         origField: JcField,
         cascadeType: List<CascadeType>
     ) : Relation(origField, cascadeType) {
-        override fun toTableName(cp: JcClasspath): String {
-            return joinTable.name
-        }
+        override fun toTableName(cp: JcClasspath) = joinTable.name
     }
 
     sealed class RelationByColumn(
@@ -430,16 +426,13 @@ sealed class Relation(
         origField: JcField,
         cascadeType: List<CascadeType>
     ) : RelationByColumn(join, origField, cascadeType) {
-        // Old code: TableInfo.ColumnInfo(rel.join.colName, subIdType, field, false, listOf())
         override fun buildColumnsForRelation(
             parentTable: TableInfo.TableWithIdInfo,
             childTable: TableInfo.TableWithIdInfo,
             field: JcField
         ) = join.toColumns(childTable, field)
 
-        override fun toString(): String {
-            return "\$OneToOne" + super.toString()
-        }
+        override fun toString() = "\$OneToOne" + super.toString()
     }
 
     class OneToManyByColumn(
@@ -448,16 +441,13 @@ sealed class Relation(
         origField: JcField,
         cascadeType: List<CascadeType>
     ) : Relation(origField, cascadeType) {
-        // Old code: TableInfo.ColumnInfo(rel.join!!.colName, idType, field, false, listOf())
         fun buildColumnsForRelation(
             parentTable: TableInfo.TableWithIdInfo,
             childTable: TableInfo.TableWithIdInfo,
             field: JcField
         ) = join!!.toColumns(parentTable, field)
 
-        override fun toString(): String {
-            return "\$OneToManyCol" + super.toString()
-        }
+        override fun toString() = "\$OneToManyCol" + super.toString()
     }
 
     class OneToManyByTable(
@@ -467,9 +457,7 @@ sealed class Relation(
     ) : RelationByTable(joinTable, origField, cascadeType) {
         override val mappedBy: String? = null
 
-        override fun toString(): String {
-            return "\$OneToManyTable" + super.toString()
-        }
+        override fun toString() = "\$OneToManyTable" + super.toString()
     }
 
     class ManyToOne(
@@ -479,16 +467,13 @@ sealed class Relation(
     ) : RelationByColumn(join, origField, cascadeType) {
         override val mappedBy: String? = null
 
-        // Old code: TableInfo.ColumnInfo(rel.join.colName, subIdType, field, false, listOf())
         override fun buildColumnsForRelation(
             parentTable: TableInfo.TableWithIdInfo,
             childTable: TableInfo.TableWithIdInfo,
             field: JcField
         ) = join.toColumns(childTable, field)
 
-        override fun toString(): String {
-            return "\$ManyToOne" + super.toString()
-        }
+        override fun toString() = "\$ManyToOne" + super.toString()
     }
 
     class ManyToMany(
@@ -497,9 +482,7 @@ sealed class Relation(
         origField: JcField,
         cascadeType: List<CascadeType>
     ) : RelationByTable(joinTable, origField, cascadeType) {
-        override fun toString(): String {
-            return "\$ManyToMany" + super.toString()
-        }
+        override fun toString() = "\$ManyToMany" + super.toString()
     }
 
     companion object {
