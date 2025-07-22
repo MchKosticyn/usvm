@@ -3,7 +3,6 @@ package bench
 import BenchCp
 import SpringTestRenderer
 import SpringTestReproducer
-import analyzeLog
 import createOrClear
 import generateTestClass
 import loadWebAppBenchCp

@@ -17,7 +17,7 @@ object TestDependenciesManager {
             starterVersion,
             File(STARTER_TEST_DEPENDENCIES_PATH)
         )
-        var result = existingSpringTestDeps.listFiles()?.toList() ?: listOf()
+        var result = existingSpringTestDeps
         if (securityVersion != null) {
             val existingSecurityTestDeps = findNearestVer(
                 securityVersion,
@@ -25,14 +25,26 @@ object TestDependenciesManager {
             )
             result += existingSecurityTestDeps
         }
-        return (result + classes).distinctBy { it.name }
+       return clearDuplicates(classes + result)
     }
 
-    private fun findNearestVer(version: String, available: File) : File {
+    private fun clearDuplicates(files: List<File>): List<File> {
+        return files.distinctBy { nameWithoutVersion(it) }
+    }
+
+    private fun nameWithoutVersion(file: File): String {
+        val parts = file.name.split("-")
+        return parts.subList(0, parts.size - 1).joinToString("-")
+    }
+
+    private fun findNearestVer(version: String, available: File) : List<File> {
         check(available.isDirectory)
         val files = available.listFiles()
         check(files != null && files.isNotEmpty())
-        return files.minBy { abs(versionToNumber(it.name.split("/").last()) - versionToNumber(version)) }
+        return files
+            .minBy { abs(versionToNumber(it.name.split("/")
+            .last()) - versionToNumber(version)) }
+            .listFiles()?.toList() ?: listOf()
     }
 
     private fun versionToNumber(version: String): Int {
