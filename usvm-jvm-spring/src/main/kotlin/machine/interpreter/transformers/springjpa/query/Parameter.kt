@@ -15,7 +15,7 @@ import org.jacodb.api.jvm.ext.objectType
 import org.usvm.jvm.util.toJcType
 
 // Argument from original toplevel-function
-abstract class Parameter: Expression() {
+abstract class Parameter : Expression() {
 
     abstract fun position(info: CommonInfo): Int
 
@@ -45,11 +45,11 @@ abstract class Parameter: Expression() {
 }
 
 // Simple name
-class Colon(val name: String): Parameter() {
+class Colon(val name: String) : Parameter() {
     override fun position(info: CommonInfo) = info.origMethodArguments[name]!!
 }
 
 // ?3
-class Positional(val pos: Int): Parameter() {
+class Positional(val pos: Int) : Parameter() {
     override fun position(info: CommonInfo) = pos
 }

@@ -27,7 +27,7 @@ import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 class Select(
     val orders: List<Order>,
     val query: Query
-): Lambdable() {
+) : Lambdable() {
     fun addOrder(order: List<Order>) = orders.toMutableList().addAll(order)
 
     fun genInst(

@@ -1,16 +1,14 @@
 package machine.interpreter.transformers.springjpa.query.expresion
 
-import machine.interpreter.transformers.springjpa.query.CommonInfo
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.Parameter
-import machine.interpreter.transformers.springjpa.query.function.SqlFunction
 import machine.interpreter.transformers.springjpa.query.path.Path
 import machine.interpreter.transformers.springjpa.query.path.SimplePath
 import machine.interpreter.transformers.springjpa.query.type.Primitive
 import machine.interpreter.transformers.springjpa.query.type.SqlType
 import org.jacodb.api.jvm.cfg.JcLocalVar
 
-class TypeOfParameter(val param: Parameter): NoLambdaExpression() {
+class TypeOfParameter(val param: Parameter) : NoLambdaExpression() {
 
     override val type: SqlType
         get() = TODO("Not yet implemented")
@@ -20,7 +18,7 @@ class TypeOfParameter(val param: Parameter): NoLambdaExpression() {
     }
 }
 
-class TypeOfPath(val path: Path): NoLambdaExpression() {
+class TypeOfPath(val path: Path) : NoLambdaExpression() {
 
     override val type: SqlType
         get() = TODO("Not yet implemented")
@@ -30,7 +28,7 @@ class TypeOfPath(val path: Path): NoLambdaExpression() {
     }
 }
 
-class Id(val path: Path, val cont: SimplePath?): NoLambdaExpression() {
+class Id(val path: Path, val cont: SimplePath?) : NoLambdaExpression() {
 
     override val type = Primitive.Bool()
 
@@ -39,7 +37,7 @@ class Id(val path: Path, val cont: SimplePath?): NoLambdaExpression() {
     }
 }
 
-class Version(val path: Path): NoLambdaExpression() {
+class Version(val path: Path) : NoLambdaExpression() {
 
     override val type: SqlType
         get() = TODO("Not yet implemented")
@@ -49,7 +47,7 @@ class Version(val path: Path): NoLambdaExpression() {
     }
 }
 
-class NaturalId(val path: Path, val cont: SimplePath?): NoLambdaExpression() {
+class NaturalId(val path: Path, val cont: SimplePath?) : NoLambdaExpression() {
 
     override val type: SqlType
         get() = TODO("Not yet implemented")
@@ -59,7 +57,7 @@ class NaturalId(val path: Path, val cont: SimplePath?): NoLambdaExpression() {
     }
 }
 
-class Minus(expr: Expression): SingleArgumentExpression(expr) {
+class Minus(expr: Expression) : SingleArgumentExpression(expr) {
 
     override val type = expr.type
 
@@ -68,7 +66,7 @@ class Minus(expr: Expression): SingleArgumentExpression(expr) {
     }
 }
 
-class ToDuration(expr: Expression, val datetime: Datetime): SingleArgumentExpression(expr) {
+class ToDuration(expr: Expression, val datetime: Datetime) : SingleArgumentExpression(expr) {
     override val type: SqlType
         get() = TODO("Not yet implemented")
 
@@ -77,7 +75,7 @@ class ToDuration(expr: Expression, val datetime: Datetime): SingleArgumentExpres
     }
 }
 
-class FromDuration(expr: Expression, val datetime: Datetime): SingleArgumentExpression(expr) {
+class FromDuration(expr: Expression, val datetime: Datetime) : SingleArgumentExpression(expr) {
     override val type: SqlType
         get() = TODO("Not yet implemented")
 

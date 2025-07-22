@@ -6,7 +6,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 
-class CrossJoin: Join() {
+class CrossJoin : Join() {
     override fun positions(info: CommonInfo): List<String> {
         TODO("Not yet implemented")
     }

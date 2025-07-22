@@ -4,7 +4,6 @@ import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcField
 
 fun databaseName(name: String): String {
-
     val newName = name
         .replace(".", "_")
         .replace(Regex("[a-z][A-Z]"))
@@ -32,10 +31,9 @@ fun getColumnName(field: JcField): String {
     return name as String
 }
 
-fun getBtwTableName(clazz: JcClassOrInterface, field : JcField) : String {
-    return "${getTableName(clazz)}_${getColumnName(field)}"
-}
+// name of manyToMany table (it is between two tables)
+fun getBtwTableName(clazz: JcClassOrInterface, field: JcField) = "${getTableName(clazz)}_${getColumnName(field)}"
 
-fun getSetFieldName(rel : Relation) : String {
-    return "\$${rel.origField.name}_id_set"
-}
+fun getBtwTableName(field: JcField) = getBtwTableName(field.enclosingClass, field)
+
+fun getSetFieldName(rel: Relation) = "\$${rel.origField.name}_id_set"

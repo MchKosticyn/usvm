@@ -19,17 +19,24 @@ import org.jacodb.api.jvm.cfg.JcClassConstant
 import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
-import org.jacodb.api.jvm.ext.JAVA_OBJECT
+import org.jacodb.api.jvm.ext.allSuperHierarchySequence
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
+import org.jacodb.approximation.JcEnrichedVirtualParameter
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
+import org.jacodb.impl.features.JcFeaturesChain
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethod
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethodImpl
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualParameter
 import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.toJcType
 import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
 import org.usvm.machine.interpreter.transformers.springjpa.Select
+import util.database.IdColumnInfo
+import util.database.JcTableInfoCollector
 import util.database.getTableName
 
 
@@ -48,19 +55,16 @@ object JcRepositoryTransformer : JcClassExtFeature {
         machineOptions = options
     }
 
-    private fun addCtx(method: JcMethod, ctx: Select) { visitedCtx[visitedName(method)] = ctx }
+    private fun addCtx(method: JcMethod, ctx: Select) {
+        visitedCtx[visitedName(method)] = ctx
+    }
+
     fun getCtx(method: JcMethod) = visitedCtx[visitedName(method)]
 
-    // TODO: may failed
-    private fun collectRepositoryMethods(clazz: JcClassOrInterface, originalMethods: List<JcMethod>): List<JcMethod> {
-        val superClass = clazz.superClass
-        return if (superClass == null || !superClass.isJpaRepository) originalMethods
-        else {
-            val newMethods = originalMethods.toPersistentList().addAll(superClass.declaredMethods)
-            collectRepositoryMethods(superClass, newMethods)
-        }
-
-    }
+    private fun collectRepositoryMethods(clazz: JcClassOrInterface, originalMethods: List<JcMethod>) =
+        clazz.allSuperHierarchySequence.filter { it.isJpaRepository }
+            .flatMapTo(originalMethods.toMutableList()) { it.declaredMethods }
+            .map { JcJpaMethod.of(it, clazz) }
 
     override fun methodsOf(clazz: JcClassOrInterface, originalMethods: List<JcMethod>): List<JcMethod>? {
 
@@ -71,7 +75,7 @@ object JcRepositoryTransformer : JcClassExtFeature {
 
         val methods = collectRepositoryMethods(clazz, originalMethods)
         val lambdas = methods.flatMap {
-            if (it.query == null && JcRepositoryCrudTransformer.crudNames.contains(it.name))
+            if (it.query == null && it.isCrud)
                 return@flatMap emptyList<JcMethod>()
 
             if (it.query == null) return@flatMap emptyList()
@@ -89,7 +93,7 @@ object JcRepositoryTransformer : JcClassExtFeature {
             parserRes.getLambdas(repo.classpath, repo, it)
         }
 
-        return originalMethods.toPersistentList().addAll(lambdas)
+        return methods + lambdas
     }
 }
 
@@ -98,7 +102,6 @@ object JcRepositoryQueryTransformer : JcBodyFillerFeature() {
     override fun condition(method: JcMethod) = method.query != null
 
     override fun JcSingleInstructionTransformer.BlockGenerationContext.generateBody(method: JcMethod) {
-
         val repo = method.enclosingClass
         val cp = repo.classpath
 
@@ -108,23 +111,25 @@ object JcRepositoryQueryTransformer : JcBodyFillerFeature() {
     }
 }
 
+private val crudNames = listOf(
+    "save",
+    "saveAll",
+    "delete",
+    "deleteAll",
+    "deleteAllById",
+    "existById",
+    "findAll",
+    "findById",
+    "findAllById"
+)
+
+val JcMethod.isCrud: Boolean get() = crudNames.contains(name)
+val JcMethod.isSaveUpdDel: Boolean get() = listOf("save", "delete").contains(name)
+
 // TODO: saveAll, deleteAll, deleteAllById
-object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
-
-    val crudNames = listOf(
-        "save",
-        "saveAll",
-        "delete",
-        "deleteAll",
-        "deleteAllById",
-        "existById",
-        "findAll",
-        "findById",
-        "findAllById"
-    )
-
-    val JcMethod.isCrud: Boolean get() = crudNames.contains(name)
-    val JcMethod.isSaveUpdDel: Boolean get() = listOf("save", "delete").contains(name)
+class JcRepositoryCrudTransformer(
+    val collector: JcTableInfoCollector
+) : JcBodyFillerFeature() {
 
     override fun condition(method: JcMethod) =
         !method.repositoryLambda
@@ -133,42 +138,28 @@ object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
                 && method.isCrud
 
     override fun JcSingleInstructionTransformer.BlockGenerationContext.generateBody(method: JcMethod) {
-
         val repo = method.enclosingClass
         val cp = repo.classpath
         val clazz = cp.findClass(repo.signature!!.genericTypesFromSignature[0])
+        val classTable = collector.getTable(clazz)!!
 
         if (method.isSaveUpdDel) {
             generateSaveUpdDel(cp, method, clazz)
             return
         }
 
-        val tbl = generateGlobalTableAccess(cp, "tbl", getTableName(clazz), clazz)
+        val manager = generateManagerAccessWithInit(cp, "tbl", getTableName(clazz), clazz)
 
-        val serializer = clazz.declaredMethods.single { it.generatedStaticSerializer }
-        val serLmbd = generateLambda(cp, "serilizer", serializer)
-
-        val deserializer = clazz.declaredMethods.single { it.generatedStaticFetchInit }
-        val desLmbd = generateLambda(cp, "deserilizer", deserializer)
-
-        val genType = if (!method.isVoid) {
-            val classType = cp.findType(JAVA_CLASS)
-            val generic = method.signature?.genericTypesFromSignature?.single()?.let { cp.findType(it) }
-                ?: method.returnType.toJcType(cp)!!
-            val v = nextLocalVar("generic_type", classType)
-            val cl = JcClassConstant(generic, classType)
-            addInstruction { loc -> JcAssignInst(loc, v, cl) }
-            v
-
-        } else {
-            val v = nextLocalVar("generic_type", cp.objectType)
-            val n = JcNullConstant(cp.objectType)
-            addInstruction { loc -> JcAssignInst(loc, v, n) }
-            v
+        val complexIdTranslator = if (classTable.idColumn is IdColumnInfo.SingleId) JcNullConstant(cp.objectType)
+        else {
+            val complexIdClassName = classTable.getComplexIdClassName()!!
+            val complexId = cp.findType(complexIdClassName) as JcClassType
+            val buildIdsMethod = complexId.declaredMethods.single { it.method.generatedBuildIds }.method
+            generateLambda(cp, "complexIdFieldTranslator", buildIdsMethod)
         }
 
         val crudTyp = cp.findType(CRUD_MANAGER) as JcClassType
-        val crudManager = generateNewWithInit("crud", crudTyp, listOf(tbl, serLmbd, desLmbd, genType))
+        val crudManager = generateNewWithInit("crud", crudTyp, listOf(manager, complexIdTranslator))
 
         val methodName = buildString {
             append(method.name)
@@ -209,7 +200,9 @@ object JcRepositoryCrudTransformer : JcBodyFillerFeature() {
     ) {
         val ctxType = cp.findType(SAVE_UPD_DEL_CTX) as JcClassType
         val ctx = generateNewWithInit("ctx", ctxType, listOf())
-        val obj = method.parameters.first().toArgument
+        val obj = method.parameters.first().toArgument.let {
+            generateCast("obj_cast", it, clazz.toType())
+        }
         val methodName = if (method.name == "save") SAVE_UPDATE_NAME else DELETE_NAME
         generateVoidStaticCall(methodName, clazz.toType(), listOf(obj, ctx))
         addInstruction { loc -> JcReturnInst(loc, null) }

@@ -5,7 +5,7 @@ import machine.interpreter.transformers.springjpa.query.Parameter
 import machine.interpreter.transformers.springjpa.query.path.SimplePath
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.ext.toType
+import org.jacodb.api.jvm.ext.findType
 import org.usvm.jvm.util.toJcType
 
 abstract class SqlType {
@@ -26,15 +26,16 @@ class Param(val param: Parameter) : SqlType() {
 }
 
 class Path(val name: SimplePath) : SqlType() {
-    override fun getType(info: CommonInfo): JcType {
-        val aliased = info.aliases[name.root] ?: name.root
-        val base = info.collector.getTableByPartName(aliased).single().origClass.toType()
+    override fun getType(info: CommonInfo): JcType = with(info) {
+        val aliased = aliases[name.root] ?: name.root
+        val baseClassName = collector.getTableByPartName(aliased).single().origClassName
+        val base = cp.findType(baseClassName)
         return if (name.isSimple()) {
             base
         } else {
-            name.cont.fold(base as JcType) { acc, nameField ->
-                info.collector.collectFields((acc as JcClassType).jcClass)
-                    .single { it.name == nameField }.type.toJcType(info.cp)!!
+            name.cont.fold(base) { acc, nameField ->
+                collector.collectFields((acc as JcClassType).jcClass)
+                    .single { it.name == nameField }.type.toJcType(cp)!!
             }
         }
     }

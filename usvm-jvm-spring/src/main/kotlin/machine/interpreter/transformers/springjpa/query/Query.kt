@@ -5,7 +5,7 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 
-class Query(): Lambdable() {
+class Query() : Lambdable() {
 
     private var from: From? = null
     private var where: Where? = null

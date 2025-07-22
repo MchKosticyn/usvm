@@ -13,17 +13,15 @@ import machine.JcSpringMachine
 import machine.JcSpringMachineOptions
 import machine.JcSpringTestObserver
 import machine.interpreter.transformers.springjpa.JcDataclassTransformer
+import machine.interpreter.transformers.springjpa.JcTableIdClassTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
 import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
 import org.jacodb.api.jvm.JcByteCodeLocation
-import org.jacodb.api.jvm.JcCacheSegmentSettings
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
-import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawClassConstant
-import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.cfg.JcRawReturnInst
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.jvmName
@@ -119,7 +117,7 @@ private fun loadBenchFromEnv(): BenchCp {
 
 fun main() {
     val benchCp = logTime("Init jacodb") {
-        loadBenchFromEnv()
+        loadWebPetClinicBench()
     }
 
     logTime("Analysis ALL") {
@@ -154,6 +152,7 @@ private fun loadBench(
     dependencies: List<File>,
     isPureClasspath: Boolean = true,
     tablesInfo: JcTableInfoCollector? = null,
+    isNeedTrackTable: Boolean = false,
     testKind: JcSpringTestKind? = null
 ) = runBlocking {
     val features = mutableListOf(
@@ -167,10 +166,11 @@ private fun loadBench(
 
     if (!isPureClasspath) {
         val dbFeatures = listOf(
-            JcRepositoryCrudTransformer,
+            JcRepositoryCrudTransformer(tablesInfo!!),
             JcRepositoryQueryTransformer,
             JcRepositoryTransformer,
-            JcDataclassTransformer(tablesInfo!!)
+            JcDataclassTransformer(tablesInfo, isNeedTrackTable),
+            JcTableIdClassTransformer(tablesInfo)
         )
         features.addAll(dbFeatures)
     }
@@ -381,8 +381,8 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
 
     System.setProperty("generatedTestClass", newTestClassName)
 
-    val tablesInfo = DatabaseGenerator(cp, springDirFile, repositories)
-        .generateJPADatabase(springAnalysisMode == JcSpringAnalysisMode.SpringBootTest)
+    val tablesInfo = DatabaseGenerator(cp, springDirFile, repositories).generateJPADatabase()
+    val isNeedTrackTable = springAnalysisMode == JcSpringAnalysisMode.SpringBootTest
 
     val startSpringTemplateName = "generated.org.springframework.boot.StartSpring"
     val newStartSpringName = "NewStartSpring"
@@ -420,6 +420,7 @@ private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAn
         benchmark.dependencies,
         false,
         tablesInfo,
+        isNeedTrackTable,
         testKind
     )
 }
@@ -449,7 +450,7 @@ private fun analyzeBench(benchmark: BenchCp) {
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        timeout = 3.minutes,
+        timeout = 2.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests

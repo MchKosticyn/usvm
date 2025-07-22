@@ -1,6 +1,5 @@
 package machine.interpreter.transformers.springjpa.query
 
-import com.microsoft.z3.BoolExpr
 import machine.interpreter.transformers.springjpa.query.expresion.BinOperator
 import machine.interpreter.transformers.springjpa.query.expresion.CaseList
 import machine.interpreter.transformers.springjpa.query.expresion.ExprPath
@@ -28,7 +27,6 @@ import machine.interpreter.transformers.springjpa.query.expresion.TypeOfPath
 import machine.interpreter.transformers.springjpa.query.expresion.Version
 import machine.interpreter.transformers.springjpa.query.function.InstCtx
 import machine.interpreter.transformers.springjpa.query.function.SqlFunction
-import machine.interpreter.transformers.springjpa.query.specification.GroupBySpec
 import machine.interpreter.transformers.springjpa.query.join.CommonJoin
 import machine.interpreter.transformers.springjpa.query.join.CrossJoin
 import machine.interpreter.transformers.springjpa.query.join.FullJoin
@@ -62,6 +60,7 @@ import machine.interpreter.transformers.springjpa.query.selectfun.SelectFunction
 import machine.interpreter.transformers.springjpa.query.specification.ByExpr
 import machine.interpreter.transformers.springjpa.query.specification.ByIdent
 import machine.interpreter.transformers.springjpa.query.specification.ByPos
+import machine.interpreter.transformers.springjpa.query.specification.GroupBySpec
 import machine.interpreter.transformers.springjpa.query.specification.SortSpec
 import machine.interpreter.transformers.springjpa.query.table.Table
 import machine.interpreter.transformers.springjpa.query.table.TableRoot

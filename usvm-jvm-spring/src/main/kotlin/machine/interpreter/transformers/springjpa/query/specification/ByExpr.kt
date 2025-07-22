@@ -6,7 +6,6 @@ import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.expresion.Expression
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.usvm.jvm.util.toJcType
 

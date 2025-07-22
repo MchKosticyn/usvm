@@ -8,7 +8,7 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import util.database.TableInfo
 
-abstract class Table(val alias: String?): Lambdable() {
+abstract class Table(val alias: String?) : Lambdable() {
     abstract fun getAlisas(info: CommonInfo): Pair<String, String>?
     abstract fun collectNames(info: CommonInfo): Map<String, List<JcField>>
     abstract fun genInst(ctx: MethodCtx): JcLocalVar
