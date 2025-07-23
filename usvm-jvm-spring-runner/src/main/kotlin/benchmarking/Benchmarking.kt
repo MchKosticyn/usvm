@@ -1,6 +1,7 @@
 package benchmarking
 
 import BenchCp
+import bench.analyzeBench
 import bench.reproduceTests
 import generateTestClass
 import loadWebAppBenchCp
@@ -34,30 +35,14 @@ fun main() {
         loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
     }
     logTime("Analysis ALL") {
-        benchCp.use { analyzeBench(it, benchmark) }
+        benchCp.use { runBenchmark(it, benchmark) }
     }
     System.setOut(stdout)
     exitProcess(0)
 }
 
-private fun analyzeBench(benchmark: BenchCp, benchDescription: BenchDescription) {
-    val springAnalysisMode = JcSpringAnalysisMode.SpringBootTest
-    val newBench = generateTestClass(benchmark, springAnalysisMode)
-
-    val jcConcreteMachineOptions = JcConcreteMachineOptions(
-        projectLocations = newBench.classLocations,
-        dependenciesLocations = newBench.depsLocations,
-    )
-    newBench.bindMachineOptions(jcConcreteMachineOptions)
-    val jcSpringMachineOptions = JcSpringMachineOptions(
-        springAnalysisMode = springAnalysisMode
-    )
-
-    val cp = newBench.cp
-    val nonAbstractClasses = cp.nonAbstractClasses(newBench.classLocations)
-    val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
-    val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
-
+private fun runBenchmark(bench: BenchCp, benchDescription: BenchDescription) {
+    // using file instead of console
     val fileStream = PrintStream(benchDescription.logPath.toFile())
     System.setOut(fileStream)
 
@@ -74,29 +59,7 @@ private fun analyzeBench(benchmark: BenchCp, benchDescription: BenchDescription)
         typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
     )
 
-    val jcMachineOptions = JcMachineOptions(
-        forkOnImplicitExceptions = true,
-        arrayMaxSize = 10_000,
-    )
-
-    val testObserver = JcSpringTestObserver()
-
-    val machine = JcSpringMachine(
-        cp,
-        options,
-        jcMachineOptions,
-        jcConcreteMachineOptions,
-        jcSpringMachineOptions,
-        testObserver
-    )
-
-    try {
-        machine.analyze(method.method)
-    } catch (e: Throwable) {
-        logger.error(e) { "Machine failed" }
-    }
-
-    reproduceTests(testObserver.generatedTests, jcConcreteMachineOptions, cp)
+    analyzeBench(bench, options)
 }
 
 private fun getBenchmark(): BenchDescription {

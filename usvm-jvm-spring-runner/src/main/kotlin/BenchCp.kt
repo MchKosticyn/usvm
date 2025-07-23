@@ -132,8 +132,6 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
             this.classes = JcCacheSegmentSettings(maxSize = 30_000)
             this.types = JcCacheSegmentSettings(maxSize = 30_000)
         }
-//        val persistenceLocation = classes.first().parentFile.resolve("jcdb.db")
-//        persistent(persistenceLocation.absolutePath)
     }
 
     db.awaitBackgroundJobs()

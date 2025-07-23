@@ -74,11 +74,31 @@ fun main() {
     }
 
     logTime("Analysis ALL") {
-        benchCp.use { analyzeBench(it) }
+        benchCp.use { runWebBench(it) }
     }
 }
 
-private fun analyzeBench(benchmark: BenchCp) {
+private fun runWebBench(benchmark: BenchCp) {
+    // using file instead of console
+    val fileStream = PrintStream(System.getenv("usvm.log") ?: "springLog.ansi")
+    System.setOut(fileStream)
+
+    val options = UMachineOptions(
+        useSoftConstraints = false,
+        pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
+        coverageZone = CoverageZone.METHOD,
+        exceptionsPropagation = false,
+        timeout = 2.minutes,
+        solverType = SolverType.YICES,
+        loopIterationLimit = 2,
+        solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
+        typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
+    )
+
+    analyzeBench(benchmark, options)
+}
+
+fun analyzeBench(benchmark: BenchCp, options: UMachineOptions) {
     val springAnalysisMode = JcSpringAnalysisMode.SpringBootTest
     val newBench = generateTestClass(benchmark, springAnalysisMode)
 
@@ -95,20 +115,7 @@ private fun analyzeBench(benchmark: BenchCp) {
     val nonAbstractClasses = cp.nonAbstractClasses(newBench.classLocations)
     val startClass = nonAbstractClasses.find { it.simpleName == "NewStartSpring" }!!.toType()
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
-    // using file instead of console
-    val fileStream = PrintStream(System.getenv("usvm.log") ?: "springLog.ansi")
-    System.setOut(fileStream)
-    val options = UMachineOptions(
-        useSoftConstraints = false,
-        pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
-        coverageZone = CoverageZone.METHOD,
-        exceptionsPropagation = false,
-        timeout = 2.minutes,
-        solverType = SolverType.YICES,
-        loopIterationLimit = 2,
-        solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
-        typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in tests
-    )
+
     val jcMachineOptions = JcMachineOptions(
         forkOnImplicitExceptions = false,
         arrayMaxSize = 10_000,
