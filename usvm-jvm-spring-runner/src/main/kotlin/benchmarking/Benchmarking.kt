@@ -66,8 +66,8 @@ private fun analyzeBench(benchmark: BenchCp, benchDescription: BenchDescription)
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
         exceptionsPropagation = false,
-        stepLimit = 5000u,
-        timeout = 1.minutes,
+        stepLimit = 200000u,
+        timeout = 5.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests

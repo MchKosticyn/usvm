@@ -16,7 +16,6 @@ class SpringTestReproducer(
     private val memoryLimit: Int = 3
 ) {
     private fun createExecutor(): UTestConcreteExecutor {
-        // TODO: #AA Test deps
         // TODO: #CM add spring approximations instead of java.stdlib
         val approximations = System.getenv("usvm.jvm.spring.approximations.jar.path")
         val dependencyJars = options.dependenciesLocations.map { it.jarOrFolder }

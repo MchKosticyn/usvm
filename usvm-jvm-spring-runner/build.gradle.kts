@@ -280,7 +280,7 @@ val benchmarkLogsFolder = currentDir / "bench-logs"
 val benchmarkErrorsFolder = currentDir /  "bench-errors"
 
 fun loadBenchmark(jarName: String): Benchmark {
-    val benchmark = benchmarkFolder.toFile().listFiles()?.first { it.isFile && it.name == jarName}
+    val benchmark = benchmarkFolder.toFile().listFiles()?.first { it.isFile && it.name == jarName }
     val destinationFolder = benchmarkFolder / "unpacked"
     check(benchmark != null) { "Cannot find benchmark $jarName" }
     val benchmarkName = benchmark.name.removeSuffix(".jar")
