@@ -6,9 +6,12 @@ import features.JcInitFeature
 import kotlinx.coroutines.runBlocking
 import machine.JcConcreteMachineOptions
 import machine.JcSpringAnalysisMode
-import machine.interpreter.transformers.springjpa.*
+import machine.interpreter.transformers.springjpa.JcDataclassTransformer
+import machine.interpreter.transformers.springjpa.JcTableIdClassTransformer
+import machine.interpreter.transformers.springjpa.JcRepositoryCrudTransformer
+import machine.interpreter.transformers.springjpa.JcRepositoryQueryTransformer
+import machine.interpreter.transformers.springjpa.JcRepositoryTransformer
 import org.jacodb.api.jvm.JcByteCodeLocation
-import org.jacodb.api.jvm.JcCacheSegmentSettings
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
@@ -18,6 +21,7 @@ import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.approximation.Approximations
+import org.jacodb.approximation.VersionInfo
 import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.cfg.JcInstListImpl
 import org.jacodb.impl.cfg.MethodNodeBuilder
@@ -40,9 +44,7 @@ import org.usvm.jvm.util.nonAbstractClasses
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.write
 import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
-import org.usvm.test.api.spring.JcSpringTestKind
-import org.usvm.test.api.spring.SpringBootTest
-import org.usvm.util.classpathWithApproximations
+import util.classpathWithSpringApproximations
 import util.database.JcTableInfoCollector
 import java.io.File
 import java.nio.file.Path
@@ -58,8 +60,7 @@ class BenchCp(
     val depsLocations: List<JcByteCodeLocation>,
     val cpFiles: List<File>,
     val classes: List<File>,
-    val dependencies: List<File>,
-    val testKind: JcSpringTestKind?
+    val dependencies: List<File>
 ) : AutoCloseable {
     override fun close() {
         cp.close()
@@ -79,10 +80,10 @@ private fun loadBench(
     dependencies: List<File>,
     isPureClasspath: Boolean = true,
     tablesInfo: JcTableInfoCollector? = null,
-    isNeedTrackTable: Boolean = false,
-    testKind: JcSpringTestKind? = null
+    isNeedTrackTable: Boolean = false
 ) = runBlocking {
     val features = mutableListOf(
+        // TODO: try to delete
         UnknownClasses,
         JcStringConcatTransformer,
         JcClinitFeature,
@@ -102,20 +103,25 @@ private fun loadBench(
         features.addAll(dbFeatures)
     }
 
-    val cp = db.classpathWithApproximations(cpFiles, features)
+    val cp = db.classpathWithSpringApproximations(cpFiles, features)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
     val depsLocations = cp.locations.filter { it.jarOrFolder in dependencies }
-    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies, testKind)
+    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies)
 }
 
-
 private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
+    val springTestDeps =
+        System.getenv("usvm.jvm.springTestDeps.paths")
+            .split(";")
+            .map { File(it) }
+
     val usvmConcreteApiJarPath = File(System.getenv("usvm.jvm.concrete.api.jar.path"))
     check(usvmConcreteApiJarPath.exists()) { "Concrete API jar does not exist" }
 
-    var cpFiles = classes + usvmConcreteApiJarPath
-    cpFiles += TestDependenciesManager.getTestDependencies(dependencies)
+    var cpFiles = classes + dependencies + usvmConcreteApiJarPath
+    // TODO: add springTestDeps only if user's dependencies do not contain them
+    cpFiles += springTestDeps
 
     val db = jacodb {
         useProcessJavaRuntime()
@@ -124,21 +130,16 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
 
         installFeatures(InMemoryHierarchy)
         installFeatures(Usages)
-        installFeatures(Approximations)
+        installFeatures(Approximations(listOf(VersionInfo("spring", "3.2.0"))))
 
         loadByteCode(cpFiles)
-
-        caching {
-            this.classes = JcCacheSegmentSettings(maxSize = 30_000)
-            this.types = JcCacheSegmentSettings(maxSize = 30_000)
-        }
     }
 
     db.awaitBackgroundJobs()
     loadBench(db, cpFiles, classes, dependencies, true)
 }
 
-fun loadWebAppBenchCp(classes: Path, dependencies: Path): BenchCp =
+private fun loadWebAppBenchCp(classes: Path, dependencies: Path): BenchCp =
     loadWebAppBenchCp(listOf(classes), dependencies)
 
 @OptIn(ExperimentalPathApi::class)
@@ -238,9 +239,8 @@ private fun replaceTypeInClassNode(
     // Transform class signature (for generics)
     classNode.signature = classNode.signature?.replace(oldClassJvmName, newClassJvmName)
 }
-
 @Suppress("SameParameterValue")
-fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMode): BenchCp {
+private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMode): BenchCp {
     val cp = benchmark.cp
 
     val springDirFile = File(System.getenv("springDir"))
@@ -268,14 +268,13 @@ fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMo
     val testClassName = "NewSpringBootTestClass"
     val newTestClassSlashName = "$entryPackagePath/$testClassName"
     val newTestClassName = newTestClassSlashName.replace('/', '.')
-    var testKind: JcSpringTestKind? = null
+
     val testClassTemplate = cp.findClass(testClassTemplateName)
     testClassTemplate.withAsmNode { classNode ->
         classNode.name = newTestClassSlashName
 
         when (springAnalysisMode) {
             JcSpringAnalysisMode.SpringBootTest -> {
-                testKind = SpringBootTest(applicationClass)
                 val sprintBootTestAnnotation = classNode.visibleAnnotations.find {
                     it.desc == "org.springframework.boot.test.context.SpringBootTest".jvmName()
                 } ?: error("SpringBootTest annotation not found")
@@ -331,7 +330,6 @@ fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMo
         benchmark.dependencies,
         false,
         tablesInfo,
-        isNeedTrackTable,
-        testKind
+        isNeedTrackTable
     )
 }
