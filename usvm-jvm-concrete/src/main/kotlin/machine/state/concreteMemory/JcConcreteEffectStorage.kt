@@ -432,9 +432,7 @@ private class JcConcreteEffectSequence private constructor(
     }
 
     fun resetTo(other: JcConcreteEffectSequence) {
-        check(other !== this)
-
-        if (seq === other.seq)
+        if (other === this || seq === other.seq)
             return
 
         seq.lastOrNull()?.createAfterIfNeeded()
@@ -451,9 +449,7 @@ private class JcConcreteEffectSequence private constructor(
     }
 
     fun resetWeight(other: JcConcreteEffectSequence): Int {
-        check(other !== this)
-
-        if (seq === other.seq)
+        if (other === this || seq === other.seq)
             return 0
 
         val snapshots = createResetPath(other)
@@ -526,6 +522,9 @@ internal class JcConcreteEffectStorage private constructor(
     }
 
     fun reset() {
+        if (current === own)
+            return
+
         // TODO: #hack #threads
         //  disabling effect storage, because other running threads may create objects, but effect storage is not ready
         JcConcreteMemoryClassLoader.disableEffectStorage()

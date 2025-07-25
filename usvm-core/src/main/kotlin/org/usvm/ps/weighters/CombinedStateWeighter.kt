@@ -6,7 +6,7 @@ open class CombinedStateWeighter<in State, out Weight, MetaWeight> : StateWeight
 
     private val weightersWithWeights: List<Pair<StateWeighter<State, Weight>, MetaWeight?>>
     private val weightCombiner: (Weight, Weight) -> Weight
-    private val metaWeightApplier: ((MetaWeight, Weight) -> Weight)?
+    private val metaWeightApplier: ((Weight, MetaWeight) -> Weight)?
 
     constructor(
         weighters: List<StateWeighter<State, Weight>>,
@@ -22,7 +22,7 @@ open class CombinedStateWeighter<in State, out Weight, MetaWeight> : StateWeight
         weighters: List<StateWeighter<State, Weight>>,
         metaWeights: List<MetaWeight>,
         weightCombiner: (Weight, Weight) -> Weight,
-        metaWeightApplier: (MetaWeight, Weight) -> Weight
+        metaWeightApplier: (Weight, MetaWeight) -> Weight
     ) {
         check(weighters.isNotEmpty()) { "CombinedStateWeighter must have at least one weighter" }
         this.weightersWithWeights = weighters.zip(metaWeights)
@@ -33,10 +33,10 @@ open class CombinedStateWeighter<in State, out Weight, MetaWeight> : StateWeight
     override fun weight(state: State): Weight {
         var result: Weight? = null
         if (metaWeightApplier != null) {
-            val applier: ((MetaWeight, Weight) -> Weight) = metaWeightApplier
+            val applier: ((Weight, MetaWeight) -> Weight) = metaWeightApplier
             for ((weighter, metaWeight) in weightersWithWeights) {
                 val stateWeight = weighter.weight(state)
-                val weight = applier(metaWeight!!, stateWeight)
+                val weight = applier(stateWeight, metaWeight!!)
                 result = if (result == null) weight else weightCombiner(weight, result)
             }
 

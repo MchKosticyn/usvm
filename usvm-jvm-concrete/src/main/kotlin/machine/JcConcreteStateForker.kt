@@ -1,5 +1,6 @@
 package machine
 
+import machine.state.JcConcreteState
 import machine.state.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcType
 import org.usvm.ForkResult
@@ -9,7 +10,6 @@ import org.usvm.UContext
 import org.usvm.UFalse
 import org.usvm.UState
 import org.usvm.UTrue
-import org.usvm.machine.state.JcState
 import org.usvm.model.UModelBase
 import org.usvm.solver.USatResult
 
@@ -24,7 +24,7 @@ class JcConcreteStateForker(
         if (!memory.concretization)
             return baseStateForker.fork(state, condition)
 
-        val model = memory.getFixedModel(state as JcState)
+        val model = memory.getFixedModel(state as JcConcreteState)
         return when (val evaledCondition = model.eval(condition)) {
             is UTrue -> ForkResult(positiveState = state, negativeState = null)
             is UFalse -> ForkResult(positiveState = null, negativeState = state)
@@ -41,7 +41,7 @@ class JcConcreteStateForker(
         if (!memory.concretization)
             return baseStateForker.forkMulti(state, conditions)
 
-        val model = memory.getFixedModel(state as JcState)
+        val model = memory.getFixedModel(state as JcConcreteState)
         val results = mutableListOf<T?>()
         var conditionFound = false
         for (condition in conditions) {

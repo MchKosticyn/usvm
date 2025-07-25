@@ -297,9 +297,12 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
             return jcClass.bytecode()
 
         return jcClass.withAsmNode { asmNode ->
+            val name = jcClass.name
+            val cp = jcClass.classpath
+            val approximations = cp.features?.filterIsInstance<Approximations>()?.singleOrNull()
             for (method in instrumentedMethods) {
                 val isApproximated = method is JcEnrichedVirtualMethod
-                        || Approximations.findOriginalByApproximationOrNull(ApproximationClassName(jcClass.name)) != null
+                        || approximations?.findOriginalByApproximationOrNull(ApproximationClassName(name)) != null
                 if (isApproximated && asmNode.methods.none { it.name == method.name && it.desc == method.description })
                     continue
 
@@ -314,7 +317,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
                 asmNode.methods.replace(oldMethodNode, newMethodNode)
             }
 
-            asmNode.toByteArray(jcClass.classpath)
+            asmNode.toByteArray(cp)
         }
     }
 

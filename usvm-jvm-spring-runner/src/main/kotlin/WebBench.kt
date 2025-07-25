@@ -28,6 +28,7 @@ import org.jacodb.api.jvm.ext.jvmName
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.approximation.Approximations
+import org.jacodb.approximation.VersionInfo
 import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.cfg.JcInstListImpl
 import org.jacodb.impl.cfg.MethodNodeBuilder
@@ -199,7 +200,7 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
 
         installFeatures(InMemoryHierarchy)
         installFeatures(Usages)
-        installFeatures(Approximations)
+        installFeatures(Approximations(listOf(VersionInfo("spring", "3.2.0"))))
 
         loadByteCode(cpFiles)
 

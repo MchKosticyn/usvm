@@ -170,8 +170,9 @@ internal val JcMethod.toJavaMethod: Executable?
 internal val JcEnrichedVirtualMethod.approximationMethod: JcMethod?
     get() {
         val originalClassName = OriginalClassName(enclosingClass.name)
+        val approximations = this.enclosingClass.classpath.features?.filterIsInstance<Approximations>()?.singleOrNull()
         val approximationClassName =
-            Approximations.findApproximationByOriginOrNull(originalClassName)
+            approximations?.findApproximationByOriginOrNull(originalClassName)
                 ?: return null
         return enclosingClass.classpath.findClassOrNull(approximationClassName)
             ?.declaredMethods

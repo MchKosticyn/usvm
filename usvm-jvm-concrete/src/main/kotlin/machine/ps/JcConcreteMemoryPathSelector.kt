@@ -1,7 +1,6 @@
 package machine.ps
 
-import machine.state.concreteMemory.JcConcreteMemory
-import org.usvm.StateId
+import machine.state.JcConcreteState
 import org.usvm.UPathSelector
 import org.usvm.machine.state.JcState
 
@@ -9,11 +8,7 @@ internal class JcConcreteMemoryPathSelector(
     private val selector: UPathSelector<JcState>
 ) : UPathSelector<JcState> {
 
-    private var fixedState: JcState? = null
-
-    private var lastAddedStates: List<JcState> = emptyList()
-
-    private val removedStateIds = mutableSetOf<StateId>()
+    private var fixedState: JcConcreteState? = null
 
     private lateinit var addNewState: ((JcState) -> Unit)
 
@@ -27,18 +22,16 @@ internal class JcConcreteMemoryPathSelector(
     }
 
     private fun fixState(state: JcState) {
-        check(!removedStateIds.contains(state.id))
+        state as JcConcreteState
         fixedState = state
         println("picked state: ${state.id}")
-        val memory = state.memory as JcConcreteMemory
-        memory.reset()
+        state.concreteMemory.reset()
     }
 
     override fun peek(): JcState {
-        if (fixedState != null) {
-            check(!removedStateIds.contains(fixedState!!.id))
-            return fixedState as JcState
-        }
+        if (fixedState != null)
+            return fixedState!!
+
         val state = selector.peek()
         fixState(state)
         return state
@@ -50,27 +43,20 @@ internal class JcConcreteMemoryPathSelector(
 
     override fun add(states: Collection<JcState>) {
         selector.add(states)
-        lastAddedStates = states.toList()
     }
 
     override fun remove(state: JcState) {
         check(fixedState === state)
-        check(!removedStateIds.contains(state.id))
-        val memory = state.memory as JcConcreteMemory
+        state as JcConcreteState
+        val memory = state.concreteMemory
         val backtrackedState = memory.kill()
-        removedStateIds.add(state.id)
         selector.remove(state)
-        if (state.callStack.isNotEmpty()) {
-            if (backtrackedState != null)
-                addNewState(backtrackedState)
-            val newState = backtrackedState ?: lastAddedStates.firstOrNull { !removedStateIds.contains(it.id) }
-            if (newState != null)
-                fixState(newState)
-            else
-                fixedState = null
-        } else {
-            fixedState = null
+        if (state.callStack.isNotEmpty() && backtrackedState != null) {
+            addNewState(backtrackedState)
+            fixState(backtrackedState)
+            return
         }
+        fixedState = null
         println("removed state: ${state.id}")
     }
 }

@@ -6,7 +6,8 @@ object Versions {
     const val clikt = "5.0.0"
     const val detekt = "1.23.7"
     const val ini4j = "0.5.4"
-    const val jacodb = "4ff7243d3a"
+    const val jacodb = "d7dd9d343b"
+    const val xodus = "2.0.1"
     const val juliet = "1.3.2"
     const val junit = "5.9.3"
     const val kotlin = "2.1.0"
@@ -141,6 +142,11 @@ object Libs {
         group = jacodbPackage,
         name = "jacodb-storage",
         version = Versions.jacodb
+    )
+    val xodusEnvironment = dep(
+        group = "org.jetbrains.xodus",
+        name = "xodus-environment",
+        version = Versions.xodus
     )
     val jacodb_approximations = dep(
         group = jacodbPackage,

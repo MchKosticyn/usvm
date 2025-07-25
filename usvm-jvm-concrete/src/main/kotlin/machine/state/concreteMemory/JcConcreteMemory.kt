@@ -4,6 +4,7 @@ import io.ksmt.utils.asExpr
 import machine.JcConcreteInvocationResult
 import machine.JcConcreteMachineOptions
 import machine.JcConcreteMemoryClassLoader
+import machine.state.JcConcreteState
 import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteArrayLengthRegion
 import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteArrayRegion
 import machine.state.concreteMemory.concreteMemoryRegions.JcConcreteCallSiteLambdaRegion
@@ -106,7 +107,7 @@ open class JcConcreteMemory(
 
     private var concretizingConstraints = mutableListOf<UBoolExpr>()
     private var fixedModel: UModelBase<JcType>? = null
-    private var backtrackState: JcState? = null
+    private var backtrackState: JcConcreteState? = null
     private var backtrackEnabled = false
 
     init {
@@ -304,7 +305,7 @@ open class JcConcreteMemory(
         return clonedMemory
     }
 
-    fun getConcretizer(state: JcState): JcTestStateResolver<Any?> {
+    fun getConcretizer(state: JcConcreteState): JcTestStateResolver<Any?> {
         return JcConcretizer(state, getFixedModel(state), bindings, concretizingConstraints)
     }
 
@@ -377,7 +378,7 @@ open class JcConcreteMemory(
         }
     }
 
-    fun getFixedModel(state: JcState): UModelBase<JcType> {
+    fun getFixedModel(state: JcConcreteState): UModelBase<JcType> {
         check(state.memory === this)
         if (fixedModel != null) {
             check(state.models.singleOrNull() === fixedModel)
@@ -392,7 +393,7 @@ open class JcConcreteMemory(
         return fixedModel!!
     }
 
-    internal fun setFixedModel(state: JcState, model: UModelBase<JcType>) {
+    internal fun setFixedModel(state: JcConcreteState, model: UModelBase<JcType>) {
         check(state.memory === this)
         if (backtrackState == null)
             backtrackState = state.clone()
@@ -401,7 +402,7 @@ open class JcConcreteMemory(
     }
 
     private fun concretize(
-        state: JcState,
+        state: JcConcreteState,
         exprResolver: JcExprResolver,
         stmt: JcMethodCall,
         method: JcMethod,
@@ -541,7 +542,7 @@ open class JcConcreteMemory(
 
     private fun tryConcreteInvokeInternal(
         stmt: JcMethodCall,
-        state: JcState,
+        state: JcConcreteState,
         exprResolver: JcExprResolver,
         jcConcreteMachineOptions: JcConcreteMachineOptions
     ): TryConcreteInvokeResult {
@@ -623,7 +624,7 @@ open class JcConcreteMemory(
         exprResolver: JcExprResolver,
         jcConcreteMachineOptions: JcConcreteMachineOptions
     ): Boolean {
-        val success = tryConcreteInvokeInternal(methodCall, state, exprResolver, jcConcreteMachineOptions)
+        val success = tryConcreteInvokeInternal(methodCall, state as JcConcreteState, exprResolver, jcConcreteMachineOptions)
         // If constructor was not invoked and arguments were symbolic, deleting default 'this' from concrete memory:
         // + No need to encode objects in inconsistent state (created via allocConcrete -- objects with default fields)
         // - During symbolic execution, 'this' may stay concrete
@@ -637,7 +638,7 @@ open class JcConcreteMemory(
         return success is TryConcreteInvokeSuccess
     }
 
-    private fun internalKill(force: Boolean): JcState? {
+    private fun internalKill(force: Boolean): JcConcreteState? {
         bindings.kill(force)
         if (backtrackState == null)
             return null
@@ -651,7 +652,7 @@ open class JcConcreteMemory(
         return null
     }
 
-    fun kill(): JcState? {
+    fun kill(): JcConcreteState? {
         return internalKill(false)
     }
 
