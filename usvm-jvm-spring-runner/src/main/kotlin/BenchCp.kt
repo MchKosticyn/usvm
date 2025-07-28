@@ -116,6 +116,9 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
 
     var cpFiles = classes + usvmConcreteApiJarPath
     cpFiles += TestDependenciesManager.getTestDependencies(dependencies)
+    val springBootVersion = TestDependenciesManager.getSpringBootVersion(dependencies)
+
+    check(springBootVersion != null) { "Spring boot was not found in dependencies" }
 
     val db = jacodb {
         useProcessJavaRuntime()
@@ -124,7 +127,7 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
 
         installFeatures(InMemoryHierarchy)
         installFeatures(Usages)
-        installFeatures(Approximations(listOf(VersionInfo("spring", "3.2.0"))))
+        installFeatures(Approximations(listOf(VersionInfo("spring", springBootVersion))))
 
         loadByteCode(cpFiles)
     }
@@ -233,6 +236,7 @@ private fun replaceTypeInClassNode(
     // Transform class signature (for generics)
     classNode.signature = classNode.signature?.replace(oldClassJvmName, newClassJvmName)
 }
+
 @Suppress("SameParameterValue")
 fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMode): BenchCp {
     val cp = benchmark.cp

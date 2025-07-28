@@ -10,8 +10,8 @@ object TestDependenciesManager {
     private const val SECURITY_TEST_DEPENDENCIES_PATH = "./test-dependencies/security-test"
 
     fun getTestDependencies(classes: List<File>): List<File> {
-        val starterVersion = getSpringBootStarterVersion(classes)
-        val securityVersion = getSecurityStarterVersion(classes)
+        val starterVersion = getSpringBootVersion(classes)
+        val securityVersion = getSecurityVersion(classes)
         check(starterVersion != null)
         val existingSpringTestDeps = findNearestVer(
             starterVersion,
@@ -51,7 +51,7 @@ object TestDependenciesManager {
         return version.split(".").map { it.toInt() }.fold(0) { acc, i -> acc * 100 + i }
     }
 
-    private fun getSpringBootStarterVersion(classes: List<File>): String? {
+    fun getSpringBootVersion(classes: List<File>): String? {
         for (file in classes) {
             val manifest = readManifest(file) ?: continue
             val name = manifest.mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_TITLE)
@@ -61,7 +61,7 @@ object TestDependenciesManager {
         return null
     }
 
-    private fun getSecurityStarterVersion(classes: List<File>): String? {
+    fun getSecurityVersion(classes: List<File>): String? {
         for (file in classes) {
             val manifest = readManifest(file) ?: continue
             val title = manifest.mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_TITLE)
