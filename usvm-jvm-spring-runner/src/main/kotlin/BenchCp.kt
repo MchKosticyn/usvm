@@ -111,17 +111,11 @@ private fun loadBench(
 }
 
 private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
-    val springTestDeps =
-        System.getenv("usvm.jvm.springTestDeps.paths")
-            .split(";")
-            .map { File(it) }
-
     val usvmConcreteApiJarPath = File(System.getenv("usvm.jvm.concrete.api.jar.path"))
     check(usvmConcreteApiJarPath.exists()) { "Concrete API jar does not exist" }
 
-    var cpFiles = classes + dependencies + usvmConcreteApiJarPath
-    // TODO: add springTestDeps only if user's dependencies do not contain them
-    cpFiles += springTestDeps
+    var cpFiles = classes + usvmConcreteApiJarPath
+    cpFiles += TestDependenciesManager.getTestDependencies(dependencies)
 
     val db = jacodb {
         useProcessJavaRuntime()
@@ -139,7 +133,7 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
     loadBench(db, cpFiles, classes, dependencies, true)
 }
 
-private fun loadWebAppBenchCp(classes: Path, dependencies: Path): BenchCp =
+fun loadWebAppBenchCp(classes: Path, dependencies: Path): BenchCp =
     loadWebAppBenchCp(listOf(classes), dependencies)
 
 @OptIn(ExperimentalPathApi::class)
@@ -240,7 +234,7 @@ private fun replaceTypeInClassNode(
     classNode.signature = classNode.signature?.replace(oldClassJvmName, newClassJvmName)
 }
 @Suppress("SameParameterValue")
-private fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMode): BenchCp {
+fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMode): BenchCp {
     val cp = benchmark.cp
 
     val springDirFile = File(System.getenv("springDir"))

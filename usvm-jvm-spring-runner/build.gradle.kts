@@ -58,25 +58,12 @@ val springApproximationsRepo = "org.usvm.approximations.spring"
 val springApproximationsVersion = "0.0.0"
 
 dependencies {
-    springApproximations(springApproximationsRepo, "approximations-3-x-x", springApproximationsVersion)
+    springApproximations(springApproximationsRepo, "spring-approximations", springApproximationsVersion)
 }
 
 val agentJarConfiguration by configurations.creating
 dependencies {
     agentJarConfiguration(project(":usvm-jvm-concrete:agent"))
-}
-
-// TODO: make versions flexible (JHipster needs 2.7.3, petclinic needs 3.2.0)
-val springVersion = "3.3.4"
-val springSecurityVersion = "6.5.0"
-val junitVersion = "5.3.1"
-
-val springTestDeps by configurations.creating
-
-dependencies {
-    springTestDeps("org.junit.jupiter:junit-jupiter-api:$junitVersion")
-    springTestDeps("org.springframework.boot:spring-boot-starter-test:$springVersion")
-//    springTestDeps("org.springframework.security:spring-security-test:$springSecurityVersion")
 }
 
 fun createOrClear(file: File) {
