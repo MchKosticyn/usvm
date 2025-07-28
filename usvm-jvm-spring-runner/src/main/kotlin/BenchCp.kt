@@ -114,8 +114,8 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
     val usvmConcreteApiJarPath = File(System.getenv("usvm.jvm.concrete.api.jar.path"))
     check(usvmConcreteApiJarPath.exists()) { "Concrete API jar does not exist" }
 
-    var cpFiles = classes + usvmConcreteApiJarPath
-    cpFiles += TestDependenciesManager.getTestDependencies(dependencies)
+    val allDependencies = TestDependenciesManager.getTestDependencies(dependencies)
+    val cpFiles = classes + usvmConcreteApiJarPath + allDependencies
     val springBootVersion = TestDependenciesManager.getSpringBootVersion(dependencies)
 
     check(springBootVersion != null) { "Spring boot was not found in dependencies" }
