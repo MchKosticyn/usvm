@@ -16,10 +16,13 @@ class SpringTestReproducer(
     private val memoryLimit: Int = 3
 ) {
     private fun createExecutor(): UTestConcreteExecutor {
-        // TODO: add spring approximations instead of java.stdlib
-        val reproducingLocations = System.getenv("usvm.jvm.springTestDeps.paths").split(";")
+        // TODO: #CM add spring approximations instead of java.stdlib
         val approximations = System.getenv("usvm.jvm.spring.approximations.jar.path")
-        val locations = (options.projectLocations + options.dependenciesLocations).map { it.path } + reproducingLocations + listOf(approximations)
+        val dependencyJars = options.dependenciesLocations.map { it.jarOrFolder }
+        val dependencies = TestDependenciesManager.getTestDependencies(dependencyJars)
+        val locations = options.projectLocations.map { it.path } +
+                dependencies.map { it.path } +
+                listOf(approximations)
         val opts = UTestExecutionOptions(execMode = InstrumentedProcess.UTestExecMode.RESULT_ONLY)
         val executor = UTestConcreteExecutor(
             instrumentationClassFactory = NoInstrumentationFactory::class,

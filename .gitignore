@@ -24,6 +24,11 @@ generated/*
 usvm-jvm-spring-runner/generatedTests/
 usvm-jvm-spring-runner/generated/*
 
+# Benchmark-related folder contents
+usvm-jvm-spring-runner/bench-errors/
+usvm-jvm-spring-runner/bench-logs/
+usvm-jvm-spring-runner/bench-jars/unpacked/
+
 *.ansi
 .profileconfig.json
 usvm-jvm/generated

@@ -1,3 +1,6 @@
+import org.gradle.kotlin.dsl.support.unzipTo
+import kotlin.io.path.div
+
 plugins {
     id("usvm.kotlin-conventions")
 }
@@ -55,25 +58,12 @@ val springApproximationsRepo = "org.usvm.approximations.spring"
 val springApproximationsVersion = "0.0.0"
 
 dependencies {
-    springApproximations(springApproximationsRepo, "approximations-3-x-x", springApproximationsVersion)
+    springApproximations(springApproximationsRepo, "spring-approximations", springApproximationsVersion)
 }
 
 val agentJarConfiguration by configurations.creating
 dependencies {
     agentJarConfiguration(project(":usvm-jvm-concrete:agent"))
-}
-
-// TODO: make versions flexible (JHipster needs 2.7.3, petclinic needs 3.2.0)
-val springVersion = "3.3.4"
-val springSecurityVersion = "6.5.0"
-val junitVersion = "5.3.1"
-
-val springTestDeps by configurations.creating
-
-dependencies {
-    springTestDeps("org.junit.jupiter:junit-jupiter-api:$junitVersion")
-    springTestDeps("org.springframework.boot:spring-boot-starter-test:$springVersion")
-//    springTestDeps("org.springframework.security:spring-security-test:$springSecurityVersion")
 }
 
 fun createOrClear(file: File) {
@@ -84,14 +74,10 @@ fun createOrClear(file: File) {
     }
 }
 
-tasks.register<JavaExec>("runWebBench") {
-    mainClass.set("bench.WebBenchKt")
+fun configureSpringAnalysis(task: JavaExec) = with(task) {
     classpath = sourceSets.test.get().runtimeClasspath
 
     systemProperty("jdk.util.jar.enableMultiRelease", false)
-
-    val absolutePaths = springTestDeps.resolvedConfiguration.files.joinToString(";") { it.absolutePath }
-    environment("usvm.jvm.springTestDeps.paths", absolutePaths)
 
     val currentDir = File(System.getProperty("user.dir"))
     val generatedDir = currentDir.resolve("generated")
@@ -245,6 +231,11 @@ tasks.register<JavaExec>("runWebBench") {
     }
 }
 
+tasks.register<JavaExec>("runWebBench") {
+    mainClass.set("bench.WebBenchKt")
+    configureSpringAnalysis(this)
+}
+
 fun MutableList<String>.openPackage(module: String, pakage: String) {
     add("--add-opens")
     add("$module/$pakage=ALL-UNNAMED")
@@ -269,3 +260,73 @@ fun JavaExec.addEnvIfExists(envName: String, path: String) {
 
     environment(envName, file.absolutePath)
 }
+
+val currentDir = getProjectDir().toPath()
+val benchmarkFolder = currentDir / "bench-jars"
+val benchmarkLogsFolder = currentDir / "bench-logs"
+val benchmarkErrorsFolder = currentDir /  "bench-errors"
+
+fun loadBenchmark(jarName: String): Benchmark {
+    val benchmark = benchmarkFolder.toFile().listFiles()?.first { it.isFile && it.name == jarName }
+    val destinationFolder = benchmarkFolder / "unpacked"
+    check(benchmark != null) { "Cannot find benchmark $jarName" }
+    val benchmarkName = benchmark.name.removeSuffix(".jar")
+    val destination = (destinationFolder / benchmarkName).toFile()
+    createOrClear(destination)
+    val logFile = (benchmarkLogsFolder / "${benchmarkName}_log.ansi").toFile()
+    val errorsFile = (benchmarkErrorsFolder / "${benchmarkName}_errors.ansi").toFile()
+    unzipTo(destination, benchmark)
+    val bootInf = destination.toPath() / "BOOT-INF"
+    return Benchmark(bootInf.toFile(), logFile, errorsFile, benchmarkName)
+}
+
+private fun fillProperties(benchmark: Benchmark, task: JavaExec) {
+    task.systemProperty("usvm.benchmark", benchmark.path.absolutePath)
+    task.systemProperty("usvm.log", benchmark.logPath.absolutePath)
+    task.systemProperty("usvm.errors", benchmark.errorsPath.absolutePath)
+}
+
+tasks.register<JavaExec>("benchmarkPetClinic") {
+    fillProperties(loadBenchmark("spring-petclinic-3.2.0.jar"), this)
+    mainClass.set("benchmarking.BenchmarkingKt")
+    configureSpringAnalysis(this)
+}
+
+tasks.register<JavaExec>("benchmarkKlaw") {
+    fillProperties(loadBenchmark("klaw-2.10.1.jar"), this)
+    mainClass.set("benchmarking.BenchmarkingKt")
+    configureSpringAnalysis(this)
+}
+
+tasks.register<JavaExec>("benchmarkBlogApi") {
+    fillProperties(loadBenchmark("blogapi-0.0.1-SNAPSHOT.jar"), this)
+    mainClass.set("benchmarking.BenchmarkingKt")
+    configureSpringAnalysis(this)
+}
+
+tasks.register<JavaExec>("benchmarkBenches") {
+    fillProperties(loadBenchmark("usvm-spring-benchmarks.jar"), this)
+    mainClass.set("benchmarking.BenchmarkingKt")
+    configureSpringAnalysis(this)
+}
+
+tasks.register<JavaExec>("analyzeBenchmarks") {
+    mainClass.set("benchmarking.BenchmarkingEvaluationKt")
+    systemProperty("usvm.logs", benchmarkLogsFolder)
+    configureSpringAnalysis(this)
+}
+
+tasks.register("runBenchmarks") {
+    createOrClear(benchmarkLogsFolder.toFile())
+    createOrClear(benchmarkErrorsFolder.toFile())
+    val usedBenches = listOf("benchmarkPetClinic", "benchmarkBlogApi", "benchmarkBenches")
+    dependsOn(usedBenches)
+    dependsOn("analyzeBenchmarks").mustRunAfter(usedBenches)
+}
+
+data class Benchmark(
+    val path: File,
+    val logPath: File,
+    val errorsPath: File,
+    val name: String
+)
