@@ -3,6 +3,8 @@ import features.JcClinitFeature
 import features.JcEncodingFeature
 import features.JcGeneratedTypesFeature
 import features.JcInitFeature
+import features.JcReplaceGetAppClassLoaderFeature
+import jpa.JcTableInfoCollector
 import kotlinx.coroutines.runBlocking
 import machine.JcConcreteMachineOptions
 import machine.JcSpringAnalysisMode
@@ -42,10 +44,9 @@ import org.objectweb.asm.tree.TypeInsnNode
 import org.usvm.jvm.util.isSameSignature
 import org.usvm.jvm.util.nonAbstractClasses
 import org.usvm.jvm.util.replace
+import org.usvm.jvm.util.transformers.JcStringConcatTransformer
 import org.usvm.jvm.util.write
-import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
 import util.classpathWithSpringApproximations
-import util.database.JcTableInfoCollector
 import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
@@ -60,7 +61,8 @@ class BenchCp(
     val depsLocations: List<JcByteCodeLocation>,
     val cpFiles: List<File>,
     val classes: List<File>,
-    val dependencies: List<File>
+    val dependencies: List<File>,
+    val propertiesName: String?
 ) : AutoCloseable {
     override fun close() {
         cp.close()
@@ -78,6 +80,7 @@ private fun loadBench(
     cpFiles: List<File>,
     classes: List<File>,
     dependencies: List<File>,
+    propertiesName: String?,
     isPureClasspath: Boolean = true,
     tablesInfo: JcTableInfoCollector? = null,
     isNeedTrackTable: Boolean = false
@@ -89,14 +92,16 @@ private fun loadBench(
         JcClinitFeature,
         JcInitFeature,
         JcEncodingFeature,
-        JcGeneratedTypesFeature
+        JcGeneratedTypesFeature,
+        JcReplaceGetAppClassLoaderFeature
     )
 
     if (!isPureClasspath) {
+        val repositoryTransformer = JcRepositoryTransformer(tablesInfo!!)
         val dbFeatures = listOf(
-            JcRepositoryCrudTransformer(tablesInfo!!),
-            JcRepositoryQueryTransformer,
-            JcRepositoryTransformer,
+            JcRepositoryCrudTransformer(tablesInfo),
+            repositoryTransformer,
+            JcRepositoryQueryTransformer(repositoryTransformer),
             JcDataclassTransformer(tablesInfo, isNeedTrackTable),
             JcTableIdClassTransformer(tablesInfo)
         )
@@ -107,10 +112,10 @@ private fun loadBench(
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
     val depsLocations = cp.locations.filter { it.jarOrFolder in dependencies }
-    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies)
+    BenchCp(cp, db, classLocations, depsLocations, cpFiles, classes, dependencies, propertiesName)
 }
 
-private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp = runBlocking {
+private fun loadBenchCp(classes: List<File>, dependencies: List<File>, propertiesName: String?): BenchCp = runBlocking {
     val usvmConcreteApiJarPath = File(System.getenv("usvm.jvm.concrete.api.jar.path"))
     check(usvmConcreteApiJarPath.exists()) { "Concrete API jar does not exist" }
 
@@ -133,21 +138,22 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>): BenchCp 
     }
 
     db.awaitBackgroundJobs()
-    loadBench(db, cpFiles, classes, dependencies, true)
+    loadBench(db, cpFiles, classes, dependencies, propertiesName, true)
 }
 
-fun loadWebAppBenchCp(classes: Path, dependencies: Path): BenchCp =
-    loadWebAppBenchCp(listOf(classes), dependencies)
+fun loadWebAppBenchCp(jar: Path, dependencies: Path, propertiesName: String? = null): BenchCp =
+    loadWebAppBenchCp(listOf(jar), dependencies, propertiesName)
 
 @OptIn(ExperimentalPathApi::class)
-private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path): BenchCp =
+private fun loadWebAppBenchCp(classes: List<Path>, dependencies: Path, propertiesName: String?): BenchCp =
     loadBenchCp(
         classes = classes.map { it.toFile() },
         dependencies = dependencies
             .walk(PathWalkOption.INCLUDE_DIRECTORIES)
             .filter { it.extension == "jar" }
             .map { it.toFile() }
-            .toList()
+            .toList(),
+        propertiesName
     )
 
 private val JcClassOrInterface.jvmDescriptor: String get() = name.jvmName()
@@ -254,11 +260,9 @@ fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMo
     val entityManagerType = cp.findClassOrNull("jakarta.persistence.EntityManager")
     val hasJpa = repositories.isNotEmpty() || entityManagerType != null && entityManagerType !is JcUnknownClass
 
-    // TODO #AA: Get it from version
-    val approximationPrefix = "v3xx."
     val testClassTemplateName =
-        if (hasJpa) "${approximationPrefix}generated.org.springframework.boot.testClasses.SpringBootJpaTestClass"
-        else "${approximationPrefix}generated.org.springframework.boot.testClasses.SpringBootTestClass"
+        if (hasJpa) "generated.org.springframework.boot.testClasses.SpringBootJpaTestClass"
+        else "generated.org.springframework.boot.testClasses.SpringBootTestClass"
 
     val applicationClass = allByAnnotation(
         nonAbstractClasses,
@@ -281,7 +285,17 @@ fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMo
                 sprintBootTestAnnotation.values = listOf(
                     "classes", listOf(Type.getType(applicationClass.jvmDescriptor))
                 )
+
+                if (benchmark.propertiesName != null) {
+                    val testPropertySourceAnnotation = classNode.visibleAnnotations.singleOrNull {
+                        it.desc == "org.springframework.test.context.TestPropertySource".jvmName()
+                    } ?: error("TestPropertySource annotation not found")
+                    val newAnnotationValues = testPropertySourceAnnotation.values ?: mutableListOf()
+                    newAnnotationValues.addAll(listOf("locations", listOf(benchmark.propertiesName)))
+                    testPropertySourceAnnotation.values = newAnnotationValues
+                }
             }
+
             JcSpringAnalysisMode.SpringJpaTest -> TODO("not supported yet")
         }
 
@@ -328,6 +342,7 @@ fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringAnalysisMo
         newCpFiles,
         newClasses,
         benchmark.dependencies,
+        benchmark.propertiesName,
         false,
         tablesInfo,
         isNeedTrackTable

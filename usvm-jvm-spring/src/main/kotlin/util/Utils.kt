@@ -18,6 +18,21 @@ internal val JcClassOrInterface.isSpringFilterChain: Boolean
         return isSubClassOf(filterType)
     }
 
+internal val JcClassOrInterface.isFilterObservation: Boolean
+    get() = classpath.findClassOrNull(
+        "org.springframework.security.web.ObservationFilterChainDecorator\$FilterObservation"
+    )?.let { isSubClassOf(it) } ?: false
+
+internal val JcClassOrInterface.isObservationContext: Boolean
+    get() = classpath.findClassOrNull(
+        "io.micrometer.observation.Observation\$Context"
+    )?.let { isSubClassOf(it) } ?: false
+
+internal val JcClassOrInterface.isFilterChainDecorator: Boolean
+    get() = classpath.findClassOrNull(
+        "org.springframework.security.web.FilterChainProxy\$FilterChainDecorator"
+    )?.let { isSubClassOf(it) } ?: false
+
 internal val JcClassOrInterface.isSpringHandlerInterceptor: Boolean
     get() {
         val filterType = classpath.findClassOrNull("org.springframework.web.servlet.HandlerInterceptor")
@@ -61,6 +76,15 @@ internal val JcMethod.isSpringFilterMethod: Boolean
 
 internal val JcMethod.isSpringFilterChainMethod: Boolean
     get() = enclosingClass.isSpringFilterChain
+
+internal val JcMethod.isFilterObservationMethod: Boolean
+    get() = enclosingClass.isFilterObservation
+
+internal val JcMethod.isObservationContextMethod: Boolean
+    get() = enclosingClass.isObservationContext
+
+internal val JcMethod.isFilterChainDecoratorMethod: Boolean
+    get() = enclosingClass.isFilterChainDecorator
 
 private val argumentResolverMethods = setOf("convertIfNecessary", "resolveArgument", "resolveName", "handleNullValue")
 

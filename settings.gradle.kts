@@ -60,6 +60,7 @@ include("usvm-jvm-spring:usvm-jvm-spring-test-api")
 include("usvm-jvm-concrete:agent")
 findProject(":usvm-jvm-concrete:agent")?.name = "agent"
 include("usvm-jvm-spring")
+include("usvm-jvm-spring:usvm-jvm-spring-util")
 include("usvm-jvm-spring:usvm-jvm-spring-api")
 findProject(":usvm-jvm-spring:usvm-jvm-spring-api")?.name = "usvm-jvm-spring-api"
 include("usvm-jvm-spring:usvm-jvm-spring-test-api")

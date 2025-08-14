@@ -44,6 +44,6 @@ open class JcConcreteState(
         get() = this.memory as JcConcreteMemory
 
     override fun clone(newConstraints: UPathConstraints<JcType>?): JcConcreteState {
-        return super.clone() as JcConcreteState
+        return super.clone(newConstraints) as JcConcreteState
     }
 }

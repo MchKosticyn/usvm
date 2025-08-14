@@ -233,12 +233,15 @@ val String.genericTypesFromSignature : List<String> get() {
     return res.map { it.substringAfter(":").jcdbName() }
 }
 
-fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =
+fun JcClasspath.classesOfLocations(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =
     locations
         .asSequence()
         .flatMap { it.classNames ?: emptySet() }
-        .mapNotNull { findClassOrNull(it) }
+        .mapNotNull { findClassOrNull(it.removePrefix("BOOT-INF.classes.")) }
         .filterNot { it is JcUnknownClass }
+
+fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =
+    classesOfLocations(locations)
         .filterNot { it.isAbstract || it.isInterface || it.isAnonymous }
         .sortedBy { it.name }
 

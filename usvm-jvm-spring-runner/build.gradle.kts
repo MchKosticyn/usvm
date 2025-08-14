@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":usvm-jvm-instrumentation"))
     implementation(project(":usvm-jvm-concrete"))
     implementation(project(":usvm-jvm-spring"))
+    implementation(project(":usvm-jvm-spring:usvm-jvm-spring-util"))
     implementation(project(":usvm-jvm-spring:usvm-jvm-spring-test-api"))
     implementation(project(":usvm-jvm-rendering"))
     implementation(project(":usvm-core"))
@@ -90,19 +91,24 @@ fun configureSpringAnalysis(task: JavaExec) = with(task) {
     createOrClear(springDir)
     environment("springDir", springDir.absolutePath)
 
-    val usvmApiJarPath = usvmApiJarConfiguration.resolvedConfiguration.files.single()
+    val usvmApiJarPath = usvmApiJarConfiguration.resolvedConfiguration.files.singleOrNull()
+        ?: error("Can't find JVM API project")
     environment("usvm.jvm.api.jar.path", usvmApiJarPath.absolutePath)
 
-    val usvmApproximationJarPath = approximations.resolvedConfiguration.files.single()
+    val usvmApproximationJarPath = approximations.resolvedConfiguration.files.singleOrNull()
+        ?: error("Can't find base approximations")
     environment("usvm.jvm.approximations.jar.path", usvmApproximationJarPath.absolutePath)
 
-    val usvmConcreteApiJarPath = usvmConcreteApiJarConfiguration.resolvedConfiguration.files.single()
+    val usvmConcreteApiJarPath = usvmConcreteApiJarConfiguration.resolvedConfiguration.files.singleOrNull()
+        ?: error("Can't find concrete API project")
     environment("usvm.jvm.concrete.api.jar.path", usvmConcreteApiJarPath)
 
-    val usvmSpringApiJarPath = usvmSpringApiJarConfiguration.resolvedConfiguration.files.single()
+    val usvmSpringApiJarPath = usvmSpringApiJarConfiguration.resolvedConfiguration.files.singleOrNull()
+        ?: error("Can't find Spring API project")
     environment("usvm.jvm.spring.api.jar.path", usvmSpringApiJarPath.absolutePath)
 
-    val usvmSpringApproximationJarPath = springApproximations.resolvedConfiguration.files.single()
+    val usvmSpringApproximationJarPath = springApproximations.resolvedConfiguration.files.singleOrNull()
+        ?: error("Can't find Spring approximations")
     environment("usvm.jvm.spring.approximations.jar.path", usvmSpringApproximationJarPath.absolutePath)
 
     environment(
@@ -123,7 +129,8 @@ fun configureSpringAnalysis(task: JavaExec) = with(task) {
             .get().asFile.absolutePath
     )
 
-    val agentJarPath = agentJarConfiguration.resolvedConfiguration.files.single()
+    val agentJarPath = agentJarConfiguration.resolvedConfiguration.files.singleOrNull()
+        ?: error("Can't find concrete agent project")
 
     jvmArgs = listOf("-Xmx12g") + mutableListOf<String>().apply {
         add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
@@ -266,24 +273,36 @@ val benchmarkFolder = currentDir / "bench-jars"
 val benchmarkLogsFolder = currentDir / "bench-logs"
 val benchmarkErrorsFolder = currentDir /  "bench-errors"
 
-fun loadBenchmark(jarName: String): Benchmark {
-    val benchmark = benchmarkFolder.toFile().listFiles()?.first { it.isFile && it.name == jarName }
+fun loadBenchmark(jarName: String, propertiesPath: String? = null): Benchmark {
+    val benchmark = benchmarkFolder.toFile().listFiles()?.firstOrNull { it.isFile && it.name == jarName }
+        ?: error("Can't find benchmarking jar")
     val destinationFolder = benchmarkFolder / "unpacked"
+    val libsFolder = benchmarkFolder / "bench-libs"
     check(benchmark != null) { "Cannot find benchmark $jarName" }
+
     val benchmarkName = benchmark.name.removeSuffix(".jar")
-    val destination = (destinationFolder / benchmarkName).toFile()
-    createOrClear(destination)
+    val destination = destinationFolder / benchmarkName
+    createOrClear(destination.toFile())
+
     val logFile = (benchmarkLogsFolder / "${benchmarkName}_log.ansi").toFile()
     val errorsFile = (benchmarkErrorsFolder / "${benchmarkName}_errors.ansi").toFile()
-    unzipTo(destination, benchmark)
-    val bootInf = destination.toPath() / "BOOT-INF"
-    return Benchmark(bootInf.toFile(), logFile, errorsFile, benchmarkName)
+    unzipTo(destination.toFile(), benchmark)
+
+    val newLibs = (libsFolder / benchmarkName).toFile()
+    val oldLibs = (destination / "BOOT-INF" / "lib").toFile()
+
+    newLibs.deleteRecursively()
+    oldLibs.copyRecursively(newLibs)
+    oldLibs.deleteRecursively()
+    return Benchmark(destination.toFile(), newLibs, propertiesPath, logFile, errorsFile, benchmarkName)
 }
 
 private fun fillProperties(benchmark: Benchmark, task: JavaExec) {
-    task.systemProperty("usvm.benchmark", benchmark.path.absolutePath)
+    task.systemProperty("usvm.benchmark", benchmark.jarPath.absolutePath)
+    task.systemProperty("usvm.libs", benchmark.libsPath.absolutePath)
     task.systemProperty("usvm.log", benchmark.logPath.absolutePath)
     task.systemProperty("usvm.errors", benchmark.errorsPath.absolutePath)
+    benchmark.propertiesPath?.also { task.systemProperty("usvm.properties", it) }
 }
 
 tasks.register<JavaExec>("benchmarkPetClinic") {
@@ -293,7 +312,7 @@ tasks.register<JavaExec>("benchmarkPetClinic") {
 }
 
 tasks.register<JavaExec>("benchmarkKlaw") {
-    fillProperties(loadBenchmark("klaw-2.10.1.jar"), this)
+    fillProperties(loadBenchmark("klaw-2.9.0.jar", "classpath:test-application-rdbms-ad-authorization.properties"), this)
     mainClass.set("benchmarking.BenchmarkingKt")
     configureSpringAnalysis(this)
 }
@@ -325,8 +344,10 @@ tasks.register("runBenchmarks") {
 }
 
 data class Benchmark(
-    val path: File,
+    val jarPath: File,
+    val libsPath: File,
+    val propertiesPath: String?,
     val logPath: File,
     val errorsPath: File,
-    val name: String
+    val name: String,
 )

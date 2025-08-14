@@ -1,7 +1,6 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KExpr
-import io.ksmt.sort.KBoolSort
 import io.ksmt.utils.asExpr
 import io.ksmt.utils.cast
 import io.ksmt.utils.uncheckedCast
@@ -107,8 +106,8 @@ import org.usvm.machine.interpreter.statics.JcStaticFieldRegionId
 import org.usvm.machine.interpreter.statics.JcStaticFieldsMemoryRegion
 import org.usvm.machine.interpreter.statics.isInitialized
 import org.usvm.machine.interpreter.statics.markAsInitialized
-import org.usvm.machine.interpreter.transformers.JcMultiDimArrayAllocationTransformer
-import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
+import org.usvm.jvm.util.transformers.JcMultiDimArrayAllocationTransformer
+import org.usvm.jvm.util.transformers.JcStringConcatTransformer
 import org.usvm.machine.logger
 import org.usvm.machine.operator.JcBinaryOperator
 import org.usvm.machine.operator.JcUnaryOperator

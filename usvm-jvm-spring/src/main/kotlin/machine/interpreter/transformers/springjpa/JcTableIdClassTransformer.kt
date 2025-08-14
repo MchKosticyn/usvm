@@ -1,5 +1,24 @@
 package machine.interpreter.transformers.springjpa
 
+import JcMethodBuilder
+import getterName
+import jpa.BUILD_FROM_IDS
+import jpa.BUILD_FROM_IDS_ANNOT
+import jpa.BUILD_IDS
+import jpa.BUILD_IDS_ANNOT
+import jpa.GENERATED_GETTER
+import jpa.GENERATED_SETTER
+import jpa.JAVA_OBJ_ARR
+import jpa.JAVA_VOID
+import jpa.JcTableInfoCollector
+import jpa.generateNewWithInit
+import jpa.generatedBuildFromIds
+import jpa.generatedBuildIds
+import jpa.makeStaticClassMethod
+import jpa.putValuesToObjectArray
+import jpa.toArgument
+import jpa.transformers.JcBodyFillerFeature
+import setterName
 import org.jacodb.api.jvm.JcClassExtFeature
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
@@ -14,8 +33,7 @@ import org.jacodb.impl.types.substition.JcSubstitutorImpl
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.typename
-import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
-import util.database.JcTableInfoCollector
+import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer
 
 class JcTableIdClassTransformer(
     collector: JcTableInfoCollector

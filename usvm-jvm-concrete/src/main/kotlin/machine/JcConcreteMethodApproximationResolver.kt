@@ -1,6 +1,7 @@
 package machine
 
 import io.ksmt.utils.asExpr
+import machine.state.JcConcreteState
 import machine.state.concreteMemory.JcConcreteMemory
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcPrimitiveType
@@ -8,6 +9,7 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.constructors
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
 import org.usvm.UConcreteHeapRef
@@ -18,6 +20,7 @@ import org.usvm.USort
 import org.usvm.api.readArrayIndex
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.concrete.api.internal.ClassLoaderGetHelper
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.util.isSameSignatures
 import org.usvm.machine.JcApplicationGraph
@@ -74,6 +77,19 @@ open class JcConcreteMethodApproximationResolver(
 
         if (className == InitHelper::class.java.typeName) {
             scope.doWithState { skipMethodInvocationWithValue(methodCall, ctx.voidValue) }
+            return true
+        }
+
+        if (className == ClassLoaderGetHelper::class.java.typeName) {
+            scope.doWithState {
+                this as JcConcreteState
+                val classLoaderType = ctx.cp.findTypeOrNull("java.lang.ClassLoader")
+                    ?: error("unable to find ClassLoader type")
+                val classLoader = concreteMemory.tryAllocateConcrete(JcConcreteMemoryClassLoader, classLoaderType)
+                    ?: error("unable to allocate JcConcreteMemoryClassLoader in concrete memory")
+                skipMethodInvocationWithValue(methodCall, classLoader)
+            }
+
             return true
         }
 

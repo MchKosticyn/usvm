@@ -23,8 +23,10 @@ import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.util.nonAbstractClasses
 import org.usvm.logger
 import org.usvm.machine.JcMachineOptions
+import org.usvm.jvm.util.transformers.JcStringConcatTransformer
 import org.usvm.test.api.UTest
 import testGeneration.SpringTestInfo
+import util.classpathWithSpringApproximations
 import java.io.File
 import java.io.PrintStream
 import kotlin.io.path.Path
@@ -34,38 +36,40 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 private fun loadWebPetClinicBench(): BenchCp {
-    val petClinicDir = Path("/Users/michael/Documents/Work/spring-petclinic/build/libs/BOOT-INF")
-    return loadWebAppBenchCp(petClinicDir / "classes", petClinicDir / "lib")
+    val petClinicDir = Path("/Users/tozarin/Documents/kot/spring-petclinic/build/libs")
+    val buildName = "spring-petclinic-3.2.0"
+    return loadWebAppBenchCp(petClinicDir / "${buildName}.jar", petClinicDir / "${buildName}/BOOT-INF/lib")
 }
 
 private fun loadWebGoatBench(): BenchCp {
-    val webGoatDir = Path("/Users/michael/Documents/Work/WebGoat/target/build/BOOT-INF")
-    return loadWebAppBenchCp(webGoatDir / "classes", webGoatDir / "lib")
+    val webGoatDir = Path("/Users/michael/Documents/Work/WebGoat/target/build")
+    return loadWebAppBenchCp(webGoatDir / "BOOT-INF/classes", webGoatDir / "BOOT-INF/lib")
 }
 
 private fun loadKafdropBench(): BenchCp {
-    val kafdropDir = Path("/Users/michael/Documents/Work/kafdrop/target/build/BOOT-INF")
-    return loadWebAppBenchCp(kafdropDir / "classes", kafdropDir / "lib")
+    val kafdropDir = Path("/Users/michael/Documents/Work/kafdrop/target/build")
+    return loadWebAppBenchCp(kafdropDir / "BOOT-INF/classes", kafdropDir / "BOOT-INF/lib")
 }
 
 private fun loadKlawBench(): BenchCp {
-    val klawDir = Path("/Users/michael/Documents/Work/klaw/core/target/build/BOOT-INF")
-    return loadWebAppBenchCp(klawDir / "classes", klawDir / "lib")
+    val klawDir = Path("/Users/michael/Documents/Work/klaw/core/target/build")
+    return loadWebAppBenchCp(klawDir / "BOOT-INF/classes", klawDir / "BOOT-INF/lib")
 }
 
 private fun loadSynthBench(): BenchCp {
-    val benchDir = Path("C:/Users/arthur/Documents/usvm-spring-benchmarks/build/libs/BOOT-INF")
-    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
+    val benchDir = Path("C:/Users/arthur/Documents/usvm-spring-benchmarks/build/libs")
+    return loadWebAppBenchCp(benchDir / "BOOT-INF/classes", benchDir / "BOOT-INF/lib")
 }
 
 private fun loadJHipsterBench(): BenchCp {
-    val benchDir = Path("/Users/michael/Documents/Work/jhipster-registry/target/build/BOOT-INF")
-    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
+    val benchDir = Path("/Users/michael/Documents/Work/jhipster-registry/target/build")
+    return loadWebAppBenchCp(benchDir / "BOOT-INF/classes", benchDir / "BOOT-INF/lib")
 }
 
 private fun loadBenchFromEnv(): BenchCp {
-    val benchDir = Path(System.getenv("usvm.benchmark"))
-    return loadWebAppBenchCp(benchDir / "classes", benchDir / "lib")
+    val benchPath = System.getenv("usvm.benchmark")
+    val libsPath = System.getenv("usvm.libs")
+    return loadWebAppBenchCp(Path(benchPath), Path(libsPath))
 }
 
 fun main() {

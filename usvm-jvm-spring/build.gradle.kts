@@ -13,17 +13,12 @@ dependencies {
     implementation(project(":usvm-jvm-concrete:agent"))
     implementation(project(":usvm-jvm:usvm-jvm-test-api"))
     implementation(project("usvm-jvm-spring-test-api"))
+    implementation(project("usvm-jvm-spring-api"))
+    implementation(project("usvm-jvm-spring-util"))
 
     implementation(Libs.jacodb_core)
     implementation(Libs.jacodb_api_jvm)
     implementation(Libs.jacodb_approximations)
-
-    // TODO:
-    implementation("org.springframework.data:spring-data-commons:3.2.0")
-
-    // TODO: make versions flexible
-    implementation("org.hibernate.orm:hibernate-core:6.3.1.Final")
-    antlr(dep("org.antlr", "antlr4", "4.10.1"))
 }
 
 tasks.getByName("compileTestKotlin").dependsOn("generateTestGrammarSource")

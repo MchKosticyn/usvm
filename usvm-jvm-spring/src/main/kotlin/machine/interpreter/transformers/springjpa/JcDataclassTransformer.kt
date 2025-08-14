@@ -1,5 +1,39 @@
 package machine.interpreter.transformers.springjpa
 
+import JcFieldBuilder
+import JcMethodBuilder
+import jpa.JcTableInfoCollector
+import getterName
+import jpa.BUILD_ID_ANNOT
+import jpa.BUILD_ID_NAME
+import jpa.CHECK_FIELD_ANNOT
+import jpa.COPY_ANNOT
+import jpa.COPY_NAME
+import jpa.DELETE_ANNOT
+import jpa.DELETE_NAME
+import jpa.DTO_INFO
+import jpa.GENERATED_GETTER
+import jpa.GENERATED_SETTER
+import jpa.GET_DTO_ANNOT
+import jpa.GET_DTO_NAME
+import jpa.GET_ID_ANNOT
+import jpa.GET_ID_NAME
+import jpa.IdColumnInfo
+import jpa.JAVA_OBJ_ARR
+import jpa.JAVA_VOID
+import jpa.RELATIONS_INIT_ANNOT
+import jpa.RELATIONS_INIT_NAME
+import jpa.SAVE_UPDATE_ANNOT
+import jpa.SAVE_UPDATE_NAME
+import jpa.SAVE_UPD_DEL_CTX
+import jpa.SET_ID_ANNOT
+import jpa.SET_ID_NAME
+import jpa.STATIC_BLANK_INIT_ANNOT
+import jpa.STATIC_BLANK_INIT_NAME
+import jpa.TableInfo
+import jpa.isDataClass
+import jpa.makeStaticClassMethod
+import setterName
 import org.jacodb.api.jvm.JcClassExtFeature
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
@@ -7,16 +41,15 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.typename
-import util.database.IdColumnInfo
-import util.database.JcTableInfoCollector
-import util.database.TableInfo
 
 class RelationMap<T> {
     private val data: MutableMap<String, Set<T>> = hashMapOf()
 
     private fun combName(clazz: JcClassOrInterface, field: JcField) = "${clazz.name}_${field.name}"
 
-    fun get(clazz: JcClassOrInterface, field: JcField) = data[combName(clazz, field)]!!
+    fun get(clazz: JcClassOrInterface, field: JcField) = data[combName(clazz, field)]
+        ?: error("cannot get from relation map by ${combName(clazz, field)}")
+
     fun add(clazz: JcClassOrInterface, field: JcField, t: T) {
         val name = combName(clazz, field)
         val value = data.getOrDefault(name, emptySet())

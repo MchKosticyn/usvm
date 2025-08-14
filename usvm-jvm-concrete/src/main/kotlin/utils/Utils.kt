@@ -13,6 +13,8 @@ import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.RegisteredLocation
+import org.jacodb.api.jvm.cfg.JcAssignInst
+import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchy
@@ -24,6 +26,7 @@ import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.approximation.OriginalClassName
+import org.usvm.concrete.api.internal.ClassLoaderGetHelper
 import org.usvm.jvm.util.allocateInstance
 import org.usvm.jvm.util.toJavaExecutable
 import org.usvm.concrete.api.internal.InitHelper
@@ -260,6 +263,12 @@ internal val JcMethod.isInstrumentedInternalInit: Boolean
     get() = isConstructor && rawInstList.any {
         it is JcRawCallInst && it.callExpr is JcRawStaticCallExpr
                 && it.callExpr.methodName == InitHelper::afterInternalInit.javaName
+    }
+
+internal val JcMethod.isInstrumentedGetClassLoader: Boolean
+    get() = rawInstList.any {
+        it is JcRawAssignInst && it.rhv is JcRawStaticCallExpr
+                && (it.rhv as JcRawStaticCallExpr).methodName == ClassLoaderGetHelper::replaceGetClassLoader.javaName
     }
 
 // TODO: cache?

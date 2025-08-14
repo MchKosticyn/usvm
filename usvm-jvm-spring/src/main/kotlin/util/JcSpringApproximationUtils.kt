@@ -24,6 +24,9 @@ suspend fun JcDatabase.classpathWithSpringApproximations(
     logger.info { "Load USVM SPRING API: $usvmSpringApiJarPath" }
     logger.info { "Load USVM SPRING Approximations: $usvmSpringApproximationsJarPath" }
 
-    val springApproximationsPath = listOf(File(usvmSpringApiJarPath), File(usvmSpringApproximationsJarPath))
+    val springApproximationsPath = listOf(
+        File(usvmSpringApiJarPath),
+        File(usvmSpringApproximationsJarPath)
+    )
     return this.classpathWithApproximations(dirOrJars, features, springApproximationsPath)
 }

@@ -1,39 +1,32 @@
 package machine.interpreter.transformers.springjpa.query
 
-import machine.interpreter.transformers.springjpa.generateNewWithInit
-import machine.interpreter.transformers.springjpa.query.specification.SortSpec
+import jpa.generateNewWithInit
+import jpa.reloadJpaTerm
+import machine.interpreter.transformers.springjpa.query.paramorint.genInst
+import machine.interpreter.transformers.springjpa.query.specification.getComparer
+import machine.interpreter.transformers.springjpa.query.specification.getLambdas
+import machine.interpreter.transformers.springjpa.query.specification.getTranslate
 import org.jacodb.api.jvm.cfg.JcBool
 import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.int
+import org.usvm.spring.query.Order
 
-class Order(
-    val sorts: List<SortSpec>,
-    private var limit: ParamOrInt? = null,
-    private var offset: ParamOrInt? = null
-) : ManyLambdable(sorts) {
-    fun setLimit(lim: ParamOrInt?) {
-        limit = lim
-    }
+fun Order.getLambdas(info: CommonInfo) = sorts.flatMap { it.getLambdas(info) }
 
-    fun setOffset(off: ParamOrInt?) {
-        offset = off
-    }
-
-    fun applyOrder(
-        tbl: JcLocalVar,
-        ctx: MethodCtx
-    ) = with(ctx) {
-        sorts.foldIndexed(tbl) { ix, acc, spec ->
-            val translate = spec.getTranslate(this)
-            val comparer = spec.getComparer(this)
-            val lim = if (ix + 1 != sorts.size || limit == null) JcInt(-1, cp.int) else limit!!.genInst(this)
-            val off = if (ix + 1 != sorts.size || offset == null) JcInt(0, cp.int) else offset!!.genInst(this)
-            val dir = JcBool(spec.isAscending, cp.boolean)
-            val nulls = JcBool(spec.isNullsLast, cp.boolean)
-            val args = listOf(acc, lim, off, dir, nulls, translate, comparer, getMethodArgs())
-            genCtx.generateNewWithInit("sort_wrap_$ix", common.orderType, args)
-        }
+fun Order.applyOrder(
+    tbl: JcLocalVar,
+    ctx: MethodCtx
+) = with(ctx) {
+    sorts.foldIndexed(tbl) { ix, acc, spec ->
+        val translate = spec.getTranslate(this)
+        val comparer = spec.getComparer(this)
+        val lim = if (ix + 1 != sorts.size || limit == null) JcInt(-1, cp.int) else limit!!.genInst(this)
+        val off = if (ix + 1 != sorts.size || offset == null) JcInt(0, cp.int) else offset!!.genInst(this)
+        val dir = JcBool(spec.isAscending, cp.boolean)
+        val nulls = JcBool(spec.isNullsLast, cp.boolean)
+        val args = listOf(acc, lim, off, dir, nulls, translate, comparer, getMethodArgs())
+        genCtx.generateNewWithInit("sort_wrap_$ix", common.orderType, args)
     }
 }

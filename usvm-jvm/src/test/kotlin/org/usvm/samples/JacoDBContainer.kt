@@ -8,8 +8,8 @@ import org.jacodb.api.jvm.JcSettings
 import org.jacodb.approximation.Approximations
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.jacodb
-import org.usvm.machine.interpreter.transformers.JcMultiDimArrayAllocationTransformer
-import org.usvm.machine.interpreter.transformers.JcStringConcatTransformer
+import org.usvm.jvm.util.transformers.JcMultiDimArrayAllocationTransformer
+import org.usvm.jvm.util.transformers.JcStringConcatTransformer
 import org.usvm.util.classpathWithApproximations
 import java.io.File
 

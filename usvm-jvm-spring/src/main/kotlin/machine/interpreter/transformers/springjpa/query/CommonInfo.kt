@@ -1,40 +1,42 @@
 package machine.interpreter.transformers.springjpa.query
 
-import machine.interpreter.transformers.springjpa.AGGREGATORS
-import machine.interpreter.transformers.springjpa.DATABASE_UTILS
-import machine.interpreter.transformers.springjpa.DATA_ROW
-import machine.interpreter.transformers.springjpa.DISTINCT_TABLE
-import machine.interpreter.transformers.springjpa.FILTER_TABLE
-import machine.interpreter.transformers.springjpa.FLAT_TABLE
-import machine.interpreter.transformers.springjpa.GROUP_BY_TABLE
-import machine.interpreter.transformers.springjpa.HAVING_TABLE
-import machine.interpreter.transformers.springjpa.ITABLE
-import machine.interpreter.transformers.springjpa.IWRAPPER
-import machine.interpreter.transformers.springjpa.JAVA_BIG_DECIMAL
-import machine.interpreter.transformers.springjpa.JAVA_BIG_INT
-import machine.interpreter.transformers.springjpa.JAVA_BOOL
-import machine.interpreter.transformers.springjpa.JAVA_CLASS
-import machine.interpreter.transformers.springjpa.JAVA_DOUBLE
-import machine.interpreter.transformers.springjpa.JAVA_FLOAT
-import machine.interpreter.transformers.springjpa.JAVA_INTEGER
-import machine.interpreter.transformers.springjpa.JAVA_LONG
-import machine.interpreter.transformers.springjpa.JAVA_STRING
-import machine.interpreter.transformers.springjpa.JOIN_TABLE
-import machine.interpreter.transformers.springjpa.LIST_WRAPPER
-import machine.interpreter.transformers.springjpa.MAP_TABLE
-import machine.interpreter.transformers.springjpa.PAGE_IMPL_WRAPPER
-import machine.interpreter.transformers.springjpa.PAGE_WRAPPER
-import machine.interpreter.transformers.springjpa.SET_WRAPPER
-import machine.interpreter.transformers.springjpa.SINGLETON_TABLE
-import machine.interpreter.transformers.springjpa.SORTED_TABLE
-import machine.interpreter.transformers.springjpa.generateCast
-import machine.interpreter.transformers.springjpa.generateStaticCall
-import machine.interpreter.transformers.springjpa.generateVirtualCall
-import machine.interpreter.transformers.springjpa.generatedGetter
-import machine.interpreter.transformers.springjpa.methodRef
-import machine.interpreter.transformers.springjpa.parameterName
-import machine.interpreter.transformers.springjpa.putArgumentsToArray
-import machine.interpreter.transformers.springjpa.toArgument
+import jpa.AGGREGATORS
+import jpa.DATABASE_UTILS
+import jpa.DATA_ROW
+import jpa.DISTINCT_TABLE
+import jpa.FILTER_TABLE
+import jpa.FLAT_TABLE
+import jpa.GROUP_BY_TABLE
+import jpa.HAVING_TABLE
+import jpa.ITABLE
+import jpa.IWRAPPER
+import jpa.JAVA_BIG_DECIMAL
+import jpa.JAVA_BIG_INT
+import jpa.JAVA_BOOL
+import jpa.JAVA_CLASS
+import jpa.JAVA_DOUBLE
+import jpa.JAVA_FLOAT
+import jpa.JAVA_INTEGER
+import jpa.JAVA_LOCAL_DATE
+import jpa.JAVA_LONG
+import jpa.JAVA_STRING
+import jpa.JOIN_TABLE
+import jpa.JcTableInfoCollector
+import jpa.LIST_WRAPPER
+import jpa.MAP_TABLE
+import jpa.PAGE_IMPL_WRAPPER
+import jpa.PAGE_WRAPPER
+import jpa.SET_WRAPPER
+import jpa.SINGLETON_TABLE
+import jpa.SORTED_TABLE
+import jpa.generateCast
+import jpa.generateStaticCall
+import jpa.generateVirtualCall
+import jpa.generatedGetter
+import jpa.methodRef
+import jpa.parameterName
+import jpa.putArgumentsToArray
+import jpa.toArgument
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
@@ -55,12 +57,12 @@ import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.objectType
 import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.stringType
-import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer
-import util.database.JcTableInfoCollector
+import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer
+import org.usvm.spring.query.Query
 
 data class CommonInfo(
     val cp: JcClasspath,
-    val query: Query,
+    val query: org.usvm.spring.query.Query,
     val repo: JcClassOrInterface,
     val method: JcMethod,
     val origMethod: JcMethod
@@ -103,6 +105,7 @@ data class CommonInfo(
     val flatType = cp.findType(FLAT_TABLE) as JcClassType
     val singletonType = cp.findType(SINGLETON_TABLE) as JcClassType
     val aggregatorsType = cp.findType(AGGREGATORS) as JcClassType
+    val functionsType = cp.findType(DATABASE_UTILS) as JcClassType
     val utilsType = cp.findType(DATABASE_UTILS) as JcClassType
     val dataRowType = cp.findType(DATA_ROW) as JcClassType
 
@@ -115,6 +118,7 @@ data class CommonInfo(
     val bigIntType = cp.findType(JAVA_BIG_INT) as JcClassType
     val bigDecimalType = cp.findType(JAVA_BIG_DECIMAL) as JcClassType
     val byteArrType = cp.arrayTypeOf(cp.byte, false, listOf())
+    val localDateType = cp.findType(JAVA_LOCAL_DATE) as JcClassType
     val objectArrType = cp.arrayTypeOf(cp.objectType, false, listOf())
     val classType = cp.findType(JAVA_CLASS)
 

@@ -10,7 +10,10 @@ import org.usvm.machine.JcContext
 import util.isSecurityExpressionRootMethod
 import util.isArgumentResolverMethod
 import util.isDeserializationMethod
+import util.isFilterChainDecoratorMethod
+import util.isFilterObservationMethod
 import util.isHttpRequestMethod
+import util.isObservationContextMethod
 import util.isServletRequestMethod
 import util.isSpringFilterChainMethod
 import util.isSpringFilterMethod
@@ -30,6 +33,9 @@ class JcSpringMemory(
                 forbiddenInvocations.contains(method.humanReadableSignature) ||
                 method.isSpringFilterMethod ||
                 method.isSpringFilterChainMethod ||
+                method.isFilterObservationMethod ||
+                method.isObservationContextMethod ||
+                method.isFilterChainDecoratorMethod ||
                 method.isArgumentResolverMethod ||
                 method.isHttpRequestMethod ||
                 method.isServletRequestMethod ||

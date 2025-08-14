@@ -1,5 +1,77 @@
 package machine.interpreter.transformers.springjpa
 
+import getterName
+import jpa.BASE_TABLE_MANAGER
+import jpa.BUILD_ID_NAME
+import jpa.COPY_NAME
+import jpa.CRUD_MANAGER
+import jpa.DATABASE_UTILS
+import jpa.DELETE_NAME
+import jpa.DTO_INFO
+import jpa.GET_REC_UPD
+import jpa.IMMUTABLE_LIST_WRAPPER
+import jpa.IMMUTABLE_SET_WRAPPER
+import jpa.IS_NULL_FUNCTION
+import jpa.ITABLE
+import jpa.IWRAPPER
+import jpa.IdColumnInfo
+import jpa.JAVA_INIT
+import jpa.JAVA_LIST
+import jpa.JAVA_SET
+import jpa.JcTableInfoCollector
+import jpa.Relation
+import jpa.SAVE_UPDATE_NAME
+import jpa.SAVE_UPD_DEL_CTX
+import jpa.SAVE_UPD_DEL_MANY_MANAGER
+import jpa.SET_REC_UPD
+import jpa.SUD_DEL_NO_TABLE
+import jpa.SUD_DEL_WITH_TABLE
+import jpa.SUD_SAVE_NO_TABLE
+import jpa.SUD_SAVE_WITH_TABLE
+import jpa.SUD_SET_CHILD_JOINS
+import jpa.SUD_SET_PARENT_JOINS
+import jpa.TABLE_GET_DTO_INFO
+import jpa.TABLE_VALUES_BY_TABLE
+import jpa.TABLE_VALUES_WITH_FIELDS
+import jpa.TABLE_VALUES_WITH_ID
+import jpa.TableInfo
+import jpa.downcastRefTypeIfNeeded
+import jpa.generateCast
+import jpa.generateClassConstant
+import jpa.generateGlobalNoIdTableAccess
+import jpa.generateGlobalTableAccess
+import jpa.generateIntArray
+import jpa.generateLambda
+import jpa.generateManagerAccess
+import jpa.generateManagerAccessWithInit
+import jpa.generateNewWithInit
+import jpa.generateStaticCall
+import jpa.generateVirtualCall
+import jpa.generateVoidStaticCall
+import jpa.generateVoidVirtualCall
+import jpa.generatedBuildId
+import jpa.generatedBuildIds
+import jpa.generatedCopy
+import jpa.generatedDelete
+import jpa.generatedGetDTOInfo
+import jpa.generatedGetter
+import jpa.generatedMethodArgumentVar
+import jpa.generatedRelationsInit
+import jpa.generatedSaveUpdate
+import jpa.generatedSerializer
+import jpa.generatedSerializerWithSkips
+import jpa.generatedSetter
+import jpa.generatedSpecialGetId
+import jpa.generatedSpecialSetId
+import jpa.generatedStaticBlankInit
+import jpa.getTableName
+import jpa.hasWrapper
+import jpa.isValidator
+import jpa.putValuesToObjectArray
+import jpa.putValuesWithSameTypeToArray
+import jpa.toArgument
+import jpa.transformers.JcBodyFillerFeature
+import jpa.upcastToRefTypeIfNeeded
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
@@ -29,18 +101,13 @@ import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.types.JcTypedFieldImpl
 import org.jacodb.impl.types.substition.JcSubstitutorImpl
 import org.usvm.jvm.util.genericTypesFromSignature
-import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.name
 import org.usvm.jvm.util.stringType
 import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
+import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer.BlockGenerationContext
 import org.usvm.jvm.util.typedField
-import org.usvm.machine.interpreter.transformers.JcSingleInstructionTransformer.BlockGenerationContext
-import util.database.IdColumnInfo
-import util.database.JcTableInfoCollector
-import util.database.Relation
-import util.database.TableInfo
-import util.database.getTableName
+import setterName
 
 // static SomeClass $static_blank_init() { return new SomeClass() }
 class JcStaticBlankInitTransformer() : JcBodyFillerFeature() {
@@ -346,7 +413,9 @@ class JcBuildIdTransformer(
         val ids = when (idCol) {
             is IdColumnInfo.SingleId, is IdColumnInfo.ClassId -> {
                 idCol.orderedSimpleIds().mapIndexed { ix, col ->
-                    val getter = classType.declaredMethods.single { it.method.generatedGetter(col.name, false) }
+                    val getter = classType.declaredMethods.singleOrNull { it.method.generatedGetter(col.name, false) }
+                        ?: error("no getter found on generating for method " +
+                                "${method.enclosingClass.simpleName}#${method.name}")
                     generateVirtualCall("id_part_$ix", getter.name, classType, thisVal, emptyList())
                 }
             }
@@ -355,7 +424,8 @@ class JcBuildIdTransformer(
                 val embeddedType = cp.findType(idCol.embeddedClassName) as JcClassType
                 val embeddedVar = nextLocalVar("embedded_id", embeddedType)
 
-                val embeddedIdField = classType.fields.single { it.type.typeName.equals(idCol.embeddedClassName) }
+                val embeddedIdField = classType.fields.singleOrNull { it.type.typeName.equals(idCol.embeddedClassName) }
+                    ?: error("no embeddedIdField for ${classType.name}")
                 val embeddedFieldRef = JcFieldRef(thisVal, embeddedIdField)
                 addInstruction { loc -> JcAssignInst(loc, embeddedVar, embeddedFieldRef) }
 
@@ -704,7 +774,8 @@ class JcSerializerTransformer(
             if (!(skipGeneratedFields && !col.isOrig)) {
                 (if (col.isOrig) listOf(col.origField) else relationChecks.get(clazz, col.origField)).forEach {
                     val fieldVar = nextLocalVar("${it.name}_field_${ix}", col.type.toJcType(cp)!!)
-                    val field = it.enclosingClass.toType().fields.single { fld -> fld.name == it.name }
+                    val field = it.enclosingClass.toType().fields.singleOrNull { fld -> fld.name == it.name }
+                        ?: error("no field ${it.name} found for ${it.enclosingClass.simpleName}")
                     val fieldRef = JcFieldRef(JcThis(classType), field)
                     addInstruction { loc -> JcAssignInst(loc, fieldVar, fieldRef) }
 
@@ -715,26 +786,5 @@ class JcSerializerTransformer(
         }
 
         addInstruction { loc -> JcReturnInst(loc, arr) }
-    }
-}
-
-class JcStaticClassMethod(
-    val cp: JcClasspath,
-    val newName: String,
-    val targetMethod: JcMethod
-) : JcBodyFillerFeature() {
-    override fun condition(method: JcMethod) =
-        method.name == newName && method.isStatic && method.enclosingClass.equals(targetMethod.enclosingClass)
-
-    override fun BlockGenerationContext.generateBody(method: JcMethod) {
-        val obj = method.parameters.first().toArgument
-        val args = method.parameters.takeLast(method.parameters.size - 1).map { it.toArgument }
-        if (method.isVoid) {
-            generateVoidVirtualCall(targetMethod.name, method.enclosingClass.toType(), obj, args)
-            addInstruction { loc -> JcReturnInst(loc, null) }
-        } else {
-            val call = generateVirtualCall("call", targetMethod.name, method.enclosingClass.toType(), obj, args)
-            addInstruction { loc -> JcReturnInst(loc, call) }
-        }
     }
 }

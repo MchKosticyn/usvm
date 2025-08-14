@@ -10,6 +10,7 @@ import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualMethod
 import org.jacodb.impl.cfg.MethodNodeBuilder
 import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.usvm.concrete.api.internal.ClassLoaderGetHelper
 import org.usvm.concrete.api.internal.InitHelper
 import org.usvm.jvm.concrete.JcConcreteClassLoader
 import org.usvm.jvm.util.JcClassLoaderExt
@@ -19,12 +20,14 @@ import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.staticFields
 import org.usvm.jvm.util.toByteArray
 import utils.isInstrumentedClinit
+import utils.isInstrumentedGetClassLoader
 import utils.isInstrumentedInit
 import utils.isInstrumentedInternalInit
 import utils.isLambdaTypeName
 import utils.setStaticFieldValue
 import utils.typeIsRuntimeGenerated
 import java.io.File
+import java.lang.reflect.Field
 import java.net.URI
 import java.net.URL
 import java.nio.ByteBuffer
@@ -60,6 +63,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         return this.name == name
                 || relativePath == name
                 || relativePath.endsWith(name)
+                || relativePath.endsWith(name + "/")
     }
 
     private fun JarEntry.matchResource(name: String, single: Boolean): Boolean {
@@ -67,7 +71,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         val entryName = this.name
         return entryName == name
                 || entryName.endsWith(name)
-                || !single && entryName.contains(name)
+                || !single && entryName.contains(name + "/")
     }
 
     private fun findResourcesInFolder(
@@ -186,6 +190,9 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
             null
         }
 
+    private val replaceGetClassLoaderAction: java.util.function.Supplier<ClassLoader> =
+        java.util.function.Supplier { JcConcreteMemoryClassLoader as ClassLoader }
+
     fun startInternalsCollecting() {
         _internalObjects = Collections.newSetFromMap(IdentityHashMap())
     }
@@ -196,29 +203,36 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         return result
     }
 
-    private fun initInitHelper(type: Class<*>) {
-        check(type.typeName == InitHelper::class.java.typeName)
-        // Forcing `<clinit>` of `InitHelper`
-        type.declaredFields.first().get(null)
+    private fun initStaticInstrumentationClass(clazz: Class<*>, targetClass: Class<*>, fieldInit: (Field) -> Unit) {
+        check(clazz.typeName == targetClass.typeName)
+        // Forcing `<clinit>` of class
+        clazz.declaredFields.first().get(null)
         // Initializing static fields
-        for (field in type.staticFields) {
-            when (field.name) {
-                InitHelper::afterClinitAction.javaName -> field.setStaticFieldValue(afterClinitAction)
-                InitHelper::afterInitAction.javaName -> field.setStaticFieldValue(afterInitAction)
-                InitHelper::afterInternalInitAction.javaName -> field.setStaticFieldValue(afterInternalInitAction)
-            }
+        clazz.staticFields.forEach(fieldInit)
+    }
+
+    private fun initInitHelper(type: Class<*>) {
+        fun fieldInit(field: Field) = when (field.name) {
+            InitHelper::afterClinitAction.javaName -> field.setStaticFieldValue(afterClinitAction)
+            InitHelper::afterInitAction.javaName -> field.setStaticFieldValue(afterInitAction)
+            InitHelper::afterInternalInitAction.javaName -> field.setStaticFieldValue(afterInternalInitAction)
+            else -> error("unexpected field in initInitHelper")
         }
+        initStaticInstrumentationClass(type, InitHelper::class.java, ::fieldInit)
+    }
+
+    private fun initClassLoaderGetHelper(type: Class<*>) {
+        fun fieldInit(field: Field) = when(field.name) {
+            ClassLoaderGetHelper::replaceGetClassLoaderAction.javaName ->
+                field.setStaticFieldValue(replaceGetClassLoaderAction)
+            else -> error("unexpected field in initClassLoaderGetHelper")
+        }
+        initStaticInstrumentationClass(type, ClassLoaderGetHelper::class.java, ::fieldInit)
     }
 
     override fun loadClass(name: String?): Class<*> {
         if (name == null)
             throw ClassNotFoundException()
-
-        if (name == "jdk.vm.ci.meta.Assumptions")
-            println("AHTUNG!")
-
-        if (name == "ch.qos.logback.classic.spi.Configurator")
-            println()
 
         val loaded = findLoadedClass(name)
         if (loaded != null)
@@ -293,6 +307,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     private fun getBytecode(jcClass: JcClassOrInterface): ByteArray {
         val instrumentedMethods = jcClass.declaredMethods.filter {
             it.isInstrumentedClinit || it.isInstrumentedInit || it.isInstrumentedInternalInit
+                    || it.isInstrumentedGetClassLoader
         }
 
         if (instrumentedMethods.isEmpty())
@@ -346,8 +361,9 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
 
         val bytecode = getBytecode(jcClass)
         val loadedClass = defineClass(className, bytecode)
-        if (loadedClass.typeName == InitHelper::class.java.typeName)
-            initInitHelper(loadedClass)
+
+        if (loadedClass.typeName == InitHelper::class.java.typeName) initInitHelper(loadedClass)
+        if (loadedClass.typeName == ClassLoaderGetHelper::class.java.typeName) initClassLoaderGetHelper(loadedClass)
 
         return loadedClass
     }
