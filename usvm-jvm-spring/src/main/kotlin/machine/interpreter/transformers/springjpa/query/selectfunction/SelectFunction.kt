@@ -30,7 +30,7 @@ fun SelectFunction.collectAliases(): Map<String, ASelection> {
         .associate { p -> p }
 }
 
-fun SelectFunction.getLambdas(info: CommonInfo) = selections.flatMap { it.getLambdas(info) }
+fun SelectFunction.getLambdas(info: CommonInfo) = selections.flatMap { it.getLambdas(info) } + getOwnMethod(info)
 
 fun SelectFunction.getOwnMethod(info: CommonInfo): JcMethod {
     cachedSelector?.also { return it as JcMethod }

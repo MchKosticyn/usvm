@@ -939,7 +939,7 @@ open class JcMethodApproximationResolver(
                 val condition = it.arguments[1].asExpr(ctx.booleanSort)
                 foldHeapRefWithStaticAsConcrete<Unit?>(
                     ref = instance,
-                    initial = Unit,
+                    initial = null,
                     initialGuard = ctx.trueExpr,
                     ignoreNullRefs = true,
                     collapseHeapRefs = true,

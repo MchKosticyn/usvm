@@ -177,6 +177,7 @@ const val DATA_ROW = "generated.org.springframework.boot.databases.utils.DataRow
 
 const val IWRAPPER = "generated.org.springframework.boot.databases.wrappers.IWrapper"
 const val PAGE_WRAPPER = "org.springframework.data.domain.Page"
+const val OPTIONAL = "java.util.Optional"
 const val PAGE_IMPL_WRAPPER = "org.springframework.data.domain.PageImpl"
 const val SET_WRAPPER = "generated.org.springframework.boot.databases.wrappers.SetWrapper"
 const val LIST_WRAPPER = "generated.org.springframework.boot.databases.wrappers.ListWrapper"
@@ -401,20 +402,26 @@ fun BlockGenerationContext.toInt(cp: JcClasspath, value: JcLocalVar): JcLocalVar
 }
 
 fun BlockGenerationContext.upcastToRefTypeIfNeeded(cp: JcClasspath, name: String, value: JcValue, type: TypeName) =
-    type.getRefTypeFromPrimitive?.let {
-        generateStaticCall("upcast_to_ref_$name", "valueOf", cp.findType(it) as JcClassType, listOf(value))
-    } ?: value
+    if (!type.isPrimitiveRefType)
+        value
+    else
+        type.getRefTypeFromPrimitive?.let {
+            generateStaticCall("upcast_to_ref_$name", "valueOf", cp.findType(it) as JcClassType, listOf(value))
+        } ?: value
 
-fun BlockGenerationContext.downcastRefTypeIfNeeded(cp: JcClasspath, name: String, value: JcValue, type: TypeName) =
-    type.getPrimitiveFromRefType?.let {
-        generateVirtualCall(
-            "downcast_ref_$name",
-            "${it}Value",
-            cp.findType(type.typeName) as JcClassType,
-            value,
-            emptyList()
-        )
-    } ?: value
+fun BlockGenerationContext.downcastRefTypeIfNeeded(cp: JcClasspath, name: String, value: JcValue, type: TypeName)  =
+    if (!type.isPrimitiveType)
+        value
+    else
+        type.getPrimitiveFromRefType?.let {
+            generateVirtualCall(
+                "downcast_ref_$name",
+                "${it}Value",
+                cp.findType(type.typeName) as JcClassType,
+                value,
+                emptyList()
+            )
+        } ?: value
 
 fun BlockGenerationContext.toJavaClass(cp: JcClasspath, name: String, type: JcType): JcLocalVar {
     val classType = cp.findType(JAVA_CLASS) as JcClassType
@@ -435,6 +442,12 @@ fun BlockGenerationContext.generateNew(name: String, type: JcType): JcLocalVar {
     val vari = nextLocalVar(name, type)
     val newExpr = JcNewExpr(type)
     addInstruction { loc -> JcAssignInst(loc, vari, newExpr) }
+    return vari
+}
+
+fun BlockGenerationContext.putValueToVar(name: String, value: JcValue, type: JcType): JcLocalVar {
+    val vari = nextLocalVar(name, type)
+    addInstruction { loc -> JcAssignInst(loc, vari, value) }
     return vari
 }
 

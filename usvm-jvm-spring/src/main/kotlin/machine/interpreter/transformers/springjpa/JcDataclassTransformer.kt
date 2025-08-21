@@ -45,10 +45,16 @@ import org.usvm.jvm.util.typename
 class RelationMap<T> {
     private val data: MutableMap<String, Set<T>> = hashMapOf()
 
-    private fun combName(clazz: JcClassOrInterface, field: JcField) = "${clazz.name}_${field.name}"
+    private fun combName(clazzName: String, fieldName: String) = "${clazzName}_$fieldName"
+    private fun combName(clazz: JcClassOrInterface, field: JcField) = combName(clazz.name, field.name)
+    private fun combName(clazz: JcClassOrInterface, fieldName: String) = combName(clazz.name, fieldName)
 
-    fun get(clazz: JcClassOrInterface, field: JcField) = data[combName(clazz, field)]
-        ?: error("cannot get from relation map by ${combName(clazz, field)}")
+    fun get(clazzName: String, fieldName: String) = data[combName(clazzName, fieldName)]
+        ?: error("cannot get from relation map by ${combName(clazzName, fieldName)}")
+
+    fun get(clazz: JcClassOrInterface, fieldName: String) = get(clazz.name, fieldName)
+
+    fun get(clazz: JcClassOrInterface, field: JcField) = get(clazz.name, field.name)
 
     fun add(clazz: JcClassOrInterface, field: JcField, t: T) {
         val name = combName(clazz, field)

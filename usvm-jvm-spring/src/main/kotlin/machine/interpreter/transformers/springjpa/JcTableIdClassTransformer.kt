@@ -48,8 +48,7 @@ class JcTableIdClassTransformer(
         if (embeddedId == null && idClasses == null) return null
 
         val cp = clazz.classpath
-        val fields = listOfNotNull(embeddedId?.idFields, idClasses?.idFields).flatten().map { it.origField }
-            .sortedBy(JcField::name)
+        val fields = clazz.declaredFields.sortedBy(JcField::name)
 
         val getters = fields.map { field ->
             val getterName = getterName(field)

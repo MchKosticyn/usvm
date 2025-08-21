@@ -199,7 +199,7 @@ private val expressionGenInstVisitor = object : IExpressionVisitor<JcLocalVar, M
         TODO("Not yet implemented")
     }
 
-    override fun visit(child: Parameter, ctx: MethodCtx) = child.genInst(ctx)
+    override fun visit(child: Parameter, ctx: MethodCtx) = child.param.genInst(ctx)
 
     override fun visit(child: Subquery, ctx: MethodCtx): JcLocalVar {
         TODO("Not yet implemented")

@@ -2,6 +2,7 @@ package machine.interpreter.transformers.springjpa.query
 
 import machine.interpreter.transformers.springjpa.query.expression.bindGroupBy
 import machine.interpreter.transformers.springjpa.query.selectfunction.applySelect
+import machine.interpreter.transformers.springjpa.query.selectfunction.bindGroupBy
 import machine.interpreter.transformers.springjpa.query.selectfunction.getLambdas
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.cfg.JcLocalVar
@@ -31,6 +32,7 @@ fun Query.genInst(ctx: MethodCtx): JcLocalVar {
     val havinged = having?.also { it.predicate.bindGroupBy() }?.applyHaving(grouped, ctx) ?: grouped
 
     // TODO: no SELECT part
+    select?.also { if (groupBy != null) it.bindGroupBy() }
     val selected = select!!.applySelect(havinged, ctx)
 
     return selected

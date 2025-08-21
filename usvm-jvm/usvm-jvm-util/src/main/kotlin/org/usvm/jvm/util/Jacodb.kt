@@ -236,7 +236,7 @@ fun JcClasspath.classesOfLocations(locations: List<JcByteCodeLocation>): Sequenc
     locations
         .asSequence()
         .flatMap { it.classNames ?: emptySet() }
-        .mapNotNull { findClassOrNull(it.removePrefix("BOOT-INF.classes.")) }
+        .mapNotNull(::findClassOrNull)
         .filterNot { it is JcUnknownClass }
 
 fun JcClasspath.nonAbstractClasses(locations: List<JcByteCodeLocation>): Sequence<JcClassOrInterface> =

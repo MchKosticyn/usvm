@@ -278,7 +278,6 @@ fun loadBenchmark(jarName: String, propertiesPath: String? = null): Benchmark {
         ?: error("Can't find benchmarking jar")
     val destinationFolder = benchmarkFolder / "unpacked"
     val libsFolder = benchmarkFolder / "bench-libs"
-    check(benchmark != null) { "Cannot find benchmark $jarName" }
 
     val benchmarkName = benchmark.name.removeSuffix(".jar")
     val destination = destinationFolder / benchmarkName
@@ -294,7 +293,13 @@ fun loadBenchmark(jarName: String, propertiesPath: String? = null): Benchmark {
     newLibs.deleteRecursively()
     oldLibs.copyRecursively(newLibs)
     oldLibs.deleteRecursively()
-    return Benchmark(destination.toFile(), newLibs, propertiesPath, logFile, errorsFile, benchmarkName)
+
+    val newClasses = destination.toFile()
+    val oldClasses = (destination / "BOOT-INF" / "classes").toFile()
+    oldClasses.copyRecursively(newClasses)
+    (destination / "BOOT-INF").toFile().deleteRecursively()
+
+    return Benchmark(newClasses, newLibs, propertiesPath, logFile, errorsFile, benchmarkName)
 }
 
 private fun fillProperties(benchmark: Benchmark, task: JavaExec) {
@@ -312,7 +317,7 @@ tasks.register<JavaExec>("benchmarkPetClinic") {
 }
 
 tasks.register<JavaExec>("benchmarkKlaw") {
-    fillProperties(loadBenchmark("klaw-2.9.0.jar", "classpath:test-application-rdbms-ad-authorization.properties"), this)
+    fillProperties(loadBenchmark("klaw-2.9.0.jar", "classpath:test/test-application-rdbms-ad-authorization.properties"), this)
     mainClass.set("benchmarking.BenchmarkingKt")
     configureSpringAnalysis(this)
 }

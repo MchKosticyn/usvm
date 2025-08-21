@@ -4,6 +4,8 @@ import jpa.JAVA_LIST
 import jpa.JAVA_SET
 import jpa.LIST_WRAPPER
 import jpa.generateNewWithInit
+import jpa.generateStaticCall
+import jpa.generateVirtualCall
 import jpa.reloadJpaTerm
 import jpa.toArgument
 import kotlinx.collections.immutable.toPersistentList
@@ -52,23 +54,29 @@ fun Select.genInstAndWrapToList(ctx: MethodCtx) = with(ctx) {
         }
 }
 
-private fun wrapResult(ctx: MethodCtx, method: JcMethod, ordered: JcLocalVar): JcLocalVar {
+private fun wrapResult(ctx: MethodCtx, method: JcMethod, ordered: JcLocalVar): JcLocalVar = with(ctx) {
     // simple wrapper
-    getWrapperType(ctx.common, method.returnType)?.also {
-        return ctx.genCtx.generateNewWithInit("wrapper_res", it, listOf(ordered))
+    getWrapperType(common, method.returnType)?.also {
+        return genCtx.generateNewWithInit("wrapper_res", it, listOf(ordered))
     }
 
     // page
     getPage(ctx, method, ordered)?.also { return it }
 
-    val list = ctx.genCtx.generateNewWithInit("list_for_first", ctx.common.listType, listOf(ordered))
-    val first = ctx.newVar(method.returnType.toJcType(ctx.cp)!!)
-    val firstF = ctx.common.listType.declaredMethods.single { it.name == "first" }
-        .let { VirtualMethodRefImpl.of(ctx.common.listType, it) }
-    val firstCall = JcVirtualCallExpr(firstF, list, listOf())
-    ctx.genCtx.addInstruction { loc -> JcAssignInst(loc, first, firstCall) }
+    val list = genCtx.generateNewWithInit("list_for_first", common.listType, listOf(ordered))
+    val first = genCtx.generateVirtualCall("final_first_call", "first", common.listType, list, emptyList())
 
-    return first
+    // if return type is optional return Optional.ofNullable(value)
+    getOptional(ctx, method, first)?.also { return it }
+
+    first
+}
+
+private fun getOptional(ctx: MethodCtx, method: JcMethod, value: JcLocalVar): JcLocalVar? = with(ctx) {
+    val optionalType = common.optionalType
+    if (method.returnType.typeName != common.optionalType.name) return null
+
+    genCtx.generateStaticCall("optional_for_first", "ofNullable", optionalType, listOf(value))
 }
 
 private fun getPage(ctx: MethodCtx, method: JcMethod, ordered: JcLocalVar): JcLocalVar? {

@@ -73,7 +73,7 @@ class JPANameTranslator(
 
     private var lastArgumentNum = 0
 
-    fun freshArgumentNum() = ++lastArgumentNum
+    fun freshArgumentNum() = lastArgumentNum++
 
     fun buildQuery() = buildString {
         val partTree = PartTree(cp, listOf(methodName, targetClass))

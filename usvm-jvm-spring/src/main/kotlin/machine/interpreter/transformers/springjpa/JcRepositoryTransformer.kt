@@ -94,13 +94,13 @@ class JcRepositoryTransformer(val collector: JcTableInfoCollector) : JcClassExtF
                 } else JPANameTranslator(it.name, dataClass).buildQuery()
             }
             catch (e: Throwable) {
-                println("Can't recognize method ${it.name}")
+                println("[DB Warning] Can't recognize method ${it.name}")
                 return@flatMap emptyList()
             }
 
             val parserRes = try { JPAQueryBuilder(cp, query).buildTerms() }
             catch (e: Throwable) {
-                println("Cant visit query $query")
+                println("[DB Warning] Cant visit query $query")
                 return@flatMap emptyList()
             }
             addCtx(it, parserRes)
@@ -108,7 +108,7 @@ class JcRepositoryTransformer(val collector: JcTableInfoCollector) : JcClassExtF
                 parserRes.getLambdas(cp, it.enclosingClass, it)
             }
             catch (e: Throwable) {
-                println("Can't generate lambdas for ${it.name}")
+                println("[DB Warning] Can't generate lambdas for ${it.name}")
                 return@flatMap emptyList()
             }
         }
@@ -129,8 +129,11 @@ class JcRepositoryQueryTransformer(
         val cp = repo.classpath
 
         val parserRes = repositoryTransformer.getCtx(method) ?: return
-        val res = try { parserRes.genInst(cp, repo, method, this) } catch (e: Throwable) {
-            println("Can't generate code for ${method.name}")
+        val res = try {
+            parserRes.genInst(cp, repo, method, this)
+        }
+        catch (e: Throwable) {
+            println("[DB Warning] Can't generate code for ${method.name}")
             JcNullConstant(cp.objectType)
         }
         addInstruction { loc -> JcReturnInst(loc, res) }

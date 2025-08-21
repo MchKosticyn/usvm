@@ -24,6 +24,7 @@ import jpa.JOIN_TABLE
 import jpa.JcTableInfoCollector
 import jpa.LIST_WRAPPER
 import jpa.MAP_TABLE
+import jpa.OPTIONAL
 import jpa.PAGE_IMPL_WRAPPER
 import jpa.PAGE_WRAPPER
 import jpa.SET_WRAPPER
@@ -91,6 +92,7 @@ data class CommonInfo(
 
     val wrapperType = cp.findType(IWRAPPER) as JcClassType
     val pageType = cp.findType(PAGE_WRAPPER) as JcClassType
+    val optionalType = cp.findType(OPTIONAL) as JcClassType
     val pageImplType = cp.findType(PAGE_IMPL_WRAPPER) as JcClassType
     val setType = cp.findType(SET_WRAPPER) as JcClassType
     val listType = cp.findType(LIST_WRAPPER) as JcClassType

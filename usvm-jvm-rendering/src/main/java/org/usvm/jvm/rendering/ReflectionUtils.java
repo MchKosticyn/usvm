@@ -83,21 +83,21 @@ public class ReflectionUtils {
             return UNSAFE.getObject(fixedInstance, fieldOffset);
         }
 
-        if (field.getType() == Boolean.class) {
+        if (field.getType() == boolean.class) {
             return UNSAFE.getBoolean(fixedInstance, fieldOffset);
-        } else if (field.getType() == Byte.class) {
+        } else if (field.getType() == byte.class) {
             return UNSAFE.getByte(fixedInstance, fieldOffset);
-        } else if (field.getType() == Character.class) {
+        } else if (field.getType() == char.class) {
             return UNSAFE.getChar(fixedInstance, fieldOffset);
-        } else if (field.getType() == Short.class) {
+        } else if (field.getType() == short.class) {
             return UNSAFE.getShort(fixedInstance, fieldOffset);
-        } else if (field.getType() == Integer.class) {
+        } else if (field.getType() == int.class) {
             return UNSAFE.getInt(fixedInstance, fieldOffset);
-        } else if (field.getType() == Long.class) {
+        } else if (field.getType() == long.class) {
             return UNSAFE.getLong(fixedInstance, fieldOffset);
-        } else if (field.getType() == Float.class) {
+        } else if (field.getType() == float.class) {
             return UNSAFE.getFloat(fixedInstance, fieldOffset);
-        } else if (field.getType() == Double.class) {
+        } else if (field.getType() == double.class) {
             return UNSAFE.getDouble(fixedInstance, fieldOffset);
         }
 
@@ -124,22 +124,22 @@ public class ReflectionUtils {
             return;
         }
 
-        if (field.getType() == Boolean.class) {
-            UNSAFE.putBoolean(fixedInstance, fieldOffset, value != null ? (Boolean) value : false);
-        } else if (field.getType() == Byte.class) {
-            UNSAFE.putByte(fixedInstance, fieldOffset, value != null ? (Byte) value : 0);
-        } else if (field.getType() == Character.class) {
-            UNSAFE.putChar(fixedInstance, fieldOffset, value != null ? (Character) value : '\u0000');
-        } else if (field.getType() == Short.class) {
-            UNSAFE.putShort(fixedInstance, fieldOffset, value != null ? (Short) value : 0);
-        } else if (field.getType() == Integer.class) {
-            UNSAFE.putInt(fixedInstance, fieldOffset, value != null ? (Integer) value : 0);
-        } else if (field.getType() == Long.class) {
-            UNSAFE.putLong(fixedInstance, fieldOffset, value != null ? (Long) value : 0);
-        } else if (field.getType() == Float.class) {
-            UNSAFE.putFloat(fixedInstance, fieldOffset, value != null ? (Float) value : 0.0f);
-        } else if (field.getType() == Double.class) {
-            UNSAFE.putDouble(fixedInstance, fieldOffset, value != null ? (Double) value : 0.0);
+        if (field.getType() == boolean.class) {
+            UNSAFE.putBoolean(fixedInstance, fieldOffset, value != null && ((boolean) value));
+        } else if (field.getType() == byte.class) {
+            UNSAFE.putByte(fixedInstance, fieldOffset, value != null ? (byte) value : 0);
+        } else if (field.getType() == char.class) {
+            UNSAFE.putChar(fixedInstance, fieldOffset, value != null ? (char) value : '\u0000');
+        } else if (field.getType() == short.class) {
+            UNSAFE.putShort(fixedInstance, fieldOffset, value != null ? (short) value : 0);
+        } else if (field.getType() == int.class) {
+            UNSAFE.putInt(fixedInstance, fieldOffset, value != null ? (int) value : 0);
+        } else if (field.getType() == long.class) {
+            UNSAFE.putLong(fixedInstance, fieldOffset, value != null ? (long) value : 0);
+        } else if (field.getType() == float.class) {
+            UNSAFE.putFloat(fixedInstance, fieldOffset, value != null ? (float) value : 0.0f);
+        } else if (field.getType() == double.class) {
+            UNSAFE.putDouble(fixedInstance, fieldOffset, value != null ? (double) value : 0.0);
         }
     }
 

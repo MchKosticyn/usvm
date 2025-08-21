@@ -44,6 +44,7 @@ import jpa.generateIntArray
 import jpa.generateLambda
 import jpa.generateManagerAccess
 import jpa.generateManagerAccessWithInit
+import jpa.generateNew
 import jpa.generateNewWithInit
 import jpa.generateStaticCall
 import jpa.generateVirtualCall
@@ -66,7 +67,9 @@ import jpa.generatedSpecialSetId
 import jpa.generatedStaticBlankInit
 import jpa.getTableName
 import jpa.hasWrapper
+import jpa.isDataClass
 import jpa.isValidator
+import jpa.putValueToVar
 import jpa.putValuesToObjectArray
 import jpa.putValuesWithSameTypeToArray
 import jpa.toArgument
@@ -77,6 +80,8 @@ import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.cfg.JcArrayAccess
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcBool
@@ -149,7 +154,8 @@ class JcRelationsInitTransformer(
 
             val fieldValue = when (rel) {
                 is Relation.OneToOne, is Relation.ManyToOne -> {
-                    val checks = relationChecks.get(clazz, rel.origField)
+                    val checks = rel.mappedBy?.let { relationChecks.get(relClass, it) }
+                        ?: relationChecks.get(relClass, rel.origField)
                     val checkVar = checks.sortedBy(JcField::name).map { check ->
                         generateVirtualCall("oto_${check.name}_$ix", getterName(check), classType, thisVal, emptyList())
                     }.let { putValuesToObjectArray(cp, "oto_${rel.origField.name}_id_check", it) }
@@ -164,7 +170,9 @@ class JcRelationsInitTransformer(
                 }
 
                 is Relation.OneToManyByColumn -> {
-                    val checkNames = relationChecks.get(relClass, rel.origField).sortedBy(JcField::name)
+                    val checks = rel.mappedBy?.let { relationChecks.get(relClass, it) }
+                        ?: relationChecks.get(relClass, rel.origField)
+                    val checkNames = checks.sortedBy(JcField::name)
                         .map { JcStringConstant(it.name, cp.stringType) }
                         .let { putValuesWithSameTypeToArray(cp, "otm_names_$ix", it) }
                     val buildedId = generateVirtualCall("otm_id_$ix", BUILD_ID_NAME, classType, thisVal, emptyList())
@@ -239,17 +247,16 @@ class JcCopyTransformer(
         val fields = collector.collectFields(clazz) { !it.isStatic }
         fields.forEach { field ->
             val fieldTypeName = field.type
-            val fieldType = fieldTypeName.toJcType(cp)!! as JcClassType
+            val fieldType = fieldTypeName.toJcType(cp)!!
 
             val fieldValue =
                 generateVirtualCall("get_${field.name}", getterName(field), classType, thisVar, emptyList())
 
-            val fieldCopiedValue = if (fieldTypeName.hasWrapper) {
-                generatedWrapperCopy(fieldValue, field, fieldType)
-            } else {
-                val fieldCopyMethod = fieldType.declaredMethods.singleOrNull { it.method.generatedCopy }
-                if (fieldCopyMethod != null) generatedCloneableCopy(fieldValue, field, fieldType)
-                else fieldValue
+            val fieldCopiedValue = if (fieldType is JcClassType) {
+                generateRefTypeCopy(fieldTypeName, fieldValue, field, fieldType)
+            }
+            else {
+                generateSimpleTypeCopy(fieldValue, field, fieldType)
             }
 
             generateVoidVirtualCall(setterName(field), classType, newObj, listOf(fieldCopiedValue))
@@ -258,16 +265,40 @@ class JcCopyTransformer(
         addInstruction { loc -> JcReturnInst(loc, newObj) }
     }
 
+    private fun BlockGenerationContext.generateSimpleTypeCopy(
+        fieldValue: JcLocalVar,
+        field: JcField,
+        fieldType: JcType
+    ) = putValueToVar("simple_copy_${field.name}", fieldValue, fieldType)
+
+    private fun BlockGenerationContext.generateRefTypeCopy(
+        fieldTypeName: TypeName,
+        fieldValue: JcLocalVar,
+        field: JcField,
+        fieldType: JcClassType
+    ) = if (fieldTypeName.hasWrapper) {
+            generatedWrapperCopy(fieldValue, field, fieldType)
+        }
+        else {
+            val fieldCopyMethod = fieldType.declaredMethods.singleOrNull { it.method.generatedCopy }
+            if (fieldCopyMethod != null) generatedCloneableCopy(fieldValue, field, fieldType)
+            else fieldValue
+        }
+
     private fun BlockGenerationContext.generatedWrapperCopy(
         fieldValue: JcLocalVar,
         field: JcField,
         fieldType: JcClassType
     ): JcLocalVar {
+
+        val genericType = field.signature!!.genericTypesFromSignature.single().let { cp.findType(it) as JcClassType }
+        // skip List<String> and etc
+        if (!genericType.jcClass.isDataClass) return fieldValue
+
         val wrapperType = cp.findType(IWRAPPER) as JcClassType
         val castedValue = generateCast("cast_${field.name}", fieldValue, wrapperType)
 
-        val copyFunction = field.signature!!.genericTypesFromSignature.single()
-            .let { cp.findType(it) as JcClassType }
+        val copyFunction = genericType
             .declaredMethods
             .single { it.method.generatedCopy && it.method.isStatic }
             .let { generateLambda(cp, "copy_lambda_${field.name}", it.method) }
@@ -413,9 +444,10 @@ class JcBuildIdTransformer(
         val ids = when (idCol) {
             is IdColumnInfo.SingleId, is IdColumnInfo.ClassId -> {
                 idCol.orderedSimpleIds().mapIndexed { ix, col ->
-                    val getter = classType.declaredMethods.singleOrNull { it.method.generatedGetter(col.name, false) }
-                        ?: error("no getter found on generating for method " +
-                                "${method.enclosingClass.simpleName}#${method.name}")
+                    val getter = classType.declaredMethods.singleOrNull {
+                        it.method.generatedGetter(col.origField.name, false)
+                    } ?: error("no getter found on generating for method " +
+                            "${method.enclosingClass.simpleName}#${method.name}")
                     generateVirtualCall("id_part_$ix", getter.name, classType, thisVal, emptyList())
                 }
             }
