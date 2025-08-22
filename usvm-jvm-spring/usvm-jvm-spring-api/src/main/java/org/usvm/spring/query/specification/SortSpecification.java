@@ -6,7 +6,6 @@ public class SortSpecification {
     public boolean isNullsLast = true; // true - LAST, false - FIRST
 
     public SortSpecification() {
-
     }
 
     public SortSpecification(ASpecification spec, boolean isAscending, boolean isNullsLast) {

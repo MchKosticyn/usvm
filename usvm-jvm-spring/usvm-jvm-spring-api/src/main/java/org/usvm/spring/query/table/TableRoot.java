@@ -5,7 +5,6 @@ public class TableRoot extends ATable {
     public EntityName entityName;
 
     public TableRoot() {
-
     }
 
     public TableRoot(EntityName entityName, String alias) {

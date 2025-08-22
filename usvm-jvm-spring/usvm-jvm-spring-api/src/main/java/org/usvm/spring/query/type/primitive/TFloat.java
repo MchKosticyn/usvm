@@ -6,7 +6,6 @@ import org.usvm.spring.query.type.ITypeVisitor;
 public class TFloat extends AType {
 
     public TFloat() {
-
     }
 
     @Override

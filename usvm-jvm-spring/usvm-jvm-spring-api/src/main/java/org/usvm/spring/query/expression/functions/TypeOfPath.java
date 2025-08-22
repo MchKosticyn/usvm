@@ -8,7 +8,6 @@ public class TypeOfPath extends AExpression {
     public Path path;
 
     public TypeOfPath() {
-
     }
 
     public TypeOfPath(Path path) {

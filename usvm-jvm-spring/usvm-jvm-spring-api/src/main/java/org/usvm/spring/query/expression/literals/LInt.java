@@ -7,7 +7,6 @@ public class LInt extends AExpression {
     public int value;
 
     public LInt() {
-
     }
 
     public LInt(int value) {

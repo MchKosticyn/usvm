@@ -8,7 +8,6 @@ public class ByExpression extends ASpecification {
     public Object translateMethod = null;
 
     public ByExpression() {
-
     }
 
     public ByExpression(AExpression expr) {

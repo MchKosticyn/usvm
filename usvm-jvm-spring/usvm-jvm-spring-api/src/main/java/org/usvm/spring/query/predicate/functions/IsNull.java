@@ -7,7 +7,6 @@ public class IsNull extends AExpression {
     public AExpression expr;
 
     public IsNull() {
-
     }
 
     public IsNull(AExpression expr) {

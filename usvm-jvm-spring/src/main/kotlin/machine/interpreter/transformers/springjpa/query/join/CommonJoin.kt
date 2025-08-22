@@ -126,7 +126,7 @@ private fun CommonJoin.getMapperMethod(info: CommonInfo): JcMethod {
         .setSig(sig)
         .setRetType(ITABLE)
         .setAccess(Opcodes.ACC_STATIC)
-        .addBlanckAnnot(REPOSITORY_LAMBDA)
+        .addBlancAnnot(REPOSITORY_LAMBDA)
         .addFreshParam(DATA_ROW)
         .addFillerFuture(FlatFeature(info, methodName, this))
         .buildMethod()

@@ -6,7 +6,6 @@ public class TParam extends AType {
     public AParameter param;
 
     public TParam() {
-
     }
 
     public TParam(AParameter param) {

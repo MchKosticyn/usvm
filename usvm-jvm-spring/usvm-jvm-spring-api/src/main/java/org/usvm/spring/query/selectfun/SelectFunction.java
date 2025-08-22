@@ -10,7 +10,6 @@ public class SelectFunction {
     public boolean isGrouped = false;
 
     public SelectFunction() {
-
     }
 
     public SelectFunction(boolean isDistinct, List<ASelection> selections) {

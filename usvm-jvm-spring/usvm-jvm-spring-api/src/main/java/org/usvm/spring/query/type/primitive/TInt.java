@@ -6,7 +6,6 @@ import org.usvm.spring.query.type.ITypeVisitor;
 public class TInt extends AType {
 
     public TInt() {
-
     }
 
     @Override

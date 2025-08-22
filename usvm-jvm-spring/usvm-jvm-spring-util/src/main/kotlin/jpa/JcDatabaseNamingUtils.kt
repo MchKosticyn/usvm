@@ -31,9 +31,7 @@ fun getColumnName(field: JcField): String {
     return name as String
 }
 
-// name of manyToMany table (it is between two tables)
+// name of manyToMany table (it is join table that between two tables)
 fun getBtwTableName(clazz: JcClassOrInterface, field: JcField) = "${getTableName(clazz)}_${getColumnName(field)}"
 
 fun getBtwTableName(field: JcField) = getBtwTableName(field.enclosingClass, field)
-
-fun getSetFieldName(rel: Relation) = "\$${rel.origField.name}_id_set"

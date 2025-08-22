@@ -6,7 +6,6 @@ import org.usvm.spring.query.type.ITypeVisitor;
 public class TDouble extends AType {
 
     public TDouble() {
-
     }
 
     @Override

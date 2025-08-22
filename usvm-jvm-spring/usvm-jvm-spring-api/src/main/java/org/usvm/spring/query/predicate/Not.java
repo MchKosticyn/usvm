@@ -7,7 +7,6 @@ public class Not extends AExpression {
     public AExpression predicate;
 
     public Not() {
-
     }
 
     public Not(AExpression predicate) {

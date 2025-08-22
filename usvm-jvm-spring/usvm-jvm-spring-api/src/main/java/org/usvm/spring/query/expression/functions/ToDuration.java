@@ -9,7 +9,6 @@ public class ToDuration extends AExpression {
     public Datetime datetime;
 
     public ToDuration() {
-
     }
 
     public ToDuration(AExpression expr, Datetime datetime) {

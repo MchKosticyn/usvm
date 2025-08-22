@@ -6,7 +6,6 @@ import org.usvm.spring.query.expression.IExpressionVisitor;
 public class LNull extends AExpression {
 
     public LNull() {
-
     }
 
     @Override

@@ -6,7 +6,6 @@ public class Where {
     public AExpression predicate;
 
     public Where() {
-
     }
 
     public Where(AExpression predicate) {

@@ -8,7 +8,6 @@ public class TypeOfParameter extends AExpression {
     public Parameter param;
 
     public TypeOfParameter() {
-
     }
 
     public TypeOfParameter(Parameter param) {

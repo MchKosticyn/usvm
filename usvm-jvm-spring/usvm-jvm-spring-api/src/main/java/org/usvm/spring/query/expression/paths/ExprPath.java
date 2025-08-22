@@ -7,7 +7,8 @@ import org.usvm.spring.query.path.GeneralPath;
 public class ExprPath extends AExpression {
     public GeneralPath path;
 
-    public ExprPath() {}
+    public ExprPath() {
+    }
 
 
     public ExprPath(GeneralPath path) {

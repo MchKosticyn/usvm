@@ -9,7 +9,8 @@ public class SpringEngine {
         System.out.println(message);
     }
 
-    public static void startAnalysis() { }
+    public static void startAnalysis() {
+    }
 
     public static List<List<Object>> allControllerPaths() {
         return new ArrayList<>();
@@ -17,5 +18,11 @@ public class SpringEngine {
 
     public static boolean isSecurityEnabled() {
         return false;
+    }
+
+    public static void markAsGoodPath() {
+    }
+
+    public static void markAsBadPath() {
     }
 }

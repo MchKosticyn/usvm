@@ -4,7 +4,6 @@ public class ByIdentity extends ASpecification {
     public String name;
 
     public ByIdentity() {
-
     }
 
     public ByIdentity(String name) {

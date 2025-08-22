@@ -7,7 +7,6 @@ public class ListIn extends AInValues {
     public Select list;
 
     public ListIn() {
-
     }
 
     public ListIn(Select list) {

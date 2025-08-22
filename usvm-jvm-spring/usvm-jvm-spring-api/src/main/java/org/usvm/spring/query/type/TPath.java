@@ -6,7 +6,6 @@ public class TPath extends AType {
     public SimplePath name;
 
     public TPath() {
-
     }
 
     public TPath(SimplePath name) {

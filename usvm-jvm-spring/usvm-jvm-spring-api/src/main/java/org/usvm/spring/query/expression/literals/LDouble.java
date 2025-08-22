@@ -7,7 +7,6 @@ public class LDouble extends AExpression {
     public double value;
 
     public LDouble() {
-
     }
 
     public LDouble(double value) {

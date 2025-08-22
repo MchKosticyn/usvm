@@ -7,7 +7,6 @@ public class Minus extends AExpression {
     public AExpression expr;
 
     public Minus() {
-
     }
 
     public Minus(AExpression expr) {

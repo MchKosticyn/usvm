@@ -10,7 +10,6 @@ public class Id extends AExpression {
     public SimplePath cont;
 
     public Id() {
-
     }
 
     public Id(Path path, SimplePath cont) {

@@ -11,7 +11,6 @@ public class CaseList extends AExpression {
     public AExpression elseBranch;
 
     public CaseList() {
-
     }
 
     public CaseList(List<BranchCtx> branches, AExpression elseBranch) {

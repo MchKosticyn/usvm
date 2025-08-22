@@ -4,7 +4,6 @@ public class Instance extends ASelection {
     public org.usvm.spring.query.function.Instance inst;
 
     public Instance() {
-
     }
 
     public Instance(org.usvm.spring.query.function.Instance inst, String alias) {

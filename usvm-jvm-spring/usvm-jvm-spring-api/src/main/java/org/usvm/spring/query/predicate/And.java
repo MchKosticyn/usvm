@@ -8,7 +8,6 @@ public class And extends AExpression {
     public AExpression right;
 
     public And() {
-
     }
 
     public And(AExpression left, AExpression right) {

@@ -59,6 +59,7 @@ import org.usvm.api.decoder.DummyField
 import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.getTypename
 import org.usvm.jvm.util.isVoid
+import org.usvm.jvm.util.name
 import org.usvm.jvm.util.stringType
 import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
@@ -135,6 +136,9 @@ const val DTO_INFO = "generated.org.springframework.boot.databases.utils.DTOInfo
 const val GET_REC_UPD = "getAllowRecursiveUpdate"
 const val SET_REC_UPD = "setAllowRecursiveUpdate"
 const val SAVE_UPD_DEL_MANY_MANAGER = "generated.org.springframework.boot.databases.saveupddel.SaveUpdDelManyManager"
+const val AGGREGATORS = "generated.org.springframework.boot.databases.utils.Aggregators"
+const val DATABASE_UTILS = "generated.org.springframework.boot.databases.utils.DatabaseSupportFunctions"
+const val DATA_ROW = "generated.org.springframework.boot.databases.utils.DataRow"
 const val SUD_SET_PARENT_JOINS = "setParentJoinIds"
 const val SUD_SET_CHILD_JOINS = "setChildJoinIds"
 const val SUD_SAVE_NO_TABLE = "saveUpdWithoutRelationTable"
@@ -167,9 +171,6 @@ const val JOIN_TABLE = "generated.org.springframework.boot.databases.JoinedTable
 const val DISTINCT_TABLE = "generated.org.springframework.boot.databases.DistinctTable"
 const val FLAT_TABLE = "generated.org.springframework.boot.databases.FlatTable"
 const val SINGLETON_TABLE = "generated.org.springframework.boot.databases.SingletonTable"
-const val AGGREGATORS = "generated.org.springframework.boot.databases.utils.Aggregators"
-const val DATABASE_UTILS = "generated.org.springframework.boot.databases.utils.DatabaseSupportFunctions"
-const val DATA_ROW = "generated.org.springframework.boot.databases.utils.DataRow"
 
 // endregion
 
@@ -211,7 +212,7 @@ const val BUILD_IDS_ANNOT = "\$generated_build_ids_annot"
 const val SERIALIZER_ANNOT = "\$generated_serializer"
 const val SERIALIZER_WITH_SKIPS_ANNOT = "\$generated_serializer_with_skips"
 const val SAVE_UPDATE_ANNOT = "\$save_update_annot"
-const val DELETE_ANNOT = "\$delete_annotw"
+const val DELETE_ANNOT = "\$delete_annot"
 const val REPOSITORY_LAMBDA = "\$query_lambda"
 
 // endregion
@@ -254,6 +255,8 @@ val JcMethod.repositoryLambda: Boolean get() = contains(annotations, REPOSITORY_
 
 // endregion
 
+// region SomeUtils
+
 val JcClassOrInterface.isDataClass: Boolean get() = contains(annotations, "Entity")
 val JcClassOrInterface.isJpaRepository: Boolean get() =
     isSubClassOf(classpath.findClass("org.springframework.data.repository.Repository"))
@@ -292,7 +295,7 @@ fun makeStaticClassMethod(cp: JcClasspath, method: JcMethod): JcMethod {
         .addFreshParam(clazz.name)
         .setRetType(method.returnType.typeName)
         .addFillerFuture(JcStaticClassMethod(cp, newName, method))
-    method.annotations.forEach { builder.addBlanckAnnot(it.name) }
+    method.annotations.forEach { builder.addBlancAnnot(it.name) }
     method.parameters.forEach { builder.addFreshParam(it.type.typeName) }
     return builder.buildMethod()
 }
@@ -304,6 +307,10 @@ val JcMethod.query: String?
 val JcMethod.isNativeQuery: Boolean
     get() =
         annotations.find { nameEquals(it, "Query") }?.values?.get("nativeQuery") as? Boolean ?: false
+
+// default implementation in interface
+// by common in interfaces isAbstract it true, but if method is default it is false
+val JcMethod.isDefault: Boolean get() = enclosingClass.isInterface && !isAbstract
 
 val JcParameter.parameterName: String
     get() =
@@ -327,6 +334,8 @@ val JcType.getNextType: JcType
             ?: this
     }
 
+// endregion
+
 fun findMethod(
     clazz: JcClassType,
     name: String,
@@ -342,12 +351,13 @@ fun findMethod(
         p.type.toJcClass()?.toType()?.let { ptype -> a.type.isAssignable(ptype) } // assignable ref types
             ?: (a.type == p.type) // primitive types
 
-    return clazz.declaredMethods.single {
+    return clazz.declaredMethods.singleOrNull {
         it.name == name && filter(it) && it.parameters.size == args.size
                 && it.parameters.zip(args).all { (p, a) ->
             checkGeneric(p, a) || checkAssignable(p, a)
         }
     }
+        ?: error("Can't find method $name in class ${clazz.name} at findMethod")
 }
 
 // region BlockGenerators
@@ -425,17 +435,13 @@ fun BlockGenerationContext.downcastRefTypeIfNeeded(cp: JcClasspath, name: String
 
 fun BlockGenerationContext.toJavaClass(cp: JcClasspath, name: String, type: JcType): JcLocalVar {
     val classType = cp.findType(JAVA_CLASS) as JcClassType
-    val typeVar = nextLocalVar("${name}_type_const", classType)
     val typ = JcClassConstant(type, classType)
-    addInstruction { loc -> JcAssignInst(loc, typeVar, typ) }
-    return typeVar
+    return putValueToVar("${name}_type_const", typ, classType)
 }
 
 fun BlockGenerationContext.generatedMethodArgumentVar(name: String, method: JcMethod, pos: Int): JcLocalVar {
     val arg = method.parameters[pos].toArgument
-    val vari = nextLocalVar(name, arg.type)
-    addInstruction { loc -> JcAssignInst(loc, vari, arg) }
-    return vari
+    return putValueToVar(name, arg, arg.type)
 }
 
 fun BlockGenerationContext.generateNew(name: String, type: JcType): JcLocalVar {
@@ -516,12 +522,13 @@ fun BlockGenerationContext.generateNewWithInit(name: String, type: JcClassType, 
         if (it.size == 1) it.single()
         else
         // TODO: think to do with Owner.isAssignable(T)
-            it.single { m ->
+            it.singleOrNull { m ->
                 m.parameters.zip(args).all { (p, a) ->
                     a.type.isAssignable(p.type.toJcClass()!!.toType())
                 }
             }
     }
+        ?: error("Can't find <init> of class ${type.name} at generateNewWithInit")
 
     val call = JcSpecialCallExpr(init.methodRef, vari, args)
     addInstruction { loc -> JcCallInst(loc, call) }
@@ -535,6 +542,8 @@ fun BlockGenerationContext.generateStaticCall(
     args: List<JcValue>
 ): JcLocalVar {
     val method = findMethod(clazz, methodName, args) { it.isStatic }
+    if (method.returnType.typeName == JAVA_VOID)
+        error("Expected not void method $methodName at generateStaticCall")
     val res = nextLocalVar(name, method.returnType)
     val call = JcStaticCallExpr(method.methodRef, args)
     addInstruction { loc -> JcAssignInst(loc, res, call) }
@@ -549,11 +558,12 @@ fun BlockGenerationContext.generateVirtualCall(
     args: List<JcValue>
 ): JcLocalVar {
     val method = findMethod(clazz, methodName, args) { !it.isStatic }
+    if (method.returnType.typeName == JAVA_VOID)
+        error("Expected not void method $methodName at generateVirtualCall")
     val ref = VirtualMethodRefImpl.of(clazz, method)
     val res = nextLocalVar(name, method.returnType)
     val call = JcVirtualCallExpr(ref, inst, args)
-    if (method.returnType.typeName != JAVA_VOID) addInstruction { loc -> JcAssignInst(loc, res, call) }
-    else error("Expected not void method")
+    addInstruction { loc -> JcAssignInst(loc, res, call) }
     return res
 }
 
@@ -563,6 +573,8 @@ fun BlockGenerationContext.generateVoidStaticCall(
     args: List<JcValue>
 ) {
     val method = findMethod(clazz, methodName, args) { it.isStatic && it.returnType.typeName == JAVA_VOID }
+    if (method.returnType.typeName != JAVA_VOID)
+        error("Expected void method $methodName at generateVoidStaticCall")
     val ref = method.staticMethodRef
     val call = JcStaticCallExpr(ref, args)
     addInstruction { loc -> JcCallInst(loc, call) }
@@ -575,17 +587,11 @@ fun BlockGenerationContext.generateVoidVirtualCall(
     args: List<JcValue>
 ) {
     val method = findMethod(clazz, methodName, args) { !it.isStatic && it.returnType.typeName == JAVA_VOID }
+    if (method.returnType.typeName != JAVA_VOID)
+        error("Expected void method $methodName at generateVoidVirtualCall")
     val ref = VirtualMethodRefImpl.of(clazz, method)
     val call = JcVirtualCallExpr(ref, inst, args)
     addInstruction { loc -> JcCallInst(loc, call) }
-}
-
-fun BlockGenerationContext.generateClassConstant(cp: JcClasspath, name: String, type: JcType): JcLocalVar {
-    val classType = cp.findType(JAVA_CLASS)
-    val vari = nextLocalVar(name, classType)
-    val const = JcClassConstant(type, classType)
-    addInstruction { loc -> JcAssignInst(loc, vari, const) }
-    return vari
 }
 
 fun BlockGenerationContext.generateCast(name: String, value: JcValue, type: JcType): JcLocalVar {
@@ -602,12 +608,10 @@ fun BlockGenerationContext.generateManagerAccess(
     managerType: JcClassType? = null
 ): JcLocalVar {
     val baseType = managerType ?: cp.findType(BASE_TABLE_MANAGER) as JcClassType
-    val manager = nextLocalVar(name, baseType)
-    val tblField = (cp.findType(DATABASES) as JcClassType).fields.single { it.name == tableName }
+    val tblField = (cp.findType(DATABASES) as JcClassType).fields.singleOrNull { it.name == tableName }
+        ?: error("Can't find table with name $name ar generateManagerAccess")
     val tblRef = JcFieldRef(null, tblField)
-    addInstruction { loc -> JcAssignInst(loc, manager, tblRef) }
-
-    return manager
+    return putValueToVar(name, tblRef, baseType)
 }
 
 fun BlockGenerationContext.generateManagerAccessWithInit(
@@ -633,10 +637,7 @@ fun BlockGenerationContext.generateGlobalTableAccess(
 ): JcLocalVar {
     val baseType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
 
-    val manager = generateManagerAccess(cp, name, tableName)
-    val dtoInfo = generateStaticCall("get_dto_$name", GET_DTO_NAME, clazz.toType(), emptyList())
-    generateVoidVirtualCall(TABLE_INITIALIZE, baseType, manager, listOf(dtoInfo))
-
+    val manager = generateManagerAccessWithInit(cp, name, tableName, clazz)
     return generateVirtualCall("get_table_$name", TABLE_GET_COPIED, baseType, manager, emptyList())
 }
 
@@ -670,13 +671,14 @@ fun BlockGenerationContext.generateGlobalNoIdTableAccess(
     noIdTable: Relation.JoinTable
 ): JcLocalVar {
     val tbl = nextLocalVar(name, cp.findType(ITABLE))
-    val tblField = (cp.findType(DATABASES) as JcClassType).fields.single { it.name == noIdTable.name }
+    val tblField = (cp.findType(DATABASES) as JcClassType).fields.singleOrNull { it.name == noIdTable.name }
+        ?: error("Can't find noIdTable with name $name at generateGlobalNoIdTable")
     val tblRef = JcFieldRef(null, tblField)
     addInstruction { loc -> JcAssignInst(loc, tbl, tblRef) }
 
     val baseType = cp.findType(NO_ID_TABLE_MANAGER) as JcClassType
     val types = noIdTable.toTable().columnsInOrder().mapIndexed { ix, col ->
-        generateClassConstant(cp, "col_type_${name}_${ix}", col.type.toJcType(cp)!!)
+        toJavaClass(cp, "col_type_${name}_${ix}", col.type.toJcType(cp)!!)
     }.let { putValuesWithSameTypeToArray(cp, "table_types_${name}", it) }
     generateVoidVirtualCall(TABLE_INITIALIZE, baseType, tbl, listOf(types))
 

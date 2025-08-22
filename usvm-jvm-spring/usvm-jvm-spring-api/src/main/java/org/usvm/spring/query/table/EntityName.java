@@ -8,7 +8,6 @@ public class EntityName {
     public List<String> names;
 
     public EntityName() {
-
     }
 
     public EntityName(List<String> names) {

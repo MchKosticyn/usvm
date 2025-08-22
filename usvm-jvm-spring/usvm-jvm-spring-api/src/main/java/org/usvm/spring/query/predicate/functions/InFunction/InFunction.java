@@ -8,7 +8,6 @@ public class InFunction extends AExpression {
     public AInValues list;
 
     public InFunction() {
-
     }
 
     public InFunction(AExpression expr, AInValues list) {

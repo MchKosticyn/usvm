@@ -10,7 +10,6 @@ public class Query {
     public Having having = null;
 
     public Query() {
-
     }
 
     public Query(From from, Where where, SelectFunction select, GroupBy groupBy, Having having) {

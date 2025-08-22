@@ -7,7 +7,6 @@ public class IsTrue extends AExpression {
     public AExpression expr;
 
     public IsTrue() {
-
     }
 
     public IsTrue(AExpression expr) {

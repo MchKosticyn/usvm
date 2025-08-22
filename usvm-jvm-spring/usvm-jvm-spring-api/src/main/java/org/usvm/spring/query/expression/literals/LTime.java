@@ -9,7 +9,6 @@ public class LTime extends AExpression {
     public LocalDateTime value;
 
     public LTime() {
-
     }
 
     public LTime(LocalDateTime value) {

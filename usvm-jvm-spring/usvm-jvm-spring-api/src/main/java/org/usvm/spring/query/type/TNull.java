@@ -3,7 +3,6 @@ package org.usvm.spring.query.type;
 public class TNull extends AType {
 
     public TNull() {
-
     }
 
     @Override

@@ -8,7 +8,6 @@ public class GroupBy {
     public List<GroupBySpecification> specs;
 
     public GroupBy() {
-
     }
 
     public GroupBy(List<GroupBySpecification> specs) {

@@ -7,7 +7,6 @@ public class Select {
     public Query query;
 
     public Select() {
-
     }
 
     public Select(List<Order> orders, Query query) {

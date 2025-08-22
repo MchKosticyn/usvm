@@ -9,7 +9,6 @@ public class Tuple extends AExpression {
     public List<AExpression> elems;
 
     public Tuple() {
-
     }
 
     public Tuple(List<AExpression> elems) {

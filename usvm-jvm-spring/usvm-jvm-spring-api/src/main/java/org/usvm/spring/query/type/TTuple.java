@@ -6,7 +6,6 @@ public class TTuple extends AType {
     public List<AType> types;
 
     public TTuple() {
-
     }
 
     public TTuple(List<AType> types) {

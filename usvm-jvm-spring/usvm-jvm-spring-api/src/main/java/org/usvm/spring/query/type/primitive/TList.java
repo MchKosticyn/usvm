@@ -11,7 +11,6 @@ public class TList extends AType {
     }
 
     public TList() {
-
     }
 
     @Override

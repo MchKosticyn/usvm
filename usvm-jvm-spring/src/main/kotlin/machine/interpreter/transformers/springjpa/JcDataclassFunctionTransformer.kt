@@ -37,14 +37,12 @@ import jpa.TABLE_VALUES_WITH_ID
 import jpa.TableInfo
 import jpa.downcastRefTypeIfNeeded
 import jpa.generateCast
-import jpa.generateClassConstant
 import jpa.generateGlobalNoIdTableAccess
 import jpa.generateGlobalTableAccess
 import jpa.generateIntArray
 import jpa.generateLambda
 import jpa.generateManagerAccess
 import jpa.generateManagerAccessWithInit
-import jpa.generateNew
 import jpa.generateNewWithInit
 import jpa.generateStaticCall
 import jpa.generateVirtualCall
@@ -73,6 +71,7 @@ import jpa.putValueToVar
 import jpa.putValuesToObjectArray
 import jpa.putValuesWithSameTypeToArray
 import jpa.toArgument
+import jpa.toJavaClass
 import jpa.transformers.JcBodyFillerFeature
 import jpa.upcastToRefTypeIfNeeded
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -352,8 +351,8 @@ class JcGetDTOTransformer(
         val allFields = classTable.origFieldsInOrder(cp).sortedBy(JcField::name)
 
         // main part
-        val idType = classTable.idColumn.getType(cp).let { generateClassConstant(cp, "id_type", it) }
-        val classType = generateClassConstant(cp, "class_type", clazz.toType())
+        val idType = classTable.idColumn.getType(cp).let { toJavaClass(cp, "id_type", it) }
+        val classType = toJavaClass(cp, "class_type", clazz.toType())
         val tableName = JcStringConstant(classTable.name, cp.stringType)
         val fieldsToValidateNames = allFields
             .filter { it.annotations.any { it.isValidator } }
@@ -395,7 +394,7 @@ class JcGetDTOTransformer(
         val fieldsToSoftTypes = putValuesWithSameTypeToArray(
             cp,
             "fields_to_soft_types",
-            fieldsToSoft.map { generateClassConstant(cp, "type_${it.name}", it.type.toJcType(cp)!!) }
+            fieldsToSoft.map { toJavaClass(cp, "type_${it.name}", it.type.toJcType(cp)!!) }
         )
 
         val args = listOf(
@@ -483,7 +482,6 @@ class JcBuildIdTransformer(
 
 // upcastedFieldType $getField() {
 //      Integer res = Integer.of(field); // iff field is int
-//
 //      return res;
 // }
 class JcGetterTransformer(
@@ -811,8 +809,8 @@ class JcSerializerTransformer(
                     val fieldRef = JcFieldRef(JcThis(classType), field)
                     addInstruction { loc -> JcAssignInst(loc, fieldVar, fieldRef) }
 
-                    val arrAcess = JcArrayAccess(arr, JcInt(ix, cp.int), cp.objectType)
-                    addInstruction { loc -> JcAssignInst(loc, arrAcess, fieldVar) }
+                    val arrAccess = JcArrayAccess(arr, JcInt(ix, cp.int), cp.objectType)
+                    addInstruction { loc -> JcAssignInst(loc, arrAccess, fieldVar) }
                 }
             }
         }

@@ -7,7 +7,6 @@ public class LLong extends AExpression {
     public long value;
 
     public LLong() {
-
     }
 
     public LLong(long value) {

@@ -10,7 +10,6 @@ public class NaturalId extends AExpression {
     public SimplePath cont;
 
     public NaturalId() {
-
     }
 
     public NaturalId(Path path, SimplePath cont) {

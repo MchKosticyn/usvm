@@ -6,7 +6,6 @@ public class From {
     public List<TableWithJoins> tables;
 
     public From() {
-
     }
 
     public From(List<TableWithJoins> tables) {

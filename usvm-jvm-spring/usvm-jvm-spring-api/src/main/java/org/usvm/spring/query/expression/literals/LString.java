@@ -7,7 +7,6 @@ public class LString extends AExpression {
     public String value;
 
     public LString() {
-
     }
 
     public LString(String value) {

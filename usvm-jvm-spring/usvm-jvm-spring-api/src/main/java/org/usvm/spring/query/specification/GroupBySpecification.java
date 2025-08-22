@@ -4,7 +4,6 @@ public class GroupBySpecification {
     public ASpecification spec;
 
     public GroupBySpecification() {
-
     }
 
     public GroupBySpecification(ASpecification spec) {
