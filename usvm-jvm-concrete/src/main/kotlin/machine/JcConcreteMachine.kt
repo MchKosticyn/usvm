@@ -1,6 +1,8 @@
 package machine
 
-import machine.ps.JcConcreteMemoryPathSelector
+import machine.ps.JcConcreteMachineWeighters
+import machine.ps.JcConcreteWeightedPathSelector
+import machine.ps.JcConcreteWrappingPathSelector
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
@@ -42,6 +44,40 @@ open class JcConcreteMachine(
         )
     }
 
+    fun createWeightedPathSelector(
+        initialStates: Map<JcMethod, JcState>,
+        options: UMachineOptions,
+        timeStatistics: TimeStatistics<JcMethod, JcState>,
+        coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
+        callGraphStatistics: CallGraphStatistics<JcMethod>,
+        loopStatisticFactory: () -> StateLoopTracker<*, JcInst, JcState>?,
+        weighters: JcConcreteMachineWeighters,
+        basePathSelectors: (() -> List<UPathSelector<JcState>>)?,
+        wrappingPathSelector: (UPathSelector<JcState>) -> UPathSelector<JcState>
+    ): UPathSelector<JcState> {
+        var concretePs: JcConcreteWeightedPathSelector? = null
+        val concreteBasePathSelectors = basePathSelectors ?: {
+            val ps = JcConcreteWeightedPathSelector(weighters)
+            concretePs = ps
+            listOf(ps)
+        }
+        val resultPs = super.createPathSelector(
+            initialStates,
+            options,
+            timeStatistics,
+            coverageStatistics,
+            callGraphStatistics,
+            loopStatisticFactory,
+            concreteBasePathSelectors,
+            wrappingPathSelector
+        )
+        concretePs?.setAddStateAction { state ->
+            resultPs.add(listOf(state))
+        }
+
+        return resultPs
+    }
+
     override fun createPathSelector(
         initialStates: Map<JcMethod, JcState>,
         options: UMachineOptions,
@@ -52,7 +88,7 @@ open class JcConcreteMachine(
         basePathSelectors: (() -> List<UPathSelector<JcState>>)?,
         wrappingPathSelector: (UPathSelector<JcState>) -> UPathSelector<JcState>
     ): UPathSelector<JcState> {
-        var concretePs: JcConcreteMemoryPathSelector? = null
+        var concretePs: JcConcreteWrappingPathSelector? = null
         val resultPs = super.createPathSelector(
             initialStates,
             options,
@@ -62,7 +98,7 @@ open class JcConcreteMachine(
             loopStatisticFactory,
             basePathSelectors
         ) {
-            val ps = JcConcreteMemoryPathSelector(it)
+            val ps = JcConcreteWrappingPathSelector(it)
             concretePs = ps
             wrappingPathSelector(ps)
         }

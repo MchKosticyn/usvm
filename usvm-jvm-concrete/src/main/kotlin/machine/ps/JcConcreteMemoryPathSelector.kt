@@ -1,62 +1,95 @@
 package machine.ps
 
 import machine.state.JcConcreteState
+import org.jacodb.api.jvm.cfg.JcInst
+import org.usvm.PathNode
 import org.usvm.UPathSelector
 import org.usvm.machine.state.JcState
 
-internal class JcConcreteMemoryPathSelector(
-    private val selector: UPathSelector<JcState>
-) : UPathSelector<JcState> {
+internal abstract class JcConcreteMemoryPathSelector(
+    private val shouldChangePath: Boolean
+): UPathSelector<JcState> {
+
+    private lateinit var addNewState: ((JcState) -> Unit)
 
     private var fixedState: JcConcreteState? = null
 
-    private lateinit var addNewState: ((JcState) -> Unit)
+    private var lastAddedBaseForkPoint: PathNode<JcInst>? = null
+
+    private var lastAddedStates: MutableList<JcState>? = null
+
+    private var backtrackedState: JcState? = null
 
     internal fun setAddStateAction(action: (JcState) -> Unit) {
         check(!this::addNewState.isInitialized)
         addNewState = action
     }
 
-    override fun isEmpty(): Boolean {
-        return selector.isEmpty()
-    }
-
     private fun fixState(state: JcState) {
-        state as JcConcreteState
-        fixedState = state
         println("picked state: ${state.id}")
+        state as JcConcreteState
         state.concreteMemory.reset()
+        fixedState = state
+        lastAddedStates = null
+        lastAddedBaseForkPoint = null
     }
 
-    override fun peek(): JcState {
+    protected abstract fun chooseLastPickedState(relevantStates: List<JcState>): JcState
+
+    protected abstract fun peekInternal(): JcState
+
+    final override fun peek(): JcState {
+        backtrackedState?.let {
+            fixState(it)
+            return it
+        }
+
+        val lastStates = lastAddedStates
+        val lastForkPoint =
+            if (shouldChangePath) lastAddedBaseForkPoint ?: fixedState?.forkPoints?.statement
+            else lastAddedBaseForkPoint
+
+        if (!lastStates.isNullOrEmpty() && lastForkPoint != null) {
+            val relevantLastAddedStates =
+                lastStates.filter { it.forkPoints.statement == lastForkPoint }
+            val relevantStates =
+                if (shouldChangePath && fixedState != null) relevantLastAddedStates + fixedState!!
+                else relevantLastAddedStates
+            if (relevantStates.isNotEmpty()) {
+                val state = chooseLastPickedState(relevantStates)
+                fixState(state)
+                return state
+            }
+        }
+
         if (fixedState != null)
             return fixedState!!
 
-        val state = selector.peek()
+        val state = peekInternal()
         fixState(state)
         return state
     }
 
-    override fun update(state: JcState) {
-        selector.update(state)
+    protected abstract fun addInternal(states: Collection<JcState>)
+
+    final override fun add(states: Collection<JcState>) {
+        addInternal(states)
+        lastAddedStates = states.toMutableList()
     }
 
-    override fun add(states: Collection<JcState>) {
-        selector.add(states)
-    }
+    protected abstract fun removeInternal(state: JcState)
 
-    override fun remove(state: JcState) {
+    final override fun remove(state: JcState) {
+        println("removed state: ${state.id}")
         check(fixedState === state)
         state as JcConcreteState
         val memory = state.concreteMemory
-        val backtrackedState = memory.kill()
-        selector.remove(state)
-        if (state.callStack.isNotEmpty() && backtrackedState != null) {
-            addNewState(backtrackedState)
-            fixState(backtrackedState)
-            return
-        }
+        backtrackedState = memory.kill()
+        backtrackedState?.let(addNewState)
+        removeInternal(state)
+        if (state.callStack.isNotEmpty())
+            lastAddedBaseForkPoint = state.forkPoints.statement
+        lastAddedStates?.remove(state)
         fixedState = null
-        println("removed state: ${state.id}")
     }
 }

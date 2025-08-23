@@ -20,10 +20,10 @@ private const val springEdgeCaseWeighterNorm = 1f
 private const val springRegressionSuiteNorm = 1f
 private const val concreteBacktrackWeighterNorm = 0.1f
 
-internal fun createSpringWeightedPathSelector(
+internal fun createSpringWeighters(
     jcSpringMachineOptions: JcSpringMachineOptions,
     coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
-): JcConcreteWeightedPathSelector {
+): JcConcreteMachineWeighters {
     val mainWeighterWithNorm = when (jcSpringMachineOptions.springAnalysisMode) {
         JcSpringAnalysisMode.EdgeCases -> JcSpringEdgeCaseWeighter() to springEdgeCaseWeighterNorm
         JcSpringAnalysisMode.RegressionSuite -> JcSpringRegressionSuite() to springRegressionSuiteNorm
@@ -43,5 +43,5 @@ internal fun createSpringWeightedPathSelector(
     val (eachPeekWeighters, eachPeekWeightersNorm) = eachPeekWeightersWithNorm.unzip()
     val eachPeekWeighter = CombinedStateStableIntWeighter(eachPeekWeighters, eachPeekWeightersNorm)
 
-    return JcConcreteWeightedPathSelector(baseWeighter, eachPeekWeighter)
+    return JcConcreteMachineWeighters(baseWeighter, eachPeekWeighter)
 }

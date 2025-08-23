@@ -1,13 +1,8 @@
 package machine
 
-import machine.ps.JcConcreteWeightedPathSelector
 import machine.ps.JcSpringMachineLoopTracker
 import machine.ps.JcStatePathTimeoutPathSelector
-import machine.ps.createSpringWeightedPathSelector
-import machine.ps.weighters.JcConcreteBacktrackWeighter
-import machine.ps.weighters.JcSpringDataBaseWeighter
-import machine.ps.weighters.JcSpringEdgeCaseWeighter
-import machine.ps.weighters.JcSpringRegressionSuite
+import machine.ps.createSpringWeighters
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
@@ -21,8 +16,6 @@ import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcState
 import org.usvm.ps.StateLoopTracker
-import org.usvm.ps.weighters.CombinedStateStableIntWeighter
-import org.usvm.ps.weighters.UncoveredStateWeighter
 import org.usvm.statistics.CoverageStatistics
 import org.usvm.statistics.StepsStatistics
 import org.usvm.statistics.TimeStatistics
@@ -108,7 +101,7 @@ class JcSpringMachine(
             val baseLoopTracker = loopStatisticFactory() as? JcLoopTracker ?: JcLoopTracker()
             JcSpringMachineLoopTracker(baseLoopTracker)
         }
-        val springPs = { pathSelector: UPathSelector<JcState> ->
+        val springWrappingPs = { pathSelector: UPathSelector<JcState> ->
             val timeout = options.timeout
             if (timeout.isInfinite()) pathSelector
             else {
@@ -116,18 +109,17 @@ class JcSpringMachine(
                 JcStatePathTimeoutPathSelector(springTimeStatistics, pathSelector, timeout)
             }
         }
-        val springBasePathSelectors = basePathSelectors ?: {
-            listOf(createSpringWeightedPathSelector(jcSpringMachineOptions, coverageStatistics))
-        }
-        return super.createPathSelector(
+
+        return super.createWeightedPathSelector(
             initialStates,
             options,
             timeStatistics,
             coverageStatistics,
             callGraphStatistics,
             springLoopTracker,
-            springBasePathSelectors,
-            springPs
+            createSpringWeighters(jcSpringMachineOptions, coverageStatistics),
+            basePathSelectors,
+            springWrappingPs
         )
     }
 }
