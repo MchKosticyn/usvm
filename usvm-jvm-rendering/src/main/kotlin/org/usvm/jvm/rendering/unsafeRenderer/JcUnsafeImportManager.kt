@@ -9,7 +9,7 @@ open class JcUnsafeImportManager(
     private val shouldInlineUsvmUtils: Boolean = false
 ) : JcImportManager(cu) {
     var usvmUtilsImported = false
-        get private set
+        private set
 
     val usvmUtilsName: SimpleName by lazy {
         usvmUtilsImported = true
@@ -34,7 +34,7 @@ open class JcUnsafeImportManager(
 
     private val usvmUtilMethodCollector: MutableSet<String> = mutableSetOf()
 
-    private val usvmUtilRequiredMethodsMapping = mapOf<String, List<String>>(
+    private val usvmUtilRequiredMethodsMapping = mapOf(
         "callConstructor" to listOf("getConstructor", "methodSignature", "parameterTypesSignature"),
         "callMethod" to listOf("getMethod", "getInstanceMethods", "methodSignature", "parameterTypesSignature"),
         "callStaticMethod" to listOf(

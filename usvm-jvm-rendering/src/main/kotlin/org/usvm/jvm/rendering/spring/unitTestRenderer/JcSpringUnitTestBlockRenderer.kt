@@ -153,7 +153,7 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
             "getField",
             NodeList(instance, StringLiteralExpr(field.name))
         )
-        return CastExpr(renderType (field.fieldType), call)
+        return CastExpr(renderType(field.fieldType), call)
     }
 
     override fun renderSetPrivateStaticField(field: JcField, value: Expression): Expression {

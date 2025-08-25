@@ -2,9 +2,7 @@ package org.usvm.jvm.rendering.testTransformers
 
 import java.util.Collections
 import java.util.IdentityHashMap
-import kotlin.math.exp
 import org.usvm.test.api.UTest
-import org.usvm.test.api.UTestCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestStatement
