@@ -14,7 +14,7 @@ open class JcUnsafeTestRenderer(
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     name: SimpleName,
-    testAnnotation: AnnotationExpr,
+    annotations: List<AnnotationExpr>,
 ): JcTestRenderer(
     test,
     classRenderer,
@@ -22,7 +22,7 @@ open class JcUnsafeTestRenderer(
     identifiersManager,
     cp,
     name,
-    testAnnotation,
+    annotations,
 ) {
 
     override val body: JcUnsafeTestBlockRenderer = JcUnsafeTestBlockRenderer(

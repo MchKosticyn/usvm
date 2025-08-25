@@ -14,7 +14,6 @@ import org.usvm.test.api.UTestConstExpression
 import org.usvm.test.api.UTestExpression
 import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClasspath
-import org.usvm.test.api.UTestInst
 
 open class JcTestRenderer(
     private val test: UTest,
@@ -23,7 +22,7 @@ open class JcTestRenderer(
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     name: SimpleName,
-    testAnnotation: AnnotationExpr,
+    annotations: List<AnnotationExpr>,
 ): JcMethodRenderer(
     importManager,
     identifiersManager,
@@ -31,7 +30,7 @@ open class JcTestRenderer(
     classRenderer,
     name,
     NodeList(),
-    NodeList(testAnnotation),
+    NodeList(annotations),
     NodeList(),
     voidType
 ) {

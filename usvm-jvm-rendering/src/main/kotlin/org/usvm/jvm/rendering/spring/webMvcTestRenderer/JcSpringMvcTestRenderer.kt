@@ -5,7 +5,6 @@ import com.github.javaparser.ast.expr.SimpleName
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.test.api.UTest
@@ -17,7 +16,7 @@ open class JcSpringMvcTestRenderer(
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     name: SimpleName,
-    testAnnotation: AnnotationExpr,
+    annotations: List<AnnotationExpr>,
     mvcTestClass: JcClassOrInterface
 ): JcSpringUnitTestRenderer(
     test,
@@ -26,7 +25,7 @@ open class JcSpringMvcTestRenderer(
     identifiersManager,
     cp,
     name,
-    testAnnotation,
+    annotations,
 ) {
 
     override val body: JcSpringMvcTestBlockRenderer = JcSpringMvcTestBlockRenderer(

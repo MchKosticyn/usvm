@@ -32,7 +32,7 @@ open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
         test: UTest,
         identifiersManager: JcIdentifiersManager,
         name: SimpleName,
-        testAnnotation: AnnotationExpr,
+        annotations: List<AnnotationExpr>,
     ): JcTestRenderer {
         return JcUnsafeTestRenderer(
             test,
@@ -41,7 +41,7 @@ open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
             JcIdentifiersManager(identifiersManager),
             cp,
             name,
-            testAnnotation
+            annotations
         )
     }
 }
