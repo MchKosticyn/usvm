@@ -7,13 +7,16 @@ import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.SimpleName
 import kotlin.jvm.optionals.getOrNull
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 
 sealed interface ReflectionUtilsInlineStrategy {
 
     val shouldCollectUtilUsage: Boolean get() = this !is NoInline
 
-    object NoInline : ReflectionUtilsInlineStrategy {
+    val isOpenForReflection: (JcClassOrInterface) -> Boolean
+
+    class NoInline(override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }) : ReflectionUtilsInlineStrategy {
         override fun addReflectionUtils(
             importManager: JcUnsafeImportManager,
             cu: CompilationUnit
@@ -22,7 +25,7 @@ sealed interface ReflectionUtilsInlineStrategy {
         }
     }
 
-    object Inline : ReflectionUtilsInlineStrategy {
+    class Inline(override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }) : ReflectionUtilsInlineStrategy {
         override fun addReflectionUtils(
             importManager: JcUnsafeImportManager,
             cu: CompilationUnit
@@ -55,7 +58,7 @@ sealed interface ReflectionUtilsInlineStrategy {
         }
     }
 
-    object NestedClass : ReflectionUtilsInlineStrategy {
+    class NestedClass(override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }) : ReflectionUtilsInlineStrategy {
         override fun addReflectionUtils(
             importManager: JcUnsafeImportManager,
             cu: CompilationUnit
@@ -90,7 +93,7 @@ sealed interface ReflectionUtilsInlineStrategy {
         }
     }
 
-    object OuterClass : ReflectionUtilsInlineStrategy {
+    class OuterClass(override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }) : ReflectionUtilsInlineStrategy {
         override fun addReflectionUtils(
             importManager: JcUnsafeImportManager,
             cu: CompilationUnit

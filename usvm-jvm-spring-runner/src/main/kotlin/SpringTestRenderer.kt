@@ -21,7 +21,7 @@ class SpringTestRenderer(
             val javaClazz = JcConcreteMemoryClassLoader.loadClass(clazz)
             javaClazz.module.isOpen(method.enclosingClass.packageName)
         }
-        val result = renderer.renderTests(cp, listOf(test to info), true, ReflectionUtilsInlineStrategy.NestedClass, isAccessibleFromTestClass)
+        val result = renderer.renderTests(cp, listOf(test to info), ReflectionUtilsInlineStrategy.NestedClass(isAccessibleFromTestClass))
         return result.entries.single().value
     }
 
@@ -33,6 +33,6 @@ class SpringTestRenderer(
             }
         }
 
-        return renderer.renderTests(cp, tests, true, ReflectionUtilsInlineStrategy.NestedClass, isAccessibleFromTestClass)
+        return renderer.renderTests(cp, tests, ReflectionUtilsInlineStrategy.NestedClass(isAccessibleFromTestClass))
     }
 }

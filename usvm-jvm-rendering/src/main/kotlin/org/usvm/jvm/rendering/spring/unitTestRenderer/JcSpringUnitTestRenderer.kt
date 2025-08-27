@@ -17,7 +17,6 @@ open class JcSpringUnitTestRenderer(
     cp: JcClasspath,
     name: SimpleName,
     annotations: List<AnnotationExpr>,
-    isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
 ): JcUnsafeTestRenderer(
     test,
     classRenderer,
@@ -34,6 +33,5 @@ open class JcSpringUnitTestRenderer(
         JcIdentifiersManager(identifiersManager),
         cp,
         shouldDeclareVar,
-        isAccessibleFromTestClass
     )
 }

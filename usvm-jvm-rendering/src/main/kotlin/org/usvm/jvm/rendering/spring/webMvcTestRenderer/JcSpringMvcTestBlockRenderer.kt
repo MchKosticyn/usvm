@@ -23,7 +23,6 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>,
     private val mvcTestClass: JcClassOrInterface,
-    accessibleFromTestClass: (JcClassOrInterface) -> Boolean
 ) : JcSpringUnitTestBlockRenderer(
     methodRenderer,
     importManager,
@@ -32,7 +31,6 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     shouldDeclareVar,
     exprCache,
     thrownExceptions,
-    accessibleFromTestClass
 ) {
 
     constructor(
@@ -42,7 +40,6 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
         cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>,
         mvcTestClass: JcClassOrInterface,
-        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         methodRenderer,
         importManager,
@@ -52,7 +49,6 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
         IdentityHashMap(),
         HashSet(),
         mvcTestClass,
-        accessibleFromTestClass
     )
 
     override fun newInnerBlock(): JcSpringMvcTestBlockRenderer {
@@ -64,8 +60,7 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions,
-            mvcTestClass,
-            isAccessibleFromTestClass
+            mvcTestClass
         )
     }
 

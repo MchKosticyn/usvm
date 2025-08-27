@@ -11,19 +11,13 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         cu: CompilationUnit,
         importManager: JcUnsafeImportManager,
         cp: JcClasspath,
-        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline
-    ) : super(cu, importManager, cp) {
-        this.reflectionUtilsInlineStrategy = reflectionUtilsInlineStrategy
-    }
+    ) : super(cu, importManager, cp)
 
     protected constructor(
         packageName: String?,
         importManager: JcUnsafeImportManager,
         cp: JcClasspath,
-        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline
-    ) : super(packageName, importManager, cp) {
-        this.reflectionUtilsInlineStrategy = reflectionUtilsInlineStrategy
-    }
+    ) : super(packageName, importManager, cp)
 
     constructor(
         cu: CompilationUnit,
@@ -32,8 +26,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
     ) : this(
         cu,
         JcUnsafeImportManager(cu, reflectionUtilsInlineStrategy),
-        cp,
-        reflectionUtilsInlineStrategy
+        cp
     )
 
     constructor(
@@ -43,14 +36,11 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
     ) : this(
         packageName,
         JcUnsafeImportManager(null, reflectionUtilsInlineStrategy),
-        cp,
-        reflectionUtilsInlineStrategy
+        cp
     )
 
     override val importManager: JcUnsafeImportManager
         get() = super.importManager as JcUnsafeImportManager
-
-    private val reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
 
     override fun classRendererFor(declaration: ClassOrInterfaceDeclaration): JcUnsafeTestClassRenderer {
         return JcUnsafeTestClassRenderer(declaration, importManager, identifiersManager, cp)
@@ -62,7 +52,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
 
     override fun renderInternal(): CompilationUnit {
         var cu = super.renderInternal()
-        cu = reflectionUtilsInlineStrategy.addReflectionUtils(importManager, cu)
+        cu = importManager.reflectionUtilsInlineStrategy.addReflectionUtils(importManager, cu)
         return cu
     }
 }

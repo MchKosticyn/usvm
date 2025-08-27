@@ -19,8 +19,9 @@ import org.usvm.jvm.rendering.unsafeRenderer.ReflectionUtilName
 
 class JcSpringReflectionUtilsRenderer(
     springBlockRenderer: JcSpringUnitTestBlockRenderer,
-    private val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean = { true }
 ) : JcUnsafeUtilsRenderer(springBlockRenderer) {
+
+    private val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean = importManager.reflectionUtilsInlineStrategy.isOpenForReflection
 
     val springTestUtilsName: Expression by lazy {
         NameExpr(

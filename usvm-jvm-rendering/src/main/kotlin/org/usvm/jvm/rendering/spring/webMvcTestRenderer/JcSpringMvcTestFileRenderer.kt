@@ -15,8 +15,7 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         cu: CompilationUnit,
         importManager: JcUnsafeImportManager,
         cp: JcClasspath,
-        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
-    ) : super(cu, importManager, cp, accessibleFromTestClass) {
+    ) : super(cu, importManager, cp) {
         this.controller = controller
     }
 
@@ -25,8 +24,7 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         packageName: String?,
         importManager: JcUnsafeImportManager,
         cp: JcClasspath,
-        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
-    ) : super(packageName, importManager, cp, accessibleFromTestClass) {
+    ) : super(packageName, importManager, cp) {
         this.controller = controller
     }
 
@@ -34,37 +32,33 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         controller: JcClassType,
         cu: CompilationUnit,
         cp: JcClasspath,
-        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline,
-        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
     ) : this(
         controller,
         cu,
         JcUnsafeImportManager(cu, reflectionUtilsInlineStrategy),
-        cp,
-        accessibleFromTestClass
+        cp
     )
 
     constructor(
         controller: JcClassType,
         packageName: String?,
         cp: JcClasspath,
-        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline,
-        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
     ) : this(
         controller,
         packageName,
         JcUnsafeImportManager(null, reflectionUtilsInlineStrategy),
-        cp,
-        accessibleFromTestClass
+        cp
     )
 
     private val controller: JcClassType
 
     override fun classRendererFor(declaration: ClassOrInterfaceDeclaration): JcSpringMvcTestClassRenderer {
-        return JcSpringMvcTestClassRenderer(controller, declaration, importManager, identifiersManager, cp, isAccessibleFromTestClass)
+        return JcSpringMvcTestClassRenderer(controller, declaration, importManager, identifiersManager, cp)
     }
 
     override fun classRendererFor(name: String): JcSpringMvcTestClassRenderer {
-        return JcSpringMvcTestClassRenderer(controller, name, importManager, identifiersManager, cp, isAccessibleFromTestClass)
+        return JcSpringMvcTestClassRenderer(controller, name, importManager, identifiersManager, cp)
     }
 }

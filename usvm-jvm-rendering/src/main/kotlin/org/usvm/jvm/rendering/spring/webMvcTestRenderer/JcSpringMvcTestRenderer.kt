@@ -18,7 +18,6 @@ open class JcSpringMvcTestRenderer(
     name: SimpleName,
     annotations: List<AnnotationExpr>,
     mvcTestClass: JcClassOrInterface,
-    accessibleFromTestClass: (JcClassOrInterface) -> Boolean
 ): JcSpringUnitTestRenderer(
     test,
     classRenderer,
@@ -27,7 +26,6 @@ open class JcSpringMvcTestRenderer(
     cp,
     name,
     annotations,
-    accessibleFromTestClass
 ) {
 
     override val body: JcSpringMvcTestBlockRenderer = JcSpringMvcTestBlockRenderer(
@@ -37,6 +35,5 @@ open class JcSpringMvcTestRenderer(
         cp,
         shouldDeclareVar,
         mvcTestClass,
-        accessibleFromTestClass
     )
 }

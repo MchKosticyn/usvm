@@ -14,27 +14,19 @@ import org.usvm.test.api.UTest
 open class JcSpringUnitTestClassRenderer : JcUnsafeTestClassRenderer {
     override val importManager: JcUnsafeImportManager get() = super.importManager
 
-    protected val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
-
     constructor(
         name: String,
         importManager: JcUnsafeImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
-        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
-    ) : super(name, importManager, identifiersManager, cp) {
-        this.isAccessibleFromTestClass = accessibleFromTestClass
-    }
+    ) : super(name, importManager, identifiersManager, cp)
 
     constructor(
         decl: ClassOrInterfaceDeclaration,
         importManager: JcUnsafeImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
-        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
-    ) : super(decl, importManager, identifiersManager, cp) {
-        this.isAccessibleFromTestClass = accessibleFromTestClass
-    }
+    ) : super(decl, importManager, identifiersManager, cp)
 
     override fun createTestRenderer(
         test: UTest,
@@ -49,8 +41,7 @@ open class JcSpringUnitTestClassRenderer : JcUnsafeTestClassRenderer {
             JcIdentifiersManager(identifiersManager),
             cp,
             name,
-            annotations,
-            isAccessibleFromTestClass
+            annotations
         )
     }
 }
