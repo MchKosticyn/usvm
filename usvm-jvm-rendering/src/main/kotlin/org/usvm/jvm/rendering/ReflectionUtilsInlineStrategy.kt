@@ -12,11 +12,13 @@ import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 
 sealed interface ReflectionUtilsInlineStrategy {
 
-    val shouldCollectUtilUsage: Boolean get() = this !is NoInline
+    val inTestClassFile: Boolean
 
     val isOpenForReflection: (JcClassOrInterface) -> Boolean
 
     class NoInline(override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }) : ReflectionUtilsInlineStrategy {
+        override val inTestClassFile: Boolean = false
+
         override fun addReflectionUtils(
             importManager: JcUnsafeImportManager,
             cu: CompilationUnit
@@ -26,6 +28,8 @@ sealed interface ReflectionUtilsInlineStrategy {
     }
 
     class Inline(override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }) : ReflectionUtilsInlineStrategy {
+        override val inTestClassFile: Boolean = true
+
         override fun addReflectionUtils(
             importManager: JcUnsafeImportManager,
             cu: CompilationUnit
@@ -59,6 +63,8 @@ sealed interface ReflectionUtilsInlineStrategy {
     }
 
     class NestedClass(override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }) : ReflectionUtilsInlineStrategy {
+        override val inTestClassFile: Boolean = true
+
         override fun addReflectionUtils(
             importManager: JcUnsafeImportManager,
             cu: CompilationUnit
@@ -94,6 +100,8 @@ sealed interface ReflectionUtilsInlineStrategy {
     }
 
     class OuterClass(override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }) : ReflectionUtilsInlineStrategy {
+        override val inTestClassFile: Boolean = true
+
         override fun addReflectionUtils(
             importManager: JcUnsafeImportManager,
             cu: CompilationUnit

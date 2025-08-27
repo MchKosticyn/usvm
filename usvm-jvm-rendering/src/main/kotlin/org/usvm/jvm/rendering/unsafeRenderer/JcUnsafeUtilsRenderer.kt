@@ -26,7 +26,7 @@ open class JcUnsafeUtilsRenderer(
 
     private val utilsName: NameExpr by lazy {
         NameExpr(
-            if (importManager.add(ReflectionUtilName.USVM))
+            if (importManager.reflectionUtilsInlineStrategy.inTestClassFile || importManager.add(ReflectionUtilName.USVM))
                 ReflectionUtilName.USVM_SIMPLE
             else
                 ReflectionUtilName.USVM

@@ -8,21 +8,6 @@ open class JcUnsafeImportManager(
     cu: CompilationUnit? = null,
     val reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline()
 ) : JcImportManager(cu) {
-
-    override fun add(
-        packageName: String,
-        simpleName: String,
-        packages: MutableSet<String>,
-        names: MutableSet<String>
-    ): Boolean {
-        val isUsvmUtil = "${packageName}.${simpleName}" == ReflectionUtilName.USVM
-
-        if (reflectionUtilsInlineStrategy.shouldCollectUtilUsage && isUsvmUtil)
-            return true
-
-        return super.add(packageName, simpleName, packages, names)
-    }
-
     private val usvmUtilMethodCollector: MutableSet<String> = mutableSetOf()
 
     private val usvmUtilRequiredMethodsMapping = mapOf(

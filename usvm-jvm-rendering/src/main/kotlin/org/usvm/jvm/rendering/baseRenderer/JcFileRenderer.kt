@@ -15,15 +15,14 @@ open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
     companion object {
         private fun resolvePackageDeclarationFrom(packageName: String?, cu: CompilationUnit?): PackageDeclaration? {
             val existingPackageDecl = cu?.packageDeclaration?.getOrNull()
-            val freshPackageDecl =
-                if (packageName.isNullOrBlank())
-                    null
-                else {
-                    val parsedName = StaticJavaParser.parseName(packageName)
-                    PackageDeclaration(parsedName)
-                }
 
-            return existingPackageDecl ?: freshPackageDecl
+            if (existingPackageDecl != null)
+                return existingPackageDecl
+
+            return if (packageName.isNullOrBlank())
+                null
+            else
+                PackageDeclaration(StaticJavaParser.parseName(packageName))
         }
     }
 

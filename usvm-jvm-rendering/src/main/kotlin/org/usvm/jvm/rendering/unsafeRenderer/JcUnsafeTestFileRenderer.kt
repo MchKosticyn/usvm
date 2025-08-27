@@ -51,8 +51,6 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
 
 
     override fun renderInternal(): CompilationUnit {
-        var cu = super.renderInternal()
-        cu = importManager.reflectionUtilsInlineStrategy.addReflectionUtils(importManager, cu)
-        return cu
+        return importManager.reflectionUtilsInlineStrategy.addReflectionUtils(importManager, super.renderInternal())
     }
 }
