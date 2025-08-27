@@ -15,12 +15,32 @@ class JcSpringMvcTestTransformer: JcTestTransformer() {
 
     private val testContextManagerName = "org.springframework.test.context.TestContextManager"
 
+    private val JcClassOrInterface.isTestContextManager: Boolean get() {
+        return name == testContextManagerName
+    }
+
     private val JcMethod.isIgnoreResultMethod: Boolean get() {
         return name == "ignoreResult" && enclosingClass.name == mvcTestClass?.name
     }
 
     private val JcMethod.isPrepareInstanceMethod: Boolean get() {
-        return name == "prepareTestInstance" && enclosingClass.name == testContextManagerName
+        return name == "prepareTestInstance" && enclosingClass.isTestContextManager
+    }
+
+    private val JcMethod.isBeforeTestClass: Boolean get() {
+        return name == "beforeTestClass" && enclosingClass.isTestContextManager
+    }
+
+    private val JcMethod.isAfterTestMethod: Boolean get() {
+        return name == "afterTestMethod" && enclosingClass.isTestContextManager
+    }
+
+    private val JcMethod.isBeforeTestMethod: Boolean get() {
+        return name == "beforeTestMethod" && enclosingClass.isTestContextManager
+    }
+
+    private val JcMethod.isInitTestCtxMethod: Boolean get() {
+        return isPrepareInstanceMethod || isBeforeTestClass || isAfterTestMethod || isBeforeTestMethod
     }
 
     override fun transform(call: UTestMethodCall): UTestCall? {
@@ -39,6 +59,10 @@ class JcSpringMvcTestTransformer: JcTestTransformer() {
 
             mvcTestClass = (arg.type as JcClassType).jcClass
 
+            return null
+        }
+
+        if (method.isInitTestCtxMethod) {
             return null
         }
 
