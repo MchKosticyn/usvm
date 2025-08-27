@@ -1,22 +1,12 @@
 package org.usvm.jvm.rendering.unsafeRenderer
 
 import com.github.javaparser.ast.CompilationUnit
-import com.github.javaparser.ast.expr.SimpleName
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 
 open class JcUnsafeImportManager(
     cu: CompilationUnit? = null,
     private val shouldInlineUsvmUtils: Boolean = false
 ) : JcImportManager(cu) {
-    var usvmUtilsImported = false
-        private set
-
-    val usvmUtilsName: SimpleName by lazy {
-        usvmUtilsImported = true
-        if (add(ReflectionUtilName.USVM))
-            SimpleName(ReflectionUtilName.USVM_SIMPLE)
-        else SimpleName(ReflectionUtilName.USVM)
-    }
 
     override fun add(
         packageName: String,

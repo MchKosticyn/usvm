@@ -87,13 +87,39 @@ object JcTestFileRendererFactory {
         cu: CompilationUnit,
         cp: JcClasspath,
         testClassInfo: JcTestClassInfo,
-        shouldInlineUsvmUtils: Boolean
+        shouldInlineUsvmUtils: Boolean,
+        isAccessibleFromTestClass: ((JcClassOrInterface) -> Boolean)?
     ): JcTestFileRenderer {
+        check(testClassInfo !is JcTestClassInfo.SpringMvc && testClassInfo !is JcTestClassInfo.SpringUnit || isAccessibleFromTestClass != null) {
+            "isAccessibleFromTestClass parameter required for spring renderer"
+        }
         return when (testClassInfo) {
-            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(testClassInfo.clazz.toType(), cu, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(cu, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.Unsafe -> JcUnsafeTestFileRenderer(cu, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.Base -> JcTestFileRenderer(cu, cp)
+            is JcTestClassInfo.SpringMvc -> {
+                JcSpringMvcTestFileRenderer(
+                    testClassInfo.clazz.toType(),
+                    cu,
+                    cp,
+                    shouldInlineUsvmUtils,
+                    isAccessibleFromTestClass!!
+                )
+            }
+
+            is JcTestClassInfo.SpringUnit -> {
+                JcSpringUnitTestFileRenderer(
+                    cu,
+                    cp,
+                    shouldInlineUsvmUtils,
+                    isAccessibleFromTestClass!!
+                )
+            }
+
+            is JcTestClassInfo.Unsafe -> {
+                JcUnsafeTestFileRenderer(cu, cp, shouldInlineUsvmUtils)
+            }
+
+            is JcTestClassInfo.Base -> {
+                JcTestFileRenderer(cu, cp)
+            }
         }
     }
 
@@ -101,13 +127,39 @@ object JcTestFileRendererFactory {
         packageName: String?,
         cp: JcClasspath,
         testClassInfo: JcTestClassInfo,
-        shouldInlineUsvmUtils: Boolean
+        shouldInlineUsvmUtils: Boolean,
+        isAccessibleFromTestClass: ((JcClassOrInterface) -> Boolean)?
     ): JcTestFileRenderer {
+        check(testClassInfo !is JcTestClassInfo.SpringMvc && testClassInfo !is JcTestClassInfo.SpringUnit || isAccessibleFromTestClass != null) {
+            "isAccessibleFromTestClass parameter required for spring renderer"
+        }
         return when (testClassInfo) {
-            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(testClassInfo.clazz.toType(), packageName, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(packageName, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.Unsafe -> JcUnsafeTestFileRenderer(packageName, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.Base -> JcTestFileRenderer(packageName, cp)
+            is JcTestClassInfo.SpringMvc -> {
+                JcSpringMvcTestFileRenderer(
+                    testClassInfo.clazz.toType(),
+                    packageName,
+                    cp,
+                    shouldInlineUsvmUtils,
+                    isAccessibleFromTestClass!!
+                )
+            }
+
+            is JcTestClassInfo.SpringUnit -> {
+                JcSpringUnitTestFileRenderer(
+                    packageName,
+                    cp,
+                    shouldInlineUsvmUtils,
+                    isAccessibleFromTestClass!!
+                )
+            }
+
+            is JcTestClassInfo.Unsafe -> {
+                JcUnsafeTestFileRenderer(packageName, cp, shouldInlineUsvmUtils)
+            }
+
+            is JcTestClassInfo.Base -> {
+                JcTestFileRenderer(packageName, cp)
+            }
         }
     }
 }

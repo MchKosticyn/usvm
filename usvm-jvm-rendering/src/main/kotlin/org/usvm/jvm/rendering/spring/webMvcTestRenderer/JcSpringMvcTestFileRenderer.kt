@@ -2,10 +2,10 @@ package org.usvm.jvm.rendering.spring.webMvcTestRenderer
 
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestFileRenderer
-import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 
 class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
@@ -13,8 +13,9 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         controller: JcClassType,
         cu: CompilationUnit,
         importManager: JcUnsafeImportManager,
-        cp: JcClasspath
-    ) : super(cu, importManager, cp) {
+        cp: JcClasspath,
+        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
+    ) : super(cu, importManager, cp, accessibleFromTestClass) {
         this.controller = controller
     }
 
@@ -22,8 +23,9 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         controller: JcClassType,
         packageName: String?,
         importManager: JcUnsafeImportManager,
-        cp: JcClasspath
-    ) : super(packageName, importManager, cp) {
+        cp: JcClasspath,
+        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
+    ) : super(packageName, importManager, cp, accessibleFromTestClass) {
         this.controller = controller
     }
 
@@ -31,33 +33,37 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         controller: JcClassType,
         cu: CompilationUnit,
         cp: JcClasspath,
-        inlineUsvmUtils: Boolean = false
+        inlineUsvmUtils: Boolean = false,
+        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         controller,
         cu,
         JcUnsafeImportManager(cu, inlineUsvmUtils),
-        cp
+        cp,
+        accessibleFromTestClass
     )
 
     constructor(
         controller: JcClassType,
         packageName: String?,
         cp: JcClasspath,
-        inlineUsvmUtils: Boolean = false
+        inlineUsvmUtils: Boolean = false,
+        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         controller,
         packageName,
         JcUnsafeImportManager(null, inlineUsvmUtils),
-        cp
+        cp,
+        accessibleFromTestClass
     )
 
     private val controller: JcClassType
 
     override fun classRendererFor(declaration: ClassOrInterfaceDeclaration): JcSpringMvcTestClassRenderer {
-        return JcSpringMvcTestClassRenderer(controller, declaration, importManager, identifiersManager, cp)
+        return JcSpringMvcTestClassRenderer(controller, declaration, importManager, identifiersManager, cp, isAccessibleFromTestClass)
     }
 
     override fun classRendererFor(name: String): JcSpringMvcTestClassRenderer {
-        return JcSpringMvcTestClassRenderer(controller, name, importManager, identifiersManager, cp)
+        return JcSpringMvcTestClassRenderer(controller, name, importManager, identifiersManager, cp, isAccessibleFromTestClass)
     }
 }

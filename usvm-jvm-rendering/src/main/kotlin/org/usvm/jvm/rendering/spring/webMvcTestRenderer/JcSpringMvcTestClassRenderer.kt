@@ -27,8 +27,9 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         name: String,
         importManager: JcUnsafeImportManager,
         identifiersManager: JcIdentifiersManager,
-        cp: JcClasspath
-    ) : super(name, importManager, identifiersManager, cp) {
+        cp: JcClasspath,
+        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
+    ) : super(name, importManager, identifiersManager, cp, accessibleFromTestClass) {
         this.controller = controller
     }
 
@@ -37,8 +38,9 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         decl: ClassOrInterfaceDeclaration,
         importManager: JcUnsafeImportManager,
         identifiersManager: JcIdentifiersManager,
-        cp: JcClasspath
-    ) : super(decl, importManager, identifiersManager, cp) {
+        cp: JcClasspath,
+        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
+    ) : super(decl, importManager, identifiersManager, cp, accessibleFromTestClass) {
         this.controller = controller
     }
 
@@ -69,7 +71,8 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
             cp,
             name,
             annotations + testMethodAnnotations,
-            mvcTransformer.testClass
+            mvcTransformer.testClass,
+            isAccessibleFromTestClass
         )
     }
 

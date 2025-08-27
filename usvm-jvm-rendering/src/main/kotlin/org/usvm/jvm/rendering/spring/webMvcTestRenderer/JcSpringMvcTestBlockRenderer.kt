@@ -8,7 +8,6 @@ import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestBlockRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.test.api.UTestExpression
@@ -23,7 +22,8 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>,
-    private val mvcTestClass: JcClassOrInterface
+    private val mvcTestClass: JcClassOrInterface,
+    accessibleFromTestClass: (JcClassOrInterface) -> Boolean
 ) : JcSpringUnitTestBlockRenderer(
     methodRenderer,
     importManager,
@@ -31,7 +31,8 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     cp,
     shouldDeclareVar,
     exprCache,
-    thrownExceptions
+    thrownExceptions,
+    accessibleFromTestClass
 ) {
 
     constructor(
@@ -40,7 +41,8 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>,
-        mvcTestClass: JcClassOrInterface
+        mvcTestClass: JcClassOrInterface,
+        accessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         methodRenderer,
         importManager,
@@ -49,7 +51,8 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
         shouldDeclareVar,
         IdentityHashMap(),
         HashSet(),
-        mvcTestClass
+        mvcTestClass,
+        accessibleFromTestClass
     )
 
     override fun newInnerBlock(): JcSpringMvcTestBlockRenderer {
@@ -61,7 +64,8 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions,
-            mvcTestClass
+            mvcTestClass,
+            isAccessibleFromTestClass
         )
     }
 

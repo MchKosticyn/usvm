@@ -2,6 +2,7 @@ package org.usvm.jvm.rendering.spring.unitTestRenderer
 
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
@@ -16,6 +17,7 @@ open class JcSpringUnitTestRenderer(
     cp: JcClasspath,
     name: SimpleName,
     annotations: List<AnnotationExpr>,
+    isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
 ): JcUnsafeTestRenderer(
     test,
     classRenderer,
@@ -31,6 +33,7 @@ open class JcSpringUnitTestRenderer(
         importManager,
         JcIdentifiersManager(identifiersManager),
         cp,
-        shouldDeclareVar
+        shouldDeclareVar,
+        isAccessibleFromTestClass
     )
 }
