@@ -23,7 +23,7 @@ class JcTestsRenderer {
     fun renderTests(
         cp: JcClasspath,
         tests: List<Pair<UTest, JcTestInfo>>,
-        shouldInlineUsvmUtils: Boolean,
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline,
         isAccessibleFromTestClass: ((JcClassOrInterface) -> Boolean)?
     ): Map<JcTestClassInfo, String> {
         val renderedFiles = mutableMapOf<JcTestClassInfo, String>()
@@ -31,6 +31,7 @@ class JcTestsRenderer {
         val printer = DefaultPrettyPrinter()
 
         for ((testClassInfo, testsToRender) in testClasses) {
+
             val testFile = testClassInfo.testFilePath
             val fileRenderer = when {
                 testFile != null -> {
@@ -38,7 +39,7 @@ class JcTestsRenderer {
                         StaticJavaParser.parse(testFile),
                         cp,
                         testClassInfo,
-                        shouldInlineUsvmUtils,
+                        reflectionUtilsInlineStrategy,
                         isAccessibleFromTestClass
                     )
                 }
@@ -47,7 +48,7 @@ class JcTestsRenderer {
                         testClassInfo.testPackageName,
                         cp,
                         testClassInfo,
-                        shouldInlineUsvmUtils,
+                        reflectionUtilsInlineStrategy,
                         isAccessibleFromTestClass
                     )
                 }

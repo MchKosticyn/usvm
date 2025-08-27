@@ -38,7 +38,7 @@ open class JcImportManager(cu: CompilationUnit? = null) {
         names: MutableSet<String>
     ): Boolean {
         if (packageName in packages) return true
-        val fullName = "$packageName.$simpleName"
+        val fullName = "$packageName.$simpleName".trimStart('.')
         if (fullName in names) return true
         if (simpleToPackage.putIfAbsent(simpleName, fullName) != null)
             return false
@@ -49,8 +49,7 @@ open class JcImportManager(cu: CompilationUnit? = null) {
     }
 
     fun add(import: String): Boolean {
-        val tokens = import.split(".")
-        return add(tokens.dropLast(1).joinToString("."), tokens.last())
+        return add(import.substringBeforeLast('.', ""), import.substringAfterLast('.'))
     }
 
     fun add(packageName: String, simpleName: String): Boolean {

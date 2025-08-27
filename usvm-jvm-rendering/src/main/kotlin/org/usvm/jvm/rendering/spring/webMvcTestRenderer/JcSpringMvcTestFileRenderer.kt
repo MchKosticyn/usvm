@@ -5,6 +5,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
+import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestFileRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 
@@ -33,12 +34,12 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         controller: JcClassType,
         cu: CompilationUnit,
         cp: JcClasspath,
-        inlineUsvmUtils: Boolean = false,
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline,
         accessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         controller,
         cu,
-        JcUnsafeImportManager(cu, inlineUsvmUtils),
+        JcUnsafeImportManager(cu, reflectionUtilsInlineStrategy),
         cp,
         accessibleFromTestClass
     )
@@ -47,12 +48,12 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         controller: JcClassType,
         packageName: String?,
         cp: JcClasspath,
-        inlineUsvmUtils: Boolean = false,
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline,
         accessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         controller,
         packageName,
-        JcUnsafeImportManager(null, inlineUsvmUtils),
+        JcUnsafeImportManager(null, reflectionUtilsInlineStrategy),
         cp,
         accessibleFromTestClass
     )

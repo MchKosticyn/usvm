@@ -5,6 +5,7 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.packageName
 import org.usvm.jvm.rendering.JcTestClassInfo
 import org.usvm.jvm.rendering.JcTestsRenderer
+import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
 import org.usvm.jvm.rendering.spring.webMvcTestRenderer.JcSpringMvcTestInfo
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.test.api.UTest
@@ -20,7 +21,7 @@ class SpringTestRenderer(
             val javaClazz = JcConcreteMemoryClassLoader.loadClass(clazz)
             javaClazz.module.isOpen(method.enclosingClass.packageName)
         }
-        val result = renderer.renderTests(cp, listOf(test to info), true, isAccessibleFromTestClass)
+        val result = renderer.renderTests(cp, listOf(test to info), true, ReflectionUtilsInlineStrategy.NestedClass, isAccessibleFromTestClass)
         return result.entries.single().value
     }
 
@@ -32,6 +33,6 @@ class SpringTestRenderer(
             }
         }
 
-        return renderer.renderTests(cp, tests, true, isAccessibleFromTestClass)
+        return renderer.renderTests(cp, tests, true, ReflectionUtilsInlineStrategy.NestedClass, isAccessibleFromTestClass)
     }
 }

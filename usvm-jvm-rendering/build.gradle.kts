@@ -10,6 +10,14 @@ dependencies {
     implementation("com.github.javaparser:javaparser-symbol-solver-core:3.26.3")
 }
 
+tasks.withType<ProcessResources> {
+    val reflectionUtils = project.sourceSets.main.get().java.find { file ->
+        file.name == "ReflectionUtils.java"
+    }
+
+    from(reflectionUtils)
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {

@@ -1,11 +1,13 @@
 package org.usvm.jvm.rendering.unsafeRenderer
 
 import com.github.javaparser.ast.CompilationUnit
+import com.github.javaparser.ast.expr.SimpleName
+import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 
 open class JcUnsafeImportManager(
     cu: CompilationUnit? = null,
-    private val shouldInlineUsvmUtils: Boolean = false
+    private val utilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline
 ) : JcImportManager(cu) {
 
     override fun add(
@@ -16,7 +18,7 @@ open class JcUnsafeImportManager(
     ): Boolean {
         val isUsvmUtil = "${packageName}.${simpleName}" == ReflectionUtilName.USVM
 
-        if (shouldInlineUsvmUtils && isUsvmUtil)
+        if (utilsInlineStrategy.shouldCollectUtilUsage && isUsvmUtil)
             return true
 
         return super.add(packageName, simpleName, packages, names)

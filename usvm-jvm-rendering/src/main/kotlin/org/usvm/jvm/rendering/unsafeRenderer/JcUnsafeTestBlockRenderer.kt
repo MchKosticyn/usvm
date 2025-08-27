@@ -19,7 +19,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
-    thrownExceptions: HashSet<ReferenceType>,
+    thrownExceptions: HashSet<ReferenceType>
 ) : JcTestBlockRenderer(
     methodRenderer,
     importManager,
