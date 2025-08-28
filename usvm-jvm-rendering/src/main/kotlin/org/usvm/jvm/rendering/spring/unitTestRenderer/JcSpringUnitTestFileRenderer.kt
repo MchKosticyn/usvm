@@ -11,10 +11,11 @@ import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestFileRenderer
 
 open class JcSpringUnitTestFileRenderer: JcUnsafeTestFileRenderer {
 
-    override val unsafeUtilsRenderer: JcSpringReflectionUtilsRenderer
-        get() = _unsafeUtilsRenderer
+    private val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
 
-    private val _unsafeUtilsRenderer: JcSpringReflectionUtilsRenderer
+    override val unsafeUtilsRenderer: JcSpringReflectionUtilsRenderer by lazy {
+        JcSpringReflectionUtilsRenderer(importManager, reflectionUtilsInlineStrategy, isAccessibleFromTestClass)
+    }
 
     protected constructor(
         cu: CompilationUnit,
@@ -23,7 +24,7 @@ open class JcSpringUnitTestFileRenderer: JcUnsafeTestFileRenderer {
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
         isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : super(cu, importManager, cp, reflectionUtilsInlineStrategy) {
-        this._unsafeUtilsRenderer = JcSpringReflectionUtilsRenderer(reflectionUtilsInlineStrategy, this, isAccessibleFromTestClass)
+        this.isAccessibleFromTestClass = isAccessibleFromTestClass
     }
 
     protected constructor(
@@ -33,7 +34,7 @@ open class JcSpringUnitTestFileRenderer: JcUnsafeTestFileRenderer {
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
         isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : super(packageName, importManager, cp, reflectionUtilsInlineStrategy) {
-        this._unsafeUtilsRenderer = JcSpringReflectionUtilsRenderer(reflectionUtilsInlineStrategy, this, isAccessibleFromTestClass)
+        this.isAccessibleFromTestClass = isAccessibleFromTestClass
     }
 
     constructor(

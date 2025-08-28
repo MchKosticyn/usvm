@@ -14,15 +14,15 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.findType
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
-import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestFileRenderer
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestBlockRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeUtilsRenderer
 
 class JcSpringReflectionUtilsRenderer(
+    importManager: JcImportManager,
     utilsInlineStrategy: ReflectionUtilsInlineStrategy,
-    springFileRenderer: JcSpringUnitTestFileRenderer,
     private val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean,
-) : JcUnsafeUtilsRenderer(utilsInlineStrategy, springFileRenderer) {
+) : JcUnsafeUtilsRenderer(importManager, utilsInlineStrategy) {
 
     companion object {
         private const val SPRING_TEST = "org.springframework.test.util.ReflectionTestUtils"
@@ -66,9 +66,9 @@ class JcSpringReflectionUtilsRenderer(
         )
         val cp = ctor.enclosingClass.classpath
         val ctorParametersTypes = ctor.parameters.map { cp.findType(it.type.typeName) }
-        val instanceType = fileRenderer.renderClass(type, includeGenericArgs = false)
+        val instanceType = blockRenderer.renderClass(type, includeGenericArgs = false)
         val accessibleCtorArgs = listOf(ClassExpr(instanceType)) + ctorParametersTypes.map {
-            ClassExpr(fileRenderer.renderType(it, false))
+            ClassExpr(blockRenderer.renderType(it, false))
         }
 
         val springInternalUtilsName = NameExpr(
@@ -93,13 +93,14 @@ class JcSpringReflectionUtilsRenderer(
         inlinesVarargs: Boolean
     ): Expression {
         return if (isAccessibleFromTestClass(method.enclosingClass))
-            springInstanceMethodCall(method, instance, args, inlinesVarargs)
+            springInstanceMethodCall(blockRenderer, method, instance, args, inlinesVarargs)
         else
             super.renderInstanceMethodCall(blockRenderer, method, instance, args, inlinesVarargs)
     }
 
     @Suppress("unused")
     private fun springInstanceMethodCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
         method: JcMethod,
         instance: Expression,
         args: List<Expression>,
@@ -108,7 +109,7 @@ class JcSpringReflectionUtilsRenderer(
         val allArgs = listOf(instance, StringLiteralExpr(method.name)) + args
         return MethodCallExpr(
             springTestUtilsName,
-            listTypeArgsFor(method),
+            listTypeArgsFor(method, blockRenderer),
             "invokeMethod",
             NodeList(allArgs),
         )
@@ -136,63 +137,82 @@ class JcSpringReflectionUtilsRenderer(
         blockRenderer.addThrownException("java.lang.Throwable")
         val enclosingClass = method.enclosingClass
         val invokeMethodArgs = listOf(
-            fileRenderer.renderClassExpression(enclosingClass),
+            blockRenderer.renderClassExpression(enclosingClass),
             StringLiteralExpr(method.name)
         ) + args
 
         return MethodCallExpr(
             springTestUtilsName,
-            listTypeArgsFor(method),
+            listTypeArgsFor(method, blockRenderer),
             "invokeMethod",
             NodeList(invokeMethodArgs),
         )
     }
 
-    override fun renderGetInstanceField(instance: Expression, field: JcField): Expression {
+    override fun renderGetInstanceField(
+        blockRenderer: JcUnsafeTestBlockRenderer,
+        instance: Expression,
+        field: JcField
+    ): Expression {
         return if (isAccessibleFromTestClass(field.enclosingClass))
-            springGetInstanceField(instance, field)
+            springGetInstanceField(blockRenderer, instance, field)
         else
-            super.renderGetInstanceField(instance, field)
+            super.renderGetInstanceField(blockRenderer, instance, field)
     }
 
-    private fun springGetInstanceField(instance: Expression, field: JcField): Expression {
+    private fun springGetInstanceField(
+        blockRenderer: JcUnsafeTestBlockRenderer,
+        instance: Expression,
+        field: JcField
+    ): Expression {
         val call = MethodCallExpr(
             springTestUtilsName,
             "getField",
             NodeList(instance, StringLiteralExpr(field.name))
         )
-        return CastExpr(fileRenderer.renderType(fieldType(field)), call)
+
+        return CastExpr(blockRenderer.renderType(fieldType(field)), call)
     }
 
-    override fun renderGetStaticField(field: JcField): Expression {
+    override fun renderGetStaticField(blockRenderer: JcUnsafeTestBlockRenderer, field: JcField): Expression {
         return if (isAccessibleFromTestClass(field.enclosingClass))
-            springGetStaticField(field)
+            springGetStaticField(blockRenderer, field)
         else
-            super.renderGetStaticField(field)
+            super.renderGetStaticField(blockRenderer, field)
     }
 
-    private fun springGetStaticField(field: JcField): Expression {
+    private fun springGetStaticField(blockRenderer: JcUnsafeTestBlockRenderer, field: JcField): Expression {
         val call = MethodCallExpr(
             springTestUtilsName,
             "getField",
             NodeList(
-                fileRenderer.renderClassExpression(field.enclosingClass),
+                blockRenderer.renderClassExpression(field.enclosingClass),
                 StringLiteralExpr(field.name)
             ),
         )
-        return CastExpr(fileRenderer.renderType(fieldType(field)), call)
+        return CastExpr(blockRenderer.renderType(fieldType(field)), call)
     }
 
-    override fun renderSetInstanceField(instance: Expression, field: JcField, value: Expression): Expression {
+    override fun renderSetInstanceField(
+        blockRenderer: JcUnsafeTestBlockRenderer,
+        instance: Expression,
+        field: JcField,
+        value: Expression
+    ): Expression {
         return if (isAccessibleFromTestClass(field.enclosingClass) && !field.enclosingClass.isRecord)
-            springSetInstanceField(instance, field, value)
+            springSetInstanceField(blockRenderer, instance, field, value)
         else
-            super.renderSetInstanceField(instance, field, value)
+            super.renderSetInstanceField(blockRenderer, instance, field, value)
     }
 
     private val JcClassOrInterface.isRecord: Boolean get() = (access and Opcodes.ACC_RECORD) != 0
 
-    private fun springSetInstanceField(instance: Expression, field: JcField, value: Expression): Expression {
+    private fun springSetInstanceField(
+        blockRenderer: JcUnsafeTestBlockRenderer,
+        instance: Expression,
+        field: JcField,
+        value: Expression
+    ): Expression {
         return MethodCallExpr(
             springTestUtilsName,
             "setField",
@@ -200,19 +220,27 @@ class JcSpringReflectionUtilsRenderer(
         )
     }
 
-    override fun renderSetStaticField(field: JcField, value: Expression): Expression {
+    override fun renderSetStaticField(
+        blockRenderer: JcUnsafeTestBlockRenderer,
+        field: JcField,
+        value: Expression
+    ): Expression {
         return if (isAccessibleFromTestClass(field.enclosingClass) && !field.isFinal)
-            springSetStaticField(field, value)
+            springSetStaticField(blockRenderer, field, value)
         else
-            super.renderSetStaticField(field, value)
+            super.renderSetStaticField(blockRenderer, field, value)
     }
 
-    private fun springSetStaticField(field: JcField, value: Expression): Expression {
+    private fun springSetStaticField(
+        blockRenderer: JcUnsafeTestBlockRenderer,
+        field: JcField,
+        value: Expression
+    ): Expression {
         return MethodCallExpr(
             springTestUtilsName,
             "setField",
             NodeList(
-                fileRenderer.renderClassExpression(field.enclosingClass),
+                blockRenderer.renderClassExpression(field.enclosingClass),
                 StringLiteralExpr(field.name),
                 value
             ),

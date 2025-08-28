@@ -9,9 +9,11 @@ import org.usvm.jvm.rendering.testRenderer.JcTestFileRenderer
 
 open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
 
-    protected open val unsafeUtilsRenderer: JcUnsafeUtilsRenderer get()  = _unsafeUtilsRenderer
+    protected val reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
 
-    private val _unsafeUtilsRenderer: JcUnsafeUtilsRenderer
+    protected open val unsafeUtilsRenderer: JcUnsafeUtilsRenderer by lazy {
+        JcUnsafeUtilsRenderer(importManager, reflectionUtilsInlineStrategy)
+    }
 
     protected constructor(
         cu: CompilationUnit,
@@ -19,7 +21,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
     ) : super(cu, importManager, cp) {
-        this._unsafeUtilsRenderer = JcUnsafeUtilsRenderer(reflectionUtilsInlineStrategy, this)
+        this.reflectionUtilsInlineStrategy = reflectionUtilsInlineStrategy
     }
 
     protected constructor(
@@ -28,7 +30,7 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
     ) : super(packageName, importManager, cp) {
-        this._unsafeUtilsRenderer = JcUnsafeUtilsRenderer(reflectionUtilsInlineStrategy, this)
+        this.reflectionUtilsInlineStrategy = reflectionUtilsInlineStrategy
     }
 
     constructor(

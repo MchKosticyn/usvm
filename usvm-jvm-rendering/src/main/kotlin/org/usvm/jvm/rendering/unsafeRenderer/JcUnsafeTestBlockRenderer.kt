@@ -96,19 +96,19 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     //region Private Fields
 
     override fun renderGetPrivateStaticField(field: JcField): Expression {
-        return unsafeUtilsRenderer.renderGetStaticField(field)
+        return unsafeUtilsRenderer.renderGetStaticField(this, field)
     }
 
     override fun renderGetPrivateField(instance: Expression, field: JcField): Expression {
-        return unsafeUtilsRenderer.renderGetInstanceField(instance, field)
+        return unsafeUtilsRenderer.renderGetInstanceField(this, instance, field)
     }
 
     override fun renderSetPrivateStaticField(field: JcField, value: Expression): Expression {
-        return unsafeUtilsRenderer.renderSetStaticField(field, value)
+        return unsafeUtilsRenderer.renderSetStaticField(this, field, value)
     }
 
     override fun renderSetPrivateField(instance: Expression, field: JcField, value: Expression): Expression {
-        return unsafeUtilsRenderer.renderSetInstanceField(instance, field, value)
+        return unsafeUtilsRenderer.renderSetInstanceField(this, instance, field, value)
     }
 
     //endregion
