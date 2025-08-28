@@ -31,8 +31,12 @@ class JcSpringReflectionUtilsRenderer(
         private const val SPRING_INTERNAL_SIMPLE = "ReflectionUtils"
     }
 
-    val springTestUtilsName: Expression by lazy {
+    private val springTestUtilsName: Expression by lazy {
         NameExpr(if (importManager.add(SPRING_TEST)) SPRING_TEST_SIMPLE else SPRING_TEST)
+    }
+
+    private val springInternalUtilsName: Expression by lazy {
+        NameExpr(if (importManager.add(SPRING_INTERNAL)) SPRING_INTERNAL_SIMPLE else SPRING_INTERNAL)
     }
 
     override fun renderCtorCall(
@@ -70,10 +74,6 @@ class JcSpringReflectionUtilsRenderer(
         val accessibleCtorArgs = listOf(ClassExpr(instanceType)) + ctorParametersTypes.map {
             ClassExpr(blockRenderer.renderType(it, false))
         }
-
-        val springInternalUtilsName = NameExpr(
-            if (importManager.add(SPRING_INTERNAL)) SPRING_INTERNAL_SIMPLE else SPRING_INTERNAL
-        )
 
         val accessibleCtor = MethodCallExpr(
             springInternalUtilsName,

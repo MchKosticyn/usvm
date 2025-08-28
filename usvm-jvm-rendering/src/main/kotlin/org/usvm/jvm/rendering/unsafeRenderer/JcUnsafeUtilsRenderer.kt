@@ -31,7 +31,7 @@ open class JcUnsafeUtilsRenderer(
         private const val USVM_SIMPLE = "ReflectionUtils"
     }
 
-    private val utilsName: NameExpr by lazy {
+    private val utilsName: Expression by lazy {
         NameExpr(
             if (reflectionUtilsInlineStrategy.inTestClassFile || importManager.add(USVM))
                 USVM_SIMPLE

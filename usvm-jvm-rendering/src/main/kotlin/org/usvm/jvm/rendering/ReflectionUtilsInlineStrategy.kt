@@ -9,9 +9,7 @@ import com.github.javaparser.ast.expr.SimpleName
 import kotlin.jvm.optionals.getOrNull
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 
-sealed class ReflectionUtilsInlineStrategy(
-    val inTestClassFile: Boolean,
-) {
+sealed class ReflectionUtilsInlineStrategy(val inTestClassFile: Boolean) {
 
     abstract fun addReflectionUtils(importManager: JcImportManager, cu: CompilationUnit): CompilationUnit
 
