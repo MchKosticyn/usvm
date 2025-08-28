@@ -24,6 +24,7 @@ class JcTestsRenderer {
         cp: JcClasspath,
         tests: List<Pair<UTest, JcTestInfo>>,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline(),
+        isAccessibleFromTestClass: ((JcClassOrInterface) -> Boolean)? = null
     ): Map<JcTestClassInfo, String> {
         val renderedFiles = mutableMapOf<JcTestClassInfo, String>()
         val testClasses = tests.groupBy { (_, info) -> JcTestClassInfo.from(info) }
@@ -38,7 +39,8 @@ class JcTestsRenderer {
                         StaticJavaParser.parse(testFile),
                         cp,
                         testClassInfo,
-                        reflectionUtilsInlineStrategy
+                        reflectionUtilsInlineStrategy,
+                        isAccessibleFromTestClass
                     )
                 }
                 else -> {
@@ -46,7 +48,8 @@ class JcTestsRenderer {
                         testClassInfo.testPackageName,
                         cp,
                         testClassInfo,
-                        reflectionUtilsInlineStrategy
+                        reflectionUtilsInlineStrategy,
+                        isAccessibleFromTestClass
                     )
                 }
             }

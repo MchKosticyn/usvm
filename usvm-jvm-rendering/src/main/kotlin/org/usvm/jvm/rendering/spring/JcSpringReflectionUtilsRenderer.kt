@@ -21,6 +21,7 @@ import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeUtilsRenderer
 class JcSpringReflectionUtilsRenderer(
     utilsInlineStrategy: ReflectionUtilsInlineStrategy,
     springFileRenderer: JcSpringUnitTestFileRenderer,
+    private val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean,
 ) : JcUnsafeUtilsRenderer(utilsInlineStrategy, springFileRenderer) {
 
     companion object {
@@ -29,9 +30,6 @@ class JcSpringReflectionUtilsRenderer(
         private const val SPRING_INTERNAL = "org.springframework.util.ReflectionUtils"
         private const val SPRING_INTERNAL_SIMPLE = "ReflectionUtils"
     }
-
-    private val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean =
-        reflectionUtilsInlineStrategy.isOpenForReflection
 
     val springTestUtilsName: Expression by lazy {
         NameExpr(if (importManager.add(SPRING_TEST)) SPRING_TEST_SIMPLE else SPRING_TEST)

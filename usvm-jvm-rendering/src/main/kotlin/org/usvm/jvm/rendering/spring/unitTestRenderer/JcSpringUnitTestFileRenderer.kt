@@ -2,6 +2,7 @@ package org.usvm.jvm.rendering.spring.unitTestRenderer
 
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
@@ -20,8 +21,9 @@ open class JcSpringUnitTestFileRenderer: JcUnsafeTestFileRenderer {
         importManager: JcImportManager,
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : super(cu, importManager, cp, reflectionUtilsInlineStrategy) {
-        this._unsafeUtilsRenderer = JcSpringReflectionUtilsRenderer(reflectionUtilsInlineStrategy, this)
+        this._unsafeUtilsRenderer = JcSpringReflectionUtilsRenderer(reflectionUtilsInlineStrategy, this, isAccessibleFromTestClass)
     }
 
     protected constructor(
@@ -29,30 +31,35 @@ open class JcSpringUnitTestFileRenderer: JcUnsafeTestFileRenderer {
         importManager: JcImportManager,
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : super(packageName, importManager, cp, reflectionUtilsInlineStrategy) {
-        this._unsafeUtilsRenderer = JcSpringReflectionUtilsRenderer(reflectionUtilsInlineStrategy, this)
+        this._unsafeUtilsRenderer = JcSpringReflectionUtilsRenderer(reflectionUtilsInlineStrategy, this, isAccessibleFromTestClass)
     }
 
     constructor(
         cu: CompilationUnit,
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         cu,
         JcImportManager(cu),
         cp,
-        reflectionUtilsInlineStrategy
+        reflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass
     )
 
     constructor(
         packageName: String?,
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         packageName,
         JcImportManager(null),
         cp,
-        reflectionUtilsInlineStrategy
+        reflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass
     )
 
     override fun classRendererFor(declaration: ClassOrInterfaceDeclaration): JcSpringUnitTestClassRenderer {

@@ -2,6 +2,7 @@ package org.usvm.jvm.rendering.spring.webMvcTestRenderer
 
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
@@ -15,7 +16,8 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         importManager: JcImportManager,
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
-    ) : super(cu, importManager, cp, reflectionUtilsInlineStrategy) {
+        isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
+    ) : super(cu, importManager, cp, reflectionUtilsInlineStrategy, isAccessibleFromTestClass) {
         this.controller = controller
     }
 
@@ -25,7 +27,8 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         importManager: JcImportManager,
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
-    ) : super(packageName, importManager, cp, reflectionUtilsInlineStrategy) {
+        isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
+    ) : super(packageName, importManager, cp, reflectionUtilsInlineStrategy, isAccessibleFromTestClass) {
         this.controller = controller
     }
 
@@ -34,25 +37,29 @@ class JcSpringMvcTestFileRenderer : JcSpringUnitTestFileRenderer {
         cu: CompilationUnit,
         cp: JcClasspath,
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         controller,
         cu,
         JcImportManager(cu),
         cp,
-        reflectionUtilsInlineStrategy
+        reflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass
     )
 
     constructor(
         controller: JcClassType,
         packageName: String?,
         cp: JcClasspath,
-        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean
     ) : this(
         controller,
         packageName,
         JcImportManager(null),
         cp,
-        reflectionUtilsInlineStrategy
+        reflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass
     )
 
     private val controller: JcClassType

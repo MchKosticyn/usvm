@@ -7,18 +7,15 @@ import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.SimpleName
 import kotlin.jvm.optionals.getOrNull
-import org.jacodb.api.jvm.JcClassOrInterface
 import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 
-sealed class ReflectionUtilsInlineStrategy(val inTestClassFile: Boolean) {
-
-    abstract val isOpenForReflection: (JcClassOrInterface) -> Boolean
+sealed class ReflectionUtilsInlineStrategy(
+    val inTestClassFile: Boolean,
+) {
 
     abstract fun addReflectionUtils(importManager: JcImportManager, cu: CompilationUnit): CompilationUnit
 
-    class NoInline(
-        override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }
-    ) : ReflectionUtilsInlineStrategy(inTestClassFile = false) {
+    class NoInline : ReflectionUtilsInlineStrategy(inTestClassFile = false) {
         override fun addReflectionUtils(
             importManager: JcImportManager,
             cu: CompilationUnit
@@ -27,9 +24,7 @@ sealed class ReflectionUtilsInlineStrategy(val inTestClassFile: Boolean) {
         }
     }
 
-    class Inline(
-        override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }
-    ) : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
+    class Inline : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
 
         override fun addReflectionUtils(
             importManager: JcImportManager,
@@ -63,9 +58,7 @@ sealed class ReflectionUtilsInlineStrategy(val inTestClassFile: Boolean) {
         }
     }
 
-    class NestedClass(
-        override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }
-    ) : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
+    class NestedClass : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
 
         override fun addReflectionUtils(
             importManager: JcImportManager,
@@ -101,9 +94,7 @@ sealed class ReflectionUtilsInlineStrategy(val inTestClassFile: Boolean) {
         }
     }
 
-    class OuterClass(
-        override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }
-    ) : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
+    class OuterClass : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
 
         override fun addReflectionUtils(
             importManager: JcImportManager,
