@@ -8,18 +8,20 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.testRenderer.JcTestBlockRenderer
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 
 open class JcUnsafeTestBlockRenderer protected constructor(
     override val methodRenderer: JcUnsafeTestRenderer,
-    override val importManager: JcUnsafeImportManager,
+    override val importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
-    thrownExceptions: HashSet<ReferenceType>
+    thrownExceptions: HashSet<ReferenceType>,
+    protected open val unsafeUtilsRenderer: JcUnsafeUtilsRenderer
 ) : JcTestBlockRenderer(
     methodRenderer,
     importManager,
@@ -30,15 +32,23 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     thrownExceptions
 ) {
 
-    protected open val unsafeUtilsRenderer: JcUnsafeUtilsRenderer = JcUnsafeUtilsRenderer(this)
-
     constructor(
         methodRenderer: JcUnsafeTestRenderer,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
-        shouldDeclareVar: Set<UTestExpression>
-    ) : this(methodRenderer, importManager, identifiersManager, cp, shouldDeclareVar, IdentityHashMap(), HashSet())
+        shouldDeclareVar: Set<UTestExpression>,
+        unsafeUtilsRenderer: JcUnsafeUtilsRenderer
+    ) : this(
+        methodRenderer,
+        importManager,
+        identifiersManager,
+        cp,
+        shouldDeclareVar,
+        IdentityHashMap(),
+        HashSet(),
+        unsafeUtilsRenderer
+    )
 
     override fun newInnerBlock(): JcUnsafeTestBlockRenderer {
         return JcUnsafeTestBlockRenderer(
@@ -48,7 +58,8 @@ open class JcUnsafeTestBlockRenderer protected constructor(
             cp,
             shouldDeclareVar,
             IdentityHashMap(exprCache),
-            thrownExceptions
+            thrownExceptions,
+            unsafeUtilsRenderer
         )
     }
 
@@ -60,7 +71,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
         args: List<Expression>,
         inlinesVarargs: Boolean
     ): Expression {
-        return unsafeUtilsRenderer.renderCtorCall(ctor, type, args, inlinesVarargs)
+        return unsafeUtilsRenderer.renderCtorCall(this, ctor, type, args, inlinesVarargs)
     }
 
     override fun renderPrivateMethodCall(
@@ -69,7 +80,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
         args: List<Expression>,
         inlinesVarargs: Boolean
     ): Expression {
-        return unsafeUtilsRenderer.renderInstanceMethodCall(method, instance, args, inlinesVarargs)
+        return unsafeUtilsRenderer.renderInstanceMethodCall(this, method, instance, args, inlinesVarargs)
     }
 
     override fun renderPrivateStaticMethodCall(
@@ -77,7 +88,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
         args: List<Expression>,
         inlinesVarargs: Boolean
     ): Expression {
-        return unsafeUtilsRenderer.renderStaticMethodCall(method, args, inlinesVarargs)
+        return unsafeUtilsRenderer.renderStaticMethodCall(this, method, args, inlinesVarargs)
     }
 
     //endregion
@@ -105,7 +116,7 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     //region Allocation
 
     override fun renderAllocateMemoryCall(expr: UTestAllocateMemoryCall): Expression {
-        return unsafeUtilsRenderer.renderAllocateInstance(expr.clazz)
+        return unsafeUtilsRenderer.renderAllocateInstance(this, expr.clazz)
     }
 
     //endregion

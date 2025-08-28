@@ -5,19 +5,20 @@ import com.github.javaparser.ast.type.ReferenceType
 import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.spring.JcSpringReflectionUtilsRenderer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestBlockRenderer
 import org.usvm.test.api.UTestExpression
 
 open class JcSpringUnitTestBlockRenderer protected constructor(
     override val methodRenderer: JcSpringUnitTestRenderer,
-    override val importManager: JcUnsafeImportManager,
+    override val importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>,
+    unsafeUtilsRenderer: JcSpringReflectionUtilsRenderer
 ) : JcUnsafeTestBlockRenderer(
     methodRenderer,
     importManager,
@@ -25,18 +26,27 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
     cp,
     shouldDeclareVar,
     exprCache,
-    thrownExceptions
+    thrownExceptions,
+    unsafeUtilsRenderer
 ) {
-
-    override val unsafeUtilsRenderer: JcSpringReflectionUtilsRenderer = JcSpringReflectionUtilsRenderer(this)
 
     constructor(
         methodRenderer: JcSpringUnitTestRenderer,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>,
-    ) : this(methodRenderer, importManager, identifiersManager, cp, shouldDeclareVar, IdentityHashMap(), HashSet())
+        unsafeUtilsRenderer: JcSpringReflectionUtilsRenderer
+    ) : this(
+        methodRenderer,
+        importManager,
+        identifiersManager,
+        cp,
+        shouldDeclareVar,
+        IdentityHashMap(),
+        HashSet(),
+        unsafeUtilsRenderer
+    )
 
     override fun newInnerBlock(): JcSpringUnitTestBlockRenderer {
         return JcSpringUnitTestBlockRenderer(
@@ -46,7 +56,8 @@ open class JcSpringUnitTestBlockRenderer protected constructor(
             cp,
             shouldDeclareVar,
             IdentityHashMap(exprCache),
-            thrownExceptions
+            thrownExceptions,
+            unsafeUtilsRenderer as JcSpringReflectionUtilsRenderer
         )
     }
 }

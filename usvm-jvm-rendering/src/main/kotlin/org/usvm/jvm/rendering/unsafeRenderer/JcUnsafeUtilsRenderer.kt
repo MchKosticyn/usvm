@@ -1,5 +1,6 @@
 package org.usvm.jvm.rendering.unsafeRenderer
 
+import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.MethodCallExpr
@@ -17,47 +18,62 @@ import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.jcdbSignature
 import org.jacodb.api.jvm.ext.nullType
 import org.jacodb.api.jvm.ext.void
+import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 
 open class JcUnsafeUtilsRenderer(
-    protected val blockRenderer: JcUnsafeTestBlockRenderer
+    protected val reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+    protected val fileRenderer: JcUnsafeTestFileRenderer
 ) {
 
-    protected val importManager: JcUnsafeImportManager get() = blockRenderer.importManager
+    companion object {
+        private const val USVM = "org.usvm.jvm.rendering.ReflectionUtils"
+        private const val USVM_SIMPLE = "ReflectionUtils"
+    }
+
+    protected val importManager: JcImportManager get() = fileRenderer.importManager
 
     private val utilsName: NameExpr by lazy {
         NameExpr(
-            if (importManager.reflectionUtilsInlineStrategy.inTestClassFile || importManager.add(ReflectionUtilName.USVM))
-                ReflectionUtilName.USVM_SIMPLE
+            if (reflectionUtilsInlineStrategy.inTestClassFile || importManager.add(USVM))
+                USVM_SIMPLE
             else
-                ReflectionUtilName.USVM
+                USVM
         )
     }
 
+    // TODO: rewrite properly after inline strategy redesign
+    fun addReflectionUtils(importManager: JcImportManager, cu: CompilationUnit): CompilationUnit {
+        return reflectionUtilsInlineStrategy.addReflectionUtils(importManager, cu)
+    }
+
     open fun renderCtorCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
         ctor: JcMethod,
         type: JcClassType,
         args: List<Expression>,
         inlinesVarargs: Boolean
     ): Expression {
         blockRenderer.addThrownException("java.lang.Throwable")
-        importManager.useUsvmReflectionMethod("callConstructor")
-        val allArgs = listOf(blockRenderer.renderClassExpression(type), StringLiteralExpr(ctor.jcdbSignature)) + args
+        reflectionUtilsInlineStrategy.useUsvmReflectionMethod("callConstructor")
+        val allArgs = listOf(fileRenderer.renderClassExpression(type), StringLiteralExpr(ctor.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
-            NodeList(blockRenderer.renderClass(type)),
+            NodeList(fileRenderer.renderClass(type)),
             "callConstructor",
             NodeList(allArgs),
         )
     }
 
     open fun renderInstanceMethodCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
         method: JcMethod,
         instance: Expression,
         args: List<Expression>,
         inlinesVarargs: Boolean
     ): Expression {
         blockRenderer.addThrownException("java.lang.Throwable")
-        importManager.useUsvmReflectionMethod("callMethod")
+        reflectionUtilsInlineStrategy.useUsvmReflectionMethod("callMethod")
         val allArgs = listOf(instance, StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
@@ -68,15 +84,16 @@ open class JcUnsafeUtilsRenderer(
     }
 
     open fun renderStaticMethodCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
         method: JcMethod,
         args: List<Expression>,
         inlinesVarargs: Boolean
     ): Expression {
         blockRenderer.addThrownException("java.lang.Throwable")
-        importManager.useUsvmReflectionMethod("callStaticMethod")
+        reflectionUtilsInlineStrategy.useUsvmReflectionMethod("callStaticMethod")
         val enclosingClass = method.enclosingClass
         val allArgs =
-            listOf(blockRenderer.renderClassExpression(enclosingClass), StringLiteralExpr(method.jcdbSignature)) + args
+            listOf(fileRenderer.renderClassExpression(enclosingClass), StringLiteralExpr(method.jcdbSignature)) + args
         return MethodCallExpr(
             utilsName,
             listTypeArgsFor(method),
@@ -86,27 +103,27 @@ open class JcUnsafeUtilsRenderer(
     }
 
     open fun renderGetInstanceField(instance: Expression, field: JcField): Expression {
-        importManager.useUsvmReflectionMethod("getStaticFieldValue")
+        reflectionUtilsInlineStrategy.useUsvmReflectionMethod("getStaticFieldValue")
         return MethodCallExpr(
             utilsName,
             listTypeArgsFor(field),
             "getStaticFieldValue",
-            NodeList(blockRenderer.renderClassExpression(field.enclosingClass), StringLiteralExpr(field.name)),
+            NodeList(fileRenderer.renderClassExpression(field.enclosingClass), StringLiteralExpr(field.name)),
         )
     }
 
     open fun renderGetStaticField(field: JcField): Expression {
-        importManager.useUsvmReflectionMethod("getStaticFieldValue")
+        reflectionUtilsInlineStrategy.useUsvmReflectionMethod("getStaticFieldValue")
         return MethodCallExpr(
             utilsName,
             listTypeArgsFor(field),
             "getStaticFieldValue",
-            NodeList(blockRenderer.renderClassExpression(field.enclosingClass), StringLiteralExpr(field.name)),
+            NodeList(fileRenderer.renderClassExpression(field.enclosingClass), StringLiteralExpr(field.name)),
         )
     }
 
     open fun renderSetInstanceField(instance: Expression, field: JcField, value: Expression): Expression {
-        importManager.useUsvmReflectionMethod("setFieldValue")
+        reflectionUtilsInlineStrategy.useUsvmReflectionMethod("setFieldValue")
         return MethodCallExpr(
             utilsName,
             "setFieldValue",
@@ -115,31 +132,31 @@ open class JcUnsafeUtilsRenderer(
     }
 
     open fun renderSetStaticField(field: JcField, value: Expression): Expression {
-        importManager.useUsvmReflectionMethod("setStaticFieldValue")
+        reflectionUtilsInlineStrategy.useUsvmReflectionMethod("setStaticFieldValue")
         return MethodCallExpr(
             utilsName,
             "setStaticFieldValue",
-            NodeList(blockRenderer.renderClassExpression(field.enclosingClass), StringLiteralExpr(field.name), value),
+            NodeList(fileRenderer.renderClassExpression(field.enclosingClass), StringLiteralExpr(field.name), value),
         )
     }
 
-    open fun renderAllocateInstance(clazz: JcClassOrInterface): Expression {
+    open fun renderAllocateInstance(blockRenderer: JcUnsafeTestBlockRenderer, clazz: JcClassOrInterface): Expression {
         blockRenderer.addThrownException("java.lang.InstantiationException")
-        importManager.useUsvmReflectionMethod("allocateInstance")
+        reflectionUtilsInlineStrategy.useUsvmReflectionMethod("allocateInstance")
         return MethodCallExpr(
             utilsName,
-            NodeList(blockRenderer.renderClass(clazz)),
+            NodeList(fileRenderer.renderClass(clazz)),
             "allocateInstance",
-            NodeList(blockRenderer.renderClassExpression(clazz)),
+            NodeList(fileRenderer.renderClassExpression(clazz)),
         )
     }
 
     private fun listTypeArgsFor(type: JcType): NodeList<Type>? {
         val cp = type.classpath
         return when (type) {
-            is JcRefType -> NodeList(blockRenderer.renderType(type))
+            is JcRefType -> NodeList(fileRenderer.renderType(type))
             cp.void, cp.nullType -> null
-            else -> NodeList(blockRenderer.renderType(type.autoboxIfNeeded()))
+            else -> NodeList(fileRenderer.renderType(type.autoboxIfNeeded()))
         }
     }
 

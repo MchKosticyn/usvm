@@ -8,30 +8,31 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.SimpleName
 import kotlin.jvm.optionals.getOrNull
 import org.jacodb.api.jvm.JcClassOrInterface
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 
-sealed interface ReflectionUtilsInlineStrategy {
+sealed class ReflectionUtilsInlineStrategy(val inTestClassFile: Boolean) {
 
-    val inTestClassFile: Boolean
+    abstract val isOpenForReflection: (JcClassOrInterface) -> Boolean
 
-    val isOpenForReflection: (JcClassOrInterface) -> Boolean
+    abstract fun addReflectionUtils(importManager: JcImportManager, cu: CompilationUnit): CompilationUnit
 
-    class NoInline(override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }) : ReflectionUtilsInlineStrategy {
-        override val inTestClassFile: Boolean = false
-
+    class NoInline(
+        override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }
+    ) : ReflectionUtilsInlineStrategy(inTestClassFile = false) {
         override fun addReflectionUtils(
-            importManager: JcUnsafeImportManager,
+            importManager: JcImportManager,
             cu: CompilationUnit
         ): CompilationUnit {
             return cu
         }
     }
 
-    class Inline(override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }) : ReflectionUtilsInlineStrategy {
-        override val inTestClassFile: Boolean = true
+    class Inline(
+        override val isOpenForReflection: ((JcClassOrInterface) -> Boolean) = { false }
+    ) : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
 
         override fun addReflectionUtils(
-            importManager: JcUnsafeImportManager,
+            importManager: JcImportManager,
             cu: CompilationUnit
         ): CompilationUnit {
             val testClass = cu.types.singleOrNull()
@@ -44,11 +45,11 @@ sealed interface ReflectionUtilsInlineStrategy {
                 "field and init blocks merge not yet supported"
             }
 
-            val filteredUtilCu = filterReflectionUtilCu(importManager) ?: return cu
+            val filteredUtilCu = filterReflectionUtilCu() ?: return cu
 
             val requiredUtilMembers = filteredUtilCu.getClassByName("ReflectionUtils").get().members
 
-            for(member in requiredUtilMembers) {
+            for (member in requiredUtilMembers) {
                 if (member.isMethodDeclaration) {
                     member.asMethodDeclaration().setModifiers(Modifier.Keyword.PRIVATE, Modifier.Keyword.STATIC)
                 }
@@ -62,11 +63,12 @@ sealed interface ReflectionUtilsInlineStrategy {
         }
     }
 
-    class NestedClass(override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }) : ReflectionUtilsInlineStrategy {
-        override val inTestClassFile: Boolean = true
+    class NestedClass(
+        override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }
+    ) : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
 
         override fun addReflectionUtils(
-            importManager: JcUnsafeImportManager,
+            importManager: JcImportManager,
             cu: CompilationUnit
         ): CompilationUnit {
             val testClass = cu.types.singleOrNull()
@@ -75,7 +77,7 @@ sealed interface ReflectionUtilsInlineStrategy {
                 "exactly one test class expected"
             }
 
-            val filteredUtilCu = filterReflectionUtilCu(importManager) ?: return cu
+            val filteredUtilCu = filterReflectionUtilCu() ?: return cu
 
             var utilsClass =
                 testClass.members.firstOrNull {
@@ -99,14 +101,15 @@ sealed interface ReflectionUtilsInlineStrategy {
         }
     }
 
-    class OuterClass(override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }) : ReflectionUtilsInlineStrategy {
-        override val inTestClassFile: Boolean = true
+    class OuterClass(
+        override val isOpenForReflection: (JcClassOrInterface) -> Boolean = { false }
+    ) : ReflectionUtilsInlineStrategy(inTestClassFile = true) {
 
         override fun addReflectionUtils(
-            importManager: JcUnsafeImportManager,
+            importManager: JcImportManager,
             cu: CompilationUnit
         ): CompilationUnit {
-            val filteredUtilCu = filterReflectionUtilCu(importManager)
+            val filteredUtilCu = filterReflectionUtilCu()
             if (filteredUtilCu == null) return cu
 
             var currentUtilsClass = cu.getClassByName("ReflectionUtils").getOrNull()
@@ -127,37 +130,79 @@ sealed interface ReflectionUtilsInlineStrategy {
         }
     }
 
-    fun addReflectionUtils(importManager: JcUnsafeImportManager, cu: CompilationUnit): CompilationUnit
+    private val utilsCu: CompilationUnit by lazy {
+        this::class.java.classLoader.getResourceAsStream("ReflectionUtils.java").use { stream ->
+            StaticJavaParser.parse(stream)
+        }
+    }
 
-    companion object {
-        private val utilsCu: CompilationUnit by lazy {
-            this::class.java.classLoader.getResourceAsStream("ReflectionUtils.java").use { stream ->
-                StaticJavaParser.parse(stream)
+    fun useUsvmReflectionMethod(name: String) {
+        usvmUtilMethodCollector.add(name)
+    }
+
+    protected fun filterReflectionUtilCu(): CompilationUnit? {
+        val usedMethods = extractUsedUsvmUtilMethods()
+        if (usedMethods.isEmpty()) return null
+
+        val cu = utilsCu.clone()
+        val utilsClass = cu.getClassByName("ReflectionUtils").get()
+
+        utilsClass.members.removeIf { it.isMethodDeclaration && (it.asMethodDeclaration().name.asString() !in usedMethods) }
+        cu.allContainedComments.forEach { it.remove() }
+
+        return cu
+    }
+
+    protected fun mergeUtilClass(prev: ClassOrInterfaceDeclaration, extra: ClassOrInterfaceDeclaration) {
+        val declaredMembersNames =
+            prev.members.mapNotNull { if (it.isMethodDeclaration) it.asMethodDeclaration().name else null }
+
+        extra.members.filter { it.isMethodDeclaration }.forEach { declaration ->
+            if (declaration.asMethodDeclaration().name !in declaredMembersNames) {
+                prev.addMember(declaration)
             }
         }
+    }
 
-        protected fun filterReflectionUtilCu(importManager: JcUnsafeImportManager): CompilationUnit? {
-            val usedMethods = importManager.extractUsedUsvmUtilMethods()
-            if (usedMethods.isEmpty()) return null
 
-            val cu = utilsCu.clone()
-            val utilsClass = cu.getClassByName("ReflectionUtils").get()
+    private val usvmUtilMethodCollector: MutableSet<String> = mutableSetOf()
 
-            utilsClass.members.removeIf { it.isMethodDeclaration && (it.asMethodDeclaration().name.asString() !in usedMethods) }
-            cu.allContainedComments.forEach { it.remove() }
+    private val usvmUtilRequiredMethodsMapping = mapOf(
+        "callConstructor" to listOf("getConstructor", "methodSignature", "parameterTypesSignature"),
+        "callMethod" to listOf("getMethod", "getInstanceMethods", "methodSignature", "parameterTypesSignature"),
+        "callStaticMethod" to listOf(
+            "callMethod",
+            "getMethod",
+            "getStaticMethod",
+            "getStaticMethods",
+            "getInstanceMethods",
+            "methodSignature",
+            "parameterTypesSignature"
+        ),
+        "getStaticFieldValue" to listOf(
+            "getStaticField",
+            "getFieldValue",
+            "getOffsetOf",
+            "isStatic",
+            "getStaticFields"
+        ),
+        "getFieldValue" to listOf("getOffsetOf", "isStatic"),
+        "setStaticFieldValue" to listOf(
+            "getStaticField",
+            "getStaticFields",
+            "setFieldValue",
+            "getOffsetOf",
+            "isStatic"
+        ),
+        "setFieldValue" to listOf("getField", "getInstanceFields", "getOffsetOf", "isStatic"),
+        "allocateInstance" to listOf()
+    )
 
-            return cu
+    private fun extractUsedUsvmUtilMethods(): Set<String> {
+        val usedMethodsTransitive = usvmUtilMethodCollector.flatMap { method ->
+            usvmUtilRequiredMethodsMapping[method]!! + method
         }
 
-        protected fun mergeUtilClass(prev: ClassOrInterfaceDeclaration, extra: ClassOrInterfaceDeclaration) {
-            val declaredMembersNames =
-                prev.members.mapNotNull { if (it.isMethodDeclaration) it.asMethodDeclaration().name else null }
-
-            extra.members.filter { it.isMethodDeclaration }.forEach { declaration ->
-                if (declaration.asMethodDeclaration().name !in declaredMembersNames) {
-                    prev.addMember(declaration)
-                }
-            }
-        }
+        return usedMethodsTransitive.toSet()
     }
 }

@@ -4,17 +4,19 @@ import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.test.api.UTest
 
 open class JcUnsafeTestRenderer(
     test: UTest,
     classRenderer: JcUnsafeTestClassRenderer,
-    importManager: JcUnsafeImportManager,
+    importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     name: SimpleName,
     annotations: List<AnnotationExpr>,
+    unsafeUtilsRenderer: JcUnsafeUtilsRenderer
 ): JcTestRenderer(
     test,
     classRenderer,
@@ -30,6 +32,7 @@ open class JcUnsafeTestRenderer(
         importManager,
         JcIdentifiersManager(identifiersManager),
         cp,
-        shouldDeclareVar
+        shouldDeclareVar,
+        unsafeUtilsRenderer
     )
 }

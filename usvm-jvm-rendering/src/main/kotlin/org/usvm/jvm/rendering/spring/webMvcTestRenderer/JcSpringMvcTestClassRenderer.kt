@@ -10,10 +10,11 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.PredefinedPrimitives
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
+import org.usvm.jvm.rendering.spring.JcSpringReflectionUtilsRenderer
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
 import org.usvm.jvm.rendering.testTransformers.JcSpringMvcTestTransformer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.test.api.UTest
 
 class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
@@ -25,20 +26,22 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
     constructor(
         controller: JcClassType,
         name: String,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
-        cp: JcClasspath
-    ) : super(name, importManager, identifiersManager, cp) {
+        cp: JcClasspath,
+        reflectionUtilsRenderer: JcSpringReflectionUtilsRenderer
+    ) : super(name, importManager, identifiersManager, cp, reflectionUtilsRenderer) {
         this.controller = controller
     }
 
     constructor(
         controller: JcClassType,
         decl: ClassOrInterfaceDeclaration,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
-    ) : super(decl, importManager, identifiersManager, cp) {
+        reflectionUtilsRenderer: JcSpringReflectionUtilsRenderer
+    ) : super(decl, importManager, identifiersManager, cp, reflectionUtilsRenderer) {
         this.controller = controller
     }
 
@@ -69,7 +72,8 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
             cp,
             name,
             annotations + testMethodAnnotations,
-            mvcTransformer.testClass
+            mvcTransformer.testClass,
+            unsafeUtilsRenderer as JcSpringReflectionUtilsRenderer
         )
     }
 

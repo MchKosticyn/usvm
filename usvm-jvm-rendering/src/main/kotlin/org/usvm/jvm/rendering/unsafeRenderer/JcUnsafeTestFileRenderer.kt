@@ -4,20 +4,32 @@ import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.testRenderer.JcTestFileRenderer
 
 open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
+
+    protected open val unsafeUtilsRenderer: JcUnsafeUtilsRenderer get()  = _unsafeUtilsRenderer
+
+    private val _unsafeUtilsRenderer: JcUnsafeUtilsRenderer
+
     protected constructor(
         cu: CompilationUnit,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         cp: JcClasspath,
-    ) : super(cu, importManager, cp)
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
+    ) : super(cu, importManager, cp) {
+        this._unsafeUtilsRenderer = JcUnsafeUtilsRenderer(reflectionUtilsInlineStrategy, this)
+    }
 
     protected constructor(
         packageName: String?,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         cp: JcClasspath,
-    ) : super(packageName, importManager, cp)
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
+    ) : super(packageName, importManager, cp) {
+        this._unsafeUtilsRenderer = JcUnsafeUtilsRenderer(reflectionUtilsInlineStrategy, this)
+    }
 
     constructor(
         cu: CompilationUnit,
@@ -25,8 +37,9 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
     ) : this(
         cu,
-        JcUnsafeImportManager(cu, reflectionUtilsInlineStrategy),
-        cp
+        JcImportManager(cu),
+        cp,
+        reflectionUtilsInlineStrategy
     )
 
     constructor(
@@ -35,22 +48,20 @@ open class JcUnsafeTestFileRenderer : JcTestFileRenderer {
         reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy
     ) : this(
         packageName,
-        JcUnsafeImportManager(null, reflectionUtilsInlineStrategy),
-        cp
+        JcImportManager(null),
+        cp,
+        reflectionUtilsInlineStrategy
     )
 
-    override val importManager: JcUnsafeImportManager
-        get() = super.importManager as JcUnsafeImportManager
-
     override fun classRendererFor(declaration: ClassOrInterfaceDeclaration): JcUnsafeTestClassRenderer {
-        return JcUnsafeTestClassRenderer(declaration, importManager, identifiersManager, cp)
+        return JcUnsafeTestClassRenderer(declaration, importManager, identifiersManager, cp, unsafeUtilsRenderer)
     }
 
     override fun classRendererFor(name: String): JcUnsafeTestClassRenderer =
-        JcUnsafeTestClassRenderer(name, importManager, identifiersManager, cp)
+        JcUnsafeTestClassRenderer(name, importManager, identifiersManager, cp, unsafeUtilsRenderer)
 
 
     override fun renderInternal(): CompilationUnit {
-        return importManager.reflectionUtilsInlineStrategy.addReflectionUtils(importManager, super.renderInternal())
+        return unsafeUtilsRenderer.addReflectionUtils(importManager, super.renderInternal())
     }
 }

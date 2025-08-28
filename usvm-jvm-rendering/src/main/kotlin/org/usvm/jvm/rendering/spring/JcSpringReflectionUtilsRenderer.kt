@@ -13,39 +13,46 @@ import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.findType
 import org.objectweb.asm.Opcodes
-import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestBlockRenderer
+import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
+import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestFileRenderer
+import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestBlockRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeUtilsRenderer
-import org.usvm.jvm.rendering.unsafeRenderer.ReflectionUtilName
 
 class JcSpringReflectionUtilsRenderer(
-    springBlockRenderer: JcSpringUnitTestBlockRenderer,
-) : JcUnsafeUtilsRenderer(springBlockRenderer) {
+    utilsInlineStrategy: ReflectionUtilsInlineStrategy,
+    springFileRenderer: JcSpringUnitTestFileRenderer,
+) : JcUnsafeUtilsRenderer(utilsInlineStrategy, springFileRenderer) {
 
-    private val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean = importManager.reflectionUtilsInlineStrategy.isOpenForReflection
+    companion object {
+        private const val SPRING_TEST = "org.springframework.test.util.ReflectionTestUtils"
+        private const val SPRING_TEST_SIMPLE = "ReflectionTestUtils"
+        private const val SPRING_INTERNAL = "org.springframework.util.ReflectionUtils"
+        private const val SPRING_INTERNAL_SIMPLE = "ReflectionUtils"
+    }
+
+    private val isAccessibleFromTestClass: (JcClassOrInterface) -> Boolean =
+        reflectionUtilsInlineStrategy.isOpenForReflection
 
     val springTestUtilsName: Expression by lazy {
-        NameExpr(
-            if (importManager.add(ReflectionUtilName.SPRING_TEST))
-                ReflectionUtilName.SPRING_TEST_SIMPLE
-            else
-                ReflectionUtilName.SPRING_TEST
-        )
+        NameExpr(if (importManager.add(SPRING_TEST)) SPRING_TEST_SIMPLE else SPRING_TEST)
     }
 
     override fun renderCtorCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
         ctor: JcMethod,
         type: JcClassType,
         args: List<Expression>,
         inlinesVarargs: Boolean
     ): Expression {
         return if (isAccessibleFromTestClass(type.jcClass))
-            springCtorCall(ctor, type, args, inlinesVarargs)
+            springCtorCall(blockRenderer, ctor, type, args, inlinesVarargs)
         else
-            super.renderCtorCall(ctor, type, args, inlinesVarargs)
+            super.renderCtorCall(blockRenderer, ctor, type, args, inlinesVarargs)
     }
 
     @Suppress("unused")
     private fun springCtorCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
         ctor: JcMethod,
         type: JcClassType,
         args: List<Expression>,
@@ -61,16 +68,13 @@ class JcSpringReflectionUtilsRenderer(
         )
         val cp = ctor.enclosingClass.classpath
         val ctorParametersTypes = ctor.parameters.map { cp.findType(it.type.typeName) }
-        val instanceType = blockRenderer.renderClass(type, includeGenericArgs = false)
+        val instanceType = fileRenderer.renderClass(type, includeGenericArgs = false)
         val accessibleCtorArgs = listOf(ClassExpr(instanceType)) + ctorParametersTypes.map {
-            ClassExpr(blockRenderer.renderType(it, false))
+            ClassExpr(fileRenderer.renderType(it, false))
         }
 
         val springInternalUtilsName = NameExpr(
-            if (importManager.add(ReflectionUtilName.SPRING_INTERNAL))
-                ReflectionUtilName.SPRING_INTERNAL_SIMPLE
-            else
-                ReflectionUtilName.SPRING_INTERNAL
+            if (importManager.add(SPRING_INTERNAL)) SPRING_INTERNAL_SIMPLE else SPRING_INTERNAL
         )
 
         val accessibleCtor = MethodCallExpr(
@@ -84,6 +88,7 @@ class JcSpringReflectionUtilsRenderer(
     }
 
     override fun renderInstanceMethodCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
         method: JcMethod,
         instance: Expression,
         args: List<Expression>,
@@ -92,7 +97,7 @@ class JcSpringReflectionUtilsRenderer(
         return if (isAccessibleFromTestClass(method.enclosingClass))
             springInstanceMethodCall(method, instance, args, inlinesVarargs)
         else
-            super.renderInstanceMethodCall(method, instance, args, inlinesVarargs)
+            super.renderInstanceMethodCall(blockRenderer, method, instance, args, inlinesVarargs)
     }
 
     @Suppress("unused")
@@ -111,19 +116,29 @@ class JcSpringReflectionUtilsRenderer(
         )
     }
 
-    override fun renderStaticMethodCall(method: JcMethod, args: List<Expression>, inlinesVarargs: Boolean): Expression {
+    override fun renderStaticMethodCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
+        method: JcMethod,
+        args: List<Expression>,
+        inlinesVarargs: Boolean
+    ): Expression {
         return if (isAccessibleFromTestClass(method.enclosingClass))
-            springStaticMethodCall(method, args, inlinesVarargs)
+            springStaticMethodCall(blockRenderer, method, args, inlinesVarargs)
         else
-            super.renderStaticMethodCall(method, args, inlinesVarargs)
+            super.renderStaticMethodCall(blockRenderer, method, args, inlinesVarargs)
     }
 
     @Suppress("unused")
-    private fun springStaticMethodCall(method: JcMethod, args: List<Expression>, inlinesVarargs: Boolean): Expression {
+    private fun springStaticMethodCall(
+        blockRenderer: JcUnsafeTestBlockRenderer,
+        method: JcMethod,
+        args: List<Expression>,
+        inlinesVarargs: Boolean
+    ): Expression {
         blockRenderer.addThrownException("java.lang.Throwable")
         val enclosingClass = method.enclosingClass
         val invokeMethodArgs = listOf(
-            blockRenderer.renderClassExpression(enclosingClass),
+            fileRenderer.renderClassExpression(enclosingClass),
             StringLiteralExpr(method.name)
         ) + args
 
@@ -148,7 +163,7 @@ class JcSpringReflectionUtilsRenderer(
             "getField",
             NodeList(instance, StringLiteralExpr(field.name))
         )
-        return CastExpr(blockRenderer.renderType(fieldType(field)), call)
+        return CastExpr(fileRenderer.renderType(fieldType(field)), call)
     }
 
     override fun renderGetStaticField(field: JcField): Expression {
@@ -163,11 +178,11 @@ class JcSpringReflectionUtilsRenderer(
             springTestUtilsName,
             "getField",
             NodeList(
-                blockRenderer.renderClassExpression(field.enclosingClass),
+                fileRenderer.renderClassExpression(field.enclosingClass),
                 StringLiteralExpr(field.name)
             ),
         )
-        return CastExpr(blockRenderer.renderType(fieldType(field)), call)
+        return CastExpr(fileRenderer.renderType(fieldType(field)), call)
     }
 
     override fun renderSetInstanceField(instance: Expression, field: JcField, value: Expression): Expression {
@@ -199,7 +214,7 @@ class JcSpringReflectionUtilsRenderer(
             springTestUtilsName,
             "setField",
             NodeList(
-                blockRenderer.renderClassExpression(field.enclosingClass),
+                fileRenderer.renderClassExpression(field.enclosingClass),
                 StringLiteralExpr(field.name),
                 value
             ),
