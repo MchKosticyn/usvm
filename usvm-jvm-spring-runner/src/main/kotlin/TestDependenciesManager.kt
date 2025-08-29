@@ -13,13 +13,13 @@ object TestDependenciesManager {
         val starterVersion = getSpringBootVersion(classes)
         val securityVersion = getSecurityVersion(classes)
         check(starterVersion != null)
-        val existingSpringTestDeps = findNearestVer(
+        val existingSpringTestDeps = findVersion(
             starterVersion,
             File(STARTER_TEST_DEPENDENCIES_PATH)
         )
         var result = existingSpringTestDeps
         if (securityVersion != null) {
-            val existingSecurityTestDeps = findNearestVer(
+            val existingSecurityTestDeps = findVersion(
                 securityVersion,
                 File(SECURITY_TEST_DEPENDENCIES_PATH)
             )
@@ -37,18 +37,18 @@ object TestDependenciesManager {
         return parts.subList(0, parts.size - 1).joinToString("-")
     }
 
-    private fun findNearestVer(version: String, available: File) : List<File> {
+    private fun findVersion(version: String, available: File) : List<File> {
         check(available.isDirectory)
         val files = available.listFiles()
         check(files != null && files.isNotEmpty())
-        return files
-            .minBy { abs(versionToNumber(it.name.split("/")
-            .last()) - versionToNumber(version)) }
-            .listFiles()?.toList() ?: listOf()
+        val source = files.minBy { abs(versionToNumber(it.name.split("/").last()) - versionToNumber(version)) }
+        val difference = versionToNumber(version) - versionToNumber(source.name.split("/").last())
+        check(abs(difference) < 10) { "Test dependencies differ more than allowed" }
+        return source.listFiles()?.toList() ?: listOf()
     }
 
     private fun versionToNumber(version: String): Int {
-        return version.split(".").map { it.toInt() }.fold(0) { acc, i -> acc * 100 + i }
+        return version.split(".").mapNotNull { it.toIntOrNull() }.fold(0) { acc, i -> acc * 100 + i }
     }
 
     fun getSpringBootVersion(classes: List<File>): String? {

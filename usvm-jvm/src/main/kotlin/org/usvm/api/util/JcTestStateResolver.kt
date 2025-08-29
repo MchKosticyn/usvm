@@ -305,17 +305,20 @@ abstract class JcTestStateResolver<T>(
                 || !typedField.field.isOriginal
     }
 
+    open fun shouldSkipInitialization(type: JcClassType): Boolean {
+        // TODO skips throwable construction for now
+        val throwable = ctx.cp.findTypeOrNull<Throwable>()
+        return throwable != null && type.isAssignable(throwable)
+    }
+
     fun allocateAndInitializeObject(
         ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType
     ): T {
         val instance = allocateClassInstance(type)
         saveResolvedRef(ref.address, instance)
 
-        // TODO skips throwable construction for now
-        val throwable = ctx.cp.findTypeOrNull<Throwable>()
-        if (throwable != null && type.isAssignable(throwable)) {
+        if (shouldSkipInitialization(type))
             return instance
-        }
 
         val currentRef = if (resolveMode == ResolveMode.CURRENT) heapRef else ref
         for (cls in generateSequence(type.jcClass) { it.superClass }.map { it.toType() }) {

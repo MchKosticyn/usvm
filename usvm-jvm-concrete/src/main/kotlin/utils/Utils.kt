@@ -10,6 +10,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
+import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.RegisteredLocation
@@ -18,6 +19,8 @@ import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchy
+import org.jacodb.api.jvm.ext.findTypeOrNull
+import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
@@ -521,4 +524,9 @@ private val runtimeGeneratedTypes = setOf(
 internal val String.typeIsRuntimeGenerated: Boolean get() {
     // TODO: add lambda predicate #CM
     return runtimeGeneratedTypes.contains(this) || this.contains("CGLIB\$\$")
+}
+
+internal fun JcRefType.isThrowable(): Boolean {
+    val throwable = classpath.findTypeOrNull<Throwable>()
+    return throwable != null && isAssignable(throwable)
 }
