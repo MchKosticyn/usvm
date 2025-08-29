@@ -128,7 +128,7 @@ private fun CommonJoin.getMapperMethod(info: CommonInfo): JcMethod {
         .setAccess(Opcodes.ACC_STATIC)
         .addBlancAnnot(REPOSITORY_LAMBDA)
         .addFreshParam(DATA_ROW)
-        .addFillerFuture(FlatFeature(info, methodName, this))
+        .addFillerFeature(FlatFeature(info, methodName, this))
         .buildMethod()
     mapper = method
     return method

@@ -59,7 +59,7 @@ class JcTableIdClassTransformer(
                 .addBlancAnnot(field.name)
                 .setSig(sig)
                 .setRetType(field.type.typeName)
-                .addFillerFuture(JcGetterTransformer(cp, field, getterName))
+                .addFillerFeature(JcGetterTransformer(cp, field, getterName))
                 .buildMethod()
         }
 
@@ -72,7 +72,7 @@ class JcTableIdClassTransformer(
                 .addBlancAnnot(field.name)
                 .setSig(sig)
                 .setRetType(JAVA_VOID)
-                .addFillerFuture(JcSetterTransformer(cp, field, setterName))
+                .addFillerFeature(JcSetterTransformer(cp, field, setterName))
                 .buildMethod()
         }
 
@@ -85,7 +85,7 @@ class JcTableIdClassTransformer(
             .setAccess(Opcodes.ACC_STATIC)
             .addFreshParam(clazz.typename.typeName)
             .setRetType(JAVA_OBJ_ARR)
-            .addFillerFuture(JcBuildIdsTransformer(cp, fields))
+            .addFillerFeature(JcBuildIdsTransformer(cp, fields))
             .buildMethod()
 
         return originalMethods + initFromIds + buildIds + gettersAndSetters +
@@ -99,7 +99,7 @@ class JcTableIdClassTransformer(
             .setAccess(Opcodes.ACC_STATIC)
             .addFreshParam(clazz.typename.typeName)
             .setRetType(clazz.typename.typeName)
-            .addFillerFuture(JcInitFromIdsTransformer(cp, clazz, fields))
+            .addFillerFeature(JcInitFromIdsTransformer(cp, clazz, fields))
 
         fields.forEach { builder.addFreshParam(it.type.typeName) }
 

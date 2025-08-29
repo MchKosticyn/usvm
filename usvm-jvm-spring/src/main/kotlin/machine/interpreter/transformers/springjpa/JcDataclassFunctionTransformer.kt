@@ -8,6 +8,7 @@ import jpa.CRUD_MANAGER
 import jpa.DATABASE_UTILS
 import jpa.DELETE_NAME
 import jpa.DTO_INFO
+import jpa.EQUALS_NAME
 import jpa.GET_REC_UPD
 import jpa.IMMUTABLE_LIST_WRAPPER
 import jpa.IMMUTABLE_SET_WRAPPER
@@ -52,6 +53,7 @@ import jpa.generatedBuildId
 import jpa.generatedBuildIds
 import jpa.generatedCopy
 import jpa.generatedDelete
+import jpa.generatedEquals
 import jpa.generatedGetDTOInfo
 import jpa.generatedGetter
 import jpa.generatedMethodArgumentVar
@@ -80,7 +82,9 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.TypeName
+import org.jacodb.api.jvm.cfg.JcAndExpr
 import org.jacodb.api.jvm.cfg.JcArrayAccess
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcBool
@@ -88,6 +92,7 @@ import org.jacodb.api.jvm.cfg.JcEqExpr
 import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.cfg.JcIfInst
 import org.jacodb.api.jvm.cfg.JcInstRef
+import org.jacodb.api.jvm.cfg.JcInstanceOfExpr
 import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcNewArrayExpr
@@ -96,6 +101,7 @@ import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcStringConstant
 import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
+import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
@@ -771,50 +777,57 @@ class JcSaveUpdateTransformer(
     override fun condition(method: JcMethod) = method.generatedSaveUpdate
 }
 
-
-// Object[] $serialize() {
-//      val row = new Object[4];
-//      row[0] = id;
-//      ...
-//      return row
-// }
-class JcSerializerTransformer(
+// just checks arg is clazz type and calls equals on all fields
+class JcEqualsTransformer(
     val cp: JcClasspath,
-    val relationChecks: RelationMap<JcField>,
-    val classTable: TableInfo.TableWithIdInfo,
-    val skipGeneratedFields: Boolean
+    val clazz: JcClassOrInterface,
+    val getters: List<JcMethod>
 ) : JcBodyFillerFeature() {
 
-    override fun condition(method: JcMethod) =
-        !skipGeneratedFields && method.generatedSerializer
-                || skipGeneratedFields && method.generatedSerializerWithSkips
+    override fun condition(method: JcMethod) = method.generatedEquals
 
     override fun BlockGenerationContext.generateBody(method: JcMethod) {
-        val clazz = method.enclosingClass
-        val classType = clazz.toType()
-        val columns = classTable.columnsInOrder()
 
-        val arrType = cp.arrayTypeOf(cp.objectType, true, listOf())
-        val arr = nextLocalVar("row", arrType)
-        val newArr = JcNewArrayExpr(arrType, listOf(JcInt(columns.size, cp.int)))
-        addInstruction { loc -> JcAssignInst(loc, arr, newArr) }
+        val clazzType = clazz.toType()
 
-        columns.forEachIndexed { ix, col ->
+        val otherArg = generatedMethodArgumentVar("other_arg", method, 0)
+        val isInstanceOf = JcInstanceOfExpr(cp.boolean, otherArg, clazzType)
+        val instanceOfVar = nextLocalVar("instanceOf", cp.boolean)
+        addInstruction { loc -> JcAssignInst(loc, instanceOfVar, isInstanceOf) }
 
-            if (!(skipGeneratedFields && !col.isOrig)) {
-                (if (col.isOrig) listOf(col.origField) else relationChecks.get(clazz, col.origField)).forEach {
-                    val fieldVar = nextLocalVar("${it.name}_field_${ix}", col.type.toJcType(cp)!!)
-                    val field = it.enclosingClass.toType().fields.singleOrNull { fld -> fld.name == it.name }
-                        ?: error("no field ${it.name} found for ${it.enclosingClass.simpleName}")
-                    val fieldRef = JcFieldRef(JcThis(classType), field)
-                    addInstruction { loc -> JcAssignInst(loc, fieldVar, fieldRef) }
-
-                    val arrAccess = JcArrayAccess(arr, JcInt(ix, cp.int), cp.objectType)
-                    addInstruction { loc -> JcAssignInst(loc, arrAccess, fieldVar) }
-                }
-            }
+        val cond = JcEqExpr(cp.boolean, instanceOfVar, JcBool(false, cp.boolean))
+        addInstruction { loc ->
+            val nextInst = JcInstRef(loc.index + 1)
+            val elseBranch = JcInstRef(loc.index + 2)
+            JcIfInst(loc, cond, nextInst, elseBranch)
         }
 
-        addInstruction { loc -> JcReturnInst(loc, arr) }
+        // arg is not classType
+        addInstruction { loc -> JcReturnInst(loc, JcBool(false, cp.boolean)) }
+
+        // main part
+        val thisVal = JcThis(clazzType)
+        val other = generateCast("other", otherArg, clazzType)
+        val compares = getters.mapIndexed { ix, getter ->
+            val thisValue = generateVirtualCall("this_get_$ix", getter.name, clazzType, thisVal, emptyList())
+            val otherValue = generateVirtualCall("other_get_$ix", getter.name, clazzType, other, emptyList())
+            val eq = generateVirtualCall(
+                "equals_$ix",
+                EQUALS_NAME,
+                cp.objectType,
+                thisValue,
+                listOf(otherValue)
+            )
+            putValueToVar("equals_ref_$ix", eq, cp.boolean)
+        }
+
+        val res = compares.foldIndexed(JcBool(true, cp.boolean) as JcValue) { ix, acc, eq ->
+            val and = JcAndExpr(cp.boolean, acc, eq)
+            val v = nextLocalVar("and_$ix", cp.boolean)
+            addInstruction { loc -> JcAssignInst(loc, v, and) }
+            v
+        }
+
+        addInstruction { loc -> JcReturnInst(loc, res) }
     }
 }

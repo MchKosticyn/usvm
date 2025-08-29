@@ -26,7 +26,7 @@ fun AExpression.toLambda(info: CommonInfo): JcMethod {
         .addBlancAnnot(REPOSITORY_LAMBDA)
         .addFreshParam(if (isGrouped) ITABLE else DATA_ROW)
         .addFreshParam(JAVA_OBJ_ARR)
-        .addFillerFuture(ToMethodFeature(info, this, methodName))
+        .addFillerFeature(ToMethodFeature(info, this, methodName))
         .buildMethod()
     cached = method
     return method

@@ -43,7 +43,7 @@ fun SelectFunction.getOwnMethod(info: CommonInfo): JcMethod {
         .addFreshParam(if (isGrouped) ITABLE else DATA_ROW) // Query is ITable<ITable> or ITable<DataRow>
         .addFreshParam(JAVA_OBJ_ARR) // top-level method's args
         .addFreshParam(ITABLE) // ref to current query for aggregators
-        .addFillerFuture(SelectFuture(info, this, methodName))
+        .addFillerFeature(SelectFuture(info, this, methodName))
         .buildMethod()
     cachedSelector = method
     return method
