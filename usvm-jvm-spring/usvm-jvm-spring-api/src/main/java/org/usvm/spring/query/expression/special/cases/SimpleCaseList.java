@@ -12,7 +12,6 @@ public class SimpleCaseList extends AExpression {
     public AExpression elseBranch;
 
     public SimpleCaseList() {
-
     }
 
     public SimpleCaseList(AExpression caseValue, List<BranchCtx> branches, AExpression elseBranch) {

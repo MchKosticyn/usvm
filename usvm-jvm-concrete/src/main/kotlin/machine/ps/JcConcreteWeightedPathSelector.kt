@@ -1,6 +1,7 @@
 package machine.ps
 
 import org.usvm.algorithms.DeterministicPriorityCollection
+import org.usvm.machine.logger
 import org.usvm.machine.state.JcState
 import org.usvm.ps.StateWeighter
 import org.usvm.ps.WeightedPathSelector
@@ -48,9 +49,11 @@ class JcConcreteWeightedPathSelector(
         if (fixedState != null)
             return fixedState!!
 
-        val state = statesCollection.takeWithWeight(TOP_COUNT).maxBy { (state, weight) ->
+        val (state, weight) = statesCollection.takeWithWeight(TOP_COUNT).maxBy { (state, weight) ->
             eachPeekWeighter.weight(state).stableAdd(weight)
-        }.first
+        }
+
+        logger.info { "picked state [${state.id}] with weight $weight" }
         fixState(state)
         return state
     }

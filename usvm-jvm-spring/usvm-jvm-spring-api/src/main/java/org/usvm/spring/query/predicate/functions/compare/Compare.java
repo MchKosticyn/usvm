@@ -9,7 +9,6 @@ public class Compare extends AExpression {
     public Operator operator;
 
     public Compare() {
-
     }
 
     public Compare(AExpression left, AExpression right, Operator operator) {

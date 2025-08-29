@@ -18,11 +18,11 @@ import org.usvm.jvm.util.toJcType
 
 class JcTableInfoCollector(
     private val cp: JcClasspath,
-    private val checkParents: Boolean = true
+    private val checkParents: Boolean = true // should see class's parents when collecting table
 ) {
 
-    private val tablesInfo = HashMap<String, TableInfo.TableWithIdInfo>()
-    private val btwTablesInfo = HashMap<String, TableInfo>()
+    private val tablesInfo = HashMap<String, TableInfo.TableWithIdInfo>() // DTO's tables
+    private val btwTablesInfo = HashMap<String, TableInfo>() // tables for ManyToMany relations
 
     fun getEmbeddedIds() = tablesInfo.values.mapNotNull(TableInfo.TableWithIdInfo::getEmbeddedIds)
 
@@ -63,9 +63,9 @@ class JcTableInfoCollector(
                 )
                     collectFields(supClass)
                 else
-                    listOf()
+                    emptyList()
 
-        return columns.sortedBy { it.name }.filter(filter)
+        return columns.filter(filter).sortedBy { it.name }
     }
 
     fun collectTable(clazz: JcClassOrInterface): TableInfo.TableWithIdInfo {
@@ -242,11 +242,6 @@ open class TableInfo(
 
         fun isAutoGenerateId() = idColumn is IdColumnInfo.SingleId && idColumn.isAutoGenerateId
 
-        fun idColumnsIxs(): List<Int> {
-            val columns = columnsInOrder()
-            return idColumn.toColumnInfos().map { idCol -> columns.indexOfFirst { it.name.equals(idCol.name) } }
-        }
-
         fun joinColumnsInfo() = idColumn.orderedSimpleIds().map {
             val name = "${name}_${it.name}"
             ColumnInfo(name, it.type, it.origField, false)
@@ -287,23 +282,10 @@ open class TableInfo(
         relations.add(rel)
     }
 
-    fun indexOfCol(col: ColumnInfo) = columnsInOrder().indexOfFirst { it.name == col.name }
-
     fun indexesOfColumns(columns: List<ColumnInfo>) = columnsInOrder().mapIndexedNotNull { ix, col ->
         val targetNames = columns.map { it.name }
         if (targetNames.contains(col.name)) ix
         else null
-    }
-
-    fun indexOfField(field: JcField) = columnsInOrder().indexOfFirst { it.origField.name == field.name }
-
-    fun indexesOfField(field: JcField) = columnsInOrder().mapIndexedNotNull { ix, col ->
-        if (col.origField.name == field.name) ix
-        else null
-    }
-
-    fun columnsOfField(field: JcField) = columnsInOrder().filter {
-        it.origField.name == field.name
     }
 
     fun orderedRelations() = relations.sortedBy { it.toString() }
@@ -311,7 +293,7 @@ open class TableInfo(
 
 sealed class Relation(
     val origField: JcField,
-    cascadeType: List<CascadeType>
+    val cascadeType: List<CascadeType>
 ) {
 
     enum class CascadeType {
@@ -322,33 +304,25 @@ sealed class Relation(
         REFRESH, // TODO: session
         DETACH, // TODO: session
         REPLICATE, // TODO: session
-        SAVE_UPDATE, // PERSIST + MERGE from Hibernate
-        DELETE, // REMOVE from Hibernate
+        SAVE_UPDATE, // PERSIST + MERGE (from Hibernate)
+        DELETE, // REMOVE (from Hibernate)
         LOCK // TODO:
     }
 
-    val isAllowSave = cascadeType.any { saveTypes.contains(it) }
-    val isAllowUpdate = cascadeType.any { updateTypes.contains(it) }
-    val isAllowDelete = cascadeType.any { deleteTypes.contains(it) }
+    val isAllowSave by lazy { cascadeType.any { saveTypes.contains(it) } }
+    val isAllowUpdate by lazy { cascadeType.any { updateTypes.contains(it) } }
+    val isAllowDelete by lazy { cascadeType.any { deleteTypes.contains(it) } }
 
     abstract val mappedBy: String?
 
-    open fun toTableName(cp: JcClasspath): String {
-        return getTableName(relatedDataclass(cp))
-    }
+    open fun toTableName(cp: JcClasspath) = getTableName(relatedDataclass(cp))
 
     fun relatedDataclass(cp: JcClasspath): JcClassOrInterface {
         return origField.signature?.let { cp.findClass(it.genericTypesFromSignature[0]) }
             ?: origField.type.toJcClassOrInterface(cp)!!
     }
 
-    fun relatedDataclassType(cp: JcClasspath): JcClassType {
-        return relatedDataclass(cp).toType()
-    }
-
-    override fun toString(): String {
-        return "\$r${origField.enclosingClass.name}.${origField.name}"
-    }
+    override fun toString() = "\$r${origField.enclosingClass.name}.${origField.name}"
 
     // @JoinColumn(name = "id_part1", referencedColumnName = "idPart1")
     data class JoinColumn(
@@ -600,7 +574,7 @@ sealed class Relation(
                     return ManyToMany(mappedBy, joinTable, field, cascade)
                 }
 
-            return null;
+            return null
         }
     }
 }

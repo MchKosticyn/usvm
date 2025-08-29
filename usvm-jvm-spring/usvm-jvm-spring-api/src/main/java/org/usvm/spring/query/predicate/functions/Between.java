@@ -9,7 +9,6 @@ public class Between extends AExpression {
     public AExpression right;
 
     public Between() {
-
     }
 
     public Between(AExpression expr, AExpression left, AExpression right) {

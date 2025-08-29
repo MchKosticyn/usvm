@@ -4,7 +4,6 @@ public class Num extends AParamOrInt {
     public int value;
 
     public Num() {
-
     }
 
     public Num(int value) {

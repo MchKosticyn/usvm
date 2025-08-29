@@ -10,7 +10,6 @@ public class TableWithJoins {
     public List<AJoin> joins;
 
     public TableWithJoins() {
-
     }
 
     public TableWithJoins(ATable root, List<AJoin> joins) {

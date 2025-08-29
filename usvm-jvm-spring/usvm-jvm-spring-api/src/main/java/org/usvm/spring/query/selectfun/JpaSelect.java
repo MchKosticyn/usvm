@@ -3,7 +3,6 @@ package org.usvm.spring.query.selectfun;
 public class JpaSelect extends ASelection {
 
     public JpaSelect() {
-
     }
 
     public JpaSelect(String alias) {

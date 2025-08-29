@@ -7,7 +7,6 @@ public class BranchCtx {
     public AExpression value;
 
     public BranchCtx() {
-
     }
 
     public BranchCtx(AExpression pred, AExpression value) {

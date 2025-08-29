@@ -6,7 +6,6 @@ public class Path {
     public String alias;
 
     public Path() {
-
     }
 
     public Path(GeneralPath root, SimplePath cont, String alias) {

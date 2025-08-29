@@ -7,7 +7,6 @@ public class IsEmpty extends AExpression {
     public AExpression expr;
 
     public IsEmpty() {
-
     }
 
     public IsEmpty(AExpression expr) {

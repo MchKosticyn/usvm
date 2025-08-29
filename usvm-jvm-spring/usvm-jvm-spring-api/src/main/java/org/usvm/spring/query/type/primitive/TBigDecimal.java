@@ -6,7 +6,6 @@ import org.usvm.spring.query.type.ITypeVisitor;
 public class TBigDecimal extends AType {
 
     public TBigDecimal() {
-
     }
 
     @Override

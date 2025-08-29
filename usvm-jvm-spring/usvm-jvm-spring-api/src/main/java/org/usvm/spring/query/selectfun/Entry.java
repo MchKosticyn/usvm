@@ -6,7 +6,6 @@ public class Entry extends ASelection {
     public Path path;
 
     public Entry() {
-
     }
 
     public Entry(Path path, String alias) {

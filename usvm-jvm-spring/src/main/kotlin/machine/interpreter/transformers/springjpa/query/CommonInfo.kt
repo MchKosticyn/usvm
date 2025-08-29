@@ -63,7 +63,7 @@ import org.usvm.spring.query.Query
 
 data class CommonInfo(
     val cp: JcClasspath,
-    val query: org.usvm.spring.query.Query,
+    val query: Query,
     val repo: JcClassOrInterface,
     val method: JcMethod,
     val origMethod: JcMethod
@@ -73,7 +73,7 @@ data class CommonInfo(
             return JcTableInfoCollector(cp).also {
                 val dataClass = cp.findClass(repo.signature!!.genericTypesFromSignature[0])
                 it.collectTable(dataClass)
-                it.dropNotOrigFields()
+                it.dropNotOrigFields() // see JcTableInfoCollector's doc
             }
         }
 
@@ -90,43 +90,43 @@ data class CommonInfo(
     val firstEnsureName = "firstEnsure"
     val getName = "get"
 
-    val wrapperType = cp.findType(IWRAPPER) as JcClassType
-    val pageType = cp.findType(PAGE_WRAPPER) as JcClassType
-    val optionalType = cp.findType(OPTIONAL) as JcClassType
-    val pageImplType = cp.findType(PAGE_IMPL_WRAPPER) as JcClassType
-    val setType = cp.findType(SET_WRAPPER) as JcClassType
-    val listType = cp.findType(LIST_WRAPPER) as JcClassType
-    val tableType = cp.findType(ITABLE) as JcClassType
-    val mapperType = cp.findType(MAP_TABLE) as JcClassType
-    val filterType = cp.findType(FILTER_TABLE) as JcClassType
-    val havingType = cp.findType(HAVING_TABLE) as JcClassType
-    val distinctType = cp.findType(DISTINCT_TABLE) as JcClassType
-    val orderType = cp.findType(SORTED_TABLE) as JcClassType
-    val groupByType = cp.findType(GROUP_BY_TABLE) as JcClassType
-    val joinType = cp.findType(JOIN_TABLE) as JcClassType
-    val flatType = cp.findType(FLAT_TABLE) as JcClassType
-    val singletonType = cp.findType(SINGLETON_TABLE) as JcClassType
-    val aggregatorsType = cp.findType(AGGREGATORS) as JcClassType
-    val functionsType = cp.findType(DATABASE_UTILS) as JcClassType
-    val utilsType = cp.findType(DATABASE_UTILS) as JcClassType
-    val dataRowType = cp.findType(DATA_ROW) as JcClassType
+    val wrapperType by lazy { cp.findType(IWRAPPER) as JcClassType }
+    val pageType by lazy { cp.findType(PAGE_WRAPPER) as JcClassType }
+    val optionalType by lazy { cp.findType(OPTIONAL) as JcClassType }
+    val pageImplType by lazy { cp.findType(PAGE_IMPL_WRAPPER) as JcClassType }
+    val setType by lazy { cp.findType(SET_WRAPPER) as JcClassType }
+    val listType by lazy { cp.findType(LIST_WRAPPER) as JcClassType }
+    val tableType by lazy { cp.findType(ITABLE) as JcClassType }
+    val mapperType by lazy { cp.findType(MAP_TABLE) as JcClassType }
+    val filterType by lazy { cp.findType(FILTER_TABLE) as JcClassType }
+    val havingType by lazy { cp.findType(HAVING_TABLE) as JcClassType }
+    val distinctType by lazy { cp.findType(DISTINCT_TABLE) as JcClassType }
+    val orderType by lazy { cp.findType(SORTED_TABLE) as JcClassType }
+    val groupByType by lazy { cp.findType(GROUP_BY_TABLE) as JcClassType }
+    val joinType by lazy { cp.findType(JOIN_TABLE) as JcClassType }
+    val flatType by lazy { cp.findType(FLAT_TABLE) as JcClassType }
+    val singletonType by lazy { cp.findType(SINGLETON_TABLE) as JcClassType }
+    val aggregatorsType by lazy { cp.findType(AGGREGATORS) as JcClassType }
+    val functionsType by lazy { cp.findType(DATABASE_UTILS) as JcClassType }
+    val utilsType by lazy { cp.findType(DATABASE_UTILS) as JcClassType }
+    val dataRowType by lazy { cp.findType(DATA_ROW) as JcClassType }
 
-    val boolType = cp.findType(JAVA_BOOL) as JcClassType
-    val integerType = cp.findType(JAVA_INTEGER) as JcClassType
-    val longType = cp.findType(JAVA_LONG) as JcClassType
-    val floatType = cp.findType(JAVA_FLOAT) as JcClassType
-    val doubleType = cp.findType(JAVA_DOUBLE)
-    val strType = cp.findType(JAVA_STRING) as JcClassType
-    val bigIntType = cp.findType(JAVA_BIG_INT) as JcClassType
-    val bigDecimalType = cp.findType(JAVA_BIG_DECIMAL) as JcClassType
-    val byteArrType = cp.arrayTypeOf(cp.byte, false, listOf())
-    val localDateType = cp.findType(JAVA_LOCAL_DATE) as JcClassType
-    val objectArrType = cp.arrayTypeOf(cp.objectType, false, listOf())
-    val classType = cp.findType(JAVA_CLASS)
+    val boolType by lazy { cp.findType(JAVA_BOOL) as JcClassType }
+    val integerType by lazy { cp.findType(JAVA_INTEGER) as JcClassType }
+    val longType by lazy { cp.findType(JAVA_LONG) as JcClassType }
+    val floatType by lazy { cp.findType(JAVA_FLOAT) as JcClassType }
+    val doubleType by lazy { cp.findType(JAVA_DOUBLE) as JcClassType }
+    val strType by lazy { cp.findType(JAVA_STRING) as JcClassType }
+    val bigIntType by lazy { cp.findType(JAVA_BIG_INT) as JcClassType }
+    val bigDecimalType by lazy { cp.findType(JAVA_BIG_DECIMAL) as JcClassType }
+    val byteArrType by lazy { cp.arrayTypeOf(cp.byte, false, listOf()) }
+    val localDateType by lazy { cp.findType(JAVA_LOCAL_DATE) as JcClassType }
+    val objectArrType by lazy { cp.arrayTypeOf(cp.objectType, false, listOf()) }
+    val classType by lazy { cp.findType(JAVA_CLASS) }
 
-    val jcTrue = JcBool(true, cp.boolean)
-    val jcFalse = JcBool(false, cp.boolean)
-    val jcNull = JcNullConstant(cp.objectType)
+    val jcTrue by lazy { JcBool(true, cp.boolean) }
+    val jcFalse by lazy { JcBool(false, cp.boolean) }
+    val jcNull by lazy { JcNullConstant(cp.objectType) }
 }
 
 class NamesManager(val method: JcMethod) {
@@ -151,7 +151,6 @@ class NamesManager(val method: JcMethod) {
     fun getQueryName(): String {
         return "\$tblName#${method.name}#${namesCounter++}"
     }
-
 }
 
 class MethodCtx(
@@ -190,6 +189,7 @@ class MethodCtx(
 
     fun typeConst(type: JcType) = JcClassConstant(type, common.classType)
 
+    // only for Utils calls!
     fun genStaticCall(name: String, methodName: String, args: List<JcValue>) =
         genCtx.generateStaticCall(name, methodName, common.utilsType, args)
 
@@ -242,7 +242,7 @@ class MethodCtx(
             val classType = acc.type as JcClassType
             val getter = classType.declaredMethods.single { it.method.generatedGetter(fieldName, false) }
             val v = newVar(getter.returnType)
-            val call = JcSpecialCallExpr(getter.methodRef, acc, listOf())
+            val call = JcSpecialCallExpr(getter.methodRef, acc, emptyList())
             genCtx.addInstruction { loc -> JcAssignInst(loc, v, call) }
             v
         }

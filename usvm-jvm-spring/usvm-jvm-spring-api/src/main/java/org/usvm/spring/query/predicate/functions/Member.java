@@ -9,7 +9,6 @@ public class Member extends AExpression {
     public Path of;
 
     public Member() {
-
     }
 
     public Member(AExpression expr, Path of) {

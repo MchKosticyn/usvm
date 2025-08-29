@@ -14,7 +14,6 @@ public class CommonJoin extends AJoin {
     public JcMethod mapper = null;
 
     public CommonJoin() {
-
     }
 
     public CommonJoin(Path targer, AExpression pred, CommonJoinType type) {

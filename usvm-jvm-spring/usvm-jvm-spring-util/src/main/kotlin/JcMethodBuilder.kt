@@ -69,7 +69,7 @@ class JcJpaMethod(
 class JcMethodBuilder(
     val clazz: JcClassOrInterface
 ) {
-    val cp = clazz.classpath
+    private val cp = clazz.classpath
     private val paramsBuilder = JcParamBuilder()
 
     private val features = cp.features!!.toMutableList()
@@ -89,13 +89,13 @@ class JcMethodBuilder(
 
     fun setRetType(type: TypeName) = this.also { it.retType = type }
 
-    fun setRetType(type: String) = this.also { it.retType = type.typeName }
+    fun setRetType(type: String) = setRetType(type.typeName)
 
     fun setAccess(access: Int) = this.also { it.access = access }
 
     fun addAnnot(annot: AnnotationInfo) = this.also { annots.add(annot) }
 
-    fun addBlanckAnnot(name: String) = this.addAnnot(blancAnnotation(name))
+    fun addBlancAnnot(name: String) = this.addAnnot(blancAnnotation(name))
 
     fun addParam(param: ParameterInfo) = this.also { it.params.add(param) }
 

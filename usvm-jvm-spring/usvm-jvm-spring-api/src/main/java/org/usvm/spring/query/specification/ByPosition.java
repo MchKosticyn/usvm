@@ -4,7 +4,6 @@ public class ByPosition extends ASpecification {
     public int pos;
 
     public ByPosition() {
-
     }
 
     public ByPosition(int pos) {

@@ -8,7 +8,6 @@ public class Or extends AExpression {
     public AExpression right;
 
     public Or() {
-
     }
 
     public Or(AExpression left, AExpression right) {

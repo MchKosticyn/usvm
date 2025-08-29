@@ -44,6 +44,7 @@ import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.memory.UMemory
 import org.usvm.jvm.util.findJavaField
 import org.usvm.sizeSort
+import org.usvm.spring.api.SpringEngine
 import util.isDeserializationMethod
 import util.isSpringController
 import util.isSpringRepository
@@ -723,6 +724,13 @@ class JcSpringMethodApproximationResolver (
                 val userClass = ctx.cp.findClassOrNull("org.springframework.security.core.userdetails.UserDetails")
                 val enabled = userClass != null && userClass !is JcUnknownClass
                 skipMethodInvocationWithValue(methodCall, ctx.mkBool(enabled))
+            }
+            return true
+        }
+
+        if (methodName == "markAsGoodPath" || methodName == "markAsBadPath") {
+            scope.doWithState {
+                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
             }
             return true
         }

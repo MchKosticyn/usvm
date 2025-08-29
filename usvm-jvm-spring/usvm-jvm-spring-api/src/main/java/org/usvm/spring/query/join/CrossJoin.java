@@ -3,7 +3,6 @@ package org.usvm.spring.query.join;
 public class CrossJoin extends AJoin {
 
     public CrossJoin() {
-
     }
 
     @Override

@@ -7,7 +7,6 @@ public class TableSubquery extends ATable {
     public Select subquery;
 
     public TableSubquery() {
-
     }
 
     public TableSubquery(Select subquery, String alias) {

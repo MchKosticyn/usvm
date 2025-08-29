@@ -15,10 +15,10 @@ private class TranslatorContext(
     fun getClassName(alias: String) = aliases[alias]!!
 
     fun searchAlias(fieldName: String) =
-            aliases.entries.first { (alias, _) ->
-                val tbl = collector.getTable(alias)!!
-                    tbl.columnsInOrder().any { it.name == fieldName.lowercase() }
-            }.key
+        aliases.entries.first { (alias, _) ->
+            val tbl = collector.getTable(alias)!!
+            tbl.columnsInOrder().any { it.name == fieldName.lowercase() }
+        }.key
 
     fun addPrefix(fieldName: String) = "${searchAlias(fieldName)}.$fieldName"
 
@@ -49,7 +49,9 @@ class JPANativeQueryTranslator(
         ")", "(", ",", "=", "!", "!=", "<", ">", "<=", ">=", "+", "-", "*", "/"
     )
 
-    fun isOperator(w: String) = operatorsAndSymbols.contains(w)
+    private fun isOperator(w: String) = operatorsAndSymbols.contains(w)
+
+    private val String.isNumber get() = toIntOrNull() != null
 
     private val keywords = listOf(
         "SELECT", "FROM", "WHERE", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "DISTINCT",
@@ -60,17 +62,17 @@ class JPANativeQueryTranslator(
         "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE"
     )
 
-   private fun insertSpaces(str: String): String {
-       var result = str
-       operatorsAndSymbols.forEach { op ->
-           val regex = Regex.escape(op).toRegex()
-           result = result.replace(regex, " $op ")
-       }
+    private fun insertSpaces(str: String): String {
+        var result = str
+        operatorsAndSymbols.forEach { op ->
+            val regex = Regex.escape(op).toRegex()
+            result = result.replace(regex, " $op ")
+        }
 
-       return result.replace("\\s+".toRegex(), " ").trim()
-   }
+        return result.replace("\\s+".toRegex(), " ").trim()
+    }
 
-    private fun insertAliases(str: List<String>) : List<String> {
+    private fun insertAliases(str: List<String>): List<String> {
         val actions = mutableListOf<(TranslatorContext, String) -> String>()
         val ctx = TranslatorContext(cp, collector)
 
@@ -78,29 +80,66 @@ class JPANativeQueryTranslator(
             // skip keyword
             if (keywords.contains(w.uppercase())) actions.add { ctx: TranslatorContext, w: String -> w.uppercase() }
 
-            // replace ASTERISK by some alias ( ... COUNT(vets) FROM Vet vets ...)
+            // replace ASTERISK by some alias ( for example, ... COUNT(vets) FROM Vet vets ... )
             else if (w == "*") actions.add { ctx: TranslatorContext, w: String -> ctx.getSomeAlias() }
 
-            // skip method's arguments
-            else if (w.startsWith(":") || w.startsWith("'") || isOperator(w)) actions.add { ctx: TranslatorContext, w: String -> w }
+            // skip method's arguments and literals
+            else if (w.startsWith(":") || w.startsWith("'") || w.isNumber || isOperator(w))
+                actions.add { ctx: TranslatorContext, w: String -> w }
 
             // is some table
-            else if (ctx.isTable(w)) {
-                actions.add { ctx: TranslatorContext, w: String -> ctx.addClassName(w) }
-            }
+            else if (ctx.isTable(w)) actions.add { ctx: TranslatorContext, w: String -> ctx.addClassName(w) }
 
             // field
-            else {
-                actions.add { ctx: TranslatorContext, w: String -> ctx.addPrefix(w) }
-            }
+            else actions.add { ctx: TranslatorContext, w: String -> ctx.addPrefix(w) }
         }
 
         return str.zip(actions).map { (w, action) -> action(ctx, w) }
     }
 
-    fun buildQuery() = insertSpaces(query)
-        .split(" ")
-        .let { insertAliases(it) }
-        .joinToString(" ")
-        .replace("! =", "!=")
+    private val keywordsToDropParents = listOf(
+        "DISTINCT"
+    )
+
+    // drops parents after some keywords
+    // for example, COUNT ( DISTINCT ( owner.id ) ) ... need to be COUNT ( DISTINCT owner.id ) ...
+    // otherwise it can not be parsed
+    // DISTINCT ( DISTINCT ... ) ) is not supported
+    private fun dropParentsAfter(str: List<String>, keywords: List<String> = keywordsToDropParents): List<String> {
+        var dropNext = false
+        var parentsCount = -1
+        return str.mapNotNull { w ->
+            when (w) {
+                in keywords -> {
+                    dropNext = true
+                    parentsCount = -1
+                    w
+                }
+                "(" -> {
+                    parentsCount++
+                    if (dropNext && parentsCount == 0) null
+                    else "("
+                }
+                ")" -> {
+                    parentsCount--
+                    if (dropNext && parentsCount == -1) {
+                        dropNext = false
+                        null
+                    }
+                    else ")"
+                }
+                else -> w
+            }
+        }
+    }
+
+    fun buildQuery() =
+        query
+            .dropLastWhile { it == ';' }
+            .let(::insertSpaces)
+            .split(" ")
+            .let(::insertAliases)
+            .let(::dropParentsAfter)
+            .joinToString(" ")
+            .replace("! =", "!=")
 }

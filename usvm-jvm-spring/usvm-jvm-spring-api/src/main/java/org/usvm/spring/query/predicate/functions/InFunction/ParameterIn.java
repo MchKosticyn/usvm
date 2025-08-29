@@ -7,7 +7,6 @@ public class ParameterIn extends AInValues {
     public AParameter param;
 
     public ParameterIn() {
-
     }
 
     public ParameterIn(AParameter param) {

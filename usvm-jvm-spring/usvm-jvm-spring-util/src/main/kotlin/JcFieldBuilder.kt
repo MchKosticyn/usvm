@@ -13,6 +13,7 @@ class JcFieldBuilder(val clazz: JcClassOrInterface) {
     private var sig: String? = null
     private var access = Opcodes.ACC_PUBLIC
     private var type: String? = null
+    private var annots = mutableListOf<AnnotationInfo>()
 
     fun setName(name: String) = this.also { it.name = name }
 
@@ -24,11 +25,9 @@ class JcFieldBuilder(val clazz: JcClassOrInterface) {
 
     fun addAnnotation(annot: AnnotationInfo) = this.also { it.annots.add(annot) }
 
-    fun addBlanckAnnot(name: String) = addAnnotation(blancAnnotation(name))
+    fun addBlancAnnot(name: String) = addAnnotation(blancAnnotation(name))
 
     fun addDummyFieldAnnot() = addAnnotation(dummyAnnot)
-
-    private var annots = mutableListOf<AnnotationInfo>()
 
     fun buildField(): JcField {
         val info = FieldInfo(

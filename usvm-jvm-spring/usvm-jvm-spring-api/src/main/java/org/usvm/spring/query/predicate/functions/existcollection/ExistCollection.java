@@ -9,7 +9,6 @@ public class ExistCollection extends AExpression {
     public SimplePath path;
 
     public ExistCollection() {
-
     }
 
     public ExistCollection(ColQuantifierCtx quantifier, SimplePath path) {

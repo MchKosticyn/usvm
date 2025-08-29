@@ -47,6 +47,7 @@ private class JPAVisitor : InstanceWrapper {
     fun visit(ctxNode: Any) = callMethod("visit", listOf(ctxNode)) { !it.isAbstract }
 
     companion object {
+        // finds full name of approximation for JPAVisitor from approximations by QUERY_VISITOR
         fun nameOfApproximation(cp: JcClasspath, className: String) =
             cp.features!!.filterIsInstance<Approximations>().single()
                 .findApproximationByOriginOrNull(OriginalClassName(className))!!

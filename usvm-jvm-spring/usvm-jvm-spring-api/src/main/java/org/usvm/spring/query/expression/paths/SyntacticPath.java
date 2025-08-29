@@ -6,7 +6,6 @@ import org.usvm.spring.query.expression.IExpressionVisitor;
 public class SyntacticPath extends AExpression {
 
     public SyntacticPath() {
-
     }
 
     @Override

@@ -6,7 +6,6 @@ public class Having {
     public AExpression predicate;
 
     public Having() {
-
     }
 
     public Having(AExpression predicate) {

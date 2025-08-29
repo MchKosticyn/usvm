@@ -7,7 +7,8 @@ import org.usvm.spring.query.parameter.AParameter;
 public class Parameter extends AExpression {
     public AParameter param;
 
-    public Parameter() {}
+    public Parameter() {
+    }
 
 
     public Parameter(AParameter param) {

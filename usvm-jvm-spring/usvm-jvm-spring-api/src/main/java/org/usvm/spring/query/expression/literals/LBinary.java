@@ -7,7 +7,6 @@ public class LBinary extends AExpression {
     public byte[] bytes;
 
     public LBinary() {
-
     }
 
     public LBinary(byte[] bytes) {

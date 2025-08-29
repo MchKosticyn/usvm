@@ -8,7 +8,6 @@ public class Version extends AExpression {
    public Path path;
 
    public Version() {
-
    }
 
    public Version(Path path) {

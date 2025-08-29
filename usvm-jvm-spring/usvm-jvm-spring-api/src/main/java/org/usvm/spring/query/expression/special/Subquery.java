@@ -8,7 +8,6 @@ public class Subquery extends AExpression {
     public Select query;
 
     public Subquery() {
-
     }
 
     public Subquery(Select query) {

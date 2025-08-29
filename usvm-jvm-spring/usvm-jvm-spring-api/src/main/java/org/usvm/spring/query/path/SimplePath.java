@@ -7,7 +7,6 @@ public class SimplePath {
     public List<String> cont; // case-sensitive
 
     public SimplePath() {
-
     }
 
     public SimplePath(String root, List<String> cont) {

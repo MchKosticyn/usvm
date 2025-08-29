@@ -5,7 +5,6 @@ public class GeneralPath {
     public Index index;
 
     public GeneralPath() {
-
     }
 
     public GeneralPath(SimplePath path, Index index) {

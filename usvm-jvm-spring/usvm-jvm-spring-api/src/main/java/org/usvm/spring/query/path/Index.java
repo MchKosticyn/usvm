@@ -7,7 +7,6 @@ public class Index {
     public GeneralPath cont;
 
     public Index() {
-
     }
 
     public Index(AExpression ix, GeneralPath cont) {

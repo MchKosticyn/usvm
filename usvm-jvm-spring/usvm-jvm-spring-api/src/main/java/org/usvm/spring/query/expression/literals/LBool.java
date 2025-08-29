@@ -7,7 +7,6 @@ public class LBool extends AExpression {
     public boolean value;
 
     public LBool() {
-
     }
 
     public LBool(boolean value) {

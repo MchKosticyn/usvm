@@ -23,7 +23,7 @@ fun AExpression.toLambda(info: CommonInfo): JcMethod {
         .setName(methodName)
         .setRetType(type().getType(info).typeName)
         .setAccess(Opcodes.ACC_STATIC)
-        .addBlanckAnnot(REPOSITORY_LAMBDA)
+        .addBlancAnnot(REPOSITORY_LAMBDA)
         .addFreshParam(if (isGrouped) ITABLE else DATA_ROW)
         .addFreshParam(JAVA_OBJ_ARR)
         .addFillerFuture(ToMethodFeature(info, this, methodName))

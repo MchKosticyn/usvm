@@ -14,6 +14,7 @@ import jpa.generateNewWithInit
 import jpa.generateVoidStaticCall
 import jpa.generatedBuildIds
 import jpa.getTableName
+import jpa.isDefault
 import jpa.isJpaRepository
 import jpa.isNativeQuery
 import jpa.query
@@ -82,7 +83,7 @@ class JcRepositoryTransformer(val collector: JcTableInfoCollector) : JcClassExtF
         val dataClass = clazz.signature!!.genericTypesFromSignature.first().let { clazz.classpath.findClass(it) }
         val cp = dataClass.classpath
 
-        val methods = collectRepositoryMethods(clazz, originalMethods)
+        val methods = collectRepositoryMethods(clazz, originalMethods).filterNot(JcJpaMethod::isDefault)
         val lambdas = methods.flatMap {
             if (it.isCrud) return@flatMap emptyList<JcMethod>()
 
@@ -122,7 +123,7 @@ class JcRepositoryQueryTransformer(
 ) : JcBodyFillerFeature() {
 
     override fun condition(method: JcMethod) =
-        !method.isCrud && method.enclosingClass.isJpaRepository
+        !method.isCrud && method.enclosingClass.isJpaRepository && !method.isDefault
 
     override fun JcSingleInstructionTransformer.BlockGenerationContext.generateBody(method: JcMethod) {
         val repo = method.enclosingClass
@@ -143,6 +144,7 @@ class JcRepositoryQueryTransformer(
 private val crudNames = listOf(
     "save",
     "saveAll",
+    "count",
     "delete",
     "deleteById",
     "deleteAll",

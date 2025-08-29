@@ -9,7 +9,6 @@ public class BinOperator extends AExpression {
     public FOperator operator;
 
     public BinOperator() {
-
     }
 
     public BinOperator(AExpression left, AExpression right, FOperator operator) {

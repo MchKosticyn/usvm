@@ -39,7 +39,7 @@ fun SelectFunction.getOwnMethod(info: CommonInfo): JcMethod {
         .setName(methodName)
         .setRetType(info.origReturnGeneric)
         .setAccess(Opcodes.ACC_STATIC)
-        .addBlanckAnnot(REPOSITORY_LAMBDA)
+        .addBlancAnnot(REPOSITORY_LAMBDA)
         .addFreshParam(if (isGrouped) ITABLE else DATA_ROW) // Query is ITable<ITable> or ITable<DataRow>
         .addFreshParam(JAVA_OBJ_ARR) // top-level method's args
         .addFreshParam(ITABLE) // ref to current query for aggregators

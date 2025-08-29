@@ -8,7 +8,6 @@ public class IsDistinct extends AExpression {
     public AExpression from;
 
     public IsDistinct() {
-
     }
 
     public IsDistinct(AExpression expr, AExpression from) {

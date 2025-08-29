@@ -10,7 +10,6 @@ public class Like extends AExpression {
     public boolean caseSenc;
 
     public Like() {
-
     }
 
     public Like(AExpression expr, AExpression pattern, AExpression escape, boolean caseSenc) {

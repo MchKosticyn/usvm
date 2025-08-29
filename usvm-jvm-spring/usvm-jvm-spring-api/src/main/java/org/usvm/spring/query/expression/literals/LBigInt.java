@@ -9,7 +9,6 @@ public class LBigInt extends AExpression {
     public String value;
 
     public LBigInt() {
-
     }
 
     public LBigInt(String value) {

@@ -3,7 +3,6 @@ package org.usvm.spring.query.join;
 public class JpaCollectionJoin extends AJoin {
 
     public JpaCollectionJoin() {
-
     }
 
     @Override

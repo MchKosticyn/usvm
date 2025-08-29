@@ -7,7 +7,6 @@ public class Exist extends AExpression {
     public AExpression expr;
 
     public Exist() {
-
     }
 
     public Exist(AExpression expr) {

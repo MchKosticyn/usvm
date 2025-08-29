@@ -11,7 +11,6 @@ public class Order {
     public AParamOrInt offset = null;
 
     public Order() {
-
     }
 
     public Order(List<SortSpecification> sorts, AParamOrInt limit, AParamOrInt offset) {

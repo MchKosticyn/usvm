@@ -7,7 +7,6 @@ public class LFloat extends AExpression {
     public float value;
 
     public LFloat() {
-
     }
 
     public LFloat(float value) {

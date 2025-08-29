@@ -18,7 +18,6 @@ import machine.interpreter.transformers.springjpa.query.expression.genInst
 import machine.interpreter.transformers.springjpa.query.expression.type
 import machine.interpreter.transformers.springjpa.query.type.getType
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer.BlockGenerationContext
@@ -51,16 +50,22 @@ fun SqlFunction.genAggregatorInst(ctx: MethodCtx) = with(ctx) {
     val aggrLambda = genCtx.generateLambda(cp, "aggr_lambda_${getLambdaName()}", getOwnMethod(common))
     val origMethodArgs = method.parameters.get(1).toArgument
     val args = listOf(tblToAggr, aggrLambda, origMethodArgs)
-    val mapped = genCtx.generateNewWithInit("aggr_mapper_${getVarName()}", common.mapperType, args)
 
-    val aggrArgs = mutableListOf(mapped)
+    val varName = getVarName()
+    val mapped = genCtx.generateNewWithInit("aggr_mapper_$varName", common.mapperType, args)
+
+    val distinct = if (isDistinct)
+        genCtx.generateNewWithInit("aggr_distinct_$varName", common.distinctType, listOf(mapped))
+    else mapped
+
+    val aggrArgs = mutableListOf(distinct)
     if (!func.hasCommonRetType) {
-        val typ = type().getType(common).let { genCtx.toJavaClass(cp, "aggr_${getVarName()}", it) }
+        val typ = type().getType(common).let { genCtx.toJavaClass(cp, "aggr_$varName", it) }
         aggrArgs.add(typ)
     }
 
     genCtx.generateStaticCall(
-        "aggr_call_${getVarName()}",
+        "aggr_call_$varName",
         func.name,
         common.aggregatorsType,
         aggrArgs
@@ -122,7 +127,7 @@ fun SqlFunction.getOwnMethod(info: CommonInfo): JcMethod {
         .setName(methodName)
         .setRetType(DATA_ROW)
         .setAccess(Opcodes.ACC_STATIC)
-        .addBlanckAnnot(REPOSITORY_LAMBDA)
+        .addBlancAnnot(REPOSITORY_LAMBDA)
         .addFreshParam(DATA_ROW)
         .addFreshParam(JAVA_OBJ_ARR)
         .addFillerFuture(SqlFunctionInnerLambdaFeature(info, this, methodName))

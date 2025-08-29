@@ -6,7 +6,6 @@ public class Colon extends AParameter {
     public String name;
 
     public Colon() {
-
     }
 
     public Colon(String name) {

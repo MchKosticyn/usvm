@@ -6,7 +6,6 @@ public class Expression extends ASelection {
     public AExpression value;
 
     public Expression() {
-
     }
 
     public Expression(AExpression value, String alias) {

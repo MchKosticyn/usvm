@@ -9,7 +9,6 @@ public class LBigDecimal extends AExpression {
     public String value;
 
     public LBigDecimal() {
-
     }
 
     public LBigDecimal(String value) {

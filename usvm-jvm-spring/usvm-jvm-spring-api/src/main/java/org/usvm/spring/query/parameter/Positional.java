@@ -6,7 +6,6 @@ public class Positional extends AParameter {
     public int pos;
 
     public Positional() {
-
     }
 
     public Positional(int pos) {

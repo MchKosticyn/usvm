@@ -6,7 +6,6 @@ public class Param extends AParamOrInt {
     public AParameter param;
 
     public Param() {
-
     }
 
     public Param(AParameter param) {
