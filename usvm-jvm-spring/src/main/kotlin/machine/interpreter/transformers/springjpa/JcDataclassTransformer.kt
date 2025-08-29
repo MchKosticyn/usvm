@@ -12,6 +12,8 @@ import jpa.COPY_NAME
 import jpa.DELETE_ANNOT
 import jpa.DELETE_NAME
 import jpa.DTO_INFO
+import jpa.EQUALS_ANNOT
+import jpa.EQUALS_NAME
 import jpa.GENERATED_GETTER
 import jpa.GENERATED_SETTER
 import jpa.GET_DTO_ANNOT
@@ -19,6 +21,7 @@ import jpa.GET_DTO_NAME
 import jpa.GET_ID_ANNOT
 import jpa.GET_ID_NAME
 import jpa.IdColumnInfo
+import jpa.JAVA_BOOL
 import jpa.JAVA_OBJ_ARR
 import jpa.JAVA_VOID
 import jpa.RELATIONS_INIT_ANNOT
@@ -39,8 +42,14 @@ import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.JcPrimitiveType
+import org.jacodb.api.jvm.PredefinedPrimitives
+import org.jacodb.api.jvm.ext.JAVA_OBJECT
+import org.jacodb.api.jvm.ext.findMethodOrNull
+import org.jacodb.api.jvm.ext.objectType
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.typename
+import org.usvm.util.findMethod
 
 // Map wrapper where key is combination of className and fieldName
 // Used to store simple fields that represent relation from key field of key class
@@ -99,7 +108,9 @@ class JcDataclassTransformer(
 
         val cp = clazz.classpath
         val classTable = collector.getTable(clazz) ?: return null
-        val generator = SignatureGenerator(this, cp, collector, clazz, classTable, isNeedTrackTable, relationChecks)
+        val generator = SignatureGenerator(
+            this, cp, collector, clazz, classTable, isNeedTrackTable, relationChecks, originalMethods
+        )
 
         return originalMethods + generator.getFunctions()
     }
@@ -112,7 +123,8 @@ private class SignatureGenerator(
     val clazz: JcClassOrInterface,
     val classTable: TableInfo.TableWithIdInfo,
     val isNeedTrackTable: Boolean,
-    val relationChecks: RelationMap<JcField>
+    val relationChecks: RelationMap<JcField>,
+    val originalMethods: List<JcMethod>
 ) {
 
     val idColumn = classTable.idColumn
@@ -123,13 +135,17 @@ private class SignatureGenerator(
             getCopy(),
             getBuildId()
         )
-        functions.addAll(getters() + setters())
+        functions.addAll(getters + setters)
 
         if (idColumn is IdColumnInfo.SingleId) {
             val idField = idColumn.origField
             functions.add(getSpecialGetId(idField))
             functions.add(getSpecialSetId(idField))
         }
+
+        val objEquals = cp.objectType.findMethodOrNull { it.name == "equals" }!!
+        if (originalMethods.all { it.name != objEquals.name || it.description != objEquals.method.description })
+            functions.add(getEquals())
 
         return functions + functions.map { makeStaticClassMethod(cp, it) } +
                 getStaticBlankInit() +
@@ -144,7 +160,7 @@ private class SignatureGenerator(
             .addBlancAnnot(STATIC_BLANK_INIT_ANNOT)
             .setAccess(Opcodes.ACC_STATIC)
             .setRetType(clazz.typename.typeName)
-            .addFillerFuture(JcStaticBlankInitTransformer())
+            .addFillerFeature(JcStaticBlankInitTransformer())
             .buildMethod()
 
     fun getRelationsInit() =
@@ -152,7 +168,7 @@ private class SignatureGenerator(
             .setName(RELATIONS_INIT_NAME)
             .addBlancAnnot(RELATIONS_INIT_ANNOT)
             .setRetType(JAVA_VOID)
-            .addFillerFuture(JcRelationsInitTransformer(dataclassTransformer, relationChecks, cp, classTable))
+            .addFillerFeature(JcRelationsInitTransformer(dataclassTransformer, relationChecks, cp, classTable))
             .buildMethod()
 
     fun getCopy() =
@@ -160,7 +176,7 @@ private class SignatureGenerator(
             .setName(COPY_NAME)
             .addBlancAnnot(COPY_ANNOT)
             .setRetType(clazz.name)
-            .addFillerFuture(JcCopyTransformer(cp, clazz, collector))
+            .addFillerFeature(JcCopyTransformer(cp, clazz, collector))
             .buildMethod()
 
     fun getSpecialGetId(idField: JcField): JcMethod {
@@ -169,7 +185,7 @@ private class SignatureGenerator(
             .setName(GET_ID_NAME)
             .addBlancAnnot(GET_ID_ANNOT)
             .setRetType(idColumn.type.typeName)
-            .addFillerFuture(JcSpecialGetIdTransformer(cp, idField))
+            .addFillerFeature(JcSpecialGetIdTransformer(cp, idField))
             .buildMethod()
     }
 
@@ -180,7 +196,7 @@ private class SignatureGenerator(
             .addBlancAnnot(SET_ID_ANNOT)
             .addFreshParam(idColumn.type.typeName)
             .setRetType(JAVA_VOID)
-            .addFillerFuture(JcSpecialSetIdTransformer(cp, idField))
+            .addFillerFeature(JcSpecialSetIdTransformer(cp, idField))
             .buildMethod()
     }
 
@@ -189,7 +205,7 @@ private class SignatureGenerator(
             .setName(BUILD_ID_NAME)
             .addBlancAnnot(BUILD_ID_ANNOT)
             .setRetType(JAVA_OBJ_ARR)
-            .addFillerFuture(JcBuildIdTransformer(cp, classTable))
+            .addFillerFeature(JcBuildIdTransformer(cp, classTable))
             .buildMethod()
 
     fun getGetDTO() =
@@ -198,10 +214,10 @@ private class SignatureGenerator(
             .addBlancAnnot(GET_DTO_ANNOT)
             .setAccess(Opcodes.ACC_STATIC)
             .setRetType(DTO_INFO)
-            .addFillerFuture(JcGetDTOTransformer(cp, clazz, classTable, isNeedTrackTable))
+            .addFillerFeature(JcGetDTOTransformer(cp, clazz, classTable, isNeedTrackTable))
             .buildMethod()
 
-    fun getters() =
+    val getters by lazy {
         collector.collectFields(clazz) { !it.isStatic }.map { field ->
             val name = getterName(field)
             val sig = field.signature?.let { "()$it" }
@@ -211,11 +227,12 @@ private class SignatureGenerator(
                 .addBlancAnnot(field.name)
                 .setSig(sig)
                 .setRetType(field.type.typeName)
-                .addFillerFuture(JcGetterTransformer(cp, field, name))
+                .addFillerFeature(JcGetterTransformer(cp, field, name))
                 .buildMethod()
         }
+    }
 
-    fun setters() =
+    val setters by lazy {
         collector.collectFields(clazz) { !it.isStatic }.map { field ->
             val name = setterName(field)
             val sig = field.signature?.let { "($it)V" }
@@ -226,9 +243,10 @@ private class SignatureGenerator(
                 .setRetType(JAVA_VOID)
                 .setSig(sig)
                 .addFreshParam(field.type.typeName)
-                .addFillerFuture(JcSetterTransformer(cp, field, name))
+                .addFillerFeature(JcSetterTransformer(cp, field, name))
                 .buildMethod()
         }
+    }
 
     fun getSaveUpdate(relationChecks: RelationMap<JcField>) =
         JcMethodBuilder(clazz)
@@ -236,7 +254,7 @@ private class SignatureGenerator(
             .addBlancAnnot(SAVE_UPDATE_ANNOT)
             .setAccess(Opcodes.ACC_STATIC)
             .setRetType(JAVA_VOID)
-            .addFillerFuture(JcSaveUpdateTransformer(collector, cp, relationChecks, classTable, clazz))
+            .addFillerFeature(JcSaveUpdateTransformer(collector, cp, relationChecks, classTable, clazz))
             .addFreshParam(clazz.name)
             .addFreshParam(SAVE_UPD_DEL_CTX)
             .buildMethod()
@@ -247,8 +265,17 @@ private class SignatureGenerator(
             .addBlancAnnot(DELETE_ANNOT)
             .setAccess(Opcodes.ACC_STATIC)
             .setRetType(JAVA_VOID)
-            .addFillerFuture(JcDeleteTransformer(collector, cp, relationChecks, classTable, clazz))
+            .addFillerFeature(JcDeleteTransformer(collector, cp, relationChecks, classTable, clazz))
             .addFreshParam(clazz.name)
             .addFreshParam(SAVE_UPD_DEL_CTX)
+            .buildMethod()
+
+    fun getEquals() =
+        JcMethodBuilder(clazz)
+            .setName(EQUALS_NAME)
+            .addBlancAnnot(EQUALS_ANNOT)
+            .setRetType(PredefinedPrimitives.Boolean)
+            .addFillerFeature(JcEqualsTransformer(cp, clazz, getters))
+            .addFreshParam(JAVA_OBJECT)
             .buildMethod()
 }

@@ -81,7 +81,7 @@ class JcMethodBuilder(
     private val annots = mutableListOf<AnnotationInfo>()
     private val params = mutableListOf<ParameterInfo>()
 
-    fun addFillerFuture(feature: JcMethodExtFeature) = this.also { it.features.add(0, feature) }
+    fun addFillerFeature(feature: JcMethodExtFeature) = this.also { it.features.add(0, feature) }
 
     fun setName(name: String) = this.also { it.name = name }
 

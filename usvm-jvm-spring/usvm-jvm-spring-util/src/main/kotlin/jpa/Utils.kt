@@ -79,6 +79,7 @@ const val RELATIONS_INIT_NAME = "\$relations_init"
 const val COPY_NAME = "\$copy"
 const val BUILD_FROM_IDS = "\$generated_build_from_ids"
 const val BUILD_IDS = "\$generated_build_ids"
+const val EQUALS_NAME = "equals"
 
 // endregion
 
@@ -214,6 +215,7 @@ const val SERIALIZER_WITH_SKIPS_ANNOT = "\$generated_serializer_with_skips"
 const val SAVE_UPDATE_ANNOT = "\$save_update_annot"
 const val DELETE_ANNOT = "\$delete_annot"
 const val REPOSITORY_LAMBDA = "\$query_lambda"
+const val EQUALS_ANNOT = "\$equals"
 
 // endregion
 
@@ -252,6 +254,7 @@ val JcMethod.generatedRelationsInit: Boolean get() = contains(this.annotations, 
 val JcMethod.generatedSaveUpdate: Boolean get() = contains(this.annotations, SAVE_UPDATE_ANNOT)
 val JcMethod.generatedDelete: Boolean get() = contains(this.annotations, DELETE_ANNOT)
 val JcMethod.repositoryLambda: Boolean get() = contains(annotations, REPOSITORY_LAMBDA)
+val JcMethod.generatedEquals: Boolean get() = contains(annotations, EQUALS_ANNOT)
 
 // endregion
 
@@ -294,7 +297,7 @@ fun makeStaticClassMethod(cp: JcClasspath, method: JcMethod): JcMethod {
         .setAccess(Opcodes.ACC_STATIC)
         .addFreshParam(clazz.name)
         .setRetType(method.returnType.typeName)
-        .addFillerFuture(JcStaticClassMethod(cp, newName, method))
+        .addFillerFeature(JcStaticClassMethod(cp, newName, method))
     method.annotations.forEach { builder.addBlancAnnot(it.name) }
     method.parameters.forEach { builder.addFreshParam(it.type.typeName) }
     return builder.buildMethod()

@@ -130,7 +130,7 @@ fun SqlFunction.getOwnMethod(info: CommonInfo): JcMethod {
         .addBlancAnnot(REPOSITORY_LAMBDA)
         .addFreshParam(DATA_ROW)
         .addFreshParam(JAVA_OBJ_ARR)
-        .addFillerFuture(SqlFunctionInnerLambdaFeature(info, this, methodName))
+        .addFillerFeature(SqlFunctionInnerLambdaFeature(info, this, methodName))
         .buildMethod()
     cachedSelector = method
     return method
