@@ -2,6 +2,7 @@ package org.usvm.jvm.rendering
 
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.printer.DefaultPrettyPrinter
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.testRenderer.JcTestInfo
 import org.usvm.jvm.rendering.testTransformers.JcCallCtorTransformer
@@ -19,7 +20,12 @@ class JcTestsRenderer {
         JcDeadCodeTransformer()
     )
 
-    fun renderTests(cp: JcClasspath, tests: List<Pair<UTest, JcTestInfo>>, shouldInlineUsvmUtils: Boolean): Map<JcTestClassInfo, String> {
+    fun renderTests(
+        cp: JcClasspath,
+        tests: List<Pair<UTest, JcTestInfo>>,
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy = ReflectionUtilsInlineStrategy.NoInline(),
+        isAccessibleFromTestClass: ((JcClassOrInterface) -> Boolean)? = null
+    ): Map<JcTestClassInfo, String> {
         val renderedFiles = mutableMapOf<JcTestClassInfo, String>()
         val testClasses = tests.groupBy { (_, info) -> JcTestClassInfo.from(info) }
         val printer = DefaultPrettyPrinter()
@@ -33,7 +39,8 @@ class JcTestsRenderer {
                         StaticJavaParser.parse(testFile),
                         cp,
                         testClassInfo,
-                        shouldInlineUsvmUtils
+                        reflectionUtilsInlineStrategy,
+                        isAccessibleFromTestClass
                     )
                 }
                 else -> {
@@ -41,7 +48,8 @@ class JcTestsRenderer {
                         testClassInfo.testPackageName,
                         cp,
                         testClassInfo,
-                        shouldInlineUsvmUtils
+                        reflectionUtilsInlineStrategy,
+                        isAccessibleFromTestClass
                     )
                 }
             }

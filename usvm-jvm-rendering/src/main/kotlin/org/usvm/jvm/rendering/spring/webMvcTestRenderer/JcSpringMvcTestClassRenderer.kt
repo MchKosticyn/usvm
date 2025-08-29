@@ -3,15 +3,18 @@ package org.usvm.jvm.rendering.spring.webMvcTestRenderer
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
+import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.PredefinedPrimitives
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
+import org.usvm.jvm.rendering.spring.JcSpringReflectionUtilsRenderer
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestClassRenderer
-import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.testTransformers.JcSpringMvcTestTransformer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.test.api.UTest
 
 class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
@@ -23,20 +26,22 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
     constructor(
         controller: JcClassType,
         name: String,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
-        cp: JcClasspath
-    ) : super(name, importManager, identifiersManager, cp) {
+        cp: JcClasspath,
+        reflectionUtilsRenderer: JcSpringReflectionUtilsRenderer
+    ) : super(name, importManager, identifiersManager, cp, reflectionUtilsRenderer) {
         this.controller = controller
     }
 
     constructor(
         controller: JcClassType,
         decl: ClassOrInterfaceDeclaration,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
-        cp: JcClasspath
-    ) : super(decl, importManager, identifiersManager, cp) {
+        cp: JcClasspath,
+        reflectionUtilsRenderer: JcSpringReflectionUtilsRenderer
+    ) : super(decl, importManager, identifiersManager, cp, reflectionUtilsRenderer) {
         this.controller = controller
     }
 
@@ -44,7 +49,7 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
         test: UTest,
         identifiersManager: JcIdentifiersManager,
         name: SimpleName,
-        testAnnotation: AnnotationExpr,
+        annotations: List<AnnotationExpr>,
     ): JcTestRenderer {
         val mvcTransformer = JcSpringMvcTestTransformer()
         val transformedTest = mvcTransformer.transform(test)
@@ -57,6 +62,8 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
             }
         }
 
+        val testMethodAnnotations = testMethodAnnotationsFrom(testClass).map { renderAnnotation(it) }
+
         return JcSpringMvcTestRenderer(
             transformedTest,
             this,
@@ -64,8 +71,9 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
             JcIdentifiersManager(identifiersManager),
             cp,
             name,
-            testAnnotation,
-            mvcTransformer.testClass
+            annotations + testMethodAnnotations,
+            mvcTransformer.testClass,
+            unsafeUtilsRenderer as JcSpringReflectionUtilsRenderer
         )
     }
 
@@ -78,4 +86,11 @@ class JcSpringMvcTestClassRenderer : JcSpringUnitTestClassRenderer {
 
         return super.renderInternal()
     }
+
+    private fun testMethodAnnotationsFrom(stubClass: JcClassOrInterface): List<JcAnnotation> {
+        return stubClass.declaredMethods.single { it.isFakeTest }.annotations
+    }
+
+    private val JcMethod.isFakeTest: Boolean
+        get() = name == "fakeTest" && returnType.typeName == PredefinedPrimitives.Void && parameters.isEmpty()
 }

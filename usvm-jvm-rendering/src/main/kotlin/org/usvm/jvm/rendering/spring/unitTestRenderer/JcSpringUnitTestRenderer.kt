@@ -4,19 +4,20 @@ import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.spring.JcSpringImportManager
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
+import org.usvm.jvm.rendering.spring.JcSpringReflectionUtilsRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestRenderer
 import org.usvm.test.api.UTest
 
 open class JcSpringUnitTestRenderer(
     test: UTest,
     classRenderer: JcSpringUnitTestClassRenderer,
-    importManager: JcUnsafeImportManager,
+    importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     name: SimpleName,
-    testAnnotation: AnnotationExpr,
+    annotations: List<AnnotationExpr>,
+    unsafeUtilsRenderer: JcSpringReflectionUtilsRenderer
 ): JcUnsafeTestRenderer(
     test,
     classRenderer,
@@ -24,7 +25,8 @@ open class JcSpringUnitTestRenderer(
     identifiersManager,
     cp,
     name,
-    testAnnotation,
+    annotations,
+    unsafeUtilsRenderer
 ) {
 
     override val body: JcSpringUnitTestBlockRenderer = JcSpringUnitTestBlockRenderer(
@@ -32,6 +34,7 @@ open class JcSpringUnitTestRenderer(
         importManager,
         JcIdentifiersManager(identifiersManager),
         cp,
-        shouldDeclareVar
+        shouldDeclareVar,
+        unsafeUtilsRenderer
     )
 }

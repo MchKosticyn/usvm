@@ -5,20 +5,21 @@ import com.github.javaparser.ast.expr.SimpleName
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.spring.JcSpringImportManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
+import org.usvm.jvm.rendering.spring.JcSpringReflectionUtilsRenderer
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestRenderer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.test.api.UTest
 
 open class JcSpringMvcTestRenderer(
     test: UTest,
     override val classRenderer: JcSpringMvcTestClassRenderer,
-    importManager: JcUnsafeImportManager,
+    importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     name: SimpleName,
-    testAnnotation: AnnotationExpr,
-    mvcTestClass: JcClassOrInterface
+    annotations: List<AnnotationExpr>,
+    mvcTestClass: JcClassOrInterface,
+    reflectionUtilsRenderer: JcSpringReflectionUtilsRenderer
 ): JcSpringUnitTestRenderer(
     test,
     classRenderer,
@@ -26,7 +27,8 @@ open class JcSpringMvcTestRenderer(
     identifiersManager,
     cp,
     name,
-    testAnnotation,
+    annotations,
+    reflectionUtilsRenderer
 ) {
 
     override val body: JcSpringMvcTestBlockRenderer = JcSpringMvcTestBlockRenderer(
@@ -35,6 +37,7 @@ open class JcSpringMvcTestRenderer(
         JcIdentifiersManager(identifiersManager),
         cp,
         shouldDeclareVar,
-        mvcTestClass
+        mvcTestClass,
+        reflectionUtilsRenderer
     )
 }

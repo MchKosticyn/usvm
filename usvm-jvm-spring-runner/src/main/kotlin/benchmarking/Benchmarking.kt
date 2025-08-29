@@ -10,10 +10,8 @@ import org.usvm.SolverType
 import org.usvm.UMachineOptions
 import java.io.PrintStream
 import java.nio.file.Path
-import kotlin.io.path.div
 import kotlin.system.exitProcess
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 
 fun main() {
     val benchmark = getBenchmark()
@@ -51,6 +49,7 @@ private fun runBenchmark(bench: BenchCp, benchDescription: BenchDescription) {
     )
 
     analyzeBench(bench, options)
+    exitProcess(0)
 }
 
 private fun getBenchmark(): BenchDescription {

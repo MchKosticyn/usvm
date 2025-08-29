@@ -42,7 +42,7 @@ import org.usvm.test.api.UTestStringExpression
 
 open class JcTestVisitor {
 
-    private val cache: MutableSet<UTestInst> = Collections.newSetFromMap<UTestInst>(IdentityHashMap())
+    private val cache: MutableSet<UTestInst> = Collections.newSetFromMap(IdentityHashMap())
 
     protected fun isVisited(inst: UTestInst) = cache.contains(inst)
 

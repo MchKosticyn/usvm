@@ -13,17 +13,17 @@ import org.jacodb.api.jvm.JcClasspath
 open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
 
     companion object {
-        private fun resolvePackageDeclarationFrom(packageName: String?, cu: CompilationUnit?): PackageDeclaration {
+        private fun resolvePackageDeclarationFrom(packageName: String?, cu: CompilationUnit?): PackageDeclaration? {
             val existingPackageDecl = cu?.packageDeclaration?.getOrNull()
-            val freshPackageDecl = packageName?.let { name ->
-                val parsedName = StaticJavaParser.parseName(name)
-                PackageDeclaration(parsedName)
-            }
 
-            return existingPackageDecl ?: freshPackageDecl ?: PackageDeclaration(StaticJavaParser.parseName(defaultRenderedPackageName))
+            if (existingPackageDecl != null)
+                return existingPackageDecl
+
+            return if (packageName.isNullOrBlank())
+                null
+            else
+                PackageDeclaration(StaticJavaParser.parseName(packageName))
         }
-
-        protected const val defaultRenderedPackageName = "org.usvm.generated"
     }
 
     private constructor(
@@ -66,7 +66,7 @@ open class JcFileRenderer : JcCodeRenderer<CompilationUnit> {
 
     protected constructor(packageName: String?, cp: JcClasspath): this(packageName, JcImportManager(), cp)
 
-    protected val packageDeclaration: PackageDeclaration
+    protected val packageDeclaration: PackageDeclaration?
 
     private val existingMembers: MutableList<ClassOrInterfaceDeclaration> = mutableListOf()
     private val renderingClasses: MutableList<JcClassRenderer> = mutableListOf()

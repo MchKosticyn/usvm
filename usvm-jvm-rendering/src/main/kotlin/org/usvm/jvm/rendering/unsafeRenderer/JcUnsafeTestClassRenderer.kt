@@ -5,35 +5,42 @@ import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.testRenderer.JcTestClassRenderer
 import org.usvm.jvm.rendering.testRenderer.JcTestRenderer
 import org.usvm.test.api.UTest
 
 open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
 
-    override val importManager: JcUnsafeImportManager
-        get() = super.importManager as JcUnsafeImportManager
+    val unsafeUtilsRenderer: JcUnsafeUtilsRenderer
 
     constructor(
         name: String,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
-        cp: JcClasspath
-    ) : super(name, importManager, identifiersManager, cp)
+        cp: JcClasspath,
+        unsafeUtilsRenderer: JcUnsafeUtilsRenderer
+    ) : super(name, importManager, identifiersManager, cp) {
+        this.unsafeUtilsRenderer = unsafeUtilsRenderer
+    }
 
     constructor(
         decl: ClassOrInterfaceDeclaration,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
-        cp: JcClasspath
-    ) : super(decl, importManager, identifiersManager, cp)
+        cp: JcClasspath,
+        unsafeUtilsRenderer: JcUnsafeUtilsRenderer
+    ) : super(decl, importManager, identifiersManager, cp) {
+        this.unsafeUtilsRenderer = unsafeUtilsRenderer
+    }
 
     override fun createTestRenderer(
         test: UTest,
         identifiersManager: JcIdentifiersManager,
         name: SimpleName,
-        testAnnotation: AnnotationExpr,
+        annotations: List<AnnotationExpr>,
     ): JcTestRenderer {
+
         return JcUnsafeTestRenderer(
             test,
             this,
@@ -41,7 +48,8 @@ open class JcUnsafeTestClassRenderer : JcTestClassRenderer {
             JcIdentifiersManager(identifiersManager),
             cp,
             name,
-            testAnnotation
+            annotations,
+            unsafeUtilsRenderer
         )
     }
 }

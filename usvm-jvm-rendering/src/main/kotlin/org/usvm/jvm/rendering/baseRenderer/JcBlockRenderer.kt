@@ -128,15 +128,15 @@ open class JcBlockRenderer private constructor(
         addExpression(renderSetStaticField(field, value))
     }
 
-    protected fun addThrownExceptions(method: JcMethod) {
-        thrownExceptions.addAll(
-            method.exceptions.map {
-                renderClass(it.typeName)
-            }
-        )
+    fun addThrownExceptions(method: JcMethod) {
+        addThrownExceptions(method.exceptions.map { it.typeName })
     }
 
-    protected fun addThrownException(typeName: String, cp: JcClasspath) {
+    fun addThrownExceptions(exceptionsTypeNames: List<String>) {
+        exceptionsTypeNames.forEach { addThrownException(it) }
+    }
+
+    fun addThrownException(typeName: String) {
         val thrown = renderClass(typeName)
         thrownExceptions.add(thrown)
     }

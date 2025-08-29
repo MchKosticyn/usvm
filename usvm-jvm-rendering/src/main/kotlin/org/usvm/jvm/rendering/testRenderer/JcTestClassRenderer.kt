@@ -36,7 +36,7 @@ open class JcTestClassRenderer : JcClassRenderer {
         test: UTest,
         identifiersManager: JcIdentifiersManager,
         name: SimpleName,
-        testAnnotation: AnnotationExpr,
+        annotations: List<AnnotationExpr>,
     ): JcTestRenderer {
         return JcTestRenderer(
             test,
@@ -45,7 +45,7 @@ open class JcTestClassRenderer : JcClassRenderer {
             JcIdentifiersManager(identifiersManager),
             cp,
             name,
-            testAnnotation
+            annotations
         )
     }
 
@@ -54,7 +54,7 @@ open class JcTestClassRenderer : JcClassRenderer {
             test,
             JcIdentifiersManager(identifiersManager),
             identifiersManager[namePrefix ?: "test"],
-            testAnnotation
+            listOf(testAnnotation)
         )
 
         addRenderingMethod(renderer)

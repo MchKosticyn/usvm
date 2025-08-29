@@ -365,7 +365,7 @@ open class JcTestBlockRenderer protected constructor(
     )
 
     open fun renderClassExpression(expr: UTestClassExpression): Expression =
-        renderClassExpression(expr.type as JcClassType)
+        renderClassExpression(expr.type)
 
     open fun renderBooleanExpression(expr: UTestBooleanExpression): Expression = renderBooleanPrimitive(expr.value)
 
@@ -539,7 +539,7 @@ open class JcTestBlockRenderer protected constructor(
                 method: JcMethod,
                 insts: List<UTestExpression>
             ): DoAnswerInvocationDescriptor? {
-                val sigAndInvokeIdx = method.name.split("\$\$_invocation_")
+                val sigAndInvokeIdx = method.name.split("$\$_invocation_")
                 if (sigAndInvokeIdx.size != 2) return null
 
                 val signature = sigAndInvokeIdx.first()
@@ -573,12 +573,12 @@ open class JcTestBlockRenderer protected constructor(
     ) {
         companion object {
             fun fromMockFieldOrNull(field: JcField, value: UTestExpression): DoAnswerArgDescriptor? {
-                val rawTokens = field.name.split("_method_\$\$")
+                val rawTokens = field.name.split("_method_$$")
                 if (rawTokens.size != 2 || !rawTokens.first().startsWith("arg_")) return null
 
                 val idx = rawTokens.first().drop(4).takeWhile { it.isDigit() }.toInt()
 
-                val sigAndInvocation = rawTokens.last().split("\$\$_invocation_")
+                val sigAndInvocation = rawTokens.last().split("$\$_invocation_")
                 if (sigAndInvocation.size != 2) return null
 
                 val signature = sigAndInvocation.first()

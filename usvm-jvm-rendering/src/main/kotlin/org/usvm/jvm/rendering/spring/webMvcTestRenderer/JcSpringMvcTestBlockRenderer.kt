@@ -8,22 +8,23 @@ import com.github.javaparser.ast.type.ReferenceType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.spring.JcSpringImportManager
 import org.usvm.jvm.rendering.spring.unitTestRenderer.JcSpringUnitTestBlockRenderer
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeImportManager
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestGetFieldExpression
 import java.util.IdentityHashMap
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
+import org.usvm.jvm.rendering.spring.JcSpringReflectionUtilsRenderer
 
 open class JcSpringMvcTestBlockRenderer protected constructor(
     override val methodRenderer: JcSpringMvcTestRenderer,
-    importManager: JcUnsafeImportManager,
+    importManager: JcImportManager,
     identifiersManager: JcIdentifiersManager,
     cp: JcClasspath,
     shouldDeclareVar: Set<UTestExpression>,
     exprCache: IdentityHashMap<UTestExpression, Expression>,
     thrownExceptions: HashSet<ReferenceType>,
-    private val mvcTestClass: JcClassOrInterface
+    private val mvcTestClass: JcClassOrInterface,
+    reflectionUtilsRenderer: JcSpringReflectionUtilsRenderer
 ) : JcSpringUnitTestBlockRenderer(
     methodRenderer,
     importManager,
@@ -31,16 +32,18 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
     cp,
     shouldDeclareVar,
     exprCache,
-    thrownExceptions
+    thrownExceptions,
+    reflectionUtilsRenderer
 ) {
 
     constructor(
         methodRenderer: JcSpringMvcTestRenderer,
-        importManager: JcUnsafeImportManager,
+        importManager: JcImportManager,
         identifiersManager: JcIdentifiersManager,
         cp: JcClasspath,
         shouldDeclareVar: Set<UTestExpression>,
-        mvcTestClass: JcClassOrInterface
+        mvcTestClass: JcClassOrInterface,
+        reflectionUtilsRenderer: JcSpringReflectionUtilsRenderer
     ) : this(
         methodRenderer,
         importManager,
@@ -49,7 +52,8 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
         shouldDeclareVar,
         IdentityHashMap(),
         HashSet(),
-        mvcTestClass
+        mvcTestClass,
+        reflectionUtilsRenderer
     )
 
     override fun newInnerBlock(): JcSpringMvcTestBlockRenderer {
@@ -61,7 +65,8 @@ open class JcSpringMvcTestBlockRenderer protected constructor(
             shouldDeclareVar,
             IdentityHashMap(exprCache),
             thrownExceptions,
-            mvcTestClass
+            mvcTestClass,
+            unsafeUtilsRenderer as JcSpringReflectionUtilsRenderer
         )
     }
 

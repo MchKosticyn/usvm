@@ -188,7 +188,7 @@ abstract class JcCodeRenderer<T: Node>(
         val renderedType = StaticJavaParser.parseClassOrInterfaceType(qualifiedName(renderName))
         val argTypes = type.typeArguments.zip(type.typeParameters).map { (a, p) ->
             when (a) {
-                is JcUnboundWildcard -> p.bounds.first()
+                is JcUnboundWildcard -> p.bounds.firstOrNull() ?: type.classpath.objectType
                 is JcBoundedWildcard -> (a.lowerBounds + a.upperBounds).first()
                 else -> a
             }
@@ -211,8 +211,8 @@ abstract class JcCodeRenderer<T: Node>(
     fun renderClassExpression(type: JcClassOrInterface): Expression =
         ClassExpr(renderClass(type, false))
 
-    fun renderClassExpression(type: JcClassType): Expression =
-        ClassExpr(renderClass(type, false))
+    fun renderClassExpression(type: JcType): Expression =
+        ClassExpr(renderType(type, false))
 
     //endregion
 

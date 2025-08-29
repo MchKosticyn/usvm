@@ -87,12 +87,30 @@ object JcTestFileRendererFactory {
         cu: CompilationUnit,
         cp: JcClasspath,
         testClassInfo: JcTestClassInfo,
-        shouldInlineUsvmUtils: Boolean
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass: ((JcClassOrInterface) -> Boolean)? = null
     ): JcTestFileRenderer {
+        check(testClassInfo !is JcTestClassInfo.SpringUnit && testClassInfo !is JcTestClassInfo.SpringMvc || isAccessibleFromTestClass != null) {
+            "isAccessible predicate should not be null for spring renderer"
+        }
+
         return when (testClassInfo) {
-            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(testClassInfo.clazz.toType(), cu, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(cu, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.Unsafe -> JcUnsafeTestFileRenderer(cu, cp, shouldInlineUsvmUtils)
+            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(
+                testClassInfo.clazz.toType(),
+                cu,
+                cp,
+                reflectionUtilsInlineStrategy,
+                isAccessibleFromTestClass!!
+            )
+
+            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(
+                cu,
+                cp,
+                reflectionUtilsInlineStrategy,
+                isAccessibleFromTestClass!!
+            )
+
+            is JcTestClassInfo.Unsafe -> JcUnsafeTestFileRenderer(cu, cp, reflectionUtilsInlineStrategy)
             is JcTestClassInfo.Base -> JcTestFileRenderer(cu, cp)
         }
     }
@@ -101,12 +119,30 @@ object JcTestFileRendererFactory {
         packageName: String?,
         cp: JcClasspath,
         testClassInfo: JcTestClassInfo,
-        shouldInlineUsvmUtils: Boolean
+        reflectionUtilsInlineStrategy: ReflectionUtilsInlineStrategy,
+        isAccessibleFromTestClass: ((JcClassOrInterface) -> Boolean)? = null
     ): JcTestFileRenderer {
+        check(testClassInfo !is JcTestClassInfo.SpringUnit && testClassInfo !is JcTestClassInfo.SpringMvc || isAccessibleFromTestClass != null) {
+            "isAccessible predicate should not be null for spring renderer"
+        }
+
         return when (testClassInfo) {
-            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(testClassInfo.clazz.toType(), packageName, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(packageName, cp, shouldInlineUsvmUtils)
-            is JcTestClassInfo.Unsafe -> JcUnsafeTestFileRenderer(packageName, cp, shouldInlineUsvmUtils)
+            is JcTestClassInfo.SpringMvc -> JcSpringMvcTestFileRenderer(
+                testClassInfo.clazz.toType(),
+                packageName,
+                cp,
+                reflectionUtilsInlineStrategy,
+                isAccessibleFromTestClass!!
+            )
+
+            is JcTestClassInfo.SpringUnit -> JcSpringUnitTestFileRenderer(
+                packageName,
+                cp,
+                reflectionUtilsInlineStrategy,
+                isAccessibleFromTestClass!!
+            )
+
+            is JcTestClassInfo.Unsafe -> JcUnsafeTestFileRenderer(packageName, cp, reflectionUtilsInlineStrategy)
             is JcTestClassInfo.Base -> JcTestFileRenderer(packageName, cp)
         }
     }
