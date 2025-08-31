@@ -4,7 +4,6 @@ import java.util.jar.Manifest
 import java.util.zip.ZipFile
 import kotlin.math.abs
 
-
 object TestDependenciesManager {
     private const val STARTER_TEST_DEPENDENCIES_PATH = "./test-dependencies/starter-test"
     private const val SECURITY_TEST_DEPENDENCIES_PATH = "./test-dependencies/security-test"
@@ -17,7 +16,7 @@ object TestDependenciesManager {
             starterVersion,
             File(STARTER_TEST_DEPENDENCIES_PATH)
         )
-        var result = existingSpringTestDeps
+        val result = existingSpringTestDeps.toMutableList()
         if (securityVersion != null) {
             val existingSecurityTestDeps = findVersion(
                 securityVersion,

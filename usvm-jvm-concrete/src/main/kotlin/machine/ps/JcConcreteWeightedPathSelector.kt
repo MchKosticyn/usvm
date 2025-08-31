@@ -16,7 +16,7 @@ internal class JcConcreteWeightedPathSelector(
     private val baseWeighter: StateWeighter<JcState, Int> = weighters.baseWeighter
     private val eachPeekWeighter: StateWeighter<JcState, Int> = weighters.eachPeekWeighter
 
-    private val priorityCollection get() = DeterministicPriorityCollection<JcState, Int>(Comparator.naturalOrder())
+    private val priorityCollection = DeterministicPriorityCollection<JcState, Int>(Comparator.naturalOrder())
 
     override fun chooseLastPickedState(relevantStates: List<JcState>): JcState {
         return relevantStates.maxBy { eachPeekWeighter.weight(it).stableAdd(baseWeighter.weight(it)) }

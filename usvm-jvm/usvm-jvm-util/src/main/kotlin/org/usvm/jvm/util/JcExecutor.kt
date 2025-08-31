@@ -1,6 +1,5 @@
 package org.usvm.jvm.util
 
-import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.Future

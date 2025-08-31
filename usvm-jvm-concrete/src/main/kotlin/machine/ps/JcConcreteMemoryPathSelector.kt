@@ -38,6 +38,10 @@ internal abstract class JcConcreteMemoryPathSelector(
 
     protected abstract fun peekInternal(): JcState
 
+    private val JcState.lastForkPoint: PathNode<JcInst>? get() {
+        return if (forkPoints.depth > 0) forkPoints.statement else null
+    }
+
     final override fun peek(): JcState {
         backtrackedState?.let {
             fixState(it)
@@ -46,7 +50,7 @@ internal abstract class JcConcreteMemoryPathSelector(
 
         val lastStates = lastAddedStates
         val lastForkPoint =
-            if (shouldChangePath) lastAddedBaseForkPoint ?: fixedState?.forkPoints?.statement
+            if (shouldChangePath) lastAddedBaseForkPoint ?: fixedState?.lastForkPoint
             else lastAddedBaseForkPoint
 
         if (!lastStates.isNullOrEmpty() && lastForkPoint != null) {
