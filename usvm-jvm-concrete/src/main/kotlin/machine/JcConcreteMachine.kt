@@ -3,6 +3,7 @@ package machine
 import machine.ps.JcConcreteMachineWeighters
 import machine.ps.JcConcreteWeightedPathSelector
 import machine.ps.JcConcreteWrappingPathSelector
+import machine.ps.weighters.JcConcreteBacktrackWeighter
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
@@ -78,7 +79,7 @@ open class JcConcreteMachine(
         return resultPs
     }
 
-    override fun createPathSelector(
+    fun createWrappingPathSelector(
         initialStates: Map<JcMethod, JcState>,
         options: UMachineOptions,
         timeStatistics: TimeStatistics<JcMethod, JcState>,
@@ -107,5 +108,27 @@ open class JcConcreteMachine(
             resultPs.add(listOf(state))
         }
         return resultPs
+    }
+
+    override fun createPathSelector(
+        initialStates: Map<JcMethod, JcState>,
+        options: UMachineOptions,
+        timeStatistics: TimeStatistics<JcMethod, JcState>,
+        coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
+        callGraphStatistics: CallGraphStatistics<JcMethod>,
+        loopStatisticFactory: () -> StateLoopTracker<*, JcInst, JcState>?,
+        basePathSelectors: (() -> List<UPathSelector<JcState>>)?,
+        wrappingPathSelector: (UPathSelector<JcState>) -> UPathSelector<JcState>
+    ): UPathSelector<JcState> {
+        return createWrappingPathSelector(
+            initialStates,
+            options,
+            timeStatistics,
+            coverageStatistics,
+            callGraphStatistics,
+            loopStatisticFactory,
+            basePathSelectors,
+            wrappingPathSelector
+        )
     }
 }

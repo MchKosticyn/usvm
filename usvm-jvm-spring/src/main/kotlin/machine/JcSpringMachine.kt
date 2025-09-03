@@ -110,6 +110,17 @@ class JcSpringMachine(
             }
         }
 
+        // use this to create wrapping ps
+//        return super.createWrappingPathSelector(
+//            initialStates,
+//            options,
+//            timeStatistics,
+//            coverageStatistics,
+//            callGraphStatistics,
+//            springLoopTracker,
+//            basePathSelectors,
+//            springWrappingPs
+//        )
         return super.createWeightedPathSelector(
             initialStates,
             options,
