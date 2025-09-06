@@ -335,6 +335,18 @@ tasks.register<JavaExec>("benchmarkBenches") {
     configureSpringAnalysis(this)
 }
 
+tasks.register<JavaExec>("benchmarkExplytAccount") {
+    fillProperties(loadBenchmark("link-generator.jar"), this)
+    mainClass.set("benchmarking.BenchmarkingKt")
+    configureSpringAnalysis(this)
+}
+
+tasks.register<JavaExec>("benchmarkExplytLicenseServer") {
+    fillProperties(loadBenchmark("licence-server-yandex-cloud.jar"), this)
+    mainClass.set("benchmarking.BenchmarkingKt")
+    configureSpringAnalysis(this)
+}
+
 tasks.register<JavaExec>("analyzeBenchmarks") {
     mainClass.set("benchmarking.BenchmarkingEvaluationKt")
     systemProperty("usvm.logs", benchmarkLogsFolder)
