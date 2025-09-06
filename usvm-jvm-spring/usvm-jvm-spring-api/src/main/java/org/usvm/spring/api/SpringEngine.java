@@ -25,4 +25,7 @@ public class SpringEngine {
 
     public static void markAsBadPath() {
     }
+
+    public static void markAsEdgeCasePath() {
+    }
 }

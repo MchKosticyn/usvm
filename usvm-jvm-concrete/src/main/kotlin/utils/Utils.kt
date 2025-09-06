@@ -2,7 +2,6 @@ package utils
 
 import features.JcGeneratedTypesFeature
 import machine.JcConcreteMemoryClassLoader
-import org.jacodb.api.jvm.ClassSource
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
@@ -13,8 +12,6 @@ import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
-import org.jacodb.api.jvm.RegisteredLocation
-import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
@@ -24,7 +21,6 @@ import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
-import org.jacodb.api.jvm.throwClassNotFound
 import org.jacodb.approximation.Approximations
 import org.jacodb.approximation.JcEnrichedVirtualField
 import org.jacodb.approximation.JcEnrichedVirtualMethod
@@ -38,6 +34,7 @@ import org.usvm.jvm.util.setFieldValue as setFieldValueUnsafe
 import org.usvm.jvm.util.allFields
 import org.usvm.jvm.util.isStatic
 import org.usvm.jvm.util.allInstanceFields
+import org.usvm.jvm.util.isThrowable
 import org.usvm.jvm.util.javaName
 import org.usvm.jvm.util.name
 import org.usvm.jvm.util.staticFields
@@ -244,11 +241,8 @@ internal val Class<*>.hasStatics: Boolean
 internal val JcClassOrInterface.isLambda: Boolean
     get() = name.contains("\$\$Lambda\$")
 
-internal val JcClassOrInterface.isException: Boolean
-    get() = allSuperHierarchyWithThis.any { it.name == "java.lang.Throwable" }
-
 internal val JcMethod.isExceptionCtor: Boolean
-    get() = isConstructor && enclosingClass.isException
+    get() = isConstructor && enclosingClass.isThrowable
 
 internal val JcMethod.isInstrumentedClinit: Boolean
     get() = isClassInitializer && rawInstList.any {
@@ -447,16 +441,6 @@ internal val Class<*>.isSolid: Boolean
 internal val Class<*>.isSolidWithSubtypes: Boolean
     get() = notTrackedWithSubtypes || this.isArray && this.componentType.notTrackedWithSubtypes
 
-class LambdaClassSource(
-    override val location: RegisteredLocation,
-    override val className: String,
-    private val fileName: String
-) : ClassSource {
-    override val byteCode by lazy {
-        location.jcLocation?.resolve(fileName) ?: className.throwClassNotFound()
-    }
-}
-
 fun Class<*>.toJcType(cp: JcClasspath): JcType? {
     try {
         if (isHidden)
@@ -524,9 +508,4 @@ private val runtimeGeneratedTypes = setOf(
 internal val String.typeIsRuntimeGenerated: Boolean get() {
     // TODO: add lambda predicate #CM
     return runtimeGeneratedTypes.contains(this) || this.contains("CGLIB\$\$")
-}
-
-internal fun JcRefType.isThrowable(): Boolean {
-    val throwable = classpath.findTypeOrNull<Throwable>()
-    return throwable != null && isAssignable(throwable)
 }

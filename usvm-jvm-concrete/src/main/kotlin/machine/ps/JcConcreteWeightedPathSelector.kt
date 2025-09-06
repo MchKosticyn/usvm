@@ -11,6 +11,7 @@ internal class JcConcreteWeightedPathSelector(
 ) : JcConcreteMemoryPathSelector(true) {
     private companion object {
         private const val TOP_COUNT = 10
+        private const val WEIGHT_THRESHOLD = 0
     }
 
     private val baseWeighter: StateWeighter<JcState, Int> = weighters.baseWeighter
@@ -19,7 +20,12 @@ internal class JcConcreteWeightedPathSelector(
     private val priorityCollection = DeterministicPriorityCollection<JcState, Int>(Comparator.naturalOrder())
 
     override fun chooseLastPickedState(relevantStates: List<JcState>): JcState {
-        return relevantStates.maxBy { eachPeekWeighter.weight(it).stableAdd(baseWeighter.weight(it)) }
+        val statesWithWeight = relevantStates.map { it to eachPeekWeighter.weight(it).stableAdd(baseWeighter.weight(it)) }
+        val (bestState, bestWeight) = statesWithWeight.maxBy { it.second }
+        logger.info { "chooseLastPickedState: bestWeight $bestWeight" }
+        if (bestWeight < WEIGHT_THRESHOLD)
+            return peekInternal()
+        return bestState
     }
 
     override fun peekInternal(): JcState {

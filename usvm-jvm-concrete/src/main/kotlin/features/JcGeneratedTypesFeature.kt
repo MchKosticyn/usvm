@@ -87,6 +87,7 @@ object JcGeneratedTypesFeature: JcClasspathExtFeature {
 
         val bytecode = generatedTypeBytes[name] ?: return null
         val jcClass = defineJcClass(classpath, name, bytecode)
+        generatedTypes[name] = jcClass
         return AbstractJcResolvedResult.JcResolvedClassResultImpl(name, jcClass)
     }
 }

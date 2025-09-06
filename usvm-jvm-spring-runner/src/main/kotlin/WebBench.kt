@@ -89,7 +89,7 @@ private fun runWebBench(benchmark: BenchCp) {
         useSoftConstraints = false,
         pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
         coverageZone = CoverageZone.METHOD,
-        exceptionsPropagation = false,
+        exceptionsPropagation = true,
         timeout = 2.minutes,
         solverType = SolverType.YICES,
         loopIterationLimit = 2,
@@ -119,7 +119,7 @@ fun analyzeBench(benchmark: BenchCp, options: UMachineOptions) {
     val method = startClass.declaredMethods.find { it.name == "startSpring" }!!
 
     val jcMachineOptions = JcMachineOptions(
-        forkOnImplicitExceptions = false,
+        forkOnImplicitExceptions = true,
         arrayMaxSize = 10_000,
     )
 

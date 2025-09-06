@@ -12,6 +12,7 @@ import org.jacodb.api.jvm.ext.isAssignable
 import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 import org.usvm.api.util.JcTestStateResolver
+import org.usvm.jvm.util.isThrowable
 import org.usvm.machine.JcContext
 import org.usvm.memory.UReadOnlyMemory
 import org.usvm.model.UModelBase
@@ -43,7 +44,7 @@ abstract class JcConcreteTestStateResolver<T>(
 
     override fun shouldIgnoreField(typedField: JcTypedField): Boolean {
         return super.shouldIgnoreField(typedField)
-                || typedField.enclosingType.isThrowable() && typedField.name == "stackTrace"
+                || typedField.enclosingType.isThrowable && typedField.name == "stackTrace"
     }
 
     override fun shouldSkipInitialization(type: JcClassType): Boolean {

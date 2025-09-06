@@ -3,7 +3,7 @@ package machine.ps
 import machine.JcSpringAnalysisMode
 import machine.JcSpringMachineOptions
 import machine.ps.weighters.JcConcreteBacktrackWeighter
-import machine.ps.weighters.JcSpringDataBaseWeighter
+import machine.ps.weighters.JcSpringPathWeighter
 import machine.ps.weighters.JcSpringEdgeCaseWeighter
 import machine.ps.weighters.JcSpringRegressionSuite
 import org.jacodb.api.jvm.JcMethod
@@ -15,7 +15,7 @@ import org.usvm.statistics.CoverageStatistics
 
 // TODO: fine tuning
 private const val uncoveredStateWeighterNorm = 0.1f
-private const val springDataBaseWeighterNorm = 1f
+private const val springPathWeighterNorm = 1f
 private const val springEdgeCaseWeighterNorm = 1f
 private const val springRegressionSuiteNorm = 1f
 private const val concreteBacktrackWeighterNorm = 0.1f
@@ -24,14 +24,15 @@ internal fun createSpringWeighters(
     jcSpringMachineOptions: JcSpringMachineOptions,
     coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
 ): JcConcreteMachineWeighters {
-    val mainWeighterWithNorm = when (jcSpringMachineOptions.springAnalysisMode) {
+    val springAnalysisMode = jcSpringMachineOptions.springAnalysisMode
+    val mainWeighterWithNorm = when (springAnalysisMode) {
         JcSpringAnalysisMode.EdgeCases -> JcSpringEdgeCaseWeighter() to springEdgeCaseWeighterNorm
         JcSpringAnalysisMode.RegressionSuite -> JcSpringRegressionSuite() to springRegressionSuiteNorm
     }
 
     val baseWeightersWithNorm = listOf(
         UncoveredStateWeighter(coverageStatistics) to uncoveredStateWeighterNorm,
-        JcSpringDataBaseWeighter() to springDataBaseWeighterNorm,
+        JcSpringPathWeighter(springAnalysisMode) to springPathWeighterNorm,
         mainWeighterWithNorm,
     )
     val (baseWeighters, baseWeightersNorm) = baseWeightersWithNorm.unzip()

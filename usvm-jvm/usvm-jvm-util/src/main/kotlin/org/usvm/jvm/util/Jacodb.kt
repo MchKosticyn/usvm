@@ -19,6 +19,7 @@ import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.humanReadableSignature
+import org.jacodb.api.jvm.ext.isSubClassOf
 import org.jacodb.api.jvm.ext.jcdbName
 import org.jacodb.api.jvm.ext.jcdbSignature
 import org.jacodb.api.jvm.ext.toType
@@ -64,6 +65,18 @@ fun JcType.toStringType(): String =
         is JcArrayType -> "${elementType.toStringType()}[]"
         else -> typeName
     }
+
+val JcClassOrInterface.isThrowable: Boolean get() {
+    val throwable = classpath.findClassOrNull("java.lang.Throwable")
+    return throwable != null && isSubClassOf(throwable)
+}
+
+val JcRefType.isThrowable: Boolean get() {
+    if (this !is JcClassType)
+        return false
+
+    return jcClass.isThrowable
+}
 
 fun JcType.getTypename() = TypeNameImpl.fromTypeName(this.typeName)
 

@@ -35,6 +35,7 @@ import org.jacodb.impl.features.hierarchyExt
 import org.jacodb.impl.jacodb
 import org.jacodb.impl.types.TypeNameImpl
 import org.objectweb.asm.Type
+import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldInsnNode
 import org.objectweb.asm.tree.LdcInsnNode
@@ -287,9 +288,10 @@ fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringTestGenera
                 )
 
                 if (benchmark.propertiesName != null) {
+                    val testPropertySourceName = "org.springframework.test.context.TestPropertySource".jvmName()
                     val testPropertySourceAnnotation = classNode.visibleAnnotations.singleOrNull {
-                        it.desc == "org.springframework.test.context.TestPropertySource".jvmName()
-                    } ?: error("TestPropertySource annotation not found")
+                        it.desc == testPropertySourceName
+                    } ?: AnnotationNode(testPropertySourceName)
                     val newAnnotationValues = testPropertySourceAnnotation.values ?: mutableListOf()
                     newAnnotationValues.addAll(listOf("locations", listOf(benchmark.propertiesName)))
                     testPropertySourceAnnotation.values = newAnnotationValues
