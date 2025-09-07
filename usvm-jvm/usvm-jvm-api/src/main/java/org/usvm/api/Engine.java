@@ -165,6 +165,10 @@ public class Engine {
         return a.getClass().isArray();
     }
 
+    public static boolean typeIsPrimitiveWrapper(Object a) {
+        return false;
+    }
+
     public static Class<?> arrayElementType(Object a) {
         return a.getClass().getComponentType();
     }

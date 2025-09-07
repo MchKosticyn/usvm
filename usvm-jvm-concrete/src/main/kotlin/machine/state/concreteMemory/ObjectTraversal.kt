@@ -11,7 +11,6 @@ internal abstract class ObjectTraversal(
     private val threadLocalHelper: ThreadLocalHelper,
     private val skipExceptions: Boolean = false,
 ) {
-
     private var stopped = false
 
     fun stop() {

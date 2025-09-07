@@ -17,19 +17,18 @@ import org.jacodb.api.jvm.cfg.BsmStringArg
 import org.jacodb.api.jvm.cfg.BsmTypeArg
 import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.cfg.JcStringConstant
+import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.byte
 import org.jacodb.api.jvm.ext.char
 import org.jacodb.api.jvm.ext.double
 import org.jacodb.api.jvm.ext.findClassOrNull
-import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.ifArrayGetElementType
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.long
 import org.jacodb.api.jvm.ext.objectClass
 import org.jacodb.api.jvm.ext.objectType
-import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
@@ -1023,6 +1022,13 @@ open class JcMethodApproximationResolver(
                     val possibleElementTypes = ctx.primitiveTypes + ctx.cp.objectType
                     val possibleArrayTypes = possibleElementTypes.map { ctx.cp.arrayTypeOf(it) }
                     possibleArrayTypes.map { type -> memory.types.evalIsSubtype(ref, type) }.reduce(ctx::mkOr)
+                }
+            }
+            dispatchUsvmApiMethod(Engine::typeIsPrimitiveWrapper) {
+                val ref = it.arguments[0].asExpr(ctx.addressSort)
+                scope.calcOnState {
+                    val wrapperTypes = ctx.primitiveTypes.map { it.autoboxIfNeeded() }
+                    wrapperTypes.map { type -> memory.types.evalIsSubtype(ref, type) }.reduce(ctx::mkOr)
                 }
             }
             dispatchUsvmApiMethod(Engine::typeIsSubtype) {

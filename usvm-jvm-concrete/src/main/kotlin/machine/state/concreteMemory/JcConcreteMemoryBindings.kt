@@ -41,8 +41,8 @@ private enum class State {
 internal class JcConcreteMemoryBindings private constructor(
     private val ctx: JcContext,
     private val typeConstraints: UTypeConstraints<JcType>,
-    private val physToVirt: IdentityHashMap<Any?, UConcreteHeapAddress>,
-    private val virtToPhys: Object2ObjectOpenHashMap<UConcreteHeapAddress, Any?>,
+    private val physToVirt: IdentityHashMap<Any, UConcreteHeapAddress>,
+    private val virtToPhys: Object2ObjectOpenHashMap<UConcreteHeapAddress, Any>,
     private var state: State,
     private val transitiveConcretes: IdentityHashMap<Any, Unit>,
     private val transitiveSymbolics: IdentityHashMap<Any, Unit>,

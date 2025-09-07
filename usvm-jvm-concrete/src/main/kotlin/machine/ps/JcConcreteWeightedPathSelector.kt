@@ -11,7 +11,7 @@ internal class JcConcreteWeightedPathSelector(
 ) : JcConcreteMemoryPathSelector(true) {
     private companion object {
         private const val TOP_COUNT = 10
-        private const val WEIGHT_THRESHOLD = 0
+        private const val WEIGHT_THRESHOLD = -100
     }
 
     private val baseWeighter: StateWeighter<JcState, Int> = weighters.baseWeighter

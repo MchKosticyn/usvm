@@ -342,6 +342,15 @@ private val packagesWithImmutableTypes = setOf(
     "java.util.zip",
 )
 
+private val immutableTypeNames = setOf(
+    "org.springframework.core.ResolvableType",
+    "org.springframework.core.type.classreading.SimpleMethodMetadataReadingVisitor\$Source",
+    "org.springframework.core.annotation.TypeMappedAnnotation",
+    "sun.security.x509.RDN",
+    "org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader\$ConfigurationClassBeanDefinition",
+    "com.fasterxml.jackson.databind.type.ClassKey",
+)
+
 internal val Class<*>.isClassLoader: Boolean
     get() = ClassLoader::class.java.isAssignableFrom(this)
 
@@ -364,6 +373,7 @@ private val loggingPackages = setOf(
     "org.hibernate.validator.internal.util.logging",
     "org.apache.commons.logging",
     "org.slf4j",
+    "ch.qos.logback.classic",
 )
 
 private val Class<*>.isLogger: Boolean
@@ -388,6 +398,7 @@ internal val Class<*>.isImmutable: Boolean
                     || isEnum
                     || isRecord
                     || packagesWithImmutableTypes.any { packageName.startsWith(it) }
+                    || immutableTypeNames.contains(this.typeName)
                     || this.typeName.inImmutableFromJavaLang
                     || isClassLoader
                     || isLogger
@@ -401,6 +412,7 @@ internal val Class<*>.isImmutableWithSubtypes: Boolean
                     || isEnum
                     || isRecord
                     || packagesWithImmutableTypes.any { packageName.startsWith(it) }
+                    || immutableTypeNames.contains(this.typeName)
                     || inImmutableWithSubtypesFromJavaLang
                     || isClassLoader
                     || isLogger
@@ -411,6 +423,7 @@ internal val JcClassOrInterface.isImmutable: Boolean
     get() = immutableTypes.any { this.allSuperHierarchyWithThis.any { cls -> cls.name == it.typeName } }
             || isEnum
             || packagesWithImmutableTypes.any { this.packageName.startsWith(it) }
+            || immutableTypeNames.contains(this.name)
             || this.name.inImmutableFromJavaLang
             || isClassLoader
             || isLogger
