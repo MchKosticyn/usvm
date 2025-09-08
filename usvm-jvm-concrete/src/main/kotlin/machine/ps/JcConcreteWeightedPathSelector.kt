@@ -29,9 +29,9 @@ internal class JcConcreteWeightedPathSelector(
     }
 
     override fun peekInternal(): JcState {
-        val (state, weight) = priorityCollection.takeWithWeight(TOP_COUNT).maxBy { (state, weight) ->
-            eachPeekWeighter.weight(state).stableAdd(weight)
-        }
+        val (state, weight) = priorityCollection.takeWithWeight(TOP_COUNT).map { (state, weight) ->
+            state to eachPeekWeighter.weight(state).stableAdd(weight)
+        }.maxBy { it.second }
         logger.info { "picked state [${state.id}] with weight $weight" }
         return state
     }

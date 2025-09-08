@@ -386,6 +386,7 @@ private val String.inImmutableFromJavaLang: Boolean
     get() = this.startsWith("java.lang")
             && this != "java.lang.StringBuilder"
             && this != "java.lang.StringBuffer"
+            && this != "java.lang.ThreadLocal"
 
 private val Class<*>.inImmutableWithSubtypesFromJavaLang: Boolean
     get() = this.typeName.inImmutableFromJavaLang && (isFinal || !isPublic)
@@ -453,6 +454,22 @@ internal val Class<*>.isSolid: Boolean
 
 internal val Class<*>.isSolidWithSubtypes: Boolean
     get() = notTrackedWithSubtypes || this.isArray && this.componentType.notTrackedWithSubtypes
+
+private val primitiveWrapperTypes = setOf(
+    java.lang.Boolean::class.java,
+    java.lang.Character::class.java,
+    java.lang.Byte::class.java,
+    java.lang.Short::class.java,
+    java.lang.Integer::class.java,
+    java.lang.Long::class.java,
+    java.lang.Float::class.java,
+    java.lang.Double::class.java,
+    java.lang.Void::class.java
+)
+
+internal val Class<*>.isPrimitiveWrapper: Boolean get() = primitiveWrapperTypes.contains(this)
+
+internal val Class<*>.isPrimitiveOrWrapper: Boolean get() = isPrimitive || isPrimitiveWrapper
 
 fun Class<*>.toJcType(cp: JcClasspath): JcType? {
     try {

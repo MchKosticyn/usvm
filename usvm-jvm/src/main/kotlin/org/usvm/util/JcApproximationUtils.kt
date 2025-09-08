@@ -14,6 +14,21 @@ import java.util.concurrent.ConcurrentHashMap
 private const val USVM_API_JAR_PATH = "usvm.jvm.api.jar.path"
 private const val USVM_APPROXIMATIONS_JAR_PATH = "usvm.jvm.approximations.jar.path"
 
+open class ApproximationPaths(
+    usvmApiPath: String? = null,
+    usvmApproximationsPath: String? = null
+) {
+    val usvmApiJarPath: String? = usvmApiPath ?: System.getenv(USVM_API_JAR_PATH)
+    val usvmApproximationsJarPath: String? = usvmApproximationsPath ?: System.getenv(USVM_APPROXIMATIONS_JAR_PATH)
+
+    open val namedPaths = mapOf(
+        "USVM API" to usvmApiJarPath,
+        "USVM Approximations" to usvmApproximationsJarPath
+    )
+    val presentPaths: Set<String> get() = namedPaths.values.filterNotNull().toSet()
+    val allPathsArePresent get() = namedPaths.values.all { it != null }
+}
+
 private val classpathApproximations: MutableMap<JcClasspath, Set<String>> = ConcurrentHashMap()
 
 // TODO: use another way to detect internal classes (e.g. special bytecode location type)
@@ -30,19 +45,15 @@ val JcClassType.isUsvmInternalClass: Boolean
 suspend fun JcDatabase.classpathWithApproximations(
     dirOrJars: List<File>,
     features: List<JcClasspathFeature> = emptyList(),
-    otherApproximations: List<File> = emptyList()
+    approximationPaths: ApproximationPaths = ApproximationPaths(),
 ): JcClasspath {
-    val usvmApiJarPath = System.getenv(USVM_API_JAR_PATH)
-    val usvmApproximationsJarPath = System.getenv(USVM_APPROXIMATIONS_JAR_PATH)
-
-    if (usvmApiJarPath == null || usvmApproximationsJarPath == null) {
+    if (!approximationPaths.allPathsArePresent)
         return classpath(dirOrJars, features)
-    }
 
-    logger.info { "Load USVM API: $usvmApiJarPath" }
-    logger.info { "Load USVM Approximations: $usvmApproximationsJarPath" }
+    logger.info { "Load USVM API: ${approximationPaths.usvmApiJarPath}" }
+    logger.info { "Load USVM Approximations: ${approximationPaths.usvmApproximationsJarPath}" }
 
-    val approximationsPath = setOf(File(usvmApiJarPath), File(usvmApproximationsJarPath)) + otherApproximations
+    val approximationsPath = approximationPaths.presentPaths.map { File(it) }
 
     val cpWithApproximations = dirOrJars + approximationsPath
     val approximations = this.features.filterIsInstance<Approximations>().singleOrNull()

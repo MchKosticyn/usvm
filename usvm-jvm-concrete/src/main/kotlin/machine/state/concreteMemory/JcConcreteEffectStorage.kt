@@ -16,6 +16,7 @@ import utils.isByteBuffer
 import utils.isFinal
 import utils.isImmutable
 import utils.isLambda
+import utils.isPrimitiveOrWrapper
 import utils.isProxy
 import utils.isThreadLocal
 import utils.notTracked
@@ -37,29 +38,11 @@ private class JcConcreteSnapshot(
     private val ctx: JcContext,
     val threadLocalHelper: ThreadLocalHelper,
 ) {
-    private val objects: IdentityHashMap<Any, Any?> = IdentityHashMap()
+    val objects: IdentityHashMap<Any, Any?> = IdentityHashMap()
     private val addedRec: IdentityHashMap<Any, Unit> = IdentityHashMap()
     private val newObjects: IdentityHashMap<Any, Unit> = IdentityHashMap()
-    private val statics: Object2ObjectOpenHashMap<Field, Any?> = Object2ObjectOpenHashMap()
+    val statics: Object2ObjectOpenHashMap<Field, Any?> = Object2ObjectOpenHashMap()
     private val staticsCache: HashSet<Class<*>> = hashSetOf()
-
-    constructor(
-        ctx: JcContext,
-        threadLocalHelper: ThreadLocalHelper,
-        other: JcConcreteSnapshot
-    ) : this(ctx, threadLocalHelper) {
-        for ((obj, _) in other.objects) {
-            addObjectToSnapshot(obj)
-        }
-
-        for ((field, obj) in other.statics) {
-            addStaticFieldToSnapshot(field, obj)
-        }
-    }
-
-    fun getObjects(): IdentityHashMap<Any, Any?> = objects
-
-    fun getStatics(): Object2ObjectOpenHashMap<Field, Any?> = statics
 
     private fun cloneObject(obj: Any): Any? {
         val type = obj.javaClass
@@ -210,8 +193,8 @@ private class JcConcreteSnapshotSequence(
         check(snapshots.isNotEmpty())
         if (snapshots.size == 1) {
             val snapshot = snapshots[0]
-            objects = snapshot.getObjects()
-            statics = snapshot.getStatics()
+            objects = snapshot.objects
+            statics = snapshot.statics
             threadLocalHelper = snapshot.threadLocalHelper
         } else {
             threadLocalHelper = snapshots[0].threadLocalHelper
@@ -219,8 +202,8 @@ private class JcConcreteSnapshotSequence(
             val resultStatics = Object2ObjectOpenHashMap<Field, Any?>()
             for (snapshot in snapshots) {
                 check(snapshot.threadLocalHelper === threadLocalHelper)
-                resultObjects.putAll(snapshot.getObjects())
-                resultStatics.putAll(snapshot.getStatics())
+                resultObjects.putAll(snapshot.objects)
+                resultStatics.putAll(snapshot.statics)
             }
             objects = resultObjects
             statics = resultStatics
@@ -231,6 +214,16 @@ private class JcConcreteSnapshotSequence(
         for ((field, value) in statics) {
             field.setStaticFieldValue(value)
         }
+    }
+
+    private fun dump(): String {
+        val statistics =
+            objects.map { (obj, _) -> obj.javaClass.typeName }
+                .groupBy { it }
+                .mapValues { it.value.size }
+                .toList()
+        return statistics.sortedByDescending { it.second }
+            .joinToString(separator = "\n") { (name, count) -> "$name -> $count" }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -384,11 +377,89 @@ private class JcConcreteEffect(
         return before!!
     }
 
+    private fun objEquals(obj1: Any?, obj2: Any?): Boolean {
+        return when {
+            obj1 === obj2 -> true
+            obj1 == null || obj2 == null -> false
+            else -> {
+                val type = obj1.javaClass
+                when {
+                    type != obj2.javaClass -> false
+                    type.isPrimitiveOrWrapper -> obj1 == obj2
+                    else -> false
+                }
+            }
+        }
+    }
+
+    private fun contentEquals(obj: Any, objSnapshot: Any?): Boolean {
+        val type = obj.javaClass
+        if (type.isThreadLocal) {
+            if (!threadLocalHelper.checkIsPresent(obj))
+                return false
+
+            return objEquals(objSnapshot, threadLocalHelper.getThreadLocalValue(obj))
+        }
+
+        check(objSnapshot != null && type == objSnapshot.javaClass)
+        return when {
+            type.isArray -> when (obj) {
+                is IntArray -> obj.contentEquals(objSnapshot as IntArray)
+                is ByteArray -> obj.contentEquals(objSnapshot as ByteArray)
+                is CharArray -> obj.contentEquals(objSnapshot as CharArray)
+                is LongArray -> obj.contentEquals(objSnapshot as LongArray)
+                is FloatArray -> obj.contentEquals(objSnapshot as FloatArray)
+                is ShortArray -> obj.contentEquals(objSnapshot as ShortArray)
+                is DoubleArray -> obj.contentEquals(objSnapshot as DoubleArray)
+                is BooleanArray -> obj.contentEquals(objSnapshot as BooleanArray)
+                is Array<*> -> obj.zip(objSnapshot as Array<*>).all { (e1, e2) -> e1 === e2 }
+                else -> error("objectChanged: unexpected array $obj")
+            }
+
+            else -> type.allInstanceFields.all { field ->
+                val objFieldValue = field.getFieldValue(obj)
+                val snapshotFieldValue = field.getFieldValue(objSnapshot)
+                objEquals(objFieldValue, snapshotFieldValue)
+            }
+        }
+    }
+
     fun createAfterIfNeeded() {
         if (!afterIsEmpty || beforeIsEmpty || !isAlive)
             return
 
-        this.after = JcConcreteSnapshot(ctx, threadLocalHelper, before!!)
+        val after = JcConcreteSnapshot(ctx, threadLocalHelper)
+        val before = before!!
+        val beforeObjects = before.objects
+        val unchangedObjects = mutableListOf<Any>()
+        for ((obj, objSnapshot) in beforeObjects) {
+            if (contentEquals(obj, objSnapshot)) {
+                unchangedObjects.add(obj)
+            } else {
+                after.addObjectToSnapshot(obj)
+            }
+        }
+
+        for (obj in unchangedObjects) {
+            beforeObjects.remove(obj)
+        }
+
+        val beforeStatics = before.statics
+        val unchangedStaticFields = mutableListOf<Field>()
+        for ((field, fieldValue) in beforeStatics) {
+            val currentValue = field.getStaticFieldValue()
+            if (objEquals(fieldValue, currentValue)) {
+                unchangedStaticFields.add(field)
+            } else {
+                after.addStaticFieldToSnapshot(field, currentValue)
+            }
+        }
+
+        for (field in unchangedStaticFields) {
+            beforeStatics.remove(field)
+        }
+
+        this.after = after
     }
 
     fun addObject(obj: Any?) {
