@@ -235,7 +235,9 @@ fun configureSpringAnalysis(task: JavaExec) = with(task) {
         exportPackage("java.base", "jdk.internal.loader")
         add("--illegal-access=warn")
         add("-XX:+UseParallelGC")
-        addModule("jdk.incubator.foreign")
+        if (JavaVersion.current() <= JavaVersion.VERSION_18) {
+            addModule("jdk.incubator.foreign")
+        }
     }
 }
 

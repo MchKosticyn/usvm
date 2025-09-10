@@ -10,7 +10,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
-@SuppressWarnings("removal")
+@SuppressWarnings({"removal", "deprecation"})
 public class ReflectionUtils {
     private static final Unsafe UNSAFE;
 
