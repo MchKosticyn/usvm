@@ -4,6 +4,7 @@ import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 
+@SuppressWarnings("removal")
 public class UnsafeOperations {
     public int getAddressSizeOrZero() {
         try {

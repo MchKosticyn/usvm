@@ -4,6 +4,7 @@ import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 
+@SuppressWarnings("removal")
 public class JvmCrashExamples {
     public int exit(int i) {
         if (i == 0) {

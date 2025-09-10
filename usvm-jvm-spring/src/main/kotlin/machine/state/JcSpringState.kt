@@ -1,6 +1,7 @@
 package machine.state
 
 import machine.HandlerMethodData
+import machine.JcSpringAnalysisMode
 import machine.JcSpringTestGenerationMode
 import machine.state.memory.JcSpringMemory
 import machine.state.pinnedValues.JcPinnedKey
@@ -41,7 +42,8 @@ class JcSpringState(
     forkPoints: PathNode<PathNode<JcInst>> = PathNode.root(),
     methodResult: JcMethodResult = JcMethodResult.NoCall,
     targets: UTargetsSet<JcTarget, JcInst> = UTargetsSet.empty(),
-    internal val springAnalysisMode: JcSpringTestGenerationMode,
+    internal val springTestGenMode: JcSpringTestGenerationMode,
+    internal val springAnalysisMode: JcSpringAnalysisMode,
 ) : JcConcreteState(
     ctx,
     ownership,

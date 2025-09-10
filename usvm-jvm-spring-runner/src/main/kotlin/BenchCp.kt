@@ -120,12 +120,8 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>, propertie
     val usvmConcreteApiJarPath = File(System.getenv("usvm.jvm.concrete.api.jar.path"))
     check(usvmConcreteApiJarPath.exists()) { "Concrete API jar does not exist" }
 
-    val allDependencies = TestDependenciesManager.getTestDependencies(dependencies)
-    val cpFiles = classes + usvmConcreteApiJarPath + allDependencies
-    val springBootVersion = TestDependenciesManager.getSpringBootVersion(dependencies)
-
-    check(springBootVersion != null) { "Spring boot was not found in dependencies" }
-
+    val testDepsManager = TestDependenciesManager(dependencies)
+    val cpFiles = classes + usvmConcreteApiJarPath + testDepsManager.allDependencies
     val db = jacodb {
         useProcessJavaRuntime()
 
@@ -133,7 +129,7 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>, propertie
 
         installFeatures(InMemoryHierarchy)
         installFeatures(Usages)
-        installFeatures(Approximations(listOf(VersionInfo("spring", springBootVersion))))
+        installFeatures(Approximations(listOf(VersionInfo("spring", testDepsManager.springBootVersion))))
 
         loadByteCode(cpFiles)
     }

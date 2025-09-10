@@ -4,36 +4,75 @@ import java.util.jar.Manifest
 import java.util.zip.ZipFile
 import kotlin.math.abs
 
-object TestDependenciesManager {
-    private const val STARTER_TEST_DEPENDENCIES_PATH = "./test-dependencies/starter-test"
-    private const val SECURITY_TEST_DEPENDENCIES_PATH = "./test-dependencies/security-test"
+internal class TestDependenciesManager(
+    private val projectDeps: List<File>
+) {
+    private companion object {
+        private const val STARTER_TEST_DEPENDENCIES_PATH = "./test-dependencies/starter-test"
+        private const val SECURITY_TEST_DEPENDENCIES_PATH = "./test-dependencies/security-test"
+        private const val VALIDATION_DEPENDENCIES_PATH = "./test-dependencies/validation"
+    }
 
-    fun getTestDependencies(classes: List<File>): List<File> {
-        val starterVersion = getSpringBootVersion(classes)
-        val securityVersion = getSecurityVersion(classes)
-        check(starterVersion != null)
-        val existingSpringTestDeps = findVersion(
-            starterVersion,
+    val springBootVersion = getSpringBootVersion(projectDeps) ?: error("spring boot version not found")
+
+    val securityVersion = getSecurityVersion(projectDeps)
+
+    val allDependencies: List<File> by lazy {
+        val existingStarterTestDeps = findVersion(
+            springBootVersion,
             File(STARTER_TEST_DEPENDENCIES_PATH)
         )
-        val result = existingSpringTestDeps.toMutableList()
-        if (securityVersion != null) {
-            val existingSecurityTestDeps = findVersion(
+        val resultTestDeps = existingStarterTestDeps.toMutableList()
+        if (securityVersion != null)
+            resultTestDeps += findVersion(
                 securityVersion,
                 File(SECURITY_TEST_DEPENDENCIES_PATH)
             )
-            result += existingSecurityTestDeps
-        }
-       return clearDuplicates(classes + result)
+        val persistenceApiPackage = findPackage("jakarta.persistence-api", projectDeps)
+        if (persistenceApiPackage != null)
+            resultTestDeps += findVersion(
+                springBootVersion,
+                File(VALIDATION_DEPENDENCIES_PATH)
+            )
+
+        clearDuplicates(projectDeps, resultTestDeps)
     }
 
-    private fun clearDuplicates(files: List<File>): List<File> {
-        return files.distinctBy { nameWithoutVersion(it) }
+    private fun getSpringBootVersion(projectDeps: List<File>): String? {
+        val springBootPackage = findPackage("spring-boot", projectDeps)
+            ?: return null
+        val mainAttributes = packageMainAttributes(springBootPackage)
+            ?: return null
+        val title = mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_TITLE)
+        check(title == "Spring Boot")
+        return mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_VERSION)
+    }
+
+    private fun getSecurityVersion(projectDeps: List<File>): String? {
+        val springSecurityPackage = findPackage("spring-security-core", projectDeps)
+            ?: return null
+        val mainAttributes = packageMainAttributes(springSecurityPackage)
+            ?: return null
+        val title = mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_TITLE)
+        check(title == "spring-security-core")
+        return mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_VERSION)
+    }
+
+    private fun findPackage(name: String, projectDeps: List<File>): File? {
+        return projectDeps.find {
+            nameWithoutVersion(it) == name
+        }
+    }
+
+    private fun clearDuplicates(projectDeps: List<File>, addedTestDeps: List<File>): List<File> {
+        val depsWithNames = hashMapOf<String, File>()
+        addedTestDeps.associateByTo(depsWithNames) { nameWithoutVersion(it) }
+        projectDeps.associateByTo(depsWithNames) { nameWithoutVersion(it) }
+        return depsWithNames.values.toList()
     }
 
     private fun nameWithoutVersion(file: File): String {
-        val parts = file.name.split("-")
-        return parts.subList(0, parts.size - 1).joinToString("-")
+        return file.name.substringBeforeLast('-')
     }
 
     private fun findVersion(version: String, available: File) : List<File> {
@@ -50,24 +89,8 @@ object TestDependenciesManager {
         return version.split(".").mapNotNull { it.toIntOrNull() }.fold(0) { acc, i -> acc * 100 + i }
     }
 
-    fun getSpringBootVersion(classes: List<File>): String? {
-        for (file in classes) {
-            val manifest = readManifest(file) ?: continue
-            val name = manifest.mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_TITLE)
-            val version = manifest.mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_VERSION)
-            if (name == "Spring Boot") return version
-        }
-        return null
-    }
-
-    fun getSecurityVersion(classes: List<File>): String? {
-        for (file in classes) {
-            val manifest = readManifest(file) ?: continue
-            val title = manifest.mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_TITLE)
-            val version = manifest.mainAttributes.getValue(Attributes.Name.IMPLEMENTATION_VERSION)
-            if (title == "spring-core") return version
-        }
-        return null
+    private fun packageMainAttributes(file: File): Attributes? {
+        return readManifest(file)?.mainAttributes
     }
 
     private fun readManifest(jar: File): Manifest? {
@@ -75,10 +98,7 @@ object TestDependenciesManager {
             val entries = zipFile.entries().toList()
             val manifestFile = entries.firstOrNull { it.name == "META-INF/MANIFEST.MF" }
             if (manifestFile == null) return@use null
-            return@use zipFile.getInputStream(manifestFile).use { stream ->
-                val manifest = Manifest(stream)
-                manifest
-            }
+            return@use zipFile.getInputStream(manifestFile).use { stream -> Manifest(stream) }
         }
     }
 }

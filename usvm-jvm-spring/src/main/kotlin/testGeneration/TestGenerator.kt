@@ -1,5 +1,6 @@
 package testGeneration
 
+import machine.JcSpringAnalysisMode
 import machine.JcSpringTestGenerationMode
 import machine.state.JcSpringState
 import machine.state.pinnedValues.JcPinnedKey
@@ -43,7 +44,10 @@ private fun JcSpringState.hasException(): Boolean {
 }
 
 fun JcSpringState.canGenerateTest(): Boolean {
-    return hasResponse() || hasException()
+    return when (springAnalysisMode) {
+        JcSpringAnalysisMode.EdgeCases -> hasException()
+        JcSpringAnalysisMode.RegressionSuite -> hasResponse() || hasException()
+    }
 }
 
 data class SpringTestInfo(
@@ -94,7 +98,7 @@ private class JcStateSpringTestBuilder(
 }
 
 private fun JcSpringState.createSpringTestKind(testClass: JcClassOrInterface): JcSpringTestKind {
-    return when (springAnalysisMode) {
+    return when (springTestGenMode) {
         JcSpringTestGenerationMode.SpringBootTest -> {
             val testAnnotation = testClass.annotations.find {
                 it.name == "org.springframework.boot.test.context.SpringBootTest"
