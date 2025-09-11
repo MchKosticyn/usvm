@@ -81,7 +81,9 @@ internal class TestDependenciesManager(
         check(files != null && files.isNotEmpty())
         val source = files.minBy { abs(versionToNumber(it.name.split("/").last()) - versionToNumber(version)) }
         val difference = versionToNumber(version) - versionToNumber(source.name.split("/").last())
-        check(abs(difference) < 10) { "Test dependencies differ more than allowed" }
+        check(abs(difference) < 10) {
+            "Test dependencies differ more than allowed"
+        }
         return source.listFiles()?.toList() ?: listOf()
     }
 
