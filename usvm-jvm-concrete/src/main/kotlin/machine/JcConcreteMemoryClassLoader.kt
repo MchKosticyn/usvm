@@ -130,8 +130,8 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         return if (locFile.name == name) listOf(locFile.URL) else null
     }
 
-    private fun internalFindResources(name: String?, single: Boolean): Enumeration<URL>? {
-        if (name.isNullOrEmpty())
+    private fun internalFindResources(name: String, single: Boolean): Enumeration<URL>? {
+        if (name.isEmpty())
             return null
 
         val result = mutableListOf<URL>()
@@ -283,6 +283,8 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     }
 
     override fun getResource(name: String?): URL? {
+        if (name == null)
+            throw NullPointerException()
         try {
             return internalFindResources(name, true)?.nextElement()
         } catch (e: Throwable) {
@@ -293,6 +295,8 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     override fun findResource(name: String?): URL? = getResource(name)
 
     override fun getResources(name: String?): Enumeration<URL> {
+        if (name == null)
+            throw NullPointerException()
         try {
             return internalFindResources(name, false) ?: Collections.emptyEnumeration()
         } catch (e: Throwable) {

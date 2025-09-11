@@ -136,14 +136,23 @@ class WorkerClassLoader(
     }
 
     override fun getResource(name: String?): URL? {
-        if (name == null) return null
+        if (name == null)
+            throw NullPointerException()
+
         return urlClassPath.getResource(name)?.getURL()
     }
 
-    override fun findResources(name: String): Enumeration<URL> {
+    override fun findResource(name: String?): URL? = getResource(name)
+
+    override fun getResources(name: String?): Enumeration<URL> {
+        if (name == null)
+            throw NullPointerException()
+
         val resourceUrls = urlClassPath.getResources(name).map { it.getURL() }
         return Collections.enumeration(resourceUrls.toList())
     }
+
+    override fun findResources(name: String?): Enumeration<URL> = getResources(name)
 
     companion object {
         private val cachedClasses = hashMapOf<String, URLClassPathLoader.Resource>()
