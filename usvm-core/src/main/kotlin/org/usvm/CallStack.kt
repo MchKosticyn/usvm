@@ -35,14 +35,6 @@ class UCallStack<Method, Statement> private constructor(
         stack.add(UCallStackFrame(method, returnSite))
     }
 
-    fun dropFromBottom(n: Int) {
-        for (i in 1..n) {
-            stack.removeFirst()
-        }
-        val first = stack.removeFirst()
-        stack.addFirst(UCallStackFrame(first.method, null))
-    }
-
     fun clone(): UCallStack<Method, Statement> {
         val newStack = ArrayDeque<UCallStackFrame<Method, Statement>>()
         newStack.addAll(stack)

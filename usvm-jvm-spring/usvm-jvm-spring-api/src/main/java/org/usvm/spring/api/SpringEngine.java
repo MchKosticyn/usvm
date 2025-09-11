@@ -9,9 +9,6 @@ public class SpringEngine {
         System.out.println(message);
     }
 
-    public static void startAnalysis() {
-    }
-
     public static List<List<Object>> allControllerPaths() {
         return new ArrayList<>();
     }

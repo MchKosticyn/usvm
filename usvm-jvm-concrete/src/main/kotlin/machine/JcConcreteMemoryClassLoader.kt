@@ -290,6 +290,8 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         }
     }
 
+    override fun findResource(name: String?): URL? = getResource(name)
+
     override fun getResources(name: String?): Enumeration<URL> {
         try {
             return internalFindResources(name, false) ?: Collections.emptyEnumeration()
@@ -297,6 +299,8 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
             error("Failed getting resources ${e.message}")
         }
     }
+
+    override fun findResources(name: String?): Enumeration<URL> = getResources(name)
 
     private fun defineClassRecursively(jcClass: JcClassOrInterface): Class<*> =
         defineClassRecursively(jcClass, hashSetOf())

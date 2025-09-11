@@ -694,18 +694,6 @@ class JcSpringMethodApproximationResolver (
             return true
         }
 
-        if (methodName == "startAnalysis") {
-            scope.doWithState {
-                println("starting, state.id = $id")
-                val framesToDrop = callStack.size - 1
-                callStack.dropFromBottom(framesToDrop)
-                memory.stack.dropFromBottom(framesToDrop)
-                skipMethodInvocationWithValue(methodCall, ctx.voidValue)
-            }
-
-            return true
-        }
-
         if (methodName == "allControllerPaths") {
             scope.doWithState {
                 val allControllerPaths = allControllerPaths(this as JcSpringState)

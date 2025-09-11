@@ -396,7 +396,9 @@ open class JcConcreteMemory(
         }
 
         check(!backtrackEnabled && backtrackState == null)
-        backtrackState = state.clone()
+        if (state.callStack.isNotEmpty()) {
+            backtrackState = state.clone()
+        }
         state.applySoftConstraints()
         fixedModel = state.models.first()
         state.models = listOf(fixedModel!!)
