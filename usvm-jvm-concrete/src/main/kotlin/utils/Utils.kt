@@ -9,15 +9,12 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcPrimitiveType
-import org.jacodb.api.jvm.JcRefType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedField
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
 import org.jacodb.api.jvm.cfg.JcRawCallInst
 import org.jacodb.api.jvm.cfg.JcRawStaticCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchy
-import org.jacodb.api.jvm.ext.findTypeOrNull
-import org.jacodb.api.jvm.ext.isAssignable
 import org.jacodb.api.jvm.ext.isEnum
 import org.jacodb.api.jvm.ext.packageName
 import org.jacodb.api.jvm.ext.toType
@@ -317,6 +314,24 @@ private val immutableTypes = setOf<Class<*>>(
     java.util.Collections::class.java,
     java.util.Arrays::class.java,
     java.util.Timer::class.java,
+
+    // Must not backtrack
+    java.util.concurrent.ExecutorService::class.java,
+    java.util.concurrent.ThreadPoolExecutor::class.java,
+    java.util.concurrent.locks.Lock::class.java,
+    java.util.concurrent.locks.Condition::class.java,
+    java.util.concurrent.Semaphore::class.java,
+    java.util.concurrent.CountDownLatch::class.java,
+    java.util.concurrent.CyclicBarrier::class.java,
+    java.util.concurrent.SynchronousQueue::class.java,
+    java.util.concurrent.BlockingQueue::class.java,
+    java.util.concurrent.Future::class.java,
+
+    // Immutable
+    java.util.concurrent.CopyOnWriteArrayList::class.java,
+    java.util.concurrent.CopyOnWriteArraySet::class.java,
+    java.util.concurrent.ThreadLocalRandom::class.java,
+    java.util.concurrent.ConcurrentHashMap.KeySetView::class.java,
 
     java.net.URL::class.java,
     java.net.URI::class.java,

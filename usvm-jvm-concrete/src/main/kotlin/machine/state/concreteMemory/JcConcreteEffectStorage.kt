@@ -111,7 +111,7 @@ private class JcConcreteSnapshot(
         }
 
         override fun skipField(field: Field): Boolean {
-            return field.type.notTrackedWithSubtypes
+            return field.type.notTrackedWithSubtypes || field.declaringClass.isImmutable
         }
 
         override fun skipArrayIndices(elementType: Class<*>): Boolean {
@@ -234,58 +234,55 @@ private class JcConcreteSnapshotSequence(
             check(!type.notTracked)
             when {
                 type.isThreadLocal -> threadLocalHelper.setThreadLocalValue(oldObj, clonedObj)
-                type.isArray -> {
-                    when {
-                        clonedObj is IntArray && oldObj is IntArray -> {
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
+                type.isArray -> when {
+                    clonedObj is IntArray && oldObj is IntArray -> {
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
                         }
-                        clonedObj is ByteArray && oldObj is ByteArray -> {
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
-                        }
-                        clonedObj is CharArray && oldObj is CharArray -> {
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
-                        }
-                        clonedObj is LongArray && oldObj is LongArray -> {
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
-                        }
-                        clonedObj is FloatArray && oldObj is FloatArray -> {
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
-                        }
-                        clonedObj is ShortArray && oldObj is ShortArray -> {
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
-                        }
-                        clonedObj is DoubleArray && oldObj is DoubleArray -> {
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
-                        }
-                        clonedObj is BooleanArray && oldObj is BooleanArray -> {
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
-                        }
-                        clonedObj is Array<*> && oldObj is Array<*> -> {
-                            oldObj as Array<Any?>
-                            clonedObj.forEachIndexed { i, v ->
-                                oldObj[i] = v
-                            }
-                        }
-                        else -> error("applyBacktrack: unexpected array $clonedObj")
                     }
+                    clonedObj is ByteArray && oldObj is ByteArray -> {
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
+                        }
+                    }
+                    clonedObj is CharArray && oldObj is CharArray -> {
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
+                        }
+                    }
+                    clonedObj is LongArray && oldObj is LongArray -> {
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
+                        }
+                    }
+                    clonedObj is FloatArray && oldObj is FloatArray -> {
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
+                        }
+                    }
+                    clonedObj is ShortArray && oldObj is ShortArray -> {
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
+                        }
+                    }
+                    clonedObj is DoubleArray && oldObj is DoubleArray -> {
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
+                        }
+                    }
+                    clonedObj is BooleanArray && oldObj is BooleanArray -> {
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
+                        }
+                    }
+                    clonedObj is Array<*> && oldObj is Array<*> -> {
+                        oldObj as Array<Any?>
+                        clonedObj.forEachIndexed { i, v ->
+                            oldObj[i] = v
+                        }
+                    }
+                    else -> error("applyBacktrack: unexpected array $clonedObj")
                 }
-
                 else -> {
                     check(clonedObj != null)
                     for (field in type.allInstanceFields) {

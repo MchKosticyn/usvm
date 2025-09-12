@@ -17,6 +17,7 @@ import utils.createDefault
 import utils.getFieldValue
 import utils.isEnum
 import utils.isEnumArray
+import utils.isImmutable
 import utils.isInternalType
 import utils.isProxy
 import utils.isSolid
@@ -163,7 +164,7 @@ internal class JcConcreteMemoryBindings private constructor(
         }
 
         override fun skipField(field: Field): Boolean {
-            return field.type.notTrackedWithSubtypes
+            return field.type.notTrackedWithSubtypes || field.declaringClass.isImmutable
         }
 
         override fun skipArrayIndices(elementType: Class<*>): Boolean {
