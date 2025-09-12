@@ -575,13 +575,8 @@ class JcSpringMethodApproximationResolver (
     }
 
     private fun combinePaths(basePath: String, localPath: String): String {
-        val basePathEndsWithSlash = basePath.endsWith('/')
-        val localPathStartsWithSlash = localPath.startsWith('/')
-        if (basePathEndsWithSlash && localPathStartsWithSlash)
-            return basePath + localPath.substring(1)
-        if (basePathEndsWithSlash || localPathStartsWithSlash)
-            return basePath + localPath
-        return "$basePath/$localPath"
+        val rawCombined = "/${basePath.trim('/')}/${localPath.trimStart('/')}"
+        return rawCombined.replace("//", "/")
     }
 
     private fun requestMethodOfAnnotation(annotation: JcAnnotation): String? {
