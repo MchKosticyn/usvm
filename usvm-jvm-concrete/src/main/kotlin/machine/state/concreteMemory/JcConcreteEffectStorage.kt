@@ -38,11 +38,34 @@ private class JcConcreteSnapshot(
     private val ctx: JcContext,
     val threadLocalHelper: ThreadLocalHelper,
 ) {
-    val objects: IdentityHashMap<Any, Any?> = IdentityHashMap()
+    private val _objects: IdentityHashMap<Any, Any?> = IdentityHashMap()
     private val addedRec: IdentityHashMap<Any, Unit> = IdentityHashMap()
     private val newObjects: IdentityHashMap<Any, Unit> = IdentityHashMap()
-    val statics: Object2ObjectOpenHashMap<Field, Any?> = Object2ObjectOpenHashMap()
+    private val _statics: Object2ObjectOpenHashMap<Field, Any?> = Object2ObjectOpenHashMap()
     private val staticsCache: HashSet<Class<*>> = hashSetOf()
+
+    val objects: Map<Any, Any?> get() = _objects
+
+    val statics: Map<Field, Any?> get() = _statics
+
+    val isEmpty: Boolean get() = _statics.isEmpty() && _objects.isEmpty()
+
+    fun merge(other: JcConcreteSnapshot) {
+        _objects.putAll(other._objects)
+        addedRec.putAll(other.addedRec)
+        newObjects.putAll(other.newObjects)
+        _statics.putAll(other._statics)
+        staticsCache.addAll(other.staticsCache)
+    }
+
+    fun removeObject(obj: Any) {
+        _objects.remove(obj)
+        addedRec.remove(obj)
+    }
+
+    fun removeStaticField(field: Field) {
+        _statics.remove(field)
+    }
 
     private fun cloneObject(obj: Any): Any? {
         val type = obj.javaClass
@@ -85,7 +108,7 @@ private class JcConcreteSnapshot(
     }
 
     fun addObjectToSnapshot(oldObj: Any) {
-        if (objects.containsKey(oldObj) || newObjects.contains(oldObj))
+        if (_objects.containsKey(oldObj) || newObjects.contains(oldObj))
             return
 
         val type = oldObj.javaClass
@@ -102,7 +125,7 @@ private class JcConcreteSnapshot(
             cloneObject(oldObj) ?: return
         }
 
-        objects[oldObj] = clonedObj
+        _objects[oldObj] = clonedObj
     }
 
     private inner class SnapshotTraversal: ObjectTraversal(threadLocalHelper, false) {
@@ -129,7 +152,7 @@ private class JcConcreteSnapshot(
         }
 
         override fun handleThreadLocal(threadLocal: Any, value: Any?) {
-            objects[threadLocal] = value
+            _objects[threadLocal] = value
             addedRec[threadLocal] = Unit
         }
     }
@@ -140,7 +163,7 @@ private class JcConcreteSnapshot(
 
     fun addStaticFieldToSnapshot(field: Field, value: Any?) {
         if (!field.isFinal)
-            statics[field] = value
+            _statics[field] = value
     }
 
     fun addStaticFields(type: Class<*>) {
@@ -170,16 +193,6 @@ private class JcConcreteSnapshot(
             addStaticFields(type)
         }
     }
-
-    val isEmpty: Boolean get() = statics.isEmpty() && objects.isEmpty()
-
-    fun merge(other: JcConcreteSnapshot) {
-        objects.putAll(other.objects)
-        addedRec.putAll(other.addedRec)
-        newObjects.putAll(other.newObjects)
-        statics.putAll(other.statics)
-        staticsCache.addAll(other.staticsCache)
-    }
 }
 
 private class JcConcreteSnapshotSequence(
@@ -193,8 +206,8 @@ private class JcConcreteSnapshotSequence(
         check(snapshots.isNotEmpty())
         if (snapshots.size == 1) {
             val snapshot = snapshots[0]
-            objects = snapshot.objects
-            statics = snapshot.statics
+            objects = snapshot.objects as IdentityHashMap<Any, Any?>
+            statics = snapshot.statics as Object2ObjectOpenHashMap<Field, Any?>
             threadLocalHelper = snapshot.threadLocalHelper
         } else {
             threadLocalHelper = snapshots[0].threadLocalHelper
@@ -427,9 +440,8 @@ private class JcConcreteEffect(
 
         val after = JcConcreteSnapshot(ctx, threadLocalHelper)
         val before = before!!
-        val beforeObjects = before.objects
         val unchangedObjects = mutableListOf<Any>()
-        for ((obj, objSnapshot) in beforeObjects) {
+        for ((obj, objSnapshot) in before.objects) {
             if (contentEquals(obj, objSnapshot)) {
                 unchangedObjects.add(obj)
             } else {
@@ -438,12 +450,11 @@ private class JcConcreteEffect(
         }
 
         for (obj in unchangedObjects) {
-            beforeObjects.remove(obj)
+            before.removeObject(obj)
         }
 
-        val beforeStatics = before.statics
         val unchangedStaticFields = mutableListOf<Field>()
-        for ((field, fieldValue) in beforeStatics) {
+        for ((field, fieldValue) in before.statics) {
             val currentValue = field.getStaticFieldValue()
             if (objEquals(fieldValue, currentValue)) {
                 unchangedStaticFields.add(field)
@@ -453,7 +464,7 @@ private class JcConcreteEffect(
         }
 
         for (field in unchangedStaticFields) {
-            beforeStatics.remove(field)
+            before.removeStaticField(field)
         }
 
         this.after = after
@@ -552,6 +563,9 @@ private class JcConcreteEffectSequence private constructor(
 
         check(last is JcConcreteEffect)
         check(last.isAlive)
+
+        last.createAfterIfNeeded()
+
         if (last.isEmpty) {
             check(!last.hasChildren)
             val parentOfLast = last.parent
@@ -564,7 +578,6 @@ private class JcConcreteEffectSequence private constructor(
             return
         }
         val newEffect = JcConcreteEffect(ctx, threadLocalHelper, last)
-        last.createAfterIfNeeded()
         last.addChild(newEffect)
         head = newEffect
     }
