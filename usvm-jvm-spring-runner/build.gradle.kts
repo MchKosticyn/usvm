@@ -233,7 +233,9 @@ fun configureSpringAnalysis(task: JavaExec) = with(task) {
         exportPackage("java.base", "sun.nio.cs")
         exportPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs.util")
         exportPackage("java.base", "jdk.internal.loader")
-        add("--illegal-access=warn")
+        if (JavaVersion.current() < JavaVersion.VERSION_17) {
+            add("--illegal-access=warn")
+        }
         add("-XX:+UseParallelGC")
         if (JavaVersion.current() <= JavaVersion.VERSION_18) {
             addModule("jdk.incubator.foreign")
