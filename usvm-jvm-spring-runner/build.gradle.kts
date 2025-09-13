@@ -325,6 +325,12 @@ tasks.register<JavaExec>("benchmarkKlaw") {
     configureSpringAnalysis(this)
 }
 
+tasks.register<JavaExec>("benchmarkKomga") {
+    fillProperties(loadBenchmark("komga-1.21.2.jar"), this)
+    mainClass.set("benchmarking.BenchmarkingKt")
+    configureSpringAnalysis(this)
+}
+
 tasks.register<JavaExec>("benchmarkBlogApi") {
     fillProperties(loadBenchmark("blogapi-0.0.1-SNAPSHOT.jar"), this)
     mainClass.set("benchmarking.BenchmarkingKt")
