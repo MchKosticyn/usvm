@@ -291,12 +291,23 @@ private val immutableTypes = setOf<Class<*>>(
     java.lang.Math::class.java,
     java.lang.reflect.Array::class.java,
     java.lang.Class::class.java,
+    java.lang.Package::class.java,
+    java.lang.Module::class.java,
     java.lang.Thread::class.java,
+    java.lang.ThreadGroup::class.java,
     java.lang.Process::class.java,
+    java.lang.ProcessHandle::class.java,
     java.math.BigInteger::class.java,
     java.math.BigDecimal::class.java,
+    java.lang.Runtime.Version::class.java,
+    java.lang.System::class.java,
+    java.lang.ModuleLayer::class.java,
+    java.lang.Runtime::class.java,
 
-    java.io.File::class.java,
+    java.lang.ref.WeakReference::class.java,
+    java.lang.ref.SoftReference::class.java,
+    java.lang.ref.PhantomReference::class.java,
+    java.lang.ref.ReferenceQueue::class.java,
 
     java.awt.Color::class.java,
     java.awt.Font::class.java,
@@ -308,12 +319,32 @@ private val immutableTypes = setOf<Class<*>>(
     java.awt.Cursor::class.java,
 
     java.security.Permission::class.java,
+    java.security.PublicKey::class.java,
+    java.security.PrivateKey::class.java,
+    javax.security.auth.x500.X500Principal::class.java,
 
     java.util.Locale::class.java,
     java.util.UUID::class.java,
     java.util.Collections::class.java,
     java.util.Arrays::class.java,
     java.util.Timer::class.java,
+    java.util.OptionalInt::class.java,
+    java.util.OptionalLong::class.java,
+    java.util.OptionalDouble::class.java,
+    java.util.Currency::class.java,
+    java.util.ResourceBundle::class.java,
+
+    java.util.Base64.Encoder::class.java,
+    java.util.Base64.Decoder::class.java,
+
+    java.util.zip.ZipFile::class.java,
+    java.util.jar.JarFile::class.java,
+    java.util.jar.JarInputStream::class.java,
+    java.util.zip.ZipInputStream::class.java,
+
+    java.util.logging.Logger::class.java,
+    java.util.logging.Handler::class.java,
+    java.util.logging.LogManager::class.java,
 
     // Must not backtrack
     java.util.concurrent.ExecutorService::class.java,
@@ -339,6 +370,34 @@ private val immutableTypes = setOf<Class<*>>(
     java.net.Inet6Address::class.java,
     java.net.InetSocketAddress::class.java,
     java.net.NetPermission::class.java,
+    java.net.Socket::class.java,
+    java.net.ServerSocket::class.java,
+    java.net.DatagramSocket::class.java,
+    java.net.MulticastSocket::class.java,
+    java.net.URLConnection::class.java,
+    java.net.HttpURLConnection::class.java,
+
+    java.io.File::class.java,
+    java.io.InputStream::class.java,
+    java.io.OutputStream::class.java,
+    java.io.Reader::class.java,
+    java.io.Writer::class.java,
+    java.io.RandomAccessFile::class.java,
+
+    java.nio.file.Path::class.java,
+    java.nio.charset.Charset::class.java,
+    java.nio.charset.StandardCharsets::class.java,
+    java.nio.file.attribute.FileTime::class.java,
+    java.nio.file.attribute.BasicFileAttributes::class.java,
+    java.nio.MappedByteBuffer::class.java,
+
+    Pair::class.java,
+    Result::class.java,
+    Unit::class.java,
+    Lazy::class.java,
+    Regex::class.java,
+    kotlin.properties.Delegates::class.java,
+    kotlin.properties.ObservableProperty::class.java,
 )
 
 // TODO: make whitelist of mutable types instead of blacklist of immutable (check all packages of corretto-17) #Valya
@@ -355,6 +414,20 @@ private val packagesWithImmutableTypes = setOf(
     "sun.instrument",
     "org.mockito.internal",
     "java.util.zip",
+    "java.nio.channels",
+    "java.lang.management",
+    "java.util.prefs",
+    "java.awt",
+    "javax.swing",
+    "kotlinx.coroutines",
+    "kotlin.coroutines",
+    "kotlin.reflect",
+    "kotlin.ranges",
+    "kotlin.time",
+    "kotlinx.datetime",
+    "kotlin.jvm.functions",
+    "kotlinx.collections.immutable",
+    "kotlinx.serialization",
 )
 
 private val immutableTypeNames = setOf(
@@ -407,7 +480,7 @@ private val Class<*>.inImmutableWithSubtypesFromJavaLang: Boolean
     get() = this.typeName.inImmutableFromJavaLang && (isFinal || !isPublic)
 
 // TODO: implement via whitelist instead of blacklist
-internal val Class<*>.isImmutable: Boolean
+internal val Class<*>.isImmutable: Boolean // TODO: this is `isImmutableRec`, implement `isImmutable` and use it in SnapshotTraversal
     get() = !isArray &&
             (immutableTypes.any { it.isAssignableFrom(this) }
                     || isPrimitive

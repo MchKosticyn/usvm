@@ -23,6 +23,7 @@ run_python_with_gdb.sh
 generated/*
 usvm-jvm-spring-runner/generatedTests/
 usvm-jvm-spring-runner/generated/*
+usvm-jvm-spring-runner/DUMP_LAMBDA_PROXY_CLASS_FILES
 
 # Benchmark-related folder contents
 usvm-jvm-spring-runner/bench-errors/*
@@ -33,4 +34,3 @@ usvm-jvm-spring-runner/bench-jars/bench-libs/
 
 *.ansi
 .profileconfig.json
-usvm-jvm/generated
