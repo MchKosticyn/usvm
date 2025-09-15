@@ -3,6 +3,10 @@ package org.usvm.ps.weighters
 import org.usvm.UState
 import org.usvm.ps.StateWeighter
 import org.usvm.statistics.CoverageStatistics
+import java.io.PrintStream
+
+// TODO: delete #KEK
+val weightersLog = PrintStream("/Users/michael/Documents/Work/usvm/weighters.log")
 
 class UncoveredStateWeighter<Method, Statement, in State : UState<*, Method, Statement, *, *, in State>>(
     coverageStatistics: CoverageStatistics<Method, Statement, in State>,
@@ -17,6 +21,8 @@ class UncoveredStateWeighter<Method, Statement, in State : UState<*, Method, Sta
     }
 
     override fun weight(state: State): Int {
-        return state.pathNode.allStatements.count { it in uncoveredStatements }
+        val result = state.pathNode.allStatements.count { it in uncoveredStatements }
+        weightersLog.println("UncoveredStateWeighter: state = ${state.id}, weight = $result")
+        return result
     }
 }

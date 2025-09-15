@@ -11,6 +11,7 @@ import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcTerminatingInst
 import org.usvm.machine.state.JcState
 import org.usvm.ps.StateWeighter
+import org.usvm.ps.weighters.weightersLog
 import org.usvm.spring.api.SpringEngine
 
 private val engineName = SpringEngine::class.java.name
@@ -107,6 +108,8 @@ class JcSpringPathWeighter(
             currStmt = nextInst(currStmt, insts)
         }
 
-        return history.sumOf { weight(it) }
+        val result = history.sumOf { weight(it) }
+        weightersLog.println("JcSpringPathWeighter: state = ${state.id}, weight = $result")
+        return result
     }
 }
