@@ -1,6 +1,7 @@
 package utils
 
 import features.JcGeneratedTypesFeature
+import features.LambdaBytecodeProvider
 import machine.JcConcreteMemoryClassLoader
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassOrInterface
@@ -218,7 +219,10 @@ internal val Class<*>.isProxy: Boolean
     get() = Proxy.isProxyClass(this)
 
 internal val String.isLambdaTypeName: Boolean
-    get() = contains("\$\$Lambda\$")
+    get() = contains(LambdaBytecodeProvider.lambdaTypeNameIdentifier)
+
+internal val String.isLambdaRealName: Boolean
+    get() = isLambdaTypeName && substringAfterLast(LambdaBytecodeProvider.lambdaTypeNameIdentifier).contains('.')
 
 internal val Class<*>.isLambda: Boolean
     get() = typeName.isLambdaTypeName
@@ -561,8 +565,9 @@ internal val Class<*>.isPrimitiveOrWrapper: Boolean get() = isPrimitive || isPri
 
 fun Class<*>.toJcType(cp: JcClasspath): JcType? {
     try {
+        val jcdbClassName = typeName.replace('/', '.')
         if (isHidden)
-            JcGeneratedTypesFeature.addHiddenClass(typeName, this)
+            JcGeneratedTypesFeature.addHiddenClass(jcdbClassName, this)
 
         if (isProxy) {
             val interfaces = interfaces
@@ -572,7 +577,7 @@ fun Class<*>.toJcType(cp: JcClasspath): JcType? {
             return null
         }
 
-        val type = cp.findTypeOrNull(this.typeName)
+        val type = cp.findTypeOrNull(jcdbClassName)
         if (type !is JcClassType) return type
 
         val jcClass = type.jcClass
@@ -625,5 +630,13 @@ private val runtimeGeneratedTypes = setOf(
 
 internal val String.typeIsRuntimeGenerated: Boolean get() {
     // TODO: add lambda predicate #CM
-    return runtimeGeneratedTypes.contains(this) || this.contains("CGLIB\$\$")
+    return isLoadableRuntimeClassName || isNotLoadableRuntimeClassName
+}
+
+internal val String.isLoadableRuntimeClassName: Boolean get() {
+    return runtimeGeneratedTypes.contains(this)
+}
+
+internal val String.isNotLoadableRuntimeClassName: Boolean get() {
+    return this.contains("CGLIB\$\$") || this.contains('/')
 }

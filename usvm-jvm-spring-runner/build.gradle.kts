@@ -85,9 +85,20 @@ fun configureSpringAnalysis(task: JavaExec) = with(task) {
     val generatedDir = currentDir.resolve("generated")
     createOrClear(generatedDir)
 
-    val lambdaDir = generatedDir.resolve("lambdas")
+    val currentJavaVersion = JavaVersion.current()
+
+    val (lambdaDir, jvmLambdaArg) = if (currentJavaVersion <= JavaVersion.VERSION_20) {
+        val dir = generatedDir.resolve("lambdas")
+        val arg = "-Djdk.internal.lambda.dumpProxyClasses=${dir.absolutePath}"
+        dir to arg
+    } else {
+        val dir = project.projectDir.resolve("DUMP_LAMBDA_PROXY_CLASS_FILES")
+        val arg = "-Djdk.invoke.LambdaMetafactory.dumpProxyClassFiles"
+        dir to arg
+    }
     createOrClear(lambdaDir)
     environment("lambdaDir", lambdaDir.absolutePath)
+
     val springDir = generatedDir.resolve("spring")
     createOrClear(springDir)
     environment("springDir", springDir.absolutePath)
@@ -135,7 +146,7 @@ fun configureSpringAnalysis(task: JavaExec) = with(task) {
 
     jvmArgs = listOf("-Xmx12g") + mutableListOf<String>().apply {
         add("-Djava.security.manager -Djava.security.policy=webExplorationPolicy.policy")
-        add("-Djdk.internal.lambda.dumpProxyClasses=${lambdaDir.absolutePath}")
+        add(jvmLambdaArg)
         add("-javaagent:${agentJarPath.absolutePath}")
         openPackage("java.base", "jdk.internal.misc")
         openPackage("java.base", "java.lang")
@@ -233,11 +244,11 @@ fun configureSpringAnalysis(task: JavaExec) = with(task) {
         exportPackage("java.base", "sun.nio.cs")
         exportPackage("java.xml", "com.sun.org.apache.xerces.internal.impl.xs.util")
         exportPackage("java.base", "jdk.internal.loader")
-        if (JavaVersion.current() < JavaVersion.VERSION_17) {
+        add("-XX:+UseParallelGC")
+        if (currentJavaVersion < JavaVersion.VERSION_17) {
             add("--illegal-access=warn")
         }
-        add("-XX:+UseParallelGC")
-        if (JavaVersion.current() <= JavaVersion.VERSION_18) {
+        if (currentJavaVersion <= JavaVersion.VERSION_18) {
             addModule("jdk.incubator.foreign")
         }
     }

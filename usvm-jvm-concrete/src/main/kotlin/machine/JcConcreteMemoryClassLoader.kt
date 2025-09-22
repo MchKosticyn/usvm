@@ -40,6 +40,9 @@ import java.util.LinkedList
 import java.util.Queue
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
+import utils.isLambdaRealName
+import utils.isLoadableRuntimeClassName
+import utils.isNotLoadableRuntimeClassName
 
 /**
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
@@ -238,14 +241,21 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (loaded != null)
             return loaded
 
-        if (name.isLambdaTypeName)
-            return loadLambdaClass(name)
+        if (name.isLambdaRealName)
+            throw ClassNotFoundException()
 
-        val jcClass = cp.findClassOrNull(name)
+        if (name.isLoadableRuntimeClassName)
+            return super.loadClass(name)
+
+        val jcClassLookup = cp.findClassOrNull(name)
+        val jcClass = when (jcClassLookup) {
+            is JcUnknownClass -> null
+            else -> jcClassLookup
+        }
         return when {
-            jcClass == null && name.typeIsRuntimeGenerated -> super.loadClass(name)
-            jcClass == null -> throw ClassNotFoundException()
-            else -> defineClassRecursively(jcClass)
+            jcClass == null || name.isNotLoadableRuntimeClassName -> throw ClassNotFoundException()
+            else ->
+                defineClassRecursively(jcClass)
         }
     }
 
@@ -254,25 +264,30 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
     }
 
     private fun loadLambdaClass(name: String): Class<*> {
-        return JcGeneratedTypesFeature.getHiddenClass(name) ?: super.loadClass(name)
+        return checkNotNull(JcGeneratedTypesFeature.getHiddenClass(name)) {
+            "lambda class not found for name $name"
+        }
     }
 
     override fun addTypeBytes(name: String, typeBytes: ByteArray) {
-        if (!name.typeIsRuntimeGenerated)
+        val className = name.replace('/', '.')
+        if (!className.typeIsRuntimeGenerated)
             return
 
-        val className = name.replace('/', '.')
         JcGeneratedTypesFeature.addGeneratedTypeBytes(className, typeBytes)
     }
 
     override fun loadClass(jcClass: JcClassOrInterface, initialize: Boolean): Class<*> {
         val name = jcClass.name
-        val loadedClass =
-            if (name.isLambdaTypeName)
-                loadLambdaClass(name)
-            else defineClassRecursively(jcClass)
+        val isRuntimeLambdaClass = name.isLambdaRealName
+        val loadedClass = when {
+            isRuntimeLambdaClass -> loadLambdaClass(name)
+            name.isNotLoadableRuntimeClassName -> defineClassRecursively(jcClass)
+            else -> loadClass(name)
+        }
 
-        if (initialize && !loadedClass.name.isLambdaTypeName)
+        val allowInitialize = !isRuntimeLambdaClass && !name.isNotLoadableRuntimeClassName
+        if (initialize && allowInitialize)
             Class.forName(loadedClass.name, true, this)
 
         return loadedClass
@@ -358,7 +373,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (!visited.add(jcClass))
             return null
 
-        if (jcClass.declaration.location.isRuntime || jcClass is JcUnknownClass && jcClass.name.typeIsRuntimeGenerated)
+        if (jcClass.declaration.location.isRuntime || jcClass is JcUnknownClass && className.typeIsRuntimeGenerated)
             return super.loadClass(className)
 
         if (jcClass is JcUnknownClass)

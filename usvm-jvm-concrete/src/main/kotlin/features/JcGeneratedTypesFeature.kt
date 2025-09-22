@@ -10,9 +10,13 @@ import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.impl.bytecode.JcClassOrInterfaceImpl
 import org.jacodb.impl.features.JcFeaturesChain
 import org.jacodb.impl.features.classpaths.AbstractJcResolvedResult
-import utils.isLambdaTypeName
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.commons.ClassRemapper
+import org.objectweb.asm.commons.SimpleRemapper
+import utils.isLambdaRealName
 
 object JcGeneratedTypesFeature: JcClasspathExtFeature {
 
@@ -55,33 +59,16 @@ object JcGeneratedTypesFeature: JcClasspathExtFeature {
         return JcClassOrInterfaceImpl(cp, source, featuresChain)
     }
 
-    private fun getLambdaByteCode(className: String): ByteArray? {
-        val lambdaDir = File(System.getenv("lambdaDir"))
-        check(lambdaDir.exists())
-        val file = lambdaDir.resolve(className.replace('.', '/') + ".class")
-        return if (file.exists()) file.readBytes() else null
-    }
-
-    private fun getLambdaCanonicalTypeName(typeName: String): String {
-        check(typeName.isLambdaTypeName)
-        return typeName.split('/')[0]
-    }
-
-    private val String.isLambdaRealName: Boolean get() =
-        isLambdaTypeName && split('/').size == 2
-
     override fun tryFindClass(classpath: JcClasspath, name: String): JcResolvedClassResult? {
-        val existingJcClass = generatedTypes[name]
+        val jcdbClassName = name.replace('/', '.')
+        val existingJcClass = generatedTypes[jcdbClassName]
         if (existingJcClass != null)
             return AbstractJcResolvedResult.JcResolvedClassResultImpl(name, existingJcClass)
 
-        if (name.isLambdaTypeName) {
-            check(name.isLambdaRealName)
-            val canonicalName = getLambdaCanonicalTypeName(name)
-            val bytecode = getLambdaByteCode(canonicalName) ?: return null
-            val jcClass = defineJcClass(classpath, name, bytecode)
-            generatedTypes[canonicalName] = jcClass
-            generatedTypes[name] = jcClass
+        if (jcdbClassName.isLambdaRealName) {
+            val bytecode = LambdaBytecodeProvider.instance.forName(jcdbClassName) ?: return null
+            val jcClass = defineJcClass(classpath, jcdbClassName, bytecode)
+            generatedTypes[jcdbClassName] = jcClass
             return AbstractJcResolvedResult.JcResolvedClassResultImpl(name, jcClass)
         }
 
@@ -91,3 +78,62 @@ object JcGeneratedTypesFeature: JcClasspathExtFeature {
         return AbstractJcResolvedResult.JcResolvedClassResultImpl(name, jcClass)
     }
 }
+
+abstract class LambdaBytecodeProvider {
+
+    companion object {
+
+        val currentJavaMajorVersion: Int =
+            System.getProperty("java.version").split(".").firstOrNull()?.toIntOrNull() ?: error("cannot parse java.version")
+
+        val lambdaTypeNameIdentifier: String = if (currentJavaMajorVersion > 20) "\$\$Lambda" else "\$\$Lambda\$"
+
+        val instance: LambdaBytecodeProvider by lazy {
+            if (currentJavaMajorVersion <= 20)
+                ByCanonicalName()
+            else
+                ByRealName()
+        }
+    }
+
+    protected val lambdaDir by lazy {
+        val dir = File(System.getenv("lambdaDir"))
+        check(dir.exists() && dir.isDirectory) {
+            "lambda dir does not exist"
+        }
+        dir
+    }
+
+    protected fun replaceCanonicalNameWith(jcdbResolvableName: String, bytes: ByteArray): ByteArray {
+        val reader = ClassReader(bytes)
+        val writer = ClassWriter(ClassWriter.COMPUTE_FRAMES)
+        val canonicalName = jcdbResolvableName.substringBeforeLast('.')
+        val remapper = ClassRemapper(writer, SimpleRemapper(canonicalName, jcdbResolvableName))
+        reader.accept(remapper, ClassReader.EXPAND_FRAMES)
+        return writer.toByteArray()
+    }
+
+    protected fun String.toAsmLambdaName() = "${substringBeforeLast('.').replace('.', '/')}.${substringAfterLast('.')}"
+
+    abstract fun forName(jcdbRuntimeName: String): ByteArray?
+
+    private class ByRealName: LambdaBytecodeProvider() {
+        override fun forName(jcdbRuntimeName: String): ByteArray? {
+            val resolvableName = jcdbRuntimeName.toAsmLambdaName()
+
+            val file = lambdaDir.resolve("$resolvableName.class")
+
+            return if (file.exists()) replaceCanonicalNameWith(resolvableName, file.readBytes()) else null
+        }
+    }
+
+    private class ByCanonicalName: LambdaBytecodeProvider() {
+        override fun forName(jcdbRuntimeName: String): ByteArray? {
+            val resolvableName = jcdbRuntimeName.toAsmLambdaName()
+            val fileName = resolvableName.substringBeforeLast(".")
+            val file = lambdaDir.resolve("$fileName.class")
+            return if (file.exists()) replaceCanonicalNameWith(resolvableName, file.readBytes()) else null
+        }
+    }
+}
+
