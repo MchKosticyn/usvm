@@ -254,8 +254,7 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         }
         return when {
             jcClass == null || name.isNotLoadableRuntimeClassName -> throw ClassNotFoundException()
-            else ->
-                defineClassRecursively(jcClass)
+            else -> defineClassRecursively(jcClass)
         }
     }
 
