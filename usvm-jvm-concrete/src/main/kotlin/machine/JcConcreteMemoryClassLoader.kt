@@ -23,7 +23,6 @@ import utils.isInstrumentedClinit
 import utils.isInstrumentedGetClassLoader
 import utils.isInstrumentedInit
 import utils.isInstrumentedInternalInit
-import utils.isLambdaTypeName
 import utils.setStaticFieldValue
 import utils.typeIsRuntimeGenerated
 import java.io.File
