@@ -1,6 +1,7 @@
 package machine.interpreter.transformers.springjpa.query.function
 
 import jpa.compare
+import jpa.downcastRefTypeIfNeeded
 import jpa.generateVirtualCall
 import jpa.toBoolean
 import jpa.toInt
@@ -103,10 +104,12 @@ fun Not.generateInst(ctx: MethodCtx): JcLocalVar {
     return ifRes
 }
 
-fun And.generateInst(ctx: MethodCtx): JcLocalVar {
-    val genCtx = ctx.genCtx
+fun And.generateInst(ctx: MethodCtx) = with(ctx) {
     val l = left.genInst(ctx)
     val r = right.genInst(ctx)
+
+    val lCast = genCtx.downcastRefTypeIfNeeded(cp, getVarName(), l)
+    val rCast = genCtx.downcastRefTypeIfNeeded(cp, getVarName(), r)
 
     // 0. if l == false (jmp 4) (next)
     // 1. if r == false (jmp 4) (next)
@@ -118,31 +121,33 @@ fun And.generateInst(ctx: MethodCtx): JcLocalVar {
     val falseRes: JcInstRef
     val endOfIf: JcInstRef
     genCtx.addInstruction { loc ->
-        val cond = JcEqExpr(ctx.cp.boolean, l, ctx.common.jcFalse)
+        val cond = JcEqExpr(ctx.cp.boolean, lCast, common.jcFalse)
         falseRes = JcInstRef(loc.index + 4)
         val nextInst = JcInstRef(loc.index + 1)
         endOfIf = JcInstRef(loc.index + 6)
         JcIfInst(loc, cond, falseRes, nextInst)
     }
     genCtx.addInstruction { loc ->
-        val cond = JcEqExpr(ctx.cp.boolean, r, ctx.common.jcFalse)
+        val cond = JcEqExpr(ctx.cp.boolean, rCast, common.jcFalse)
         val nextInst = JcInstRef(loc.index + 1)
         JcIfInst(loc, cond, falseRes, nextInst)
     }
 
-    val resVal = genCtx.nextLocalVar(ctx.getPredicateName(), ctx.cp.boolean)
-    genCtx.addInstruction { loc -> JcAssignInst(loc, resVal, ctx.common.jcTrue) }
+    val resVal = genCtx.nextLocalVar(getPredicateName(), cp.boolean)
+    genCtx.addInstruction { loc -> JcAssignInst(loc, resVal, common.jcTrue) }
     genCtx.addInstruction { loc -> JcGotoInst(loc, endOfIf) }
-    genCtx.addInstruction { loc -> JcAssignInst(loc, resVal, ctx.common.jcFalse) }
+    genCtx.addInstruction { loc -> JcAssignInst(loc, resVal, common.jcFalse) }
     genCtx.addInstruction { loc -> JcGotoInst(loc, endOfIf) }
 
-    return resVal
+    genCtx.toBoolean(cp, resVal)
 }
 
-fun Or.generateInst(ctx: MethodCtx): JcLocalVar {
-    val genCtx = ctx.genCtx
+fun Or.generateInst(ctx: MethodCtx) = with(ctx) {
     val l = left.genInst(ctx)
     val r = right.genInst(ctx)
+
+    val lCast = genCtx.downcastRefTypeIfNeeded(cp, getVarName(), l)
+    val rCast = genCtx.downcastRefTypeIfNeeded(cp, getVarName(), r)
 
     // 0. if l == true (jmp 2) (next)
     // 1. if r == false (jmp 4) (next)
@@ -153,24 +158,24 @@ fun Or.generateInst(ctx: MethodCtx): JcLocalVar {
     // 6. return %0
     val endOfIf: JcInstRef
     genCtx.addInstruction { loc ->
-        val cond = JcEqExpr(ctx.cp.boolean, l, ctx.common.jcTrue)
+        val cond = JcEqExpr(ctx.cp.boolean, lCast, common.jcTrue)
         val trueBranch = JcInstRef(loc.index + 2)
         val nextInst = JcInstRef(loc.index + 1)
         endOfIf = JcInstRef(loc.index + 6)
         JcIfInst(loc, cond, trueBranch, nextInst)
     }
     genCtx.addInstruction { loc ->
-        val cond = JcEqExpr(ctx.cp.boolean, r, ctx.common.jcFalse)
+        val cond = JcEqExpr(ctx.cp.boolean, rCast, common.jcFalse)
         val trueBranch = JcInstRef(loc.index + 3)
         val nextInst = JcInstRef(loc.index + 1)
         JcIfInst(loc, cond, trueBranch, nextInst)
     }
 
-    val resVal = genCtx.nextLocalVar(ctx.getPredicateName(), ctx.cp.boolean)
-    genCtx.addInstruction { loc -> JcAssignInst(loc, resVal, ctx.common.jcTrue) }
+    val resVal = genCtx.nextLocalVar(getPredicateName(), cp.boolean)
+    genCtx.addInstruction { loc -> JcAssignInst(loc, resVal, common.jcTrue) }
     genCtx.addInstruction { loc -> JcGotoInst(loc, endOfIf) }
-    genCtx.addInstruction { loc -> JcAssignInst(loc, resVal, ctx.common.jcFalse) }
+    genCtx.addInstruction { loc -> JcAssignInst(loc, resVal, common.jcFalse) }
     genCtx.addInstruction { loc -> JcGotoInst(loc, endOfIf) }
 
-    return resVal
+    genCtx.toBoolean(cp, resVal)
 }

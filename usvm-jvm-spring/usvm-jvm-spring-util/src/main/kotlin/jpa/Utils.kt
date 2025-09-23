@@ -414,27 +414,34 @@ fun BlockGenerationContext.toInt(cp: JcClasspath, value: JcLocalVar): JcLocalVar
     return generateVirtualCall("to_int_${value.name}", "intValue", integerType, value, emptyList())
 }
 
-fun BlockGenerationContext.upcastToRefTypeIfNeeded(cp: JcClasspath, name: String, value: JcValue, type: TypeName) =
-    if (!type.isPrimitiveRefType)
-        value
-    else
-        type.getRefTypeFromPrimitive?.let {
-            generateStaticCall("upcast_to_ref_$name", "valueOf", cp.findType(it) as JcClassType, listOf(value))
-        } ?: value
+fun BlockGenerationContext.upcastToRefTypeIfNeeded(
+    cp: JcClasspath,
+    name: String,
+    value: JcValue,
+    type: TypeName = value.typeName.typeName
+) = type.getRefTypeFromPrimitive?.let {
+    generateStaticCall(
+        "upcast_to_ref_$name",
+        "valueOf",
+        cp.findType(it) as JcClassType,
+        listOf(value)
+    )
+} ?: value
 
-fun BlockGenerationContext.downcastRefTypeIfNeeded(cp: JcClasspath, name: String, value: JcValue, type: TypeName)  =
-    if (!type.isPrimitiveType)
-        value
-    else
-        type.getPrimitiveFromRefType?.let {
-            generateVirtualCall(
-                "downcast_ref_$name",
-                "${it}Value",
-                cp.findType(type.typeName) as JcClassType,
-                value,
-                emptyList()
-            )
-        } ?: value
+fun BlockGenerationContext.downcastRefTypeIfNeeded(
+    cp: JcClasspath,
+    name: String,
+    value: JcValue,
+    type: TypeName = value.typeName.typeName
+) = type.getPrimitiveFromRefType?.let {
+    generateVirtualCall(
+        "downcast_ref_$name",
+        "${it}Value",
+        cp.findType(type.typeName) as JcClassType,
+        value,
+        emptyList()
+    )
+} ?: value
 
 fun BlockGenerationContext.toJavaClass(cp: JcClasspath, name: String, type: JcType): JcLocalVar {
     val classType = cp.findType(JAVA_CLASS) as JcClassType
