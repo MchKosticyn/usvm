@@ -3,9 +3,9 @@ package org.usvm.samples.concretemem;
 public class SampleA {
     public void SomeMethod(int a, double b) {
         if (b * a > 0) {
-            var x = b - a;
+            double x = b - a;
         } else {
-            var y = b + a;
+            double y = b + a;
         }
     }
 
