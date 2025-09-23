@@ -243,28 +243,28 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (name.isLambdaRealName)
             throw ClassNotFoundException()
 
-        if (name.isLoadableRuntimeClassName)
-            return super.loadClass(name)
+        // TODO: we may want to handle ClassNotFound exceptions and load the class with jcClasspath
+        if (name.isLoadableRuntimeClassName) {
+            val c = super.loadClass(name)
+            check(c.classLoader === this || c.classLoader == null) {
+                "concrete classloader super misusage"
+            }
 
-        val jcClassLookup = cp.findClassOrNull(name)
-        val jcClass = when (jcClassLookup) {
-            is JcUnknownClass -> null
-            else -> jcClassLookup
+            return c
         }
-        return when {
-            jcClass == null || name.isNotLoadableRuntimeClassName -> throw ClassNotFoundException()
+
+        if (name.isNotLoadableRuntimeClassName)
+            throw ClassNotFoundException()
+
+        return when (val jcClass = cp.findClassOrNull(name)) {
+            null -> throw ClassNotFoundException()
+            is JcUnknownClass -> throw ClassNotFoundException()
             else -> defineClassRecursively(jcClass)
         }
     }
 
     fun isLoaded(jcClass: JcClassOrInterface): Boolean {
         return findLoadedClass(jcClass.name) != null
-    }
-
-    private fun loadLambdaClass(name: String): Class<*> {
-        return checkNotNull(JcGeneratedTypesFeature.getHiddenClass(name)) {
-            "lambda class not found for name $name"
-        }
     }
 
     override fun addTypeBytes(name: String, typeBytes: ByteArray) {
@@ -275,20 +275,27 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         JcGeneratedTypesFeature.addGeneratedTypeBytes(className, typeBytes)
     }
 
+    private val clazzCache = HashMap<JcClassOrInterface, Class<*>>()
+
     override fun loadClass(jcClass: JcClassOrInterface, initialize: Boolean): Class<*> {
         val name = jcClass.name
-        val isRuntimeLambdaClass = name.isLambdaRealName
-        val loadedClass = when {
-            isRuntimeLambdaClass -> loadLambdaClass(name)
-            name.isNotLoadableRuntimeClassName -> defineClassRecursively(jcClass)
-            else -> loadClass(name)
+
+        val fromCache = clazzCache.get(jcClass)
+        if (fromCache != null)
+            return fromCache
+
+        if (name.isNotLoadableRuntimeClassName) {
+            val clazz = JcGeneratedTypesFeature.getHiddenClass(name) ?: defineClassRecursively(jcClass)
+            clazzCache.put(jcClass, clazz)
+            return clazz
         }
 
-        val allowInitialize = !isRuntimeLambdaClass && !name.isNotLoadableRuntimeClassName
-        if (initialize && allowInitialize)
-            Class.forName(loadedClass.name, true, this)
+        val clazz = loadClass(name)
 
-        return loadedClass
+        if (initialize)
+            Class.forName(name, true, this)
+
+        return clazz
     }
 
     private fun defineClass(name: String, code: ByteArray): Class<*> {
@@ -368,10 +375,14 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (loaded != null)
             return loaded
 
+        check(!className.isLambdaRealName) {
+            "trying to define lambda class"
+        }
+
         if (!visited.add(jcClass))
             return null
 
-        if (jcClass.declaration.location.isRuntime || jcClass is JcUnknownClass && className.typeIsRuntimeGenerated)
+        if (jcClass.declaration.location.isRuntime || jcClass is JcUnknownClass && className.isLoadableRuntimeClassName)
             return super.loadClass(className)
 
         if (jcClass is JcUnknownClass)

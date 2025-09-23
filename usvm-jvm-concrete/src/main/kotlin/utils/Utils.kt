@@ -638,5 +638,5 @@ internal val String.isLoadableRuntimeClassName: Boolean get() {
 }
 
 internal val String.isNotLoadableRuntimeClassName: Boolean get() {
-    return this.contains("CGLIB\$\$") || this.contains('/')
+    return this.contains("CGLIB\$\$") || this.contains('/') || this.isLambdaRealName
 }

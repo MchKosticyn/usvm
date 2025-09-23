@@ -344,6 +344,12 @@ tasks.register<JavaExec>("benchmarkKomga") {
     configureSpringAnalysis(this)
 }
 
+tasks.register<JavaExec>("benchmarkLicenceServer") {
+    fillProperties(loadBenchmark("licence-server-yandex-cloud.jar"), this)
+    mainClass.set("benchmarking.BenchmarkingKt")
+    configureSpringAnalysis(this)
+}
+
 tasks.register<JavaExec>("benchmarkBlogApi") {
     fillProperties(loadBenchmark("blogapi-0.0.1-SNAPSHOT.jar"), this)
     mainClass.set("benchmarking.BenchmarkingKt")
