@@ -25,6 +25,8 @@ class JcSpringTestExprResolver(
 
     override var resolveMode: ResolveMode = ResolveMode.CURRENT
 
+    override val shouldExtendMapWithObjects: Boolean = false
+
     override fun <R> withMode(resolveMode: ResolveMode, body: JcTestStateResolver<UTestExpression>.() -> R): R {
         check(resolveMode == ResolveMode.CURRENT && this.resolveMode == ResolveMode.CURRENT)
         return body()
