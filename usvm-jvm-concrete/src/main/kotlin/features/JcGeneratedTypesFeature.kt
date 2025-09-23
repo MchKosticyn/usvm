@@ -120,9 +120,7 @@ abstract class LambdaBytecodeProvider {
     private class ByRealName: LambdaBytecodeProvider() {
         override fun forName(jcdbRuntimeName: String): ByteArray? {
             val resolvableName = jcdbRuntimeName.toAsmLambdaName()
-
             val file = lambdaDir.resolve("$resolvableName.class")
-
             return if (file.exists()) replaceCanonicalNameWith(resolvableName, file.readBytes()) else null
         }
     }

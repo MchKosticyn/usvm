@@ -12,7 +12,7 @@ val weightersLogFile = File(System.getProperty("user.dir")).resolve("weighters.l
     it.createNewFile()
 }
 
-val weightersLog = PrintStream(weightersLogFile)// PrintStream("/Users/michael/Documents/Work/usvm/weighters.log")
+val weightersLog = PrintStream(weightersLogFile)
 
 class UncoveredStateWeighter<Method, Statement, in State : UState<*, Method, Statement, *, *, in State>>(
     coverageStatistics: CoverageStatistics<Method, Statement, in State>,
