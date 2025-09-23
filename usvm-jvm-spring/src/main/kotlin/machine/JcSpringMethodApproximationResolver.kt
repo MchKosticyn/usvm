@@ -44,7 +44,6 @@ import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.memory.UMemory
 import org.usvm.jvm.util.findJavaField
 import org.usvm.sizeSort
-import org.usvm.spring.api.SpringEngine
 import util.isDeserializationMethod
 import util.isSpringController
 import util.isSpringRepository
@@ -341,7 +340,7 @@ class JcSpringMethodApproximationResolver (
             return false
         val stringLength = getStringLength(memory, string)
         val concreteLength = memory.tryExprToInt(stringLength)
-        return concreteLength != null;
+        return concreteLength != null
     }
 
     private fun approximateSecurityContextImpl(methodCall: JcMethodCall): Boolean = with(methodCall) {
@@ -575,7 +574,9 @@ class JcSpringMethodApproximationResolver (
     }
 
     private fun combinePaths(basePath: String, localPath: String): String {
-        val rawCombined = "/${basePath.trim('/')}/${localPath.trimStart('/')}"
+        val controllerPath = "/${basePath.trim('/')}"
+        val handlerPath = "/$localPath".trimStart('/')
+        val rawCombined = "$controllerPath$handlerPath"
         return rawCombined.replace("//", "/")
     }
 

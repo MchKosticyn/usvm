@@ -23,7 +23,6 @@ import utils.isInstrumentedClinit
 import utils.isInstrumentedGetClassLoader
 import utils.isInstrumentedInit
 import utils.isInstrumentedInternalInit
-import utils.isLambdaTypeName
 import utils.setStaticFieldValue
 import utils.typeIsRuntimeGenerated
 import java.io.File
@@ -40,6 +39,9 @@ import java.util.LinkedList
 import java.util.Queue
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
+import utils.isLambdaRealName
+import utils.isLoadableRuntimeClassName
+import utils.isNotLoadableRuntimeClassName
 
 /**
  * Loads known classes using [ClassLoader.getSystemClassLoader], or defines them using bytecode from jacodb if they are unknown.
@@ -238,13 +240,25 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (loaded != null)
             return loaded
 
-        if (name.isLambdaTypeName)
-            return loadLambdaClass(name)
+        if (name.isLambdaRealName)
+            throw ClassNotFoundException()
 
-        val jcClass = cp.findClassOrNull(name)
-        return when {
-            jcClass == null && name.typeIsRuntimeGenerated -> super.loadClass(name)
-            jcClass == null -> throw ClassNotFoundException()
+        // TODO: we may want to handle ClassNotFound exceptions and load the class with jcClasspath
+        if (name.isLoadableRuntimeClassName) {
+            val c = super.loadClass(name)
+            check(c.classLoader === this || c.classLoader == null) {
+                "concrete classloader super misusage"
+            }
+
+            return c
+        }
+
+        if (name.isNotLoadableRuntimeClassName)
+            throw ClassNotFoundException()
+
+        return when (val jcClass = cp.findClassOrNull(name)) {
+            null -> throw ClassNotFoundException()
+            is JcUnknownClass -> throw ClassNotFoundException()
             else -> defineClassRecursively(jcClass)
         }
     }
@@ -253,29 +267,35 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         return findLoadedClass(jcClass.name) != null
     }
 
-    private fun loadLambdaClass(name: String): Class<*> {
-        return JcGeneratedTypesFeature.getHiddenClass(name) ?: super.loadClass(name)
-    }
-
     override fun addTypeBytes(name: String, typeBytes: ByteArray) {
-        if (!name.typeIsRuntimeGenerated)
+        val className = name.replace('/', '.')
+        if (!className.typeIsRuntimeGenerated)
             return
 
-        val className = name.replace('/', '.')
         JcGeneratedTypesFeature.addGeneratedTypeBytes(className, typeBytes)
     }
 
+    private val clazzCache = HashMap<JcClassOrInterface, Class<*>>()
+
     override fun loadClass(jcClass: JcClassOrInterface, initialize: Boolean): Class<*> {
         val name = jcClass.name
-        val loadedClass =
-            if (name.isLambdaTypeName)
-                loadLambdaClass(name)
-            else defineClassRecursively(jcClass)
 
-        if (initialize && !loadedClass.name.isLambdaTypeName)
-            Class.forName(loadedClass.name, true, this)
+        val fromCache = clazzCache.get(jcClass)
+        if (fromCache != null)
+            return fromCache
 
-        return loadedClass
+        if (name.isNotLoadableRuntimeClassName) {
+            val clazz = JcGeneratedTypesFeature.getHiddenClass(name) ?: defineClassRecursively(jcClass)
+            clazzCache.put(jcClass, clazz)
+            return clazz
+        }
+
+        val clazz = loadClass(name)
+
+        if (initialize)
+            Class.forName(name, true, this)
+
+        return clazz
     }
 
     private fun defineClass(name: String, code: ByteArray): Class<*> {
@@ -355,10 +375,14 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         if (loaded != null)
             return loaded
 
+        check(!className.isLambdaRealName) {
+            "trying to define lambda class"
+        }
+
         if (!visited.add(jcClass))
             return null
 
-        if (jcClass.declaration.location.isRuntime || jcClass is JcUnknownClass && jcClass.name.typeIsRuntimeGenerated)
+        if (jcClass.declaration.location.isRuntime || jcClass is JcUnknownClass && className.isLoadableRuntimeClassName)
             return super.loadClass(className)
 
         if (jcClass is JcUnknownClass)

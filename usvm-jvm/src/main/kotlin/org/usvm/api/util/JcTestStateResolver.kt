@@ -120,6 +120,8 @@ abstract class JcTestStateResolver<T>(
         typesToScore = JcFixedInheritorsNumberTypeSelector.DEFAULT_INHERITORS_NUMBER_TO_SCORE
     )
 
+    protected open val shouldExtendMapWithObjects: Boolean = true
+
     fun resolveThisInstance(): T = if (method.isStatic) {
         decoderApi.createNullConst(method.enclosingType)
     } else {
@@ -520,12 +522,14 @@ abstract class JcTestStateResolver<T>(
         if (length > mapSize) {
             logger.warn { "Incorrect model: map length $length greater than resolved map size $mapSize" }
 
-            // fill map with new objects which are definitely unique
-            // note: may not satisfy map type constraints
-            val objectCtor = ctx.cp.objectType.constructors.single { it.parameters.isEmpty() }
-            while (length > resultMapSize()) {
-                val freshKey = decoderApi.invokeMethod(objectCtor.method, emptyList())
-                resultMapAddEntry(freshKey, freshKey)
+            if (shouldExtendMapWithObjects) {
+                // fill map with new objects which are definitely unique
+                // note: may not satisfy map type constraints
+                val objectCtor = ctx.cp.objectType.constructors.single { it.parameters.isEmpty() }
+                while (length > resultMapSize()) {
+                    val freshKey = decoderApi.invokeMethod(objectCtor.method, emptyList())
+                    resultMapAddEntry(freshKey, freshKey)
+                }
             }
         }
     }
