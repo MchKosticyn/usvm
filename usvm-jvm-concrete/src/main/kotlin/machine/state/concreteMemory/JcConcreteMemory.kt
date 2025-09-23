@@ -320,7 +320,7 @@ open class JcConcreteMemory(
     protected open fun shouldNotInvoke(method: JcMethod): Boolean {
         return forbiddenInvocations.contains(method.humanReadableSignature)
                 // Should not invoke lambdas, because it may contain forbidden method inside it
-                || method.enclosingClass.name.let { it.isLambdaTypeName || it.typeIsRuntimeGenerated }
+                || method.enclosingClass.name.typeIsRuntimeGenerated
     }
 
     private fun methodIsInvokable(method: JcMethod): Boolean {
