@@ -94,6 +94,7 @@ import org.usvm.machine.state.skipMethodInvocationAndBoxIfNeeded
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.memory.foldHeapRefWithStaticAsConcrete
 import org.usvm.mkSizeExpr
+import org.usvm.mkSizeGeExpr
 import org.usvm.sizeSort
 import org.usvm.types.first
 import org.usvm.types.single
@@ -1363,6 +1364,8 @@ open class JcMethodApproximationResolver(
     private fun makeSymbolicArray(elementType: JcType, size: UExpr<*>): UHeapRef? {
         val sizeValue = size.asExpr(ctx.sizeSort)
         val arrayType = ctx.cp.arrayTypeOf(elementType)
+
+        scope.assert(ctx.mkSizeGeExpr(sizeValue, ctx.mkSizeExpr(0))) ?: return null
 
         val address = scope.makeSymbolicRef(arrayType) ?: return null
 
