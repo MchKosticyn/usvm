@@ -59,12 +59,11 @@ import jpa.generatedGetter
 import jpa.generatedMethodArgumentVar
 import jpa.generatedRelationsInit
 import jpa.generatedSaveUpdate
-import jpa.generatedSerializer
-import jpa.generatedSerializerWithSkips
 import jpa.generatedSetter
 import jpa.generatedSpecialGetId
 import jpa.generatedSpecialSetId
 import jpa.generatedStaticBlankInit
+import jpa.getRefTypeFromPrimitive
 import jpa.getTableName
 import jpa.hasWrapper
 import jpa.isDataClass
@@ -82,10 +81,8 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
-import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.TypeName
 import org.jacodb.api.jvm.cfg.JcAndExpr
-import org.jacodb.api.jvm.cfg.JcArrayAccess
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcBool
 import org.jacodb.api.jvm.cfg.JcEqExpr
@@ -93,19 +90,15 @@ import org.jacodb.api.jvm.cfg.JcFieldRef
 import org.jacodb.api.jvm.cfg.JcIfInst
 import org.jacodb.api.jvm.cfg.JcInstRef
 import org.jacodb.api.jvm.cfg.JcInstanceOfExpr
-import org.jacodb.api.jvm.cfg.JcInt
 import org.jacodb.api.jvm.cfg.JcLocalVar
-import org.jacodb.api.jvm.cfg.JcNewArrayExpr
 import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcStringConstant
 import org.jacodb.api.jvm.cfg.JcThis
 import org.jacodb.api.jvm.cfg.JcValue
-import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
 import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
-import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.types.JcTypedFieldImpl
@@ -116,6 +109,7 @@ import org.usvm.jvm.util.stringType
 import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer.BlockGenerationContext
+import org.usvm.jvm.util.typeName
 import org.usvm.jvm.util.typedField
 import setterName
 
@@ -251,18 +245,13 @@ class JcCopyTransformer(
 
         val fields = collector.collectFields(clazz) { !it.isStatic }
         fields.forEach { field ->
-            val fieldTypeName = field.type
-            val fieldType = fieldTypeName.toJcType(cp)!!
+            val fieldTypeName = (field.type.getRefTypeFromPrimitive ?: field.type.typeName).typeName
+            val fieldType = fieldTypeName.toJcType(cp)!! as JcClassType
 
             val fieldValue =
                 generateVirtualCall("get_${field.name}", getterName(field), classType, thisVar, emptyList())
 
-            val fieldCopiedValue = if (fieldType is JcClassType) {
-                generateRefTypeCopy(fieldTypeName, fieldValue, field, fieldType)
-            }
-            else {
-                generateSimpleTypeCopy(fieldValue, field, fieldType)
-            }
+            val fieldCopiedValue = generateRefTypeCopy(fieldTypeName, fieldValue, field, fieldType)
 
             generateVoidVirtualCall(setterName(field), classType, newObj, listOf(fieldCopiedValue))
         }
@@ -513,7 +502,7 @@ class JcGetterTransformer(
         )
         addInstruction { loc -> JcAssignInst(loc, vari, fieldRef) }
 
-        val ref = upcastToRefTypeIfNeeded(cp, "field", vari, field.type)
+        val ref = upcastToRefTypeIfNeeded(cp, "field", vari)
 
         addInstruction { loc -> JcReturnInst(loc, ref) }
     }
@@ -545,7 +534,7 @@ class JcSetterTransformer(
             )
         )
 
-        val downcasted = downcastRefTypeIfNeeded(cp, "field", arg, field.type)
+        val downcasted = downcastRefTypeIfNeeded(cp, "field", arg)
         addInstruction { loc -> JcAssignInst(loc, fieldRef, downcasted) }
 
         addInstruction { loc -> JcReturnInst(loc, null) }

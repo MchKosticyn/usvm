@@ -2,7 +2,6 @@ package machine.interpreter.transformers.springjpa
 
 import JcFieldBuilder
 import JcMethodBuilder
-import jpa.JcTableInfoCollector
 import getterName
 import jpa.BUILD_ID_ANNOT
 import jpa.BUILD_ID_NAME
@@ -21,9 +20,9 @@ import jpa.GET_DTO_NAME
 import jpa.GET_ID_ANNOT
 import jpa.GET_ID_NAME
 import jpa.IdColumnInfo
-import jpa.JAVA_BOOL
 import jpa.JAVA_OBJ_ARR
 import jpa.JAVA_VOID
+import jpa.JcTableInfoCollector
 import jpa.RELATIONS_INIT_ANNOT
 import jpa.RELATIONS_INIT_NAME
 import jpa.SAVE_UPDATE_ANNOT
@@ -34,22 +33,23 @@ import jpa.SET_ID_NAME
 import jpa.STATIC_BLANK_INIT_ANNOT
 import jpa.STATIC_BLANK_INIT_NAME
 import jpa.TableInfo
+import jpa.getColumnName
+import jpa.getRefTypeFromPrimitive
 import jpa.isDataClass
 import jpa.makeStaticClassMethod
-import setterName
 import org.jacodb.api.jvm.JcClassExtFeature
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcPrimitiveType
 import org.jacodb.api.jvm.PredefinedPrimitives
 import org.jacodb.api.jvm.ext.JAVA_OBJECT
 import org.jacodb.api.jvm.ext.findMethodOrNull
 import org.jacodb.api.jvm.ext.objectType
 import org.objectweb.asm.Opcodes
+import org.usvm.jvm.util.typeName
 import org.usvm.jvm.util.typename
-import org.usvm.util.findMethod
+import setterName
 
 // Map wrapper where key is combination of className and fieldName
 // Used to store simple fields that represent relation from key field of key class
@@ -221,12 +221,14 @@ private class SignatureGenerator(
         collector.collectFields(clazz) { !it.isStatic }.map { field ->
             val name = getterName(field)
             val sig = field.signature?.let { "()$it" }
+            val fieldType = field.type.typeName
             JcMethodBuilder(clazz)
                 .setName(name)
                 .addBlancAnnot(GENERATED_GETTER)
                 .addBlancAnnot(field.name)
+                .addBlancAnnot(getColumnName(field))
                 .setSig(sig)
-                .setRetType(field.type.typeName)
+                .setRetType(fieldType.typeName.getRefTypeFromPrimitive ?: fieldType)
                 .addFillerFeature(JcGetterTransformer(cp, field, name))
                 .buildMethod()
         }
@@ -236,13 +238,14 @@ private class SignatureGenerator(
         collector.collectFields(clazz) { !it.isStatic }.map { field ->
             val name = setterName(field)
             val sig = field.signature?.let { "($it)V" }
+            val fieldType = field.type.typeName
             JcMethodBuilder(clazz)
                 .setName(name)
                 .addBlancAnnot(GENERATED_SETTER)
                 .addBlancAnnot(field.name)
                 .setRetType(JAVA_VOID)
                 .setSig(sig)
-                .addFreshParam(field.type.typeName)
+                .addFreshParam(fieldType.typeName.getRefTypeFromPrimitive ?: fieldType)
                 .addFillerFeature(JcSetterTransformer(cp, field, name))
                 .buildMethod()
         }

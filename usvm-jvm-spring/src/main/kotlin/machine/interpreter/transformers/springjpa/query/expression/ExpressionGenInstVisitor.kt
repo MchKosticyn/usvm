@@ -1,8 +1,9 @@
 package machine.interpreter.transformers.springjpa.query.expression
 
 import jpa.generateNewWithInit
-import jpa.generateStaticCall
+import jpa.putValueToVar
 import jpa.putValuesWithSameTypeToArray
+import jpa.upcastToRefTypeIfNeeded
 import machine.interpreter.transformers.springjpa.query.MethodCtx
 import machine.interpreter.transformers.springjpa.query.function.genAggregatorInst
 import machine.interpreter.transformers.springjpa.query.function.genSimpleFuncInst
@@ -22,8 +23,12 @@ import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcLong
 import org.jacodb.api.jvm.cfg.JcNullConstant
 import org.jacodb.api.jvm.cfg.JcStringConstant
+import org.jacodb.api.jvm.ext.boolean
 import org.jacodb.api.jvm.ext.byte
+import org.jacodb.api.jvm.ext.double
+import org.jacodb.api.jvm.ext.float
 import org.jacodb.api.jvm.ext.int
+import org.jacodb.api.jvm.ext.long
 import org.jacodb.api.jvm.ext.objectType
 import org.usvm.spring.query.expression.AExpression
 import org.usvm.spring.query.expression.IExpressionVisitor
@@ -129,36 +134,28 @@ private val expressionGenInstVisitor = object : IExpressionVisitor<JcLocalVar, M
     }
 
     override fun visit(child: LBool, ctx: MethodCtx) = with(ctx) {
-        val v = newVar(common.boolType)
-        val b = JcBool(child.value, common.boolType)
-        genCtx.addInstruction { loc -> JcAssignInst(loc, v, b) }
-        v
+        val v = genCtx.upcastToRefTypeIfNeeded(cp, getVarName(), JcBool(child.value, cp.boolean))
+        genCtx.putValueToVar(getVarName(), v, common.boolType)
     }
 
     override fun visit(child: LDouble, ctx: MethodCtx) = with(ctx) {
-        val v = newVar(common.doubleType)
-        val d = JcDouble(child.value, common.doubleType)
-        genCtx.addInstruction { loc -> JcAssignInst(loc, v, d) }
-        v
+        val v = genCtx.upcastToRefTypeIfNeeded(cp, getVarName(), JcDouble(child.value, cp.double))
+        genCtx.putValueToVar(getVarName(), v, common.doubleType)
     }
 
     override fun visit(child: LFloat, ctx: MethodCtx) = with(ctx) {
-        val v = newVar(common.floatType)
-        val d = JcFloat(child.value, common.floatType)
-        genCtx.addInstruction { loc -> JcAssignInst(loc, v, d) }
-        v
+        val v = genCtx.upcastToRefTypeIfNeeded(cp, getVarName(), JcFloat(child.value, cp.float))
+        genCtx.putValueToVar(getVarName(), v, common.floatType)
     }
 
     override fun visit(child: LInt, ctx: MethodCtx) = with(ctx) {
-        val v = JcInt(child.value, cp.int)
-        genCtx.generateStaticCall(common.names.getVarName(), "valueOf", common.integerType, listOf(v))
+        val v = genCtx.upcastToRefTypeIfNeeded(cp, getVarName(), JcInt(child.value, cp.int))
+        genCtx.putValueToVar(getVarName(), v, common.integerType)
     }
 
     override fun visit(child: LLong, ctx: MethodCtx) = with(ctx) {
-        val v = newVar(common.longType)
-        val d = JcLong(child.value, common.doubleType)
-        genCtx.addInstruction { loc -> JcAssignInst(loc, v, d) }
-        v
+        val v = genCtx.upcastToRefTypeIfNeeded(cp, getVarName(), JcLong(child.value, cp.long))
+        genCtx.putValueToVar(getVarName(), v, common.longType)
     }
 
     override fun visit(child: LNull, ctx: MethodCtx) = with(ctx) {
