@@ -8,7 +8,7 @@ import org.usvm.test.api.spring.UTAny
 import org.usvm.test.api.spring.UTString
 
 fun JcSpringPinnedValues.collectAndResolve(
-    exprResolver: JcSpringTestExprResolver,
+    exprResolver: JcSpringTestStateResolver,
     source: JcSpringPinnedValueSource,
     ctx: JcContext
 ): Map<UTString, UTAny> {

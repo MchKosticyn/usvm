@@ -21,7 +21,7 @@ import org.usvm.test.api.spring.UTStringArray
 
 class JcSpringPinnedValuesRequest(
     private val pinnedValues: JcSpringPinnedValues,
-    private val exprResolver: JcSpringTestExprResolver,
+    private val exprResolver: JcSpringTestStateResolver,
 ) : JcSpringRequest {
     private val stringType = exprResolver.ctx.stringType
 

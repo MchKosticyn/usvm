@@ -14,7 +14,7 @@ import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.spring.JcSpringTestExecutorDecoderApi
 import utils.JcConcreteTestStateResolver
 
-class JcSpringTestExprResolver(
+class JcSpringTestStateResolver(
     ctx: JcContext,
     model: UModelBase<JcType>,
     finalStateMemory: UReadOnlyMemory<JcType>,

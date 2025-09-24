@@ -62,7 +62,7 @@ private class JcStateSpringTestBuilder(
     testKind: JcSpringTestKind,
     testClass: JcClassOrInterface,
     private val state: JcSpringState,
-    private val resolver: JcSpringTestExprResolver
+    private val resolver: JcSpringTestStateResolver
 ): JcSpringTestBuilder(
     cp,
     controller,
@@ -113,7 +113,7 @@ private fun JcSpringState.createSpringTestKind(testClass: JcClassOrInterface): J
 
 internal fun JcSpringState.generateTest(): SpringTestInfo {
     val model = springMemory.getFixedModel(this)
-    val resolver = JcSpringTestExprResolver(ctx, model, memory, entrypoint.toTypedMethod)
+    val resolver = JcSpringTestStateResolver(ctx, model, memory, entrypoint.toTypedMethod)
 
     val reqPath = pinnedValues.getValue(JcPinnedKey.requestPath())
         ?: error("Request path is not found in pinned values")
@@ -138,7 +138,7 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
 
 private fun getSpringException(
     state: JcSpringState,
-    exprResolver: JcSpringTestExprResolver
+    exprResolver: JcSpringTestStateResolver
 ): SpringException {
     if (state.hasUnhandledException()) {
         val exceptionClass = state.pinnedValues
@@ -174,14 +174,14 @@ private fun getGeneratedTestClass(cp: JcClasspath): JcClassOrInterface {
 
 private fun getSpringResponse(
     state: JcSpringState,
-    exprResolver: JcSpringTestExprResolver
+    exprResolver: JcSpringTestStateResolver
 ): JcSpringResponse {
     return JcSpringPinnedValuesResponse(state.pinnedValues, exprResolver)
 }
 
 private fun getSpringMocks(
     mockedCalls: JcSpringMockedCalls,
-    exprResolver: JcSpringTestExprResolver
+    exprResolver: JcSpringTestStateResolver
 ): List<UTestMockObject> {
     // TODO: Support fields #AA
     val mocks = mockedCalls.getMap()
@@ -200,7 +200,7 @@ private fun getSpringMocks(
 
 private fun getSpringTables(
     tables: Map<String, tableContent>,
-    exprResolver: JcSpringTestExprResolver
+    exprResolver: JcSpringTestStateResolver
 ): List<JcTableEntities> {
     return tables.mapNotNull { (tableName, entitiesWithType) ->
         val (entities, type) = entitiesWithType
@@ -217,7 +217,7 @@ private fun getSpringTables(
 
 private fun getSpringRequest(
     state: JcSpringState,
-    exprResolver: JcSpringTestExprResolver
+    exprResolver: JcSpringTestStateResolver
 ): JcSpringRequest {
     return JcSpringPinnedValuesRequest(state.pinnedValues, exprResolver)
 }
