@@ -17,6 +17,8 @@ public class SpringEngine {
         return false;
     }
 
+    public static boolean isInsideDatabase() { return false; }
+
     public static void markAsGoodPath() {
     }
 

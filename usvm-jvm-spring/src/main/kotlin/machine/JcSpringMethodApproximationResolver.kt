@@ -44,6 +44,7 @@ import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.memory.UMemory
 import org.usvm.jvm.util.findJavaField
 import org.usvm.sizeSort
+import util.isDatabaseApproximation
 import util.isDeserializationMethod
 import util.isSpringController
 import util.isSpringRepository
@@ -708,6 +709,14 @@ class JcSpringMethodApproximationResolver (
                 val userClass = ctx.cp.findClassOrNull("org.springframework.security.core.userdetails.UserDetails")
                 val enabled = userClass != null && userClass !is JcUnknownClass
                 skipMethodInvocationWithValue(methodCall, ctx.mkBool(enabled))
+            }
+            return true
+        }
+
+        if (methodName == "isInsideDatabase") {
+            scope.doWithState {
+                callStack.any { it.method.enclosingClass.isDatabaseApproximation }
+                    .let { skipMethodInvocationWithValue(methodCall, ctx.mkBool(it)) }
             }
             return true
         }

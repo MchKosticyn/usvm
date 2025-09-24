@@ -47,6 +47,7 @@ import org.usvm.jvm.util.nonAbstractClasses
 import org.usvm.jvm.util.replace
 import org.usvm.jvm.util.transformers.JcStringConcatTransformer
 import org.usvm.jvm.util.write
+import util.SpringApproximationPaths
 import util.classpathWithSpringApproximations
 import java.io.File
 import java.nio.file.Path
@@ -81,6 +82,7 @@ private fun loadBench(
     cpFiles: List<File>,
     classes: List<File>,
     dependencies: List<File>,
+    springApproximations: SpringApproximationPaths,
     propertiesName: String?,
     isPureClasspath: Boolean = true,
     tablesInfo: JcTableInfoCollector? = null,
@@ -109,7 +111,7 @@ private fun loadBench(
         features.addAll(dbFeatures)
     }
 
-    val cp = db.classpathWithSpringApproximations(cpFiles, features)
+    val cp = db.classpathWithSpringApproximations(cpFiles, features, springApproximations)
 
     val classLocations = cp.locations.filter { it.jarOrFolder in classes }
     val depsLocations = cp.locations.filter { it.jarOrFolder in dependencies }
@@ -135,7 +137,7 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>, propertie
     }
 
     db.awaitBackgroundJobs()
-    loadBench(db, cpFiles, classes, dependencies, propertiesName, true)
+    loadBench(db, cpFiles, classes, dependencies, SpringApproximationPaths(), propertiesName, true)
 }
 
 fun loadWebAppBenchCp(jar: Path, dependencies: Path, propertiesName: String? = null): BenchCp =
@@ -241,7 +243,11 @@ private fun replaceTypeInClassNode(
 }
 
 @Suppress("SameParameterValue")
-fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringTestGenerationMode): BenchCp {
+fun generateTestClass(
+    benchmark: BenchCp,
+    springAnalysisMode: JcSpringTestGenerationMode,
+    springApproximationPaths: SpringApproximationPaths
+): BenchCp {
     val cp = benchmark.cp
 
     val springDirFile = File(System.getenv("springDir"))
@@ -340,6 +346,7 @@ fun generateTestClass(benchmark: BenchCp, springAnalysisMode: JcSpringTestGenera
         newCpFiles,
         newClasses,
         benchmark.dependencies,
+        springApproximationPaths,
         benchmark.propertiesName,
         false,
         tablesInfo,

@@ -3,6 +3,10 @@ package util
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.isSubClassOf
+import org.usvm.spring.api.SpringEngine
+
+internal val JcClassOrInterface.isSpringEngine: Boolean
+    get() = name == SpringEngine::class.java.name
 
 internal val JcClassOrInterface.isSpringFilter: Boolean
     get() {
@@ -59,6 +63,9 @@ internal val JcClassOrInterface.isSpringRepository: Boolean
             || classpath.findClassOrNull("org.springframework.data.repository.Repository")
                 ?.let { isSubClassOf(it) } ?: false
 
+internal val JcClassOrInterface.isDatabaseApproximation: Boolean
+    get() = name.startsWith("generated.org.springframework.boot.databases")
+
 internal val JcClassOrInterface.isGrantedAuthority: Boolean
     get() = classpath.findClassOrNull("org.springframework.security.core.GrantedAuthority")
         ?.let{ isSubClassOf(it) } ?: false
@@ -70,6 +77,9 @@ internal val JcClassOrInterface.isSpringRequest: Boolean
 internal val JcClassOrInterface.isServletWebRequest: Boolean
     get() = classpath.findClassOrNull("org.springframework.web.context.request.ServletWebRequest")
         ?.let { this.isSubClassOf(it) } ?: false
+
+internal val JcMethod.isSpringEngineMethod: Boolean
+    get() = enclosingClass.isSpringEngine
 
 internal val JcMethod.isSpringFilterMethod: Boolean
     get() = enclosingClass.isSpringFilter

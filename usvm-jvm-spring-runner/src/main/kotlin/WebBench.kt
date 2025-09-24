@@ -25,6 +25,7 @@ import org.usvm.logger
 import org.usvm.machine.JcMachineOptions
 import org.usvm.test.api.UTest
 import testGeneration.SpringTestInfo
+import util.SpringApproximationPaths
 import java.io.File
 import java.io.PrintStream
 import kotlin.io.path.Path
@@ -102,7 +103,8 @@ private fun runWebBench(benchmark: BenchCp) {
 
 fun analyzeBench(benchmark: BenchCp, options: UMachineOptions) {
     val springAnalysisMode = JcSpringTestGenerationMode.SpringBootTest
-    val newBench = generateTestClass(benchmark, springAnalysisMode)
+    val springApproximationPaths = SpringApproximationPaths()
+    val newBench = generateTestClass(benchmark, springAnalysisMode, springApproximationPaths)
 
     val jcConcreteMachineOptions = JcConcreteMachineOptions(
         projectLocations = newBench.classLocations,
@@ -110,7 +112,8 @@ fun analyzeBench(benchmark: BenchCp, options: UMachineOptions) {
     )
     newBench.bindMachineOptions(jcConcreteMachineOptions)
     val jcSpringMachineOptions = JcSpringMachineOptions(
-        springTestGenerationMode = springAnalysisMode
+        springTestGenerationMode = springAnalysisMode,
+        springApproximationPaths = springApproximationPaths
     )
 
     val cp = newBench.cp
