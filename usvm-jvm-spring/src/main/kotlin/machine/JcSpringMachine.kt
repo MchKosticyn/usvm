@@ -3,6 +3,7 @@ package machine
 import machine.ps.JcSpringMachineLoopTracker
 import machine.ps.JcStatePathTimeoutPathSelector
 import machine.ps.createSpringWeighters
+import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
@@ -22,6 +23,7 @@ import org.usvm.statistics.TimeStatistics
 import org.usvm.statistics.UMachineObserver
 import org.usvm.statistics.collectors.StatesCollector
 import org.usvm.statistics.distances.CallGraphStatistics
+import util.isDatabaseApproximation
 import util.isSpringController
 import util.isSpringFilter
 import util.isSpringHandlerInterceptor
@@ -51,9 +53,17 @@ class JcSpringMachine(
         return { m -> !methodsToTrackCoverage.contains(m) }
     }
 
-    override fun methodsToTrackCoverage(methods: List<JcMethod>): Set<JcMethod> {
-        return ctx.cp.classesOfLocations(jcConcreteMachineOptions.projectLocations)
+    override fun methodsToTrackCoverage(methods: List<JcMethod>): Set<JcMethod> = with(ctx) {
+        val projectClasses = cp.classesOfLocations(jcConcreteMachineOptions.projectLocations)
             .filter { it.isSpringController || it.isSpringFilter || it.isSpringHandlerInterceptor }
+
+        val databaseLocations = cp.locations.filter {
+            it.jarOrFolder.path in jcSpringMachineOptions.springApproximationPaths.presentPaths
+        }
+        val databaseClasses = cp.classesOfLocations(databaseLocations)
+            .filter(JcClassOrInterface::isDatabaseApproximation)
+
+        (projectClasses + databaseClasses)
             .flatMap { it.declaredMethods }
             .filterNot { it is JcUnknownMethod || it.isConstructor }
             .toSet()

@@ -327,7 +327,7 @@ private fun fillProperties(benchmark: Benchmark, task: JavaExec) {
 }
 
 tasks.register<JavaExec>("benchmarkPetClinic") {
-    fillProperties(loadBenchmark("spring-petclinic-3.2.0.jar"), this)
+    fillProperties(loadBenchmark("spring-petclinic-3.2.0.jar", "classpath:resources/application.properties"), this)
     mainClass.set("benchmarking.BenchmarkingKt")
     configureSpringAnalysis(this)
 }

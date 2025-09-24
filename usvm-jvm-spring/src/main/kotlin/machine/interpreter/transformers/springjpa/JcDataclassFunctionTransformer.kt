@@ -219,7 +219,7 @@ class JcRelationsInitTransformer(
             JAVA_SET -> IMMUTABLE_SET_WRAPPER
             JAVA_LIST -> IMMUTABLE_LIST_WRAPPER
             else -> {
-                assert(false)
+                error("generateWrapper: unsupported type to wrap: ${rel.origField.type.typeName}")
                 IMMUTABLE_LIST_WRAPPER
             }
         }

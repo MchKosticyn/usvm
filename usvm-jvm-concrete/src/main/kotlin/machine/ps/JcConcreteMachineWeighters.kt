@@ -1,9 +1,9 @@
 package machine.ps
 
 import org.usvm.machine.state.JcState
-import org.usvm.ps.StateWeighter
+import org.usvm.ps.weighters.StateWeighterWithReport
 
 data class JcConcreteMachineWeighters(
-    val baseWeighter: StateWeighter<JcState, Int>,
-    val eachPeekWeighter: StateWeighter<JcState, Int>
+    val baseWeighter: StateWeighterWithReport<JcState, Float>,
+    val eachPeekWeighter: StateWeighterWithReport<JcState, Float>
 )

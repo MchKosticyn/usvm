@@ -1,20 +1,13 @@
 package org.usvm.ps.weighters
 
-import org.usvm.ps.StateWeighter
-
-class CombinedStateStableIntWeighter<in State> : CombinedStateWeighter<State, Int, Float> {
+class CombinedStateStableIntWeighter<in State> : CombinedStateWeighter<State, Int> {
 
     constructor(
-        weighters: List<StateWeighter<State, Int>>
-    ) : super(weighters, Int::stableAdd)
+        weighters: List<StateWeighterWithReport<State, Int>>
+    ) : super(weighters, StableIntArithmetic)
 
     constructor(
-        weighters: List<StateWeighter<State, Int>>,
-        metaWeights: List<Float>
-    ) : super(
-        weighters,
-        metaWeights,
-        Int::stableAdd,
-        Int::stableMul
-    )
+        weighters: List<StateWeighterWithReport<State, Int>>,
+        metaWeights: List<Int>
+    ) : super(weighters, metaWeights, StableIntArithmetic)
 }
