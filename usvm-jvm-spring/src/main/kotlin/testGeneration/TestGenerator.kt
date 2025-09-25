@@ -4,18 +4,26 @@ import machine.JcSpringAnalysisMode
 import machine.JcSpringTestGenerationMode
 import machine.state.JcSpringState
 import machine.state.pinnedValues.JcPinnedKey
+import machine.state.pinnedValues.JcPinnedKey.Companion.resolvedException
+import machine.state.pinnedValues.JcPinnedKey.Companion.unhandledException
 import machine.state.pinnedValues.JcSpringMockedCalls
 import machine.state.tableContent
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.usvm.UConcreteHeapRef
+import org.usvm.UHeapRef
+import org.usvm.api.readField
+import org.usvm.api.typeStreamOf
 import org.usvm.jvm.util.toTypedMethod
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestMockObject
 import org.usvm.test.api.UTestNullExpression
+import org.usvm.test.api.UTestStringExpression
 import org.usvm.test.api.spring.JcSpringRequest
 import org.usvm.test.api.spring.JcSpringResponse
 import org.usvm.test.api.spring.JcSpringTestBuilder
@@ -26,17 +34,19 @@ import org.usvm.test.api.spring.SpringBootTest
 import org.usvm.test.api.spring.SpringException
 import org.usvm.test.api.spring.UTString
 import org.usvm.test.api.spring.UnhandledSpringException
+import org.usvm.types.firstOrNull
+import utils.toJcType
 
 private fun JcSpringState.hasResponse(): Boolean {
     return pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
 }
 
 private fun JcSpringState.hasResolvedException(): Boolean {
-    return pinnedValues.getValue(JcPinnedKey.resolvedExceptionClass()) != null
+    return pinnedValues.getValue(JcPinnedKey.resolvedException()) != null
 }
 
 private fun JcSpringState.hasUnhandledException(): Boolean {
-    return pinnedValues.getValue(JcPinnedKey.unhandledExceptionClass()) != null
+    return pinnedValues.getValue(JcPinnedKey.unhandledException()) != null
 }
 
 private fun JcSpringState.hasException(): Boolean {
@@ -136,32 +146,56 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
     return SpringTestInfo(handler, isExceptional, uTest)
 }
 
+private fun JcSpringState.getTypeOfRef(ref: UHeapRef) =
+    springMemory.typeStreamOf(ref).firstOrNull()?.let(::UTestClassExpression)
+    ?: error("Unexpected type of ref")
+
+
+@Suppress("UNCHECKED_CAST")
 private fun getSpringException(
     state: JcSpringState,
     exprResolver: JcSpringTestExprResolver
-): SpringException {
-    if (state.hasUnhandledException()) {
-        val exceptionClass = state.pinnedValues
-            .getValue(JcPinnedKey.unhandledExceptionClass())!!
-            .let { exprResolver.resolvePinnedValue(it) }
+): SpringException = with(state) {
+    val throwableClass = ctx.cp.findClass("java.lang.Throwable")
+    val throwableType = throwableClass.toType()
 
-        return UnhandledSpringException(
-            exceptionClass as UTestClassExpression
-        )
+    val (exception, counstructor) = if (hasUnhandledException()) {
+        val pinnedException = pinnedValues.getValue(unhandledException())!!.getExpr() as UHeapRef
+        val causeField = throwableClass.declaredFields.single { it.name == "cause" }
+
+        var rootCause = pinnedException
+        while (true) {
+            val cause = memory.readField(
+                rootCause,
+                causeField,
+                ctx.typeToSort(throwableType)
+            )
+
+            if (cause == ctx.mkNullRef() || cause == rootCause) break
+
+            rootCause = cause as UHeapRef
+        }
+
+        val wrapperClass = getTypeOfRef(pinnedException)
+        rootCause to {
+            uException: UTestClassExpression, uMessage: UTestStringExpression? ->
+            UnhandledSpringException(wrapperClass, uException, uMessage)
+        }
+    } else {
+        pinnedValues.getValue(resolvedException())!!
+            .let { exprResolver.resolvePinnedValue(it) as UHeapRef } to ::ResolvedSpringException
     }
+    val uException = getTypeOfRef(exception)
 
-    val exceptionClass = state.pinnedValues
-        .getValue(JcPinnedKey.resolvedExceptionClass())!!
-        .let { exprResolver.resolvePinnedValue(it) }
+    val messageField = throwableClass.declaredFields.single { it.name == "detailMessage" }
+    val uMessage = memory.readField(exception, messageField, ctx.typeToSort(ctx.stringType))
+        .let {
+            if (it !is UConcreteHeapRef) null
+            else exprResolver.resolveExpr(it, ctx.stringType) as UTString
+        }
 
-    val exceptionMessage = state.pinnedValues
-        .getValue(JcPinnedKey.resolvedExceptionMessage())
-        ?.let { exprResolver.resolvePinnedValue(it) }
 
-    return ResolvedSpringException(
-        exceptionClass as UTestClassExpression,
-        exceptionMessage as UTString?
-    )
+    counstructor(uException, uMessage)
 }
 
 private fun getGeneratedTestClass(cp: JcClasspath): JcClassOrInterface {

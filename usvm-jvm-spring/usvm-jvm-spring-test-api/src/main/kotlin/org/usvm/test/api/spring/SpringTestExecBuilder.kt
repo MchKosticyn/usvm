@@ -1,7 +1,6 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClassOrInterface
-import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.CONSTRUCTOR

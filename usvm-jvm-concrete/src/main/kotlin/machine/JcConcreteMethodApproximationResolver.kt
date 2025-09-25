@@ -9,7 +9,6 @@ import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.constructors
-import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.int
 import org.jacodb.api.jvm.ext.objectType
 import org.usvm.UConcreteHeapRef
@@ -29,12 +28,11 @@ import org.usvm.machine.JcContext
 import org.usvm.machine.JcMethodApproximationResolver
 import org.usvm.machine.JcMethodCall
 import org.usvm.machine.JcVirtualMethodCallInst
-import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.JcState
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.skipMethodInvocationWithValue
+import org.usvm.utils.logAssertFailure
 import utils.toJcType
-import java.lang.reflect.Executable
 
 open class JcConcreteMethodApproximationResolver(
     ctx: JcContext,
@@ -99,11 +97,31 @@ open class JcConcreteMethodApproximationResolver(
         return false
     }
 
-    private fun prepareParameters(
+    private fun checkNullPointer(ref: UHeapRef) = with(ctx) {
+        val neqNull = mkHeapRefEq(ref, nullRef).not()
+        if (exprResolver.options.forkOnImplicitExceptions) {
+            scope.fork(
+                neqNull,
+                blockOnFalseState = exprResolver.allocateException(illegalArgumentExceptionType)
+            )
+        } else {
+            scope.assert(neqNull).logAssertFailure {
+                "Jc implicit exception: NPE in parameters for invoke"
+            }
+        }
+    }
+
+    private enum class PreparedParameters {
+        PARAMETERS,
+        EXCEPTION,
+        FAIL
+    }
+
+    private fun prepareParametersForInvoke(
         jcMethod: JcTypedMethod,
         thisArg: UExpr<out USort>,
         argsArg: UExpr<out USort>,
-    ): List<UExpr<out USort>>? {
+    ): Pair<PreparedParameters, List<UExpr<out USort>>?> {
         return scope.calcOnState {
             val memory = memory as JcConcreteMemory
             val args =
@@ -118,14 +136,17 @@ open class JcConcreteMethodApproximationResolver(
                 jcMethod.parameters.mapIndexed { index, jcParameter ->
                     val idx = memory.objectToExpr(index, ctx.cp.int)
                     val value = memory.readArrayIndex(args, idx, descriptor, ctx.addressSort).asExpr(ctx.addressSort)
+
+                    checkNullPointer(value) ?: return@calcOnState PreparedParameters.EXCEPTION to null
+
                     val type = jcParameter.type
-                    unboxIfNeeded(value, type) ?: return@calcOnState null
+                    unboxIfNeeded(value, type) ?: return@calcOnState PreparedParameters.FAIL to null
                 }
             }
             val parameters =
                 if (jcMethod.isStatic) arguments
                 else listOf(thisArg) + arguments
-            return@calcOnState parameters
+            return@calcOnState PreparedParameters.PARAMETERS to parameters
         }
     }
 
@@ -147,7 +168,14 @@ open class JcConcreteMethodApproximationResolver(
                     method.isSameSignatures(it.method)
                 } ?: return@calcOnState false
 
-                val parameters = prepareParameters(jcMethod, thisArg, argsArg) ?: return@calcOnState false
+                val prepared = prepareParametersForInvoke(jcMethod, thisArg, argsArg)
+                val parameters =
+                    when (prepared.first) {
+                        PreparedParameters.EXCEPTION -> return@calcOnState true
+                        PreparedParameters.PARAMETERS -> prepared.second!!
+                        PreparedParameters.FAIL -> return@calcOnState false
+                    }
+
                 val postProcessInst = JcReflectionInvokeResult(methodCall, jcMethod)
                 newStmt(JcVirtualMethodCallInst(methodCall.location, jcMethod.method, parameters, postProcessInst))
                 return@calcOnState true
@@ -174,7 +202,14 @@ open class JcConcreteMethodApproximationResolver(
                     constructor.isSameSignatures(it.method)
                 } ?: return@calcOnState false
 
-                val parameters = prepareParameters(jcMethod, thisArg, argsArg) ?: return@calcOnState false
+                val prepared = prepareParametersForInvoke(jcMethod, thisArg, argsArg)
+                val parameters =
+                    when (prepared.first) {
+                        PreparedParameters.EXCEPTION -> return@calcOnState true
+                        PreparedParameters.PARAMETERS -> prepared.second!!
+                        PreparedParameters.FAIL -> return@calcOnState false
+                    }
+
                 val postProcessInst = JcReflectionConstructorInvokeResult(methodCall, jcMethod, thisArg)
                 newStmt(JcConcreteMethodCallInst(methodCall.location, jcMethod.method, parameters, postProcessInst))
                 return@calcOnState true

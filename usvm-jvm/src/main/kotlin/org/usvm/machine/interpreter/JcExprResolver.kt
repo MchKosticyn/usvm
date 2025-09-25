@@ -137,7 +137,7 @@ import org.usvm.utils.logAssertFailure
 open class JcExprResolver(
     private val ctx: JcContext,
     protected val scope: JcStepScope,
-    private val options: JcMachineOptions,
+    val options: JcMachineOptions,
     localToIdx: (JcMethod, JcImmediate) -> Int,
     mkTypeRef: (JcState, JcType) -> Pair<UConcreteHeapRef, Boolean>,
     mkStringConstRef: (JcState, String, Boolean) -> Pair<UConcreteHeapRef, Boolean>,

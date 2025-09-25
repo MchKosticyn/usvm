@@ -5,6 +5,7 @@ import jpa.BASE_TABLE_MANAGER
 import jpa.BUILD_ID_NAME
 import jpa.COPY_NAME
 import jpa.CRUD_MANAGER
+import jpa.ColumnInfo
 import jpa.DATABASE_UTILS
 import jpa.DELETE_NAME
 import jpa.DTO_INFO
@@ -63,10 +64,11 @@ import jpa.generatedSetter
 import jpa.generatedSpecialGetId
 import jpa.generatedSpecialSetId
 import jpa.generatedStaticBlankInit
-import jpa.getRefTypeFromPrimitive
+import jpa.getBoxedTypeFromPrimitive
 import jpa.getTableName
 import jpa.hasWrapper
 import jpa.isDataClass
+import jpa.isPrimitiveType
 import jpa.isValidator
 import jpa.putValueToVar
 import jpa.putValuesToObjectArray
@@ -154,7 +156,7 @@ class JcRelationsInitTransformer(
             val fieldValue = when (rel) {
                 is Relation.OneToOne, is Relation.ManyToOne -> {
                     val checks = rel.mappedBy?.let { relationChecks.get(relClass, it) }
-                        ?: relationChecks.get(relClass, rel.origField)
+                        ?: relationChecks.get(clazz, rel.origField)
                     val checkVar = checks.sortedBy(JcField::name).map { check ->
                         generateVirtualCall("oto_${check.name}_$ix", getterName(check), classType, thisVal, emptyList())
                     }.let { putValuesToObjectArray(cp, "oto_${rel.origField.name}_id_check", it) }
@@ -169,7 +171,7 @@ class JcRelationsInitTransformer(
                 }
 
                 is Relation.OneToManyByColumn -> {
-                    val checks = rel.mappedBy?.let { relationChecks.get(relClass, it) }
+                    val checks = rel.mappedBy?.let { relationChecks.get(clazz, it) }
                         ?: relationChecks.get(relClass, rel.origField)
                     val checkNames = checks.sortedBy(JcField::name)
                         .map { JcStringConstant(it.name, cp.stringType) }
@@ -245,7 +247,7 @@ class JcCopyTransformer(
 
         val fields = collector.collectFields(clazz) { !it.isStatic }
         fields.forEach { field ->
-            val fieldTypeName = (field.type.getRefTypeFromPrimitive ?: field.type.typeName).typeName
+            val fieldTypeName = (field.type.getBoxedTypeFromPrimitive ?: field.type.typeName).typeName
             val fieldType = fieldTypeName.toJcType(cp)!! as JcClassType
 
             val fieldValue =
@@ -534,9 +536,12 @@ class JcSetterTransformer(
             )
         )
 
-        val downcasted = downcastRefTypeIfNeeded(cp, "field", arg)
-        addInstruction { loc -> JcAssignInst(loc, fieldRef, downcasted) }
+        val downcasted = if (field.type.isPrimitiveType)
+            downcastRefTypeIfNeeded(cp, "field", arg)
+        else
+            arg
 
+        addInstruction { loc -> JcAssignInst(loc, fieldRef, downcasted) }
         addInstruction { loc -> JcReturnInst(loc, null) }
     }
 }
@@ -563,7 +568,9 @@ class JcSpecialGetIdTransformer(
         )
         addInstruction { loc -> JcAssignInst(loc, vari, fieldRef) }
 
-        addInstruction { loc -> JcReturnInst(loc, vari) }
+        val ref = upcastToRefTypeIfNeeded(cp, "field", vari)
+
+        addInstruction { loc -> JcReturnInst(loc, ref) }
     }
 }
 
@@ -586,8 +593,12 @@ class JcSpecialSetIdTransformer(
                 JcSubstitutorImpl()
             )
         )
-        addInstruction { loc -> JcAssignInst(loc, fieldRef, arg) }
+        val downcasted = if (idField.type.isPrimitiveType)
+            downcastRefTypeIfNeeded(cp, "field", arg)
+        else
+            arg
 
+        addInstruction { loc -> JcAssignInst(loc, fieldRef, downcasted) }
         addInstruction { loc -> JcReturnInst(loc, null) }
     }
 }

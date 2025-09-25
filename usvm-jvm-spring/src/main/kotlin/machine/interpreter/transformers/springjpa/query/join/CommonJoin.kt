@@ -117,7 +117,7 @@ private fun CommonJoin.genOnMethod(ctx: MethodCtx): JcLocalVar {
 }
 
 private fun CommonJoin.getMapperMethod(info: CommonInfo): JcMethod {
-    mapper?.also { return it }
+    mapper?.also { return it as JcMethod }
     val methodName = info.names.getMethodName()
     val itableDesc = "${ITABLE.jvmName().dropLast(1)}<${DATA_ROW.jvmName()}>;"
     val sig = "(${DATA_ROW.jvmName()})${itableDesc}"

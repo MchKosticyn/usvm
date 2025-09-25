@@ -67,7 +67,6 @@ class JPAQueryBuilder(
         val statement = parser.getStatement()
 
         val visitor = JPAVisitor(cp, emptyList())
-        val select = reloadJpaTerm(visitor.visit(statement)) as Select
-        return select
+        return reloadJpaTerm(visitor.visit(statement)) as Select
     }
 }

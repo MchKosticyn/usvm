@@ -98,7 +98,7 @@ class UTestAssertThrowsCall(
     override val instance: UTestExpression? = null
     override val method: JcMethod? = null
     override val args: List<UTestExpression> = emptyList()
-    override val type: JcType = exceptionClass.classpath.void
+    override val type: JcType = exceptionClass.toType()
 }
 
 class UTestAssertEqualsCall(

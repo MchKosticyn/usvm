@@ -129,14 +129,16 @@ abstract class JcSpringTestBuilder {
     ): List<UTestInst> {
         val matchersBuilder = SpringExceptionMatchersBuilder(cp, testExecBuilder)
 
-        if (exception is UnhandledSpringException) {
-            matchersBuilder.addUnhandedExceptionCheck(exception.clazz)
-        }
-
-        if (exception is ResolvedSpringException) {
-            testExecBuilder.addAndReturnCall()
-            matchersBuilder.addResolvedExceptionTypeCheck(exception.clazz)
-            exception.message?.let{ matchersBuilder.addResolvedExceptionMessageCheck(it) }
+        when (exception) {
+            is UnhandledSpringException -> {
+                matchersBuilder.addUnhandedExceptionCheck(exception.wrapperClass)
+                matchersBuilder.addUnhandledSpringExceptionCheck(exception.clazz, exception.message)
+            }
+            is ResolvedSpringException -> {
+                testExecBuilder.addAndReturnCall()
+                matchersBuilder.addResolvedExceptionTypeCheck(exception.clazz)
+                exception.message?.let { matchersBuilder.addResolvedExceptionMessageCheck(it) }
+            }
         }
 
         return matchersBuilder.getInitDSL()

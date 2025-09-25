@@ -122,9 +122,9 @@ val javaTypesMatch = listOf(
 )
 
 val TypeName.isPrimitiveType: Boolean get() = javaTypesMatch.any { it.second.equals(typeName) }
-val TypeName.isPrimitiveRefType: Boolean get() = javaTypesMatch.any { it.first.equals(typeName) }
-val TypeName.getPrimitiveFromRefType: String? get() = javaTypesMatch.singleOrNull { it.first.equals(typeName) }?.second
-val TypeName.getRefTypeFromPrimitive: String? get() = javaTypesMatch.singleOrNull { it.second.equals(typeName) }?.first
+val TypeName.isBoxedType: Boolean get() = javaTypesMatch.any { it.first.equals(typeName) }
+val TypeName.getPrimitiveFromBoxedType: String? get() = javaTypesMatch.singleOrNull { it.first.equals(typeName) }?.second
+val TypeName.getBoxedTypeFromPrimitive: String? get() = javaTypesMatch.singleOrNull { it.second.equals(typeName) }?.first
 
 // endregion
 
@@ -419,7 +419,7 @@ fun BlockGenerationContext.upcastToRefTypeIfNeeded(
     name: String,
     value: JcValue,
     type: TypeName = value.typeName.typeName
-) = type.getRefTypeFromPrimitive?.let {
+) = type.getBoxedTypeFromPrimitive?.let {
     generateStaticCall(
         "upcast_to_ref_$name",
         "valueOf",
@@ -433,7 +433,7 @@ fun BlockGenerationContext.downcastRefTypeIfNeeded(
     name: String,
     value: JcValue,
     type: TypeName = value.typeName.typeName
-) = type.getPrimitiveFromRefType?.let {
+) = type.getPrimitiveFromBoxedType?.let {
     generateVirtualCall(
         "downcast_ref_$name",
         "${it}Value",

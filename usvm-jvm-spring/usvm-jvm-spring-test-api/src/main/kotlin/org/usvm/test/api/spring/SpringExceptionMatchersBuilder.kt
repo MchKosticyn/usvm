@@ -1,10 +1,13 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.ext.findType
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
 import org.usvm.test.api.UTestAssertEqualsCall
+import org.usvm.test.api.UTestStaticMethodCall
 
 class SpringExceptionMatchersBuilder (
     private val cp: JcClasspath,
@@ -13,6 +16,11 @@ class SpringExceptionMatchersBuilder (
     private val initStatements: MutableList<UTestInst> = mutableListOf()
 
     private var resolvedException: UTAny? = null
+
+    private val getClassMethod by lazy { cp.findJcMethod("java.lang.Object", "getClass", emptyList()) }
+    private val getMessageMethod by lazy { cp.findJcMethod("java.lang.Throwable", "getMessage", emptyList()) }
+
+    private val servletType by lazy { cp.findType("jakarta.servlet.ServletException") }
 
     private fun addAssertEqualsCall(expected: UTAny, actual: UTAny) {
         val assertDsl = UTestAssertEqualsCall(expected, actual)
@@ -24,13 +32,9 @@ class SpringExceptionMatchersBuilder (
             val getResolvedExceptionMethod = cp.findJcMethod(
                 "org.springframework.test.web.servlet.MvcResult",
                 "getResolvedException",
-                listOf()
+                emptyList()
             )
-            resolvedException = UTestMethodCall(
-                mvcResult,
-                getResolvedExceptionMethod,
-                listOf()
-            )
+            resolvedException = UTestMethodCall(mvcResult, getResolvedExceptionMethod, emptyList())
         }
         return resolvedException!!
     }
@@ -38,16 +42,7 @@ class SpringExceptionMatchersBuilder (
     fun addResolvedExceptionTypeCheck(expectedType: UTestClassExpression): SpringExceptionMatchersBuilder {
         val mvcResult = testExecBuilder.getExecDSL()
         val resolvedException = getResolvedExceptionCached(mvcResult)
-        val getClassMethod = cp.findJcMethod(
-            "java.lang.Object",
-            "getClass",
-            listOf()
-        )
-        val type = UTestMethodCall(
-            resolvedException,
-            getClassMethod,
-            listOf()
-        )
+        val type = UTestMethodCall(resolvedException, getClassMethod, emptyList())
         addAssertEqualsCall(expectedType, type)
         return this
     }
@@ -55,23 +50,37 @@ class SpringExceptionMatchersBuilder (
     fun addResolvedExceptionMessageCheck(expectedMessage: UTString): SpringExceptionMatchersBuilder {
         val mvcResult = testExecBuilder.getExecDSL()
         val resolvedException = getResolvedExceptionCached(mvcResult)
-        val getMessageMethod = cp.findJcMethod(
-            "java.lang.Throwable",
-            "getMessage",
-            listOf()
-        )
-        val message = UTestMethodCall(
-            resolvedException,
-            getMessageMethod,
-            listOf()
-        )
+
+        val message = UTestMethodCall(resolvedException, getMessageMethod, emptyList())
         addAssertEqualsCall(expectedMessage, message)
+        return this
+    }
+
+    fun addUnhandledSpringExceptionCheck(
+        expectedType: UTestClassExpression,
+        expectedMessage: UTString?
+    ): SpringExceptionMatchersBuilder {
+        val mvcResult = testExecBuilder.getExecDSL()
+        val getRootCauseMethod = cp.findJcMethod(
+            "org.usvm.jvm.rendering.ReflectionUtils",
+            "getRootCause",
+            emptyList()
+        )
+        val rootCause = UTestStaticMethodCall(getRootCauseMethod, listOf(mvcResult))
+
+        val type = UTestMethodCall(rootCause, getClassMethod, emptyList())
+        addAssertEqualsCall(expectedType, type)
+
+        expectedMessage?.let {
+            val message = UTestMethodCall(rootCause, getMessageMethod, emptyList())
+            addAssertEqualsCall(it, message)
+        }
+
         return this
     }
 
     fun addUnhandedExceptionCheck(exceptionType: UTestClassExpression): SpringExceptionMatchersBuilder {
         testExecBuilder.wrapInAssertThrows(exceptionType)
-
         return this
     }
 

@@ -34,7 +34,7 @@ import jpa.STATIC_BLANK_INIT_ANNOT
 import jpa.STATIC_BLANK_INIT_NAME
 import jpa.TableInfo
 import jpa.getColumnName
-import jpa.getRefTypeFromPrimitive
+import jpa.getBoxedTypeFromPrimitive
 import jpa.isDataClass
 import jpa.makeStaticClassMethod
 import org.jacodb.api.jvm.JcClassExtFeature
@@ -228,7 +228,7 @@ private class SignatureGenerator(
                 .addBlancAnnot(field.name)
                 .addBlancAnnot(getColumnName(field))
                 .setSig(sig)
-                .setRetType(fieldType.typeName.getRefTypeFromPrimitive ?: fieldType)
+                .setRetType(fieldType.typeName.getBoxedTypeFromPrimitive ?: fieldType)
                 .addFillerFeature(JcGetterTransformer(cp, field, name))
                 .buildMethod()
         }
@@ -245,7 +245,7 @@ private class SignatureGenerator(
                 .addBlancAnnot(field.name)
                 .setRetType(JAVA_VOID)
                 .setSig(sig)
-                .addFreshParam(fieldType.typeName.getRefTypeFromPrimitive ?: fieldType)
+                .addFreshParam(fieldType.typeName.getBoxedTypeFromPrimitive ?: fieldType)
                 .addFillerFeature(JcSetterTransformer(cp, field, name))
                 .buildMethod()
         }
