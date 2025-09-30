@@ -5,7 +5,6 @@ import features.JcGeneratedTypesFeature
 import features.JcInitFeature
 import features.JcReplaceGetAppClassLoaderFeature
 import jpa.JcTableInfoCollector
-import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.runBlocking
 import machine.JcConcreteMachineOptions
 import machine.JcSpringTestGenerationMode

@@ -1,7 +1,6 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.findType
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestInst
@@ -19,8 +18,6 @@ class SpringExceptionMatchersBuilder (
 
     private val getClassMethod by lazy { cp.findJcMethod("java.lang.Object", "getClass", emptyList()) }
     private val getMessageMethod by lazy { cp.findJcMethod("java.lang.Throwable", "getMessage", emptyList()) }
-
-    private val servletType by lazy { cp.findType("jakarta.servlet.ServletException") }
 
     private fun addAssertEqualsCall(expected: UTAny, actual: UTAny) {
         val assertDsl = UTestAssertEqualsCall(expected, actual)

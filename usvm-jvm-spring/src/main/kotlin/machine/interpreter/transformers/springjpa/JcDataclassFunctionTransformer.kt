@@ -5,7 +5,6 @@ import jpa.BASE_TABLE_MANAGER
 import jpa.BUILD_ID_NAME
 import jpa.COPY_NAME
 import jpa.CRUD_MANAGER
-import jpa.ColumnInfo
 import jpa.DATABASE_UTILS
 import jpa.DELETE_NAME
 import jpa.DTO_INFO
