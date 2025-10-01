@@ -59,15 +59,16 @@ class JcSpringTestStateResolver(
 
     fun resolvePinnedValue(value: JcPinnedValue) = resolveExpr(value.getExpr(), value.getType())
 
-    override fun resolveObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): UTestExpression {
+    override fun allocateAndInitializeObject(ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType): UTestExpression {
         val currentRef = if (resolveMode == ResolveMode.CURRENT) heapRef else ref
 
         val allArgsConstructor = type.allArgsConstructorInvocationOrNull(currentRef)
 
-        return allArgsConstructor ?: super.resolveObject(ref, heapRef, type)
+        return allArgsConstructor ?: super.allocateAndInitializeObject(ref, heapRef, type)
     }
 
     private fun JcClassType.allArgsConstructorInvocationOrNull(ref: UExpr<UAddressSort>): UTestExpression? {
+        // If this condition removed, think about decoders for parent classes!
         if (superType != classpath.objectType)
             return null
 

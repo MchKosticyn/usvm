@@ -26,15 +26,9 @@ class SpringExceptionMatchersBuilder (
         cp.findJcMethod(
             "org.usvm.jvm.rendering.ReflectionUtils",
             "getRootCause",
-            emptyList()
+            listOf("java.lang.Throwable")
         )
     }
-    private fun getGetRootCauseMethod(exceptionType: JcType) =
-        if (exceptionType.typeName == servletExceptionType.typeName) {
-            servletExceptionGetRootCaseMethod
-        } else {
-            getRootCauseMethod
-        }
 
     private val servletExceptionType by lazy { cp.findType("jakarta.servlet.ServletException") }
 
@@ -76,8 +70,12 @@ class SpringExceptionMatchersBuilder (
         expectedException: UnhandledSpringException
     ): SpringExceptionMatchersBuilder {
         val mvcResult = testExecBuilder.getExecDSL()
-        val getRootCauseMethod = getGetRootCauseMethod(expectedException.wrapperClass.type)
-        val rootCause = UTestStaticMethodCall(getRootCauseMethod, listOf(mvcResult))
+        val rootCause =
+            if (expectedException.wrapperClass.type.typeName == servletExceptionType.typeName) {
+                UTestMethodCall(mvcResult, servletExceptionGetRootCaseMethod, emptyList())
+            } else {
+                UTestStaticMethodCall(getRootCauseMethod, listOf(mvcResult))
+            }
 
         val type = UTestMethodCall(rootCause, getClassMethod, emptyList())
         addAssertEqualsCall(expectedException.clazz, type)

@@ -16,6 +16,7 @@ import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcState
 import org.usvm.ps.StateLoopTracker
+import org.usvm.ps.weighters.ForkTracesHolder
 import org.usvm.statistics.CoverageStatistics
 import org.usvm.statistics.TimeStatistics
 import org.usvm.statistics.distances.CallGraphStatistics
