@@ -148,8 +148,7 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
 
 private fun JcSpringState.getTypeOfRef(ref: UHeapRef) =
     springMemory.typeStreamOf(ref).firstOrNull()?.let(::UTestClassExpression)
-    ?: error("Unexpected type of ref")
-
+        ?: error("Unexpected type of ref")
 
 @Suppress("UNCHECKED_CAST")
 private fun getSpringException(
@@ -177,25 +176,20 @@ private fun getSpringException(
         }
 
         val wrapperClass = getTypeOfRef(pinnedException)
-        rootCause to {
-            uException: UTestClassExpression, uMessage: UTestStringExpression? ->
+        rootCause to { uException: UTestClassExpression, uMessage: UTestStringExpression? ->
             UnhandledSpringException(wrapperClass, uException, uMessage)
         }
     } else {
         pinnedValues.getValue(resolvedException())!!
             .let { exprResolver.resolvePinnedValue(it) as UHeapRef } to ::ResolvedSpringException
     }
-    val uException = getTypeOfRef(exception)
+    val innerExceptionType = getTypeOfRef(exception)
 
     val messageField = throwableClass.declaredFields.single { it.name == "detailMessage" }
     val uMessage = memory.readField(exception, messageField, ctx.typeToSort(ctx.stringType))
-        .let {
-            if (it !is UConcreteHeapRef) null
-            else exprResolver.resolveExpr(it, ctx.stringType) as UTString
-        }
+    val innerExceptionMessage = exprResolver.resolveExpr(uMessage, ctx.stringType) as? UTString
 
-
-    counstructor(uException, uMessage)
+    counstructor(innerExceptionType, innerExceptionMessage)
 }
 
 private fun getGeneratedTestClass(cp: JcClasspath): JcClassOrInterface {

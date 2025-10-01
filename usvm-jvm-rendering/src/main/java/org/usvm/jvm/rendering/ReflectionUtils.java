@@ -157,7 +157,7 @@ public class ReflectionUtils {
     public static Throwable getRootCause(Throwable exception) {
         Throwable result = exception;
         while (true) {
-            Throwable cause = exception.getCause();
+            Throwable cause = result.getCause();
             if (cause == null || cause == result) return result;
             result = cause;
         }

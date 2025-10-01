@@ -1,6 +1,7 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.findType
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestInst
@@ -18,6 +19,24 @@ class SpringExceptionMatchersBuilder (
 
     private val getClassMethod by lazy { cp.findJcMethod("java.lang.Object", "getClass", emptyList()) }
     private val getMessageMethod by lazy { cp.findJcMethod("java.lang.Throwable", "getMessage", emptyList()) }
+    private val servletExceptionGetRootCaseMethod by lazy {
+        cp.findJcMethod("jakarta.servlet.ServletException", "getRootCause", emptyList())
+    }
+    private val getRootCauseMethod by lazy {
+        cp.findJcMethod(
+            "org.usvm.jvm.rendering.ReflectionUtils",
+            "getRootCause",
+            emptyList()
+        )
+    }
+    private fun getGetRootCauseMethod(exceptionType: JcType) =
+        if (exceptionType.typeName == servletExceptionType.typeName) {
+            servletExceptionGetRootCaseMethod
+        } else {
+            getRootCauseMethod
+        }
+
+    private val servletExceptionType by lazy { cp.findType("jakarta.servlet.ServletException") }
 
     private fun addAssertEqualsCall(expected: UTAny, actual: UTAny) {
         val assertDsl = UTestAssertEqualsCall(expected, actual)
@@ -54,21 +73,16 @@ class SpringExceptionMatchersBuilder (
     }
 
     fun addUnhandledSpringExceptionCheck(
-        expectedType: UTestClassExpression,
-        expectedMessage: UTString?
+        expectedException: UnhandledSpringException
     ): SpringExceptionMatchersBuilder {
         val mvcResult = testExecBuilder.getExecDSL()
-        val getRootCauseMethod = cp.findJcMethod(
-            "org.usvm.jvm.rendering.ReflectionUtils",
-            "getRootCause",
-            emptyList()
-        )
+        val getRootCauseMethod = getGetRootCauseMethod(expectedException.wrapperClass.type)
         val rootCause = UTestStaticMethodCall(getRootCauseMethod, listOf(mvcResult))
 
         val type = UTestMethodCall(rootCause, getClassMethod, emptyList())
-        addAssertEqualsCall(expectedType, type)
+        addAssertEqualsCall(expectedException.clazz, type)
 
-        expectedMessage?.let {
+        expectedException.message?.let {
             val message = UTestMethodCall(rootCause, getMessageMethod, emptyList())
             addAssertEqualsCall(it, message)
         }

@@ -132,7 +132,7 @@ abstract class JcSpringTestBuilder {
         when (exception) {
             is UnhandledSpringException -> {
                 matchersBuilder.addUnhandedExceptionCheck(exception.wrapperClass)
-                matchersBuilder.addUnhandledSpringExceptionCheck(exception.clazz, exception.message)
+                matchersBuilder.addUnhandledSpringExceptionCheck(exception)
             }
             is ResolvedSpringException -> {
                 testExecBuilder.addAndReturnCall()
