@@ -15,7 +15,7 @@ import org.usvm.test.api.spring.UTStringArray
 
 class JcSpringPinnedValuesResponse(
     private val pinnedValues: JcSpringPinnedValues,
-    private val exprResolver: JcSpringTestExprResolver
+    private val exprResolver: JcSpringTestStateResolver
 ) : JcSpringResponse {
     @Suppress("SameParameterValue")
     private fun collectAndResolve(pinnedValueSource: JcSpringPinnedValueSource): Map<UTString, UTAny> {
