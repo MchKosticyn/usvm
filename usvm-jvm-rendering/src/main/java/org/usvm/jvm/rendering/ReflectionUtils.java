@@ -154,6 +154,15 @@ public class ReflectionUtils {
         setFieldValue(UNSAFE.staticFieldBase(field), field, value);
     }
 
+    public static Throwable getRootCause(Throwable exception) {
+        Throwable result = exception;
+        while (true) {
+            Throwable cause = result.getCause();
+            if (cause == null || cause == result) return result;
+            result = cause;
+        }
+    }
+
     //endregion
 
     //region Allocation

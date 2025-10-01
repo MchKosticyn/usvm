@@ -289,15 +289,25 @@ fun generateTestClass(
                     "classes", listOf(Type.getType(applicationClass.jvmDescriptor))
                 )
 
-                if (benchmark.propertiesName != null) {
-                    val testPropertySourceName = "org.springframework.test.context.TestPropertySource".jvmName()
-                    val testPropertySourceAnnotation = classNode.visibleAnnotations.singleOrNull {
-                        it.desc == testPropertySourceName
-                    } ?: AnnotationNode(testPropertySourceName)
-                    val newAnnotationValues = testPropertySourceAnnotation.values ?: mutableListOf()
-                    newAnnotationValues.addAll(listOf("locations", listOf(benchmark.propertiesName)))
-                    testPropertySourceAnnotation.values = newAnnotationValues
-                }
+                val testPropertySourceName = "org.springframework.test.context.TestPropertySource".jvmName()
+                val testPropertySourceAnnotation = classNode.visibleAnnotations.singleOrNull {
+                    it.desc == testPropertySourceName
+                } ?: AnnotationNode(testPropertySourceName).also { classNode.visibleAnnotations.add(it) }
+                check(testPropertySourceAnnotation.values == null)
+                val annotationsValues = mutableListOf<Any>()
+                if (benchmark.propertiesName != null)
+                    annotationsValues.addAll(listOf("locations", listOf(benchmark.propertiesName)))
+                annotationsValues.addAll(
+                    listOf(
+                        "properties",
+                        listOf(
+                            "spring.sql.init.mode=never",
+                            "spring.jpa.hibernate.ddl-auto=create-drop",
+                            "spring.jpa.defer-datasource-initialization=true"
+                        )
+                    )
+                )
+                testPropertySourceAnnotation.values = annotationsValues
             }
 
             JcSpringTestGenerationMode.SpringJpaTest -> TODO("not supported yet")

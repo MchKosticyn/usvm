@@ -40,6 +40,7 @@ import org.jacodb.api.jvm.cfg.JcVirtualCallExpr
 import org.jacodb.api.jvm.ext.allSuperHierarchySequence
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
+import org.jacodb.api.jvm.ext.jcdbSignature
 import org.jacodb.api.jvm.ext.objectType
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.cfg.VirtualMethodRefImpl
@@ -48,7 +49,6 @@ import org.usvm.jvm.util.isVoid
 import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer
 import org.usvm.spring.query.Select
 
-
 class JcRepositoryTransformer(val collector: JcTableInfoCollector) : JcClassExtFeature {
 
     // Remember to call bindMachineOptions!!!
@@ -56,24 +56,24 @@ class JcRepositoryTransformer(val collector: JcTableInfoCollector) : JcClassExtF
 
     private val visitedCtx: MutableMap<String, Select> = mutableMapOf()
 
-    private fun visitedName(method: JcMethod): String {
-        return "${method.enclosingClass.name}.${method.name}"
-    }
+    private fun visitedName(method: JcMethod) = "${method.enclosingClass.name}.${method.name}"
 
-    fun bindMachineOptions(options: JcConcreteMachineOptions) {
-        machineOptions = options
-    }
+    fun bindMachineOptions(options: JcConcreteMachineOptions) { machineOptions = options }
 
-    private fun addCtx(method: JcMethod, ctx: Select) {
-        visitedCtx[visitedName(method)] = ctx
-    }
+    private fun addCtx(method: JcMethod, ctx: Select) { visitedCtx[visitedName(method)] = ctx }
 
     fun getCtx(method: JcMethod) = visitedCtx[visitedName(method)]
 
-    private fun collectRepositoryMethods(clazz: JcClassOrInterface, originalMethods: List<JcMethod>) =
-        clazz.allSuperHierarchySequence.filter { it.isJpaRepository }
-            .flatMapTo(originalMethods.toMutableList()) { it.declaredMethods }
-            .map { JcJpaMethod.of(it, clazz) }
+    private fun collectRepositoryMethods(clazz: JcClassOrInterface, originalMethods: List<JcMethod>): List<JcJpaMethod> {
+        val commonMethods = clazz.allSuperHierarchySequence.filter(JcClassOrInterface::isJpaRepository)
+            .flatMapTo(mutableListOf(), JcClassOrInterface::declaredMethods)
+            .associateTo(mutableMapOf()) { it.jcdbSignature to it }
+
+        // user could override one of common methods
+        originalMethods.forEach { commonMethods[it.jcdbSignature] = it }
+
+        return commonMethods.values.map { JcJpaMethod.of(it, clazz) }
+    }
 
     override fun methodsOf(clazz: JcClassOrInterface, originalMethods: List<JcMethod>): List<JcMethod>? {
 
@@ -101,7 +101,7 @@ class JcRepositoryTransformer(val collector: JcTableInfoCollector) : JcClassExtF
 
             val parserRes = try { JPAQueryBuilder(cp, query).buildTerms() }
             catch (e: Throwable) {
-                println("[DB Warning] Cant visit query $query")
+                println("[DB Warning] Can't visit query $query")
                 return@flatMap emptyList()
             }
             addCtx(it, parserRes)
@@ -155,8 +155,10 @@ private val crudNames = listOf(
     "findAllById"
 )
 
-private val JcMethod.isCrud: Boolean get() = crudNames.contains(name)
-private val JcMethod.isSaveUpdDel: Boolean get() = listOf("save", "delete").contains(name)
+private val JcMethod.isCrud: Boolean get() =
+    crudNames.contains(name)
+            && query == null // user could implement own common method with query annotation
+private val JcMethod.isSaveUpdDel: Boolean get() = name == "save" || name == "delete"
 
 // TODO: saveAll, deleteAll, deleteAllById
 class JcRepositoryCrudTransformer(

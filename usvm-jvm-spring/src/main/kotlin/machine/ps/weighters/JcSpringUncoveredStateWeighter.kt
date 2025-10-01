@@ -1,5 +1,6 @@
 package machine.ps.weighters
 
+import machine.ps.collectFrame
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.machine.state.JcState
@@ -15,7 +16,7 @@ class JcSpringUncoveredStateWeighter(
 
     override val weighterName = "JcSpringUncoveredStateWeighter"
 
-    override fun weight(state: JcState) =  state.pathNode.allStatements.count { it in uncoveredStatements }
+    override fun weight(state: JcState) = collectFrame(state).count { it in uncoveredStatements }
 
     // TODO: it may be more complex
     override fun normalize() =

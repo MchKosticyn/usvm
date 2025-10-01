@@ -818,8 +818,10 @@ internal class JcConcreteEffectStorage {
     }
 
     fun reset() {
-        if (current === own || current.head === own.head)
+        if (current === own || current.head === own.head) {
+            JcConcreteMemoryClassLoader.ensureEffectStorageInitialized(this)
             return
+        }
 
         // TODO: #hack #threads
         //  disabling effect storage, because other running threads may create objects, but effect storage is not ready

@@ -156,6 +156,11 @@ object JcConcreteMemoryClassLoader : SecureClassLoader(ClassLoader.getSystemClas
         return null
     }
 
+    internal fun ensureEffectStorageInitialized(storage: JcConcreteEffectStorage) {
+        effectStorage?.also { return }
+        effectStorage = storage
+    }
+
     internal fun setEffectStorage(storage: JcConcreteEffectStorage) {
         effectStorage = storage
     }

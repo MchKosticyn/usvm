@@ -1,6 +1,5 @@
 package org.usvm.spring.query.join.common;
 
-import org.jacodb.api.jvm.JcMethod;
 import org.usvm.spring.query.expression.AExpression;
 import org.usvm.spring.query.join.AJoin;
 import org.usvm.spring.query.join.IJoinVisitor;
@@ -11,7 +10,7 @@ public class CommonJoin extends AJoin {
     public AExpression pred;
     public CommonJoinType type;
 
-    public JcMethod mapper = null;
+    public Object mapper = null;
 
     public CommonJoin() {
     }
