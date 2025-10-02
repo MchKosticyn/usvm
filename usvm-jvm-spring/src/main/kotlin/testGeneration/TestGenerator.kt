@@ -153,7 +153,7 @@ private fun JcSpringState.getTypeOfRef(ref: UHeapRef) =
 @Suppress("UNCHECKED_CAST")
 private fun getSpringException(
     state: JcSpringState,
-    exprResolver: JcSpringTestExprResolver
+    exprResolver: JcSpringTestStateResolver
 ): SpringException = with(state) {
     val throwableClass = ctx.cp.findClass("java.lang.Throwable")
     val throwableType = throwableClass.toType()

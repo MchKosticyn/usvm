@@ -24,8 +24,8 @@ internal class JcConcreteWeightedPathSelector(
     weighters: JcConcreteMachineWeighters
 ) : JcConcreteMemoryPathSelector(true) {
     private companion object {
-        private const val TOP_COUNT = 50
-        private const val WEIGHT_THRESHOLD = -5f
+        private const val TOP_COUNT = 30
+        private const val WEIGHT_THRESHOLD = -20f
     }
 
     private val baseWeighter: StateWeighterWithReport<JcState, Float> = weighters.baseWeighter

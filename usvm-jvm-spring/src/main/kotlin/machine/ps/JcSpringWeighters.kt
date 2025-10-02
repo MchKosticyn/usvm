@@ -3,6 +3,7 @@ package machine.ps
 import machine.JcSpringAnalysisMode
 import machine.JcSpringMachineOptions
 import machine.ps.weighters.JcConcreteBacktrackWeighter
+import machine.ps.weighters.JcForkTracesWeighter
 import machine.ps.weighters.JcSpringPathWeighter
 import machine.ps.weighters.JcSpringEdgeCaseWeighter
 import machine.ps.weighters.JcSpringRegressionSuite
@@ -10,23 +11,23 @@ import machine.ps.weighters.JcSpringUncoveredStateWeighter
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.usvm.machine.state.JcState
-import org.usvm.machine.state.lastStmt
 import org.usvm.ps.weighters.CombinedStateStableFloatWeighter
+import org.usvm.ps.weighters.ForkTracesHolder
 import org.usvm.statistics.CoverageStatistics
-import org.usvm.statistics.TransitiveCoverageZoneObserver
 
-// TODO: fine tuning
-private const val uncoveredStateWeighterNorm = 64f
-private const val springPathWeighterNorm = 10.6f
-private const val springEdgeCaseWeighterNorm = 21.8f
+private const val uncoveredStateWeighterNorm = 45f
+private const val forkTracesWeighterNorm = 34.1f
+private const val springPathWeighterNorm = 6.8f
+private const val springEdgeCaseWeighterNorm = 11.6f
 
 private const val springRegressionSuiteNorm = 0f // TODO: fine tuning
 
-private const val concreteBacktrackWeighterNorm = 3.6f
+private const val concreteBacktrackWeighterNorm = 2.4f
 
 internal fun createSpringWeighters(
     jcSpringMachineOptions: JcSpringMachineOptions,
     coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
+    tracesHolder: ForkTracesHolder<JcMethod, JcInst, JcState>,
     shouldNormalize: Boolean = true
 ): JcConcreteMachineWeighters {
     val springAnalysisMode = jcSpringMachineOptions.springAnalysisMode
@@ -37,6 +38,7 @@ internal fun createSpringWeighters(
 
     val baseWeightersWithNorm = listOf(
         JcSpringPathWeighter(springAnalysisMode) to springPathWeighterNorm,
+        JcForkTracesWeighter(tracesHolder) to forkTracesWeighterNorm,
         mainWeighterWithNorm
     )
     val (baseWeighters, baseWeightersNorm) = baseWeightersWithNorm.unzip()

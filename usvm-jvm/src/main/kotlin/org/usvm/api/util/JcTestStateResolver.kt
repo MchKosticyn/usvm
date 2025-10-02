@@ -313,7 +313,7 @@ abstract class JcTestStateResolver<T>(
         return throwable != null && type.isAssignable(throwable)
     }
 
-    fun allocateAndInitializeObject(
+    open fun allocateAndInitializeObject(
         ref: UConcreteHeapRef, heapRef: UHeapRef, type: JcClassType
     ): T {
         val instance = allocateClassInstance(type)

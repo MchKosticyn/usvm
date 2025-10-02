@@ -11,17 +11,6 @@ import org.usvm.ps.weighters.StableIntArithmetic
 import org.usvm.ps.weighters.StateWeighterWithReport
 import org.usvm.ps.weighters.WeighterReport
 
-private class SpringPathWeighterReport<Weight>(
-    override val weight: Weight,
-    override val weighterName: String,
-    val weightersStats: Map<CallInstWeighterType, Int>
-) : WeighterReport<Weight>() {
-    override fun report2String(): String {
-        val stats = weightersStats.map { (type, count) -> "${type.weighterName}: $count" }.joinToString(", ")
-        return "$weighterName $weight {$stats}"
-    }
-}
-
 class JcSpringPathWeighter(
     springAnalysisMode: JcSpringAnalysisMode
 ) : StateWeighterWithReport<JcState, Int>(), NormalizableWeighter<JcState, Float> {
