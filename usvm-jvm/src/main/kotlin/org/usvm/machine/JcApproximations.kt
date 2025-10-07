@@ -1329,13 +1329,15 @@ open class JcMethodApproximationResolver(
         check(classRefTypeRepresentative is UConcreteHeapRef)
         val classType = scope.calcOnState { memory.types.typeOf(classRefTypeRepresentative.address) }
         // Mostly limited ordinal of enums which are created by makeSymbolic functions
-        exprResolver.ensureExprCorrectness(ref, classType)?.also { return@dispatchUsvmApiMethod ref }
-
-        // Type (enums in most cases) was not initialized by <clinit> (ensureExprCorrectness returned null)
-        // so we will execute initialization now and only then will return to stmt
-        // To avoid re-processing stmt we skip it and just take ref with limitations as result
-        scope.doWithState { newStmt(JcMethodCallSkipWithEnsureInst(ref, it, classType)) }
-        null
+        if (exprResolver.ensureExprCorrectness(ref, classType) != null) {
+            ref
+        } else {
+            // Type (enums in most cases) was not initialized by <clinit> (ensureExprCorrectness returned null)
+            // so we will execute initialization now and only then will return to stmt
+            // To avoid re-processing stmt we skip it and just take ref with limitations as result
+            scope.doWithState { newStmt(JcMethodCallSkipWithEnsureInst(ref, it, classType)) }
+            null
+        }
     }
 
     private fun MutableMap<String, (JcMethodCall) -> UExpr<*>?>.dispatchMkRef2(

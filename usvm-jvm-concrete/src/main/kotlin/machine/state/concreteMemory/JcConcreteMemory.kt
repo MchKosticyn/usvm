@@ -1,7 +1,6 @@
 package machine.state.concreteMemory
 
 import io.ksmt.utils.asExpr
-import machine.JcConcreteInvocationResult
 import machine.JcConcreteMachineOptions
 import machine.JcConcreteMemoryClassLoader
 import machine.state.JcConcreteState
@@ -74,6 +73,7 @@ import org.usvm.jvm.util.name
 import org.usvm.jvm.util.toJavaConstructor
 import org.usvm.jvm.util.toJavaMethod
 import org.usvm.jvm.util.typedField
+import org.usvm.machine.interpreter.JcMethodCallSkipWithEnsureInst
 import org.usvm.model.UModelBase
 import org.usvm.util.onNone
 import org.usvm.util.onSome
@@ -82,7 +82,6 @@ import utils.getStaticFieldValue
 import utils.isExceptionCtor
 import utils.isInstanceApproximation
 import utils.isInternalType
-import utils.isLambdaTypeName
 import utils.isStaticApproximation
 import utils.jcTypeOf
 import utils.setStaticFieldValue
@@ -568,7 +567,7 @@ open class JcConcreteMemory(
             val returnType = ctx.cp.findTypeOrNull(method.returnType)!!
             val result: UExpr<USort> = marshall.objToExpr(resultObj, returnType)
             exprResolver.ensureExprCorrectness(result, returnType)
-            state.newStmt(JcConcreteInvocationResult(result, stmt))
+            state.newStmt(JcMethodCallSkipWithEnsureInst(result, stmt, returnType))
         } else {
             // Exception thrown
             val jcType = ctx.cp.jcTypeOf(exception)!!

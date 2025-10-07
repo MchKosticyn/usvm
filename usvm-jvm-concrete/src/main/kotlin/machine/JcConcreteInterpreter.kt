@@ -82,10 +82,6 @@ open class JcConcreteInterpreter(
         exprResolver: JcExprResolver
     ) {
         when (stmt) {
-            is JcConcreteInvocationResult -> {
-                scope.calcOnState { skipMethodInvocationWithValue(stmt, stmt.returnExpr) }
-            }
-
             is JcReflectionInvokeResult -> {
                 scope.doWithState {
                     when (val returnType = stmt.invokeMethod.returnType) {

@@ -11,7 +11,7 @@ interface Scorer {
 
 class ScorerImpl(
     val cp: JcClasspath,
-    features: ScorerImpl.() -> Unit = {}
+    featuresBuilder: ScorerImpl.() -> Unit = {}
 ) : Scorer {
 
     private val approximationsFeature = cp.features!!.filterIsInstance<Approximations>().single()
@@ -19,7 +19,7 @@ class ScorerImpl(
     private val features: MutableList<ScorerContext.() -> Unit> = mutableListOf()
 
     init {
-        features()
+        featuresBuilder()
     }
 
     fun addFeature(feature: ScorerContext.() -> Unit) {
