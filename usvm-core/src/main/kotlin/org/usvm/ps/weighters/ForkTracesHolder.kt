@@ -4,7 +4,7 @@ import org.usvm.UState
 import org.usvm.statistics.UMachineObserver
 
 class ForkTracesHolder<Method, Statement, State : UState<*, Method, Statement, *, *, State>>(
-    private var stateFilter: (State) -> Boolean = { true }
+    private val stateFilter: (State) -> Boolean = { true }
 ) : UMachineObserver<State> {
 
     private val completedTraces: MutableMap<State, List<Statement>> = mutableMapOf()
@@ -16,10 +16,9 @@ class ForkTracesHolder<Method, Statement, State : UState<*, Method, Statement, *
 
     fun getAfterForkStatements(state: State): List<Statement> {
         val forks = getForkStatements(state)
-
         val afterForks = mutableListOf<Statement>()
-        state.pathNode.allStatements.reversed().reduce { prev, curr ->
-            if (forks.contains(prev)) afterForks.add(curr)
+        state.pathNode.allStatements.reduce { prev, curr ->
+            if (forks.contains(curr)) afterForks.add(prev)
             curr
         }
         return afterForks
@@ -27,7 +26,6 @@ class ForkTracesHolder<Method, Statement, State : UState<*, Method, Statement, *
 
     override fun onStateTerminated(state: State, stateReachable: Boolean) {
         if (!stateReachable || !stateFilter(state)) return
-
         completedTraces[state] = getAfterForkStatements(state)
     }
 }

@@ -124,6 +124,8 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>, propertie
 
     val testDepsManager = TestDependenciesManager(dependencies)
     val cpFiles = classes + usvmConcreteApiJarPath + testDepsManager.allDependencies
+    val springApproximationPaths = SpringApproximationPaths()
+    val approximtionsFeature = Approximations(listOf(VersionInfo("spring", testDepsManager.springBootVersion)))
     val db = jacodb {
         useProcessJavaRuntime()
 
@@ -131,13 +133,13 @@ private fun loadBenchCp(classes: List<File>, dependencies: List<File>, propertie
 
         installFeatures(InMemoryHierarchy)
         installFeatures(Usages)
-        installFeatures(Approximations(listOf(VersionInfo("spring", testDepsManager.springBootVersion))))
+        installFeatures(approximtionsFeature)
 
         loadByteCode(cpFiles)
     }
 
     db.awaitBackgroundJobs()
-    loadBench(db, cpFiles, classes, dependencies, SpringApproximationPaths(), propertiesName, true)
+    loadBench(db, cpFiles, classes, dependencies, springApproximationPaths, propertiesName, true)
 }
 
 fun loadWebAppBenchCp(jar: Path, dependencies: Path, propertiesName: String? = null): BenchCp =

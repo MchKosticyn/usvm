@@ -16,20 +16,17 @@ class JcForkTracesWeighter(
     override val weighterName = "JcForkTracesWeighter"
 
     private fun similarity(completedTrace: List<JcInst>, activeTrace: List<JcInst>): Int {
-        val lastActiveForkInst = activeTrace.firstOrNull() ?: return 0
+        val lastActiveForkInst = activeTrace.lastOrNull() ?: return 0
         var completedIndex = completedTrace.indexOf(lastActiveForkInst)
-
-        return activeTrace.fold(0) { sum, inst ->
-            if (completedIndex == -1 || completedTrace[completedIndex] != inst) return sum
-
+        return activeTrace.foldRight(0) { inst, sum ->
+            if (completedTrace.getOrNull(completedIndex) != inst) return sum
             completedIndex--
             sum - 1
         }
     }
 
-
     override fun weight(state: JcState): Int {
-        val currTrace = forkTracesHolder.getAfterForkStatements(state).reversed()
+        val currTrace = forkTracesHolder.getAfterForkStatements(state)
         val completedTraces = forkTracesHolder.getCompletedTraces()
         return completedTraces.minOfOrNull { trace -> similarity(trace, currTrace) } ?: 0
     }
@@ -41,6 +38,6 @@ class JcForkTracesWeighter(
 
         // TODO: tune
         const val MAX_WEIGHT = 0
-        const val MIN_WEIGHT = -30
+        const val MIN_WEIGHT = -150
     }
 }

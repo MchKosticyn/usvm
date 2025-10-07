@@ -40,6 +40,8 @@ import org.usvm.statistics.distances.InterprocDistanceCalculator
 import org.usvm.statistics.distances.MultiTargetDistanceCalculator
 import org.usvm.statistics.distances.PlainCallGraphStatistics
 import org.usvm.stopstrategies.createStopStrategy
+import org.usvm.types.JcTypeSystem
+import org.usvm.util.ApproximationPaths
 import org.usvm.util.originalInst
 
 val logger = object : KLogging() {}.logger
@@ -49,10 +51,11 @@ open class JcMachine(
     override val options: UMachineOptions,
     protected val jcMachineOptions: JcMachineOptions = JcMachineOptions(),
     protected val interpreterObserver: JcInterpreterObserver? = null,
+    approximationPaths: ApproximationPaths = ApproximationPaths()
 ) : UMachine<JcState>() {
     protected val applicationGraph = JcApplicationGraph(cp)
 
-    private val typeSystem = JcTypeSystem(cp, options.typeOperationsTimeout)
+    private val typeSystem = JcTypeSystem(cp, cp.db.persistence, options.typeOperationsTimeout, approximationPaths)
     private val components = JcComponents(typeSystem, options)
     protected val ctx by lazy { createContext(cp, components) }
 

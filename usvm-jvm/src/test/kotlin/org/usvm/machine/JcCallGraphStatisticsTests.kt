@@ -6,13 +6,14 @@ import org.usvm.samples.callgraph.CallGraphTestClass1
 import org.usvm.samples.callgraph.CallGraphTestClass2
 import org.usvm.samples.callgraph.CallGraphTestClass3
 import org.usvm.samples.callgraph.CallGraphTestClass4
+import org.usvm.types.JcTypeSystem
 import org.usvm.util.getJcMethodByName
 import kotlin.test.assertTrue
 
 class JcCallGraphStatisticsTests : JavaMethodTestRunner() {
 
     private val appGraph = JcApplicationGraph(cp)
-    private val typeStream = JcTypeSystem(cp, options.typeOperationsTimeout).topTypeStream()
+    private val typeStream = JcTypeSystem(cp, db.persistence, options.typeOperationsTimeout).topTypeStream()
     private val statistics = JcCallGraphStatistics(5u, appGraph, typeStream, 100)
 
     @Test

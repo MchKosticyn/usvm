@@ -16,6 +16,7 @@ import org.jacodb.api.jvm.cfg.BsmMethodTypeArg
 import org.jacodb.api.jvm.cfg.BsmStringArg
 import org.jacodb.api.jvm.cfg.BsmTypeArg
 import org.jacodb.api.jvm.cfg.JcFieldRef
+import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.cfg.JcStringConstant
 import org.jacodb.api.jvm.ext.autoboxIfNeeded
 import org.jacodb.api.jvm.ext.boolean
@@ -33,6 +34,7 @@ import org.jacodb.api.jvm.ext.short
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.api.jvm.ext.void
 import org.jacodb.impl.cfg.util.isPrimitive
+import org.usvm.StepScope
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
 import org.usvm.UBvSort
@@ -86,6 +88,7 @@ import org.usvm.getIntValue
 import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.javaName
 import org.usvm.machine.interpreter.JcExprResolver
+import org.usvm.machine.interpreter.JcMethodCallSkipWithEnsureInst
 import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.mocks.mockMethod
 import org.usvm.machine.state.JcState
@@ -1064,34 +1067,10 @@ open class JcMethodApproximationResolver(
                     }
                 }
             }
-            dispatchMkRef(Engine::makeSymbolic) {
-                val classRef = it.arguments.single().asExpr(ctx.addressSort)
-                val classRefTypeRepresentative = scope.calcOnState {
-                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
-                }
-                scope.makeSymbolicRefWithSameType(classRefTypeRepresentative)
-            }
-            dispatchMkRef(Engine::makeNullableSymbolic) {
-                val classRef = it.arguments.single().asExpr(ctx.addressSort)
-                val classRefTypeRepresentative = scope.calcOnState {
-                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
-                }
-                scope.makeNullableSymbolicRefWithSameType(classRefTypeRepresentative)
-            }
-            dispatchMkRef(Engine::makeSymbolicSubtype) {
-                val classRef = it.arguments.single().asExpr(ctx.addressSort)
-                val classRefTypeRepresentative = scope.calcOnState {
-                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
-                }
-                scope.makeSymbolicRefSubtype(classRefTypeRepresentative)
-            }
-            dispatchMkRef(Engine::makeNullableSymbolicSubtype) {
-                val classRef = it.arguments.single().asExpr(ctx.addressSort)
-                val classRefTypeRepresentative = scope.calcOnState {
-                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
-                }
-                scope.makeNullableSymbolicRefSubtype(classRefTypeRepresentative)
-            }
+            dispatchMakeCommonSymbolic(Engine::makeSymbolic, JcStepScope::makeSymbolicRefWithSameType)
+            dispatchMakeCommonSymbolic(Engine::makeNullableSymbolic, JcStepScope::makeNullableSymbolicRefWithSameType)
+            dispatchMakeCommonSymbolic(Engine::makeSymbolicSubtype, JcStepScope::makeSymbolicRefSubtype)
+            dispatchMakeCommonSymbolic(Engine::makeNullableSymbolicSubtype, JcStepScope::makeNullableSymbolicRefSubtype)
             dispatchMkRef2(Engine::makeSymbolicArray) {
                 val (elementClassRefExpr, sizeExpr) = it.arguments
                 val elementClassRef = elementClassRefExpr.asExpr(ctx.addressSort)
@@ -1336,10 +1315,28 @@ open class JcMethodApproximationResolver(
         this[methodName] = body
     }
 
-    private fun MutableMap<String, (JcMethodCall) -> UExpr<*>?>.dispatchMkRef(
+    private fun MutableMap<String, (JcMethodCall) -> UExpr<*>?>.dispatchMakeCommonSymbolic(
         apiMethod: KFunction1<Nothing, Any>,
-        body: (JcMethodCall) -> UExpr<*>?,
-    ) = dispatchUsvmApiMethod(apiMethod, body)
+        makeMethod: StepScope<JcState, JcType, JcInst, JcContext>.(UHeapRef) -> UHeapRef?,
+    ) = dispatchUsvmApiMethod(apiMethod) {
+        val classRef = it.arguments.single().asExpr(ctx.addressSort)
+        val classRefTypeRepresentative = scope.calcOnState {
+            memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
+        }
+        val ref = scope.makeMethod(classRefTypeRepresentative) ?: error("Unable to crate ref for makeSymbolic")
+
+        ref as UExpr<*>
+        check(classRefTypeRepresentative is UConcreteHeapRef)
+        val classType = scope.calcOnState { memory.types.typeOf(classRefTypeRepresentative.address) }
+        // Mostly limited ordinal of enums which are created by makeSymbolic functions
+        exprResolver.ensureExprCorrectness(ref, classType)?.also { return@dispatchUsvmApiMethod ref }
+
+        // Type (enums in most cases) was not initialized by <clinit> (ensureExprCorrectness returned null)
+        // so we will execute initialization now and only then will return to stmt
+        // To avoid re-processing stmt we skip it and just take ref with limitations as result
+        scope.doWithState { newStmt(JcMethodCallSkipWithEnsureInst(ref, it, classType)) }
+        null
+    }
 
     private fun MutableMap<String, (JcMethodCall) -> UExpr<*>?>.dispatchMkRef2(
         apiMethod: KFunction2<Nothing, Nothing, Array<Any>>,
