@@ -3,7 +3,6 @@ package machine
 import machine.ps.JcConcreteMachineWeighters
 import machine.ps.JcConcreteWeightedPathSelector
 import machine.ps.JcConcreteWrappingPathSelector
-import machine.ps.weighters.JcConcreteBacktrackWeighter
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
@@ -16,10 +15,10 @@ import org.usvm.machine.JcMachineOptions
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.state.JcState
 import org.usvm.ps.StateLoopTracker
-import org.usvm.ps.weighters.ForkTracesHolder
 import org.usvm.statistics.CoverageStatistics
 import org.usvm.statistics.TimeStatistics
 import org.usvm.statistics.distances.CallGraphStatistics
+import org.usvm.util.ApproximationPaths
 
 open class JcConcreteMachine(
     cp: JcClasspath,
@@ -27,7 +26,8 @@ open class JcConcreteMachine(
     jcMachineOptions: JcMachineOptions = JcMachineOptions(),
     protected val jcConcreteMachineOptions: JcConcreteMachineOptions = JcConcreteMachineOptions(),
     interpreterObserver: JcInterpreterObserver? = null,
-) : JcMachine(cp, options, jcMachineOptions, interpreterObserver) {
+    approximationPaths: ApproximationPaths = ApproximationPaths()
+) : JcMachine(cp, options, jcMachineOptions, interpreterObserver, approximationPaths) {
 
     override fun createContext(
         cp: JcClasspath,

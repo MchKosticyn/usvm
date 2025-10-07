@@ -38,8 +38,15 @@ class JcSpringMachine(
     jcConcreteMachineOptions: JcConcreteMachineOptions,
     private val jcSpringMachineOptions: JcSpringMachineOptions,
     private val testObserver: JcSpringTestObserver?,
-    interpreterObserver: JcInterpreterObserver? = null,
-) : JcConcreteMachine(cp, options, jcMachineOptions, jcConcreteMachineOptions, interpreterObserver) {
+    interpreterObserver: JcInterpreterObserver? = null
+) : JcConcreteMachine(
+    cp,
+    options,
+    jcMachineOptions,
+    jcConcreteMachineOptions,
+    interpreterObserver,
+    jcSpringMachineOptions.springApproximationPaths
+) {
 
     private val tracesHolder = ForkTracesHolder<JcMethod, JcInst, JcState>(
         stateFilter = { (it as JcSpringState).canGenerateTest() }

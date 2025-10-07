@@ -16,7 +16,6 @@ import org.usvm.api.util.JcTestInterpreter
 import org.usvm.api.util.JcTestResolver
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
-import org.usvm.machine.JcMachineOptions
 import org.usvm.test.util.TestRunner
 import org.usvm.test.util.checkers.AnalysisResultsNumberMatcher
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
@@ -786,9 +785,13 @@ open class JavaMethodTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, J
     protected open val classpath: List<File>
         get() = samplesClasspath
 
-    protected open val cp by lazy {
-        JacoDBContainer(jacodbCpKey, classpath).cp
+    protected open val container by lazy {
+        JacoDBContainer(jacodbCpKey, classpath)
     }
+
+    protected open val cp by lazy { container.cp }
+
+    protected open val db by lazy { container.db }
 
     protected open val resolverType: JcTestResolverType = JcTestResolverType.INTERPRETER
 

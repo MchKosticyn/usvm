@@ -170,7 +170,7 @@ class JcRelationsInitTransformer(
                 }
 
                 is Relation.OneToManyByColumn -> {
-                    val checks = rel.mappedBy?.let { relationChecks.get(clazz, it) }
+                    val checks = rel.mappedBy?.let { relationChecks.get(relClass, it) }
                         ?: relationChecks.get(relClass, rel.origField)
                     val checkNames = checks.sortedBy(JcField::name)
                         .map { JcStringConstant(it.name, cp.stringType) }

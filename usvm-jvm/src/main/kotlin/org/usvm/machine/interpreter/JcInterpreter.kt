@@ -68,6 +68,7 @@ import org.usvm.machine.state.localsCount
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.parametersWithThisCount
 import org.usvm.machine.state.returnValue
+import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.machine.state.throwExceptionAndDropStackFrame
 import org.usvm.machine.state.throwExceptionWithoutStackFrameDrop
 import org.usvm.memory.ULValue
@@ -245,6 +246,12 @@ open class JcInterpreter(
         val simpleValueResolver = exprResolver.simpleValueResolver
         val method = stmt.method
         when (stmt) {
+            is JcMethodCallSkipWithEnsureInst -> {
+                exprResolver.ensureExprCorrectness(stmt.returnExpr, stmt.type)
+                    ?: error("<clinit> for ${stmt.type} was not called before JcMethodCallSkipWithEnsureInst execution")
+                scope.calcOnState { skipMethodInvocationWithValue(stmt, stmt.returnExpr) }
+            }
+
             is JcMethodEntrypointInst -> {
                 observer?.onEntryPoint(simpleValueResolver, stmt, scope)
 
