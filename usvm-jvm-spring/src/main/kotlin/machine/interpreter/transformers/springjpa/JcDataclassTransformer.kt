@@ -24,6 +24,8 @@ import jpa.JAVA_OBJ_ARR
 import jpa.JAVA_VOID
 import jpa.JcTableInfoCollector
 import jpa.RELATIONS_INIT_ANNOT
+import jpa.RELATIONS_INIT_FOR_CONCRETE
+import jpa.RELATIONS_INIT_FOR_CONCRETE_NAME
 import jpa.RELATIONS_INIT_NAME
 import jpa.SAVE_UPDATE_ANNOT
 import jpa.SAVE_UPDATE_NAME
@@ -132,6 +134,7 @@ private class SignatureGenerator(
     fun getFunctions(): List<JcMethod> {
         val functions = mutableListOf(
             getRelationsInit(),
+            getRelationsInitForConcrete(),
             getCopy(),
             getBuildId()
         )
@@ -169,6 +172,14 @@ private class SignatureGenerator(
             .addBlancAnnot(RELATIONS_INIT_ANNOT)
             .setRetType(JAVA_VOID)
             .addFillerFeature(JcRelationsInitTransformer(dataclassTransformer, relationChecks, cp, classTable))
+            .buildMethod()
+
+    fun getRelationsInitForConcrete() =
+        JcMethodBuilder(clazz)
+            .setName(RELATIONS_INIT_FOR_CONCRETE_NAME)
+            .addBlancAnnot(RELATIONS_INIT_FOR_CONCRETE)
+            .setRetType(JAVA_VOID)
+            .addFillerFeature(JcRelationsInitForConcreteTransformer(cp, classTable))
             .buildMethod()
 
     fun getCopy() =

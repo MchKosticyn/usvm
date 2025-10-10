@@ -76,6 +76,7 @@ const val BUILD_ID_NAME = "\$generated_build_id"
 const val SAVE_UPDATE_NAME = "\$save_update"
 const val DELETE_NAME = "\$delete"
 const val RELATIONS_INIT_NAME = "\$relations_init"
+const val RELATIONS_INIT_FOR_CONCRETE_NAME = "\$relations_init_for_concrete"
 const val COPY_NAME = "\$copy"
 const val BUILD_FROM_IDS = "\$generated_build_from_ids"
 const val BUILD_IDS = "\$generated_build_ids"
@@ -154,6 +155,8 @@ const val TABLE_GET_COPIED = "getCopiedTable"
 const val TABLE_VALUES_WITH_ID = "getValuesWithId"
 const val TABLE_VALUES_WITH_FIELDS = "getValuesWithFields"
 const val TABLE_VALUES_BY_TABLE = "getValuesRelatedByTable"
+const val GET_CONCRETE_ENTITY = "getConcreteEntity"
+const val GET_CONCRETE_ENTITIES = "getConcreteEntities"
 const val DATA_ROW_OF = "ofLambda"
 
 // endregion
@@ -199,8 +202,8 @@ const val APPROX_NAME = "org.jacodb.approximation.annotation.Approximate"
 
 const val CHECK_FIELD_ANNOT = "\$check_field_annot"
 const val RELATIONS_INIT_ANNOT = "\$relations_init_annot"
+const val RELATIONS_INIT_FOR_CONCRETE = "\$relations_init_for_concrete"
 const val COPY_ANNOT = "\$copy_annot"
-const val STATIC_INIT_FETCH_ANNOT = "\$generated_static_fetched_annot"
 const val STATIC_BLANK_INIT_ANNOT = "\$generated_static_blank_init_annot"
 const val GET_ID_ANNOT = "\$generated_get_id_annot"
 const val SET_ID_ANNOT = "\$generated_set_id_annot"
@@ -247,10 +250,9 @@ val JcMethod.generatedGetDTOInfo: Boolean get() = contains(annotations, GET_DTO_
 fun JcMethod.generatedGetter(fieldName: String, static: Boolean) =
     containsAll(annotations, listOf(GENERATED_GETTER, fieldName)) && isStatic == static
 
-val JcMethod.generatedSerializer: Boolean get() = contains(annotations, SERIALIZER_ANNOT)
-val JcMethod.generatedSerializerWithSkips: Boolean get() = contains(annotations, SERIALIZER_WITH_SKIPS_ANNOT)
 val JcMethod.generatedStaticBlankInit: Boolean get() = contains(this.annotations, STATIC_BLANK_INIT_ANNOT)
 val JcMethod.generatedRelationsInit: Boolean get() = contains(this.annotations, RELATIONS_INIT_ANNOT)
+val JcMethod.generatedRelationsInitForConcrete: Boolean get() = contains(this.annotations, RELATIONS_INIT_FOR_CONCRETE)
 val JcMethod.generatedSaveUpdate: Boolean get() = contains(this.annotations, SAVE_UPDATE_ANNOT)
 val JcMethod.generatedDelete: Boolean get() = contains(this.annotations, DELETE_ANNOT)
 val JcMethod.repositoryLambda: Boolean get() = contains(annotations, REPOSITORY_LAMBDA)
@@ -494,13 +496,13 @@ fun BlockGenerationContext.putValuesToObjectArray(cp: JcClasspath, name: String,
 }
 
 fun BlockGenerationContext.generateIntArray(cp: JcClasspath, name: String, values: List<Int>) =
-    values.map { JcInt(it, cp.int) }.let { putValuesWithSameTypeToArray(cp, name, it) }
+    values.map { JcInt(it, cp.int) }.let { putValuesWithSameTypeToArray(cp, name, it, cp.int) }
 
 fun BlockGenerationContext.putValuesWithSameTypeToArray(
     cp: JcClasspath,
     name: String,
     values: List<JcValue>,
-    commonType: JcType = cp.objectType
+    commonType: JcType
 ): JcLocalVar {
     if (values.isEmpty()) {
         val arrType = cp.arrayTypeOf(commonType, true, emptyList())
@@ -522,6 +524,30 @@ fun BlockGenerationContext.putValuesWithSameTypeToArray(
     }
 
     return vari
+}
+
+fun BlockGenerationContext.packValuesToStringArray(cp: JcClasspath, name: String, values: List<JcValue>) =
+    putValuesWithSameTypeToArray(cp, name, values, cp.stringType)
+
+fun BlockGenerationContext.packValuesToClassArray(cp: JcClasspath, name: String, values: List<JcValue>) =
+    putValuesWithSameTypeToArray(cp, name, values, cp.findType(JAVA_CLASS))
+
+fun BlockGenerationContext.generateImmutableWrapper(
+    cp: JcClasspath,
+    name: String,
+    type: TypeName,
+    value: JcValue
+): JcValue {
+    val typeName = when (type.typeName) {
+        JAVA_SET -> IMMUTABLE_SET_WRAPPER
+        JAVA_LIST -> IMMUTABLE_LIST_WRAPPER
+        else -> {
+            error("generateWrapper: unsupported type to wrap: ${type.typeName}")
+            IMMUTABLE_LIST_WRAPPER
+        }
+    }
+
+    return generateNewWithInit("${name}_wrapper", cp.findType(typeName) as JcClassType, listOf(value))
 }
 
 fun BlockGenerationContext.generateNewWithInit(name: String, type: JcClassType, args: List<JcValue>): JcLocalVar {
@@ -689,7 +715,9 @@ fun BlockGenerationContext.generateGlobalNoIdTableAccess(
     val baseType = cp.findType(NO_ID_TABLE_MANAGER) as JcClassType
     val types = noIdTable.toTable().columnsInOrder().mapIndexed { ix, col ->
         toJavaClass(cp, "col_type_${name}_${ix}", col.type.toJcType(cp)!!)
-    }.let { putValuesWithSameTypeToArray(cp, "table_types_${name}", it) }
+    }.let {
+        packValuesToClassArray(cp, "table_types_${name}", it)
+    }
     generateVoidVirtualCall(TABLE_INITIALIZE, baseType, tbl, listOf(types))
 
     return tbl

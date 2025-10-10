@@ -15,6 +15,7 @@ import machine.interpreter.transformers.springjpa.query.MethodCtx
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcLocalVar
 import org.jacodb.api.jvm.cfg.JcReturnInst
+import org.jacodb.api.jvm.ext.objectType
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer.BlockGenerationContext
 import org.usvm.spring.query.selectfun.ASelection
@@ -75,7 +76,7 @@ private class SelectFuture(val info: CommonInfo, val select: SelectFunction, val
         val res = if (ctx.common.origReturnGeneric != JAVA_OBJ_ARR) {
             selVars.single()
         } else {
-            ctx.genCtx.putValuesWithSameTypeToArray(ctx.cp, "select_result_obj_arr_wrap", selVars)
+            ctx.genCtx.putValuesWithSameTypeToArray(ctx.cp, "select_result_obj_arr_wrap", selVars, ctx.cp.objectType)
         }
 
         ctx.genCtx.addInstruction { loc -> JcReturnInst(loc, res) }

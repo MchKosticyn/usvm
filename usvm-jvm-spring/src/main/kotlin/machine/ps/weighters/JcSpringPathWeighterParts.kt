@@ -76,7 +76,7 @@ object GoodPathsWeighter: JcEngineCallInstWeighter() {
 
     override val stats = object : JcCallInstWeighterStats() {
         override val weight = 63
-        override val maxActivations = 20
+        override val maxActivations = 50
         override val normalizerType = WeightNormalizerType.POSITIVE
         override val weighterType = CallInstWeighterType.GOOD_PATH
     }
@@ -87,7 +87,7 @@ object BadPathsWeighter: JcEngineCallInstWeighter() {
 
     override val stats = object : JcCallInstWeighterStats() {
         override val weight = -265
-        override val maxActivations = 10
+        override val maxActivations = 40
         override val normalizerType = WeightNormalizerType.NEGATIVE
         override val weighterType = CallInstWeighterType.BAD_PATH
     }
@@ -98,7 +98,7 @@ object EdgeCasesWeighter: JcEngineCallInstWeighter() {
 
     override val stats = object : JcCallInstWeighterStats() {
         override val weight = 672
-        override val maxActivations = 10
+        override val maxActivations = 40
         override val normalizerType = WeightNormalizerType.POSITIVE
         override val weighterType = CallInstWeighterType.EDGE_CASES
     }
@@ -110,7 +110,7 @@ object RegressionSuiteWeighter: JcEngineCallInstWeighter() {
     // TODO: tune
     override val stats = object : JcCallInstWeighterStats() {
         override val weight = -32
-        override val maxActivations = 10
+        override val maxActivations = 25
         override val normalizerType = WeightNormalizerType.NEGATIVE
         override val weighterType = CallInstWeighterType.REGRESSION
     }
