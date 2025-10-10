@@ -299,16 +299,6 @@ fun generateTestClass(
                 val annotationsValues = mutableListOf<Any>()
                 if (benchmark.propertiesName != null)
                     annotationsValues.addAll(listOf("locations", listOf(benchmark.propertiesName)))
-                annotationsValues.addAll(
-                    listOf(
-                        "properties",
-                        listOf(
-                            "spring.sql.init.mode=never",
-                            "spring.jpa.hibernate.ddl-auto=create-drop",
-                            "spring.jpa.defer-datasource-initialization=true"
-                        )
-                    )
-                )
                 testPropertySourceAnnotation.values = annotationsValues
             }
 

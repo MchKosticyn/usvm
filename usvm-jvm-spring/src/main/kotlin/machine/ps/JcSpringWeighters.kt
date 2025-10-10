@@ -38,14 +38,14 @@ internal fun createSpringWeighters(
 
     val baseWeightersWithNorm = listOf(
         JcSpringPathWeighter(springAnalysisMode) to springPathWeighterNorm,
-        JcForkTracesWeighter(tracesHolder) to forkTracesWeighterNorm,
         mainWeighterWithNorm
     )
     val (baseWeighters, baseWeightersNorm) = baseWeightersWithNorm.unzip()
 
     val eachPeekWeightersWithNorm = listOf(
         JcSpringUncoveredStateWeighter(coverageStatistics) to uncoveredStateWeighterNorm,
-        JcConcreteBacktrackWeighter() to concreteBacktrackWeighterNorm
+        JcConcreteBacktrackWeighter() to concreteBacktrackWeighterNorm,
+        JcForkTracesWeighter(tracesHolder) to forkTracesWeighterNorm
     )
     val (eachPeekWeighters, eachPeekWeightersNorm) = eachPeekWeightersWithNorm.unzip()
 

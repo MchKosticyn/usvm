@@ -3,22 +3,22 @@ package machine.interpreter.transformers.springjpa
 import getterName
 import jpa.BASE_TABLE_MANAGER
 import jpa.BUILD_ID_NAME
+import jpa.CONSUMER2
 import jpa.COPY_NAME
 import jpa.CRUD_MANAGER
 import jpa.DATABASE_UTILS
 import jpa.DELETE_NAME
 import jpa.DTO_INFO
 import jpa.EQUALS_NAME
+import jpa.FUNCTION
+import jpa.GET_CONCRETE_ENTITIES
+import jpa.GET_CONCRETE_ENTITY
 import jpa.GET_REC_UPD
-import jpa.IMMUTABLE_LIST_WRAPPER
-import jpa.IMMUTABLE_SET_WRAPPER
 import jpa.IS_NULL_FUNCTION
 import jpa.ITABLE
 import jpa.IWRAPPER
 import jpa.IdColumnInfo
 import jpa.JAVA_INIT
-import jpa.JAVA_LIST
-import jpa.JAVA_SET
 import jpa.JcTableInfoCollector
 import jpa.Relation
 import jpa.SAVE_UPDATE_NAME
@@ -40,6 +40,7 @@ import jpa.downcastRefTypeIfNeeded
 import jpa.generateCast
 import jpa.generateGlobalNoIdTableAccess
 import jpa.generateGlobalTableAccess
+import jpa.generateImmutableWrapper
 import jpa.generateIntArray
 import jpa.generateLambda
 import jpa.generateManagerAccess
@@ -58,6 +59,7 @@ import jpa.generatedGetDTOInfo
 import jpa.generatedGetter
 import jpa.generatedMethodArgumentVar
 import jpa.generatedRelationsInit
+import jpa.generatedRelationsInitForConcrete
 import jpa.generatedSaveUpdate
 import jpa.generatedSetter
 import jpa.generatedSpecialGetId
@@ -67,8 +69,12 @@ import jpa.getBoxedTypeFromPrimitive
 import jpa.getTableName
 import jpa.hasWrapper
 import jpa.isDataClass
+import jpa.isId
 import jpa.isPrimitiveType
+import jpa.isRelation
 import jpa.isValidator
+import jpa.packValuesToClassArray
+import jpa.packValuesToStringArray
 import jpa.putValueToVar
 import jpa.putValuesToObjectArray
 import jpa.putValuesWithSameTypeToArray
@@ -76,6 +82,7 @@ import jpa.toArgument
 import jpa.toJavaClass
 import jpa.transformers.JcBodyFillerFeature
 import jpa.upcastToRefTypeIfNeeded
+import org.jacodb.api.jvm.JcAnnotation
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
@@ -111,7 +118,6 @@ import org.usvm.jvm.util.toJcClass
 import org.usvm.jvm.util.toJcType
 import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer.BlockGenerationContext
 import org.usvm.jvm.util.typeName
-import org.usvm.jvm.util.typedField
 import setterName
 
 // static SomeClass $static_blank_init() { return new SomeClass() }
@@ -125,7 +131,7 @@ class JcStaticBlankInitTransformer() : JcBodyFillerFeature() {
     }
 }
 
-// see in java-stdlib-approximations FirstDataClass's _relationsInit method
+// see in spring-approximations FirstDataClass's _relationsInit method
 class JcRelationsInitTransformer(
     val dataclassTransformer: JcDataclassTransformer,
     val relationChecks: RelationMap<JcField>,
@@ -174,7 +180,7 @@ class JcRelationsInitTransformer(
                         ?: relationChecks.get(relClass, rel.origField)
                     val checkNames = checks.sortedBy(JcField::name)
                         .map { JcStringConstant(it.name, cp.stringType) }
-                        .let { putValuesWithSameTypeToArray(cp, "otm_names_$ix", it) }
+                        .let { packValuesToStringArray(cp, "otm_names_$ix", it) }
                     val buildedId = generateVirtualCall("otm_id_$ix", BUILD_ID_NAME, classType, thisVal, emptyList())
                     val values = generateVirtualCall(
                         "otm_$ix",
@@ -183,7 +189,7 @@ class JcRelationsInitTransformer(
                         tblField,
                         listOf(buildedId, checkNames)
                     )
-                    generateWrapper(rel, values)
+                    generateImmutableWrapper(cp, rel.origField.name, rel.origField.type, values)
                 }
 
                 is Relation.RelationByTable -> {
@@ -204,32 +210,65 @@ class JcRelationsInitTransformer(
                         tblField,
                         listOf(buildedId, btwTable, joinTableIxs, otherIxs)
                     )
-                    generateWrapper(rel, values)
+                    generateImmutableWrapper(cp, rel.origField.name, rel.origField.type, values)
                 }
             }
 
-            val fieldRef = JcFieldRef(thisVal, rel.origField.typedField)
-            addInstruction { loc -> JcAssignInst(loc, fieldRef, fieldValue) }
+            generateVoidVirtualCall(setterName(rel.origField), classType, thisVal, listOf(fieldValue))
         }
 
         addInstruction { loc -> JcReturnInst(loc, null) }
     }
+}
 
-    private fun BlockGenerationContext.generateWrapper(rel: Relation, value: JcValue): JcValue {
-        val typeName = when (rel.origField.type.typeName) {
-            JAVA_SET -> IMMUTABLE_SET_WRAPPER
-            JAVA_LIST -> IMMUTABLE_LIST_WRAPPER
-            else -> {
-                error("generateWrapper: unsupported type to wrap: ${rel.origField.type.typeName}")
-                IMMUTABLE_LIST_WRAPPER
+// see in spring-approximations FirstDataClass's _relationsInitForConcrete method
+class JcRelationsInitForConcreteTransformer(
+    val cp: JcClasspath,
+    val classTable: TableInfo.TableWithIdInfo
+) : JcBodyFillerFeature() {
+
+    private val clazz = cp.findClass(classTable.origClassName)
+    private val classType = clazz.toType()
+
+    override fun condition(method: JcMethod) = method.generatedRelationsInitForConcrete
+
+    override fun BlockGenerationContext.generateBody(method: JcMethod) {
+        val thisVal = JcThis(classType)
+        val tableManagerType = cp.findType(BASE_TABLE_MANAGER) as JcClassType
+
+        // Call base init to initialize default field's values
+        generateVoidVirtualCall(JAVA_INIT, classType, thisVal, emptyList())
+
+        classTable.orderedRelations().forEachIndexed { ix, rel ->
+            val relClass = rel.relatedDataclass(cp)
+            val relTblName = getTableName(relClass)
+
+            val tblField = generateManagerAccessWithInit(cp, "fetch_tbl_$ix", relTblName, relClass)
+
+            val oldFieldValue =
+                generateVirtualCall("old_$ix", getterName(rel.origField), classType, thisVal, emptyList())
+
+            val fieldValue = when (rel) {
+                is Relation.OneToOne, is Relation.ManyToOne ->
+                    generateVirtualCall(
+                        "single_$ix", GET_CONCRETE_ENTITY, tableManagerType, tblField, listOf(oldFieldValue)
+                    )
+                else -> {
+                    val newTbl = generateVirtualCall(
+                        "many_$ix", GET_CONCRETE_ENTITIES, tableManagerType, tblField, listOf(oldFieldValue)
+                    )
+                    generateImmutableWrapper(cp, rel.origField.name, rel.origField.type, newTbl)
+                }
             }
+
+            generateVoidVirtualCall(setterName(rel.origField), classType, thisVal, listOf(fieldValue))
         }
 
-        return generateNewWithInit("${rel.origField.name}_wrapper", cp.findType(typeName) as JcClassType, listOf(value))
+        addInstruction { loc -> JcReturnInst(loc, null) }
     }
 }
 
-// see in java-stdlib-approximations FirstDataClass's _copy method
+// see in spring-approximations FirstDataClass's _copy method
 class JcCopyTransformer(
     val cp: JcClasspath,
     val clazz: JcClassOrInterface,
@@ -314,7 +353,7 @@ class JcCopyTransformer(
     ) = generateVirtualCall("copy_${field.name}", COPY_NAME, fieldType, fieldValue, emptyList())
 }
 
-// see in java-stdlib-approximations FirstDataClass's getDTOInfo method
+// see in spring-approximations FirstDataClass's getDTOInfo method
 class JcGetDTOTransformer(
     val cp: JcClasspath,
     val clazz: JcClassOrInterface,
@@ -351,46 +390,63 @@ class JcGetDTOTransformer(
         val classType = toJavaClass(cp, "class_type", clazz.toType())
         val tableName = JcStringConstant(classTable.name, cp.stringType)
         val fieldsToValidateNames = allFields
-            .filter { it.annotations.any { it.isValidator } }
+            .filter { it.annotations.any(JcAnnotation::isValidator) }
             .map { JcStringConstant(it.name, cp.stringType) }
-            .let { putValuesWithSameTypeToArray(cp, "fields_to_validate_name", it, cp.stringType) }
+            .let { packValuesToStringArray(cp, "fields_to_validate_name", it) }
         val isAutoGeneratedId = JcBool(classTable.isAutoGenerateId(), cp.boolean)
         val isNeedTrack = JcBool(isNeedTrackTable, cp.boolean)
 
         val staticMethods = clazz.declaredMethods.filter(JcMethod::isStatic)
-        val blankInit = generateLambda(cp, "blank_init", staticMethods.single { it.generatedStaticBlankInit })
-        val relationsInit = generateLambda(cp, "relations_init", staticMethods.single { it.generatedRelationsInit })
-        val buildId = generateLambda(cp, "build_id", staticMethods.single { it.generatedBuildId })
+        val blankInit = generateLambda(cp, "blank_init", staticMethods.single(JcMethod::generatedStaticBlankInit))
+        val relationsInit = generateLambda(cp, "relations_init", staticMethods.single(JcMethod::generatedRelationsInit))
+        val relationsInitForConcrete = generateLambda(
+            cp, "relations_init_for_concrete", staticMethods.single(JcMethod::generatedRelationsInitForConcrete)
+        )
+        val buildId = generateLambda(cp, "build_id", staticMethods.single(JcMethod::generatedBuildId))
 
-        val specialGetId = staticMethods.singleOrNull { it.generatedSpecialGetId }
+        val specialGetId = staticMethods.singleOrNull(JcMethod::generatedSpecialGetId)
             ?.let { generateLambda(cp, "special_get_id", it) }
             ?: JcNullConstant(cp.objectType)
-        val specialSetId = staticMethods.singleOrNull { it.generatedSpecialSetId }
+        val specialSetId = staticMethods.singleOrNull(JcMethod::generatedSpecialSetId)
             ?.let { generateLambda(cp, "special_set_id", it) }
             ?: JcNullConstant(cp.objectType)
 
-        val copy = generateLambda(cp, "copy", staticMethods.single { it.generatedCopy })
+        val copy = generateLambda(cp, "copy", staticMethods.single(JcMethod::generatedCopy))
 
         val fieldsNames = allFields
             .map { JcStringConstant(it.name, cp.stringType) }
-            .let { putValuesWithSameTypeToArray(cp, "fields_names", it) }
-        val getters = staticMethods.filter { it.generatedGetter }.sortedBy(JcMethod::name)
+            .let { packValuesToStringArray(cp, "fields_names", it) }
+        val getters = staticMethods.filter(JcMethod::generatedGetter).sortedBy(JcMethod::name)
             .map { generateLambda(cp, "lambda_${it.name}", it) }
-            .let { putValuesWithSameTypeToArray(cp, "getters", it) }
-        val setters = staticMethods.filter { it.generatedSetter }.sortedBy(JcMethod::name)
+            .let { putValuesWithSameTypeToArray(cp, "getters", it, cp.findType(FUNCTION)) }
+        val setters = staticMethods.filter(JcMethod::generatedSetter).sortedBy(JcMethod::name)
             .map { generateLambda(cp, "lambda_${it.name}", it) }
-            .let { putValuesWithSameTypeToArray(cp, "setters", it) }
+            .let { putValuesWithSameTypeToArray(cp, "setters", it, cp.findType(CONSUMER2)) }
 
         val fieldsToSoft = allFields.filter(::isNeedToSoft)
-        val fieldsToSoftNames = putValuesWithSameTypeToArray(
+        val fieldsToSoftNames = packValuesToStringArray(
             cp,
             "fields_to_soft_names",
             fieldsToSoft.map { JcStringConstant(it.name, cp.stringType) }
         )
-        val fieldsToSoftTypes = putValuesWithSameTypeToArray(
+        val fieldsToSoftTypes = packValuesToClassArray(
             cp,
             "fields_to_soft_types",
             fieldsToSoft.map { toJavaClass(cp, "type_${it.name}", it.type.toJcType(cp)!!) }
+        )
+
+        val idFields = allFields.filter(JcField::isId)
+        val idFieldsNames = packValuesToStringArray(
+            cp,
+            "id_fields_names",
+            idFields.map { JcStringConstant(it.name, cp.stringType) }
+        )
+
+        val relatedFields = allFields.filter(JcField::isRelation)
+        val relatedFieldsNames = packValuesToStringArray(
+            cp,
+            "related_fields_names",
+            relatedFields.map { JcStringConstant(it.name, cp.stringType) }
         )
 
         val args = listOf(
@@ -402,6 +458,7 @@ class JcGetDTOTransformer(
             isNeedTrack,
             blankInit,
             relationsInit,
+            relationsInitForConcrete,
             buildId,
             specialGetId,
             specialSetId,
@@ -410,7 +467,9 @@ class JcGetDTOTransformer(
             getters,
             setters,
             fieldsToSoftNames,
-            fieldsToSoftTypes
+            fieldsToSoftTypes,
+            idFieldsNames,
+            relatedFieldsNames
         )
         val newDTOInfo = generateNewWithInit("new_dto_info", cp.findType(DTO_INFO) as JcClassType, args)
 
@@ -470,7 +529,7 @@ class JcBuildIdTransformer(
                 }
             }
         }
-        val id = putValuesWithSameTypeToArray(cp, "id", ids)
+        val id = putValuesToObjectArray(cp, "id", ids)
 
         addInstruction { loc -> JcReturnInst(loc, id) }
     }
@@ -602,7 +661,7 @@ class JcSpecialSetIdTransformer(
     }
 }
 
-// see in java-stdlib-approximations FirstDataClass's _save method
+// see in spring-approximations FirstDataClass's _save method
 abstract class JcSaveUpdateDeleteTransformer(
     val collector: JcTableInfoCollector,
     val cp: JcClasspath,
@@ -695,7 +754,7 @@ abstract class JcSaveUpdateDeleteTransformer(
                     val tbl = generateGlobalTableAccess(cp, "tbl_$ix", getTableName(clazz), clazz)
                     val relationFieldsNames = relationChecks.get(clazz, rel.origField).sortedBy(JcField::name)
                         .map { JcStringConstant(it.name, cp.stringType) }
-                        .let { putValuesWithSameTypeToArray(cp, "fields_names_$ix", it) }
+                        .let { packValuesToStringArray(cp, "fields_names_$ix", it) }
                     val subId = generateVirtualCall("b${ix}_id", "getId", manyManager, manager, listOf(field))
                     generateVoidVirtualCall(
                         "changeFieldsByIdEnsure",
@@ -711,7 +770,7 @@ abstract class JcSaveUpdateDeleteTransformer(
                     val relationFieldsNames =
                         relationChecks.get(subClass.toJcClass()!!, rel.origField).sortedBy(JcField::name)
                             .map { JcStringConstant(it.name, cp.stringType) }
-                            .let { putValuesWithSameTypeToArray(cp, "fields_names_$ix", it) }
+                            .let { packValuesToStringArray(cp, "fields_names_$ix", it) }
                     generateVoidVirtualCall(SUD_SAVE_NO_TABLE, manyManager, manager, listOf(field, relationFieldsNames))
                 }
 
@@ -737,7 +796,7 @@ abstract class JcSaveUpdateDeleteTransformer(
     }
 }
 
-// see in java-stdlib-approximations FirstDataClass's _save method
+// see in spring-approximations FirstDataClass's _save method
 class JcDeleteTransformer(
     collector: JcTableInfoCollector,
     cp: JcClasspath,

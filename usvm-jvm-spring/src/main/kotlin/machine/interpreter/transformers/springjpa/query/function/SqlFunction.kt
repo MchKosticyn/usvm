@@ -19,6 +19,7 @@ import machine.interpreter.transformers.springjpa.query.expression.type
 import machine.interpreter.transformers.springjpa.query.type.getType
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcReturnInst
+import org.jacodb.api.jvm.ext.objectType
 import org.objectweb.asm.Opcodes
 import org.usvm.jvm.util.transformers.JcSingleInstructionTransformer.BlockGenerationContext
 import org.usvm.spring.query.expression.AExpression
@@ -149,7 +150,7 @@ class SqlFunctionInnerLambdaFeature(
         val res = if (func.args.isEmpty()) ctx.method.parameters.first().toArgument
         else {
             val args = func.args.map { it.genInst(ctx) }
-            ctx.genCtx.putValuesWithSameTypeToArray(ctx.cp, "aggregator_lambda_put", args)
+            ctx.genCtx.putValuesWithSameTypeToArray(ctx.cp, "aggregator_lambda_put", args, ctx.cp.objectType)
         }
         addInstruction { loc -> JcReturnInst(loc, res) }
     }

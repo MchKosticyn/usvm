@@ -11,7 +11,6 @@ import org.jacodb.api.jvm.ext.fields
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findType
 import org.jacodb.api.jvm.ext.objectClass
-import org.jacodb.api.jvm.ext.toType
 import org.usvm.jvm.util.genericTypesFromSignature
 import org.usvm.jvm.util.toJcClassOrInterface
 import org.usvm.jvm.util.toJcType
@@ -81,16 +80,10 @@ class JcTableInfoCollector(
         }
         val classTable = tablesInfo[name]!!
 
-        fields.filter { !contains(it.annotations, "Id") }.forEach { field ->
+        fields.filterNot(JcField::isId).forEach { field ->
             val simpleColName = getColumnName(field)
 
-            if (
-                !contains(
-                    field.annotations,
-                    listOf("OneToOne", "OneToMany", "ManyToOne", "ManyToMany")
-                )
-            ) {
-
+            if (!field.isRelation()) {
                 val colInfo = ColumnInfo(simpleColName, field.type, field, true)
                 classTable.insertColumn(colInfo)
                 return@forEach
@@ -511,14 +504,14 @@ sealed class Relation(
             val annotations = field.annotations
             val joins = joins(annotations)
 
-            find(annotations, "OneToOne")
+            find(annotations, ONE_TO_ONE)
                 ?.let {
                     val mappedBy = mappedBy(it)
                     val cascade = cascadeType(it, listOf(CascadeType.PERSIST, CascadeType.MERGE))
                     return OneToOne(mappedBy, joins ?: commonJoins, field, cascade)
                 }
 
-            find(annotations, "OneToMany")
+            find(annotations, ONE_TO_MANY)
                 ?.let {
                     val mappedBy = mappedBy(it)
                     val cascade = cascadeType(it)
@@ -539,13 +532,13 @@ sealed class Relation(
                     return OneToManyByColumn(mappedBy, joins, field, cascade)
                 }
 
-            find(annotations, "ManyToOne")
+            find(annotations, MANY_TO_ONE)
                 ?.let {
                     val cascade = cascadeType(it, listOf(CascadeType.PERSIST, CascadeType.MERGE))
                     return ManyToOne(joins ?: commonJoins, field, cascade)
                 }
 
-            find(annotations, "ManyToMany")
+            find(annotations, MANY_TO_MANY)
                 ?.let {
                     val mappedBy = mappedBy(it)
                     val cascade = cascadeType(it)
