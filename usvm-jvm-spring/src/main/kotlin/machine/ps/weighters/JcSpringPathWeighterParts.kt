@@ -75,8 +75,8 @@ object GoodPathsWeighter: JcEngineCallInstWeighter() {
     override val methodName = SpringEngine::markAsGoodPath.name
 
     override val stats = object : JcCallInstWeighterStats() {
-        override val weight = 63
-        override val maxActivations = 50
+        override val weight = 55
+        override val maxActivations = 100
         override val normalizerType = WeightNormalizerType.POSITIVE
         override val weighterType = CallInstWeighterType.GOOD_PATH
     }
@@ -86,8 +86,8 @@ object BadPathsWeighter: JcEngineCallInstWeighter() {
     override val methodName = SpringEngine::markAsBadPath.name
 
     override val stats = object : JcCallInstWeighterStats() {
-        override val weight = -265
-        override val maxActivations = 40
+        override val weight = -655
+        override val maxActivations = 100
         override val normalizerType = WeightNormalizerType.NEGATIVE
         override val weighterType = CallInstWeighterType.BAD_PATH
     }
@@ -97,8 +97,8 @@ object EdgeCasesWeighter: JcEngineCallInstWeighter() {
     override val methodName = SpringEngine::markAsEdgeCasePath.name
 
     override val stats = object : JcCallInstWeighterStats() {
-        override val weight = 672
-        override val maxActivations = 40
+        override val weight = 290
+        override val maxActivations = 100
         override val normalizerType = WeightNormalizerType.POSITIVE
         override val weighterType = CallInstWeighterType.EDGE_CASES
     }

@@ -1,8 +1,14 @@
 package org.usvm.test.api.spring
 
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.findType
+import org.jacodb.api.jvm.ext.jvmName
+import org.jacodb.impl.features.classpaths.VirtualLocation
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualClassImpl
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethodImpl
+import org.jacodb.impl.features.classpaths.virtual.JcVirtualParameter
+import org.objectweb.asm.Opcodes
+import org.usvm.jvm.util.typeName
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
@@ -22,12 +28,25 @@ class SpringExceptionMatchersBuilder (
     private val servletExceptionGetRootCaseMethod by lazy {
         cp.findJcMethod("jakarta.servlet.ServletException", "getRootCause", emptyList())
     }
+
     private val getRootCauseMethod by lazy {
-        cp.findJcMethod(
-            "org.usvm.jvm.rendering.ReflectionUtils",
+        val throwable = "java.lang.Throwable"
+        val method = JcVirtualMethodImpl(
             "getRootCause",
-            listOf("java.lang.Throwable")
+            Opcodes.ACC_STATIC,
+            throwable.typeName,
+            listOf(JcVirtualParameter(0, throwable.typeName)),
+            "(${throwable.jvmName()})V"
         )
+        val clazz = JcVirtualClassImpl(
+            "ReflectionUtils",
+            Opcodes.ACC_PUBLIC,
+            emptyList(),
+            emptyList()
+        )
+
+        clazz.bind(cp, VirtualLocation())
+        method.also { it.bind(clazz) }
     }
 
     private val servletExceptionType by lazy { cp.findType("jakarta.servlet.ServletException") }

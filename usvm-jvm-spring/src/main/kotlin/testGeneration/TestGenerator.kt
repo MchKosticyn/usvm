@@ -14,7 +14,6 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.typeStreamOf
@@ -35,7 +34,6 @@ import org.usvm.test.api.spring.SpringException
 import org.usvm.test.api.spring.UTString
 import org.usvm.test.api.spring.UnhandledSpringException
 import org.usvm.types.firstOrNull
-import utils.toJcType
 
 private fun JcSpringState.hasResponse(): Boolean {
     return pinnedValues.getValue(JcPinnedKey.responseStatus()) != null
@@ -179,8 +177,7 @@ private fun getSpringException(
             UnhandledSpringException(wrapperClass, uException, uMessage)
         }
     } else {
-        pinnedValues.getValue(resolvedException())!!
-            .let { exprResolver.resolvePinnedValue(it) as UHeapRef } to ::ResolvedSpringException
+        pinnedValues.getValue(resolvedException())!!.getExpr() as UHeapRef to ::ResolvedSpringException
     }
     val innerExceptionType = getTypeOfRef(exception)
 

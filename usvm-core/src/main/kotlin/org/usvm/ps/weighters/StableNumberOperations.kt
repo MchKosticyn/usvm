@@ -1,5 +1,7 @@
 package org.usvm.ps.weighters
 
+import kotlin.math.abs
+
 abstract class Arithmetic<T> {
     abstract val maxValue: T
     abstract val minValue: T
@@ -68,7 +70,13 @@ object StableFloatArithmetic : Arithmetic<Float>() {
     override val one = 1f
     override val negativeOne = -1f
 
-    override val comparator: Comparator<Float> = compareBy<Float> { it }
+    private val tolerance = 1e-7f
+
+    override val comparator = object : Comparator<Float> {
+        override fun compare(left: Float, right: Float) =
+            if (abs(left - right) < tolerance) 0
+            else left.compareTo(right)
+    }
 
     private fun Double.stableToFloat() = when {
         this < minValue -> minValue
