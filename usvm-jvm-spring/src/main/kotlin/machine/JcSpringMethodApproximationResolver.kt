@@ -53,6 +53,8 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import kotlin.io.path.Path
+import kotlin.io.path.absolutePathString
 
 data class HandlerMethodData(
     val pathTemplate: String,
@@ -574,12 +576,8 @@ class JcSpringMethodApproximationResolver (
         return method.name.uppercase()
     }
 
-    private fun combinePaths(basePath: String, localPath: String): String {
-        val controllerPath = "/${basePath.trim('/')}"
-        val handlerPath = "/$localPath".trimStart('/')
-        val rawCombined = "$controllerPath$handlerPath"
-        return rawCombined.replace("//", "/")
-    }
+    private fun combinePaths(basePath: String, localPath: String) =
+        Path("/").resolve(basePath).resolve(localPath).absolutePathString()
 
     private fun requestMethodOfAnnotation(annotation: JcAnnotation): String? {
         return when (annotation.name) {

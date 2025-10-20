@@ -38,6 +38,6 @@ class JcForkTracesWeighter(
 
         // TODO: tune
         const val MAX_WEIGHT = 0
-        const val MIN_WEIGHT = -150
+        const val MIN_WEIGHT = -300
     }
 }

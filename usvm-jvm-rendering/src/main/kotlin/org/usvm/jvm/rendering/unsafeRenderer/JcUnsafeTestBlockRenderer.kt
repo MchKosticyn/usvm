@@ -1,8 +1,10 @@
 package org.usvm.jvm.rendering.unsafeRenderer
 
+import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.expr.Expression
+import com.github.javaparser.ast.expr.MethodCallExpr
+import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.type.ReferenceType
-import java.util.IdentityHashMap
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcField
@@ -12,6 +14,8 @@ import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.testRenderer.JcTestBlockRenderer
 import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
+import org.usvm.test.api.UTestStaticMethodCall
+import java.util.IdentityHashMap
 
 open class JcUnsafeTestBlockRenderer protected constructor(
     override val methodRenderer: JcUnsafeTestRenderer,
@@ -64,6 +68,18 @@ open class JcUnsafeTestBlockRenderer protected constructor(
     }
 
     //region Private Methods
+
+    // TODO: remove special case for getRootCause method
+    override fun renderStaticMethodCall(expr: UTestStaticMethodCall): Expression {
+        if (expr.method.name == "getRootCause" && expr.method.enclosingClass.name == "ReflectionUtils") {
+            return MethodCallExpr(
+                NameExpr("ReflectionUtils"),
+                "getRootCause",
+                NodeList(renderExpression(expr.args.single()))
+            )
+        }
+        return super.renderStaticMethodCall(expr)
+    }
 
     override fun renderPrivateCtorCall(
         ctor: JcMethod,

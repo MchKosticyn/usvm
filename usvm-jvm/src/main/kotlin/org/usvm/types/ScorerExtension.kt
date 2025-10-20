@@ -21,7 +21,7 @@ open class ScorerExtension(
     open val scorer = ScorerImpl(cp) {
         addFeature {
             if (location.isRuntime)
-                score += if (!name.startsWith("java.")) -1000 else 2
+                score += if (!name.startsWith("java.")) -1000.0 else 2.0
         }
 
         addConditionFeature(4.0) { jcClass.isPublic }
@@ -33,17 +33,19 @@ open class ScorerExtension(
             val emptyPublicConstructorPresents = jcClass.declaredMethods.any {
                 it.name == CONSTRUCTOR && it.isPublic && it.parameters.isEmpty()
             }
-            if (emptyPublicConstructorPresents) score += 5
+            if (emptyPublicConstructorPresents) score += 5.0
             else {
                 val publicConstructorPresents =
                     jcClass.declaredMethods.any { it.name == CONSTRUCTOR && it.isPublic }
-                if (publicConstructorPresents) score += 3
+                if (publicConstructorPresents) score += 3.0
             }
         }
 
         addConditionFeature(3.0) { jcClass.outerClass == null }
         addConditionFeature(2.0) { jcClass.isFinal }
         addConditionFeature(10.0) { hasApproximation() }
+
+        addFeature { score -= jcClass.simpleName.length / 10.0 }
     }
 
     private fun newIndexer(location: RegisteredLocation) =

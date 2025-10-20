@@ -4,6 +4,7 @@ import org.usvm.UState
 import org.usvm.statistics.UMachineObserver
 
 class ForkTracesHolder<Method, Statement, State : UState<*, Method, Statement, *, *, State>>(
+    private val forkStmtFilter: (Statement) -> Boolean = { true },
     private val stateFilter: (State) -> Boolean = { true }
 ) : UMachineObserver<State> {
 
@@ -18,7 +19,7 @@ class ForkTracesHolder<Method, Statement, State : UState<*, Method, Statement, *
         val forks = getForkStatements(state)
         val afterForks = mutableListOf<Statement>()
         state.pathNode.allStatements.reduce { prev, curr ->
-            if (forks.contains(curr)) afterForks.add(prev)
+            if (forks.contains(curr) && forkStmtFilter(curr)) afterForks.add(prev)
             curr
         }
         return afterForks

@@ -136,10 +136,11 @@ open class JcConcreteMethodApproximationResolver(
                 jcMethod.parameters.mapIndexed { index, jcParameter ->
                     val idx = memory.objectToExpr(index, ctx.cp.int)
                     val value = memory.readArrayIndex(args, idx, descriptor, ctx.addressSort).asExpr(ctx.addressSort)
-
-                    checkNullPointer(value) ?: return@calcOnState PreparedParameters.EXCEPTION to null
-
                     val type = jcParameter.type
+
+                    if (ctx.primitiveTypes.contains(type))
+                        checkNullPointer(value) ?: return@calcOnState PreparedParameters.EXCEPTION to null
+
                     unboxIfNeeded(value, type) ?: return@calcOnState PreparedParameters.FAIL to null
                 }
             }

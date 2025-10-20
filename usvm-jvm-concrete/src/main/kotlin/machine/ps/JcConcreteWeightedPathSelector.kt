@@ -25,7 +25,7 @@ internal class JcConcreteWeightedPathSelector(
 ) : JcConcreteMemoryPathSelector(true) {
     private companion object {
         private const val TOP_COUNT = 30
-        private const val WEIGHT_THRESHOLD = -20f
+        private const val WEIGHT_THRESHOLD = -30f
     }
 
     private val baseWeighter: StateWeighterWithReport<JcState, Float> = weighters.baseWeighter
@@ -34,7 +34,7 @@ internal class JcConcreteWeightedPathSelector(
     private val priorityCollection = DeterministicPriorityCollection<JcState, WeighterReport<Float>>(
         object : Comparator<WeighterReport<Float>> {
             override fun compare(left: WeighterReport<Float>, right: WeighterReport<Float>) =
-                left.weight.compareTo(right.weight)
+                right.weight.compareTo(left.weight)
         }
     )
 
@@ -43,7 +43,7 @@ internal class JcConcreteWeightedPathSelector(
             val pReport = eachPeekWeighter.weightWithReport(state)
             val bReport = baseWeighter.weightWithReport(state)
             CommonJcStateReport(pReport.weight.plusTo(bReport.weight), state, bReport, pReport)
-        }.sortedByDescending(CommonJcStateReport::weight)
+        }.sortedWith { left, right -> compare(right.weight, left.weight) }
         val bestState = statesWithReport.first()
         val bestWeight = bestState.weight
 
@@ -53,14 +53,18 @@ internal class JcConcreteWeightedPathSelector(
         }
         weightersLog.println(message)
 
-        if (bestWeight < WEIGHT_THRESHOLD) peekInternal() else bestState.state
+        if (bestWeight.isLessTo(WEIGHT_THRESHOLD)) peekInternal() else bestState.state
     }
 
     override fun peekInternal() = with(StableFloatArithmetic) {
-        val statesWithReport = priorityCollection.takeWithWeight(TOP_COUNT).map { (state, report) ->
+        val statesWithReport = priorityCollection.takeWithWeight(priorityCollection.count).map { (state, report) ->
             val pReport = eachPeekWeighter.weightWithReport(state)
             CommonJcStateReport(pReport.weight.plusTo(report.weight), state, report, pReport)
-        }.sortedByDescending(CommonJcStateReport::weight)
+        }.sortedWith { left, right ->
+            val cmp = compare(right.weight, left.weight)
+            if (cmp == 0) right.state.id.compareTo(left.state.id)
+            else cmp
+        }
         val bestState = statesWithReport.first()
 
         val message = buildString {

@@ -483,10 +483,22 @@ private val String.inImmutableFromJavaLang: Boolean
 private val Class<*>.inImmutableWithSubtypesFromJavaLang: Boolean
     get() = this.typeName.inImmutableFromJavaLang && (isFinal || !isPublic)
 
+private val mutableWhiteList = setOf(
+    "java.io.ByteArrayOutputStream"
+)
+
+private val Class<*>.isImmutableSubtype: Boolean get() =
+    !mutableWhiteList.contains(name)
+            && immutableTypes.any { it.isAssignableFrom(this) }
+
+private val JcClassOrInterface.isImmutableSubtype: Boolean get() =
+    !mutableWhiteList.contains(name)
+            && immutableTypes.any { this.allSuperHierarchyWithThis.any { cls -> cls.name == it.typeName } }
+
 // TODO: implement via whitelist instead of blacklist
 internal val Class<*>.isImmutable: Boolean // TODO: this is `isImmutableRec`, implement `isImmutable` and use it in SnapshotTraversal
     get() = !isArray &&
-            (immutableTypes.any { it.isAssignableFrom(this) }
+            (isImmutableSubtype
                     || isPrimitive
                     || isEnum
                     || isRecord
@@ -500,7 +512,7 @@ internal val Class<*>.isImmutable: Boolean // TODO: this is `isImmutableRec`, im
 
 internal val Class<*>.isImmutableWithSubtypes: Boolean
     get() = !isArray &&
-            (immutableTypes.any { it.isAssignableFrom(this) }
+            (isImmutableSubtype
                     || isPrimitive
                     || isEnum
                     || isRecord
@@ -513,7 +525,7 @@ internal val Class<*>.isImmutableWithSubtypes: Boolean
                     || allFields.isEmpty() && isFinal)
 
 internal val JcClassOrInterface.isImmutable: Boolean
-    get() = immutableTypes.any { this.allSuperHierarchyWithThis.any { cls -> cls.name == it.typeName } }
+    get() = isImmutableSubtype
             || isEnum
             || packagesWithImmutableTypes.any { this.packageName.startsWith(it) }
             || immutableTypeNames.contains(this.name)

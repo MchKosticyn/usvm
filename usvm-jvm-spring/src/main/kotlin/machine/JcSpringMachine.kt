@@ -12,6 +12,7 @@ import org.jacodb.impl.features.classpaths.JcUnknownMethod
 import org.usvm.UMachineOptions
 import org.usvm.UPathSelector
 import org.usvm.jvm.util.classesOfLocations
+import org.usvm.jvm.util.enclosingClass
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcLoopTracker
 import org.usvm.machine.JcMachineOptions
@@ -49,6 +50,8 @@ class JcSpringMachine(
 ) {
 
     private val tracesHolder = ForkTracesHolder<JcMethod, JcInst, JcState>(
+        // TODO: add whitelist for approximation's methods
+        forkStmtFilter = { jcConcreteMachineOptions.isProjectLocation(it.enclosingClass) },
         stateFilter = { (it as JcSpringState).canGenerateTest() }
     )
 
