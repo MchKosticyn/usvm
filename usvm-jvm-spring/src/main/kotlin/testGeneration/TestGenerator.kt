@@ -11,13 +11,17 @@ import machine.state.tableContent
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.JcType
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.features.classpaths.JcUnknownClass
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.typeStreamOf
+import org.usvm.collection.field.UFieldLValue
 import org.usvm.jvm.util.toTypedMethod
+import org.usvm.model.UModelBase
+import org.usvm.solver.USatResult
 import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestClassExpression
 import org.usvm.test.api.UTestMockObject
@@ -119,8 +123,9 @@ private fun JcSpringState.createSpringTestKind(testClass: JcClassOrInterface): J
     }
 }
 
-internal fun JcSpringState.generateTest(): SpringTestInfo {
-    val model = springMemory.getFixedModel(this)
+internal fun JcSpringState.generateTest() = generateTest(springMemory.getFixedModel(this))
+
+private fun JcSpringState.generateTest(model: UModelBase<JcType>): SpringTestInfo? {
     val resolver = JcSpringTestStateResolver(ctx, model, memory, entrypoint.toTypedMethod)
 
     val reqPath = pinnedValues.getValue(JcPinnedKey.requestPath())
@@ -140,7 +145,22 @@ internal fun JcSpringState.generateTest(): SpringTestInfo {
 
     val testKind = createSpringTestKind(testClass)
     val testBuilder = JcStateSpringTestBuilder(ctx.cp, controller, testKind, testClass, this, resolver)
-    val uTest = testBuilder.build()
+
+    val uTest = try {
+        testBuilder.build()
+    } catch (exception: NullKotlinFields) {
+        val newPs = pathConstraints.clone()
+        exception.fields.forEach { field ->
+            val fieldValue = memory.read(UFieldLValue(ctx.addressSort, exception.ref, field.field))
+            newPs += ctx.mkNot(ctx.mkEq(ctx.mkNullRef(), fieldValue))
+        }
+
+        return when (val result = ctx.solver<JcType>().check(newPs)) {
+            is USatResult<UModelBase<JcType>> -> generateTest(result.model)
+            else -> null
+        }
+    }
+
     return SpringTestInfo(handler, isExceptional, uTest)
 }
 

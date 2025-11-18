@@ -13,7 +13,8 @@ class JcSpringTestObserver : UMachineObserver<JcSpringState> {
     override fun onStateTerminated(state: JcSpringState, stateReachable: Boolean) {
         if (!stateReachable || !state.canGenerateTest()) return
         try {
-            tests.add(state.generateTest())
+            state.generateTest()?.let { tests.add(it) }
+                ?: println("Test skipped because of unsat path constraints")
         } catch (e: Throwable) {
             println("generation failed with $e")
             println(e.stackTraceToString())

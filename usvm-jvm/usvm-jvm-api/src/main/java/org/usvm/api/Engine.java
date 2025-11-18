@@ -37,9 +37,20 @@ public class Engine {
     }
 
     @SuppressWarnings("unused")
-    public static <T> T makeNullableSymbolicSubtype(Class<T> clazz) {
-        return null;
-    }
+    public static <T> T makeNullableSymbolicSubtype(Class<T> clazz) { return null; }
+
+    // Creates symbolic instance of class with assumed nullable fields
+    @SuppressWarnings("unused")
+    public static <T> T makeKotlinSymbolic(Class<T> clazz) { return null; }
+
+    @SuppressWarnings("unused")
+    public static <T> T makeNullableKotlinSymbolic(Class<T> clazz) { return null; }
+
+    @SuppressWarnings("unused")
+    public static <T> T makeKotlinSymbolicSubtype(Class<T> clazz) { return null; }
+
+    @SuppressWarnings("unused")
+    public static <T> T makeNullableKotlinSymbolicSubtype(Class<T> clazz) { return null; }
 
     public static boolean makeSymbolicBoolean() {
         return false;

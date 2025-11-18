@@ -11,6 +11,7 @@ object Versions {
     const val junit = "5.9.3"
     const val kotlin = "2.1.0"
     const val kotlin_logging = "3.0.5"
+    const val kotlin_metadata = "2.2.21"
     const val kotlinx_collections = "0.3.8"
     const val kotlinx_coroutines = "1.10.0"
     const val kotlinx_serialization = "1.7.3"
@@ -62,6 +63,12 @@ object Libs {
         group = "io.github.microutils",
         name = "kotlin-logging",
         version = Versions.kotlin_logging
+    )
+
+    val kotlin_metadata = dep(
+        group = "org.jetbrains.kotlin",
+        name = "kotlin-metadata-jvm",
+        version = Versions.kotlin_metadata
     )
 
     // https://github.com/qos-ch/slf4j

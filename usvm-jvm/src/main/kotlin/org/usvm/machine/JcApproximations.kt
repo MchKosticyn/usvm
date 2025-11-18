@@ -87,6 +87,7 @@ import org.usvm.collection.field.UFieldLValue
 import org.usvm.getIntValue
 import org.usvm.jvm.util.allInstanceFields
 import org.usvm.jvm.util.javaName
+import org.usvm.jvm.util.notNullableKotlinFields
 import org.usvm.machine.interpreter.JcExprResolver
 import org.usvm.machine.interpreter.JcMethodCallSkipWithEnsureInst
 import org.usvm.machine.interpreter.JcStepScope
@@ -1071,6 +1072,16 @@ open class JcMethodApproximationResolver(
             dispatchMakeCommonSymbolic(Engine::makeNullableSymbolic, JcStepScope::makeNullableSymbolicRefWithSameType)
             dispatchMakeCommonSymbolic(Engine::makeSymbolicSubtype, JcStepScope::makeSymbolicRefSubtype)
             dispatchMakeCommonSymbolic(Engine::makeNullableSymbolicSubtype, JcStepScope::makeNullableSymbolicRefSubtype)
+            dispatchMakeCommonKotlinSymbolic(Engine::makeKotlinSymbolic, JcStepScope::makeSymbolicRefWithSameType)
+            dispatchMakeCommonKotlinSymbolic(
+                Engine::makeNullableKotlinSymbolic,
+                JcStepScope::makeNullableSymbolicRefWithSameType
+            )
+            dispatchMakeCommonKotlinSymbolic(Engine::makeKotlinSymbolicSubtype, JcStepScope::makeSymbolicRefSubtype)
+            dispatchMakeCommonKotlinSymbolic(
+                Engine::makeNullableKotlinSymbolicSubtype,
+                JcStepScope::makeNullableSymbolicRefSubtype
+            )
             dispatchMkRef2(Engine::makeSymbolicArray) {
                 val (elementClassRefExpr, sizeExpr) = it.arguments
                 val elementClassRef = elementClassRefExpr.asExpr(ctx.addressSort)
@@ -1323,7 +1334,7 @@ open class JcMethodApproximationResolver(
         val classRefTypeRepresentative = scope.calcOnState {
             memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
         }
-        val ref = scope.makeMethod(classRefTypeRepresentative) ?: error("Unable to crate ref for makeSymbolic")
+        val ref = scope.makeMethod(classRefTypeRepresentative) ?: error("Unable to create ref for makeSymbolic")
 
         ref as UExpr<*>
         check(classRefTypeRepresentative is UConcreteHeapRef)
@@ -1339,6 +1350,38 @@ open class JcMethodApproximationResolver(
             null
         }
     }
+
+    private fun MutableMap<String, (JcMethodCall) -> UExpr<*>?>.dispatchMakeCommonKotlinSymbolic(
+        apiMethod: KFunction1<Nothing, Any>,
+        makeMethod: StepScope<JcState, JcType, JcInst, JcContext>.(UHeapRef) -> UHeapRef?,
+    ) = dispatchUsvmApiMethod(apiMethod) {
+        val classRef = it.arguments.single().asExpr(ctx.addressSort)
+        val classRefTypeRepresentative = scope.calcOnState {
+            memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
+        }
+        check(classRefTypeRepresentative is UConcreteHeapRef)
+        val classType = scope.calcOnState { memory.types.typeOf(classRefTypeRepresentative.address) }
+                as? JcClassType ?: error("Non classType in makeKotlinSymbolic")
+
+        val ref = scope.makeMethod(classRefTypeRepresentative) ?: error("Unable to create ref for makeKotlinSymbolic")
+        assertNotNullableFields(ref, classType)
+        ref
+    }
+
+    private fun assertNotNullableFields(value: UHeapRef, type: JcType) {
+        if (type !is JcClassType) return
+        type.notNullableKotlinFields().forEach { field ->
+            val fieldValue = scope.calcOnState { memory.read(UFieldLValue(ctx.addressSort, value, field.field)) }
+            assertNotNullableFields(fieldValue, field.type)
+            val constant = ctx.mkNot(ctx.mkHeapRefEq(ctx.mkNullRef(), fieldValue))
+            scope.assert(constant)
+        }
+    }
+
+    private fun MutableMap<String, (JcMethodCall) -> UExpr<*>?>.dispatchMkRef(
+        apiMethod: KFunction1<Nothing, Any>,
+        body: (JcMethodCall) -> UExpr<*>?,
+    ) = dispatchUsvmApiMethod(apiMethod, body)
 
     private fun MutableMap<String, (JcMethodCall) -> UExpr<*>?>.dispatchMkRef2(
         apiMethod: KFunction2<Nothing, Nothing, Array<Any>>,
