@@ -15,14 +15,14 @@ import org.usvm.ps.weighters.CombinedStateStableFloatWeighter
 import org.usvm.ps.weighters.ForkTracesHolder
 import org.usvm.statistics.CoverageStatistics
 
-private const val uncoveredStateWeighterNorm = 45f
-private const val forkTracesWeighterNorm = 34.1f
-private const val springPathWeighterNorm = 6.8f
-private const val springEdgeCaseWeighterNorm = 11.6f
+private const val uncoveredStateWeighterNorm = 6.4f
+private const val forkTracesWeighterNorm = 46.1f
+private const val springPathWeighterNorm = 15.1f
+private const val springEdgeCaseWeighterNorm = 29.9f
 
 private const val springRegressionSuiteNorm = 0f // TODO: fine tuning
 
-private const val concreteBacktrackWeighterNorm = 2.4f
+private const val concreteBacktrackWeighterNorm = 2.5f
 
 internal fun createSpringWeighters(
     jcSpringMachineOptions: JcSpringMachineOptions,

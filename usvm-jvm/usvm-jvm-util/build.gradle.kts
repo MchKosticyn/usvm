@@ -6,6 +6,7 @@ dependencies {
     implementation(Libs.jacodb_api_jvm)
     implementation(Libs.jacodb_core)
     implementation(Libs.jacodb_approximations)
+    implementation(Libs.kotlin_metadata)
 }
 
 publishing {
