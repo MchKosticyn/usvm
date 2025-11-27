@@ -17,6 +17,7 @@ object Versions {
     const val ksmt = "0.5.26"
     const val logback = "1.4.8"
     const val mockk = "1.13.4"
+    const val mockito = "5.4.0"
     const val rd = "2023.2.0"
     const val sarif4k = "0.5.0"
     const val shadow = "8.3.3"
@@ -189,6 +190,12 @@ object Libs {
         group = "io.mockk",
         name = "mockk",
         version = Versions.mockk
+    )
+
+    val mockito = dep(
+        group = "org.mockito",
+        name = "mockito-core",
+        version = Versions.mockito
     )
 
     // https://github.com/UnitTestBot/juliet-java-test-suite
