@@ -1,9 +1,14 @@
 package machine
 
+import com.microsoft.z3.Sort
+import io.ksmt.sort.KSort
 import io.ksmt.utils.asExpr
 import org.jacodb.api.jvm.cfg.JcAssignInst
+import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcStaticCallExpr
 import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
+import org.usvm.api.makeSymbolicRef
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
@@ -16,6 +21,7 @@ import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.collection.field.UFieldLValue
 import org.usvm.machine.mocks.mockMethod
+import org.usvm.machine.state.returnValue
 
 val mocksMap : MutableMap<UConcreteHeapRef, String> = HashMap()
 
@@ -45,12 +51,14 @@ open class JcMocksInterpreter(
                     if (refToMock in mocksMap) {
                         val retType = retStmt.lhv.type
 //                        val newSymbolicRef = scope.makeSymbolicRef(retType) ?: throw IllegalArgumentException( "a")
+                        val newSymbolicRef : UExpr<KSort>
                         scope.doWithState {
-//                            skipMethodInvocationWithValue(stmt, newSymbolicRef)
-                            mockMethod(scope, stmt, retType)
+                            val retSort = ctx.typeToSort(retType)
+                            newSymbolicRef = memory.mocker.createMockSymbol(null,retSort, ownership)
+                            skipMethodInvocationWithValue(stmt, newSymbolicRef)
                         }
                         val mocksMethodInfo = mocksMap[refToMock] + "::" + methodName
-//                        mocksMethodsMap[newSymbolicRef] = mocksMethodInfo
+                        mocksMethodsMap[newSymbolicRef] = mocksMethodInfo
                         return
                     }
                 }
