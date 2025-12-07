@@ -83,6 +83,7 @@ dependencies {
 
 val usvmApiJarConfiguration by configurations.creating
 dependencies {
+    implementation(project(":usvm-jvm"))
     usvmApiJarConfiguration(project(":usvm-jvm:usvm-jvm-api"))
 }
 
