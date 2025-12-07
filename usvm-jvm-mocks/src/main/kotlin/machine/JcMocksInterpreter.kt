@@ -1,14 +1,15 @@
 package machine
 
-import com.microsoft.z3.Sort
-import io.ksmt.sort.KSort
 import io.ksmt.utils.asExpr
+import machine.memory.JcMockedMethod
+import machine.memory.JcMockedMethodsRegion
+import machine.memory.JcMockedMethodsRegionId
+import machine.memory.JcMockedMethodsValue
 import org.jacodb.api.jvm.cfg.JcAssignInst
-import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.jacodb.api.jvm.cfg.JcStaticCallExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
-import org.usvm.api.makeSymbolicRef
+import org.usvm.USort
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
@@ -20,12 +21,15 @@ import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.collection.field.UFieldLValue
-import org.usvm.machine.mocks.mockMethod
-import org.usvm.machine.state.returnValue
 
 val mocksMap : MutableMap<UConcreteHeapRef, String> = HashMap()
 
-val mocksMethodsMap : MutableMap<Any, String> = HashMap()
+//val mocksMethodsMap : MutableMap<Any, String> = HashMap()
+//val mockedMethodsMap : MutableMap<JcMockedMethodsValue<USort>, JcMockedMethodsRegion<USort>> = HashMap()
+
+val mockedMethods : MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
+val mockedMethodsValues : MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
+
 
 open class JcMocksInterpreter(
     ctx: JcContext,
@@ -48,17 +52,26 @@ open class JcMocksInterpreter(
 
                 if (stmt.arguments.isNotEmpty()) {
                     val refToMock = stmt.arguments[0]
-                    if (refToMock in mocksMap) {
+                    mocksMap[refToMock]?.let {value ->
                         val retType = retStmt.lhv.type
 //                        val newSymbolicRef = scope.makeSymbolicRef(retType) ?: throw IllegalArgumentException( "a")
-                        val newSymbolicRef : UExpr<KSort>
+                        val newSymbolicRef : UExpr<out USort>
+                        val mockedMethod = JcMockedMethod(methodName, value)
+
                         scope.doWithState {
                             val retSort = ctx.typeToSort(retType)
-                            newSymbolicRef = memory.mocker.createMockSymbol(null,retSort, ownership)
+                            val memoryRegion = memory.getRegion(JcMockedMethodsRegionId(retSort)) as JcMockedMethodsRegion<USort>
+                            val mockedMethodValue = JcMockedMethodsValue(mockedMethod, retSort)
+                            newSymbolicRef = memoryRegion.read(mockedMethodValue.key)
+
+//                            newSymbolicRef = memory.mocker.createMockSymbol(null,retSort, ownership)
+//                            memoryRegion.write(mockedMethodValue.key,  newSymbolicRef, , ownership)
                             skipMethodInvocationWithValue(stmt, newSymbolicRef)
+//                            mockedMethodsMap[mockedMethodValue] = memoryRegion
+                            mockedMethods.add(mockedMethodValue)
                         }
-                        val mocksMethodInfo = mocksMap[refToMock] + "::" + methodName
-                        mocksMethodsMap[newSymbolicRef] = mocksMethodInfo
+//                        val mocksMethodInfo = value + "::" + methodName
+//                        mocksMethodsMap[newSymbolicRef] = mocksMethodInfo
                         return
                     }
                 }
