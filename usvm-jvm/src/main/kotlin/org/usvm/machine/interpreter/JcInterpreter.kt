@@ -83,7 +83,7 @@ typealias JcStepScope = StepScope<JcState, JcType, JcInst, JcContext>
  * A JacoDB interpreter.
  */
 open class JcInterpreter(
-    private val ctx: JcContext,
+    protected val ctx: JcContext,
     protected val applicationGraph: JcApplicationGraph,
     private val options: JcMachineOptions,
     private val observer: JcInterpreterObserver? = null,

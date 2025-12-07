@@ -15,7 +15,7 @@ import org.usvm.solver.USoftConstraintsProvider
 import org.usvm.solver.USolverBase
 import org.usvm.solver.UTypeSolver
 
-class JcComponents(
+open class JcComponents(
     private val typeSystem: JcTypeSystem,
     // TODO specific JcMachineOptions should be here
     private val options: UMachineOptions,

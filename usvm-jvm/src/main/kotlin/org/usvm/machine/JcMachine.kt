@@ -48,8 +48,8 @@ open class JcMachine(
 ) : UMachine<JcState>() {
     protected val applicationGraph = JcApplicationGraph(cp)
 
-    private val typeSystem = JcTypeSystem(cp, options.typeOperationsTimeout)
-    private val components = JcComponents(typeSystem, options)
+    protected val typeSystem = JcTypeSystem(cp, options.typeOperationsTimeout)
+    protected open val components = JcComponents(typeSystem, options)
     protected val ctx by lazy { createContext(cp, components) }
     protected open fun createInterpreter(): JcInterpreter {
         return JcInterpreter(ctx, applicationGraph, jcMachineOptions, interpreterObserver)
