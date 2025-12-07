@@ -18,17 +18,7 @@ class JcMockedMethodsReading<Sort : USort> internal constructor(
 ): USymbol<Sort>(ctx) {
     override fun accept(transformer: KTransformerBase): UExpr<Sort> {
         require(transformer is JcMocksTransformer) { "Expected a JcMocksTransformer, but got: $transformer" }
-        val expr =  transformer.transform(this)
-//        for (key in mocksMethodsMap2.keys) {
-//            mocksMethodsMap2[key]?.let {memoryRegion ->
-//                val newValue = memoryRegion.read(key.key)
-//                mocksMethodsValues[key] = newValue
-//                key.print()
-//            }
-//        }
-//
-//        val m = mocksMethodsValues
-        return expr
+        return transformer.transform(this)
     }
 
     override fun internEquals(other: Any): Boolean = structurallyEqual(

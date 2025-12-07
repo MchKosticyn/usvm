@@ -23,10 +23,6 @@ import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.collection.field.UFieldLValue
 
 val mocksMap : MutableMap<UConcreteHeapRef, String> = HashMap()
-
-//val mocksMethodsMap : MutableMap<Any, String> = HashMap()
-//val mockedMethodsMap : MutableMap<JcMockedMethodsValue<USort>, JcMockedMethodsRegion<USort>> = HashMap()
-
 val mockedMethods : MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
 val mockedMethodsValues : MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
 
@@ -48,13 +44,12 @@ open class JcMocksInterpreter(
                 val method = stmt.method
                 val methodName = method.name
                 val retStmt = stmt.returnSite
-                if (retStmt !is JcAssignInst) { throw IllegalArgumentException("state not possible, error in jacodb and mockito compatibility") }
+                if (retStmt !is JcAssignInst) { throw IllegalArgumentException("state unreachable") }
 
                 if (stmt.arguments.isNotEmpty()) {
                     val refToMock = stmt.arguments[0]
                     mocksMap[refToMock]?.let {value ->
                         val retType = retStmt.lhv.type
-//                        val newSymbolicRef = scope.makeSymbolicRef(retType) ?: throw IllegalArgumentException( "a")
                         val newSymbolicRef : UExpr<out USort>
                         val mockedMethod = JcMockedMethod(methodName, value)
 
@@ -63,15 +58,9 @@ open class JcMocksInterpreter(
                             val memoryRegion = memory.getRegion(JcMockedMethodsRegionId(retSort)) as JcMockedMethodsRegion<USort>
                             val mockedMethodValue = JcMockedMethodsValue(mockedMethod, retSort)
                             newSymbolicRef = memoryRegion.read(mockedMethodValue.key)
-
-//                            newSymbolicRef = memory.mocker.createMockSymbol(null,retSort, ownership)
-//                            memoryRegion.write(mockedMethodValue.key,  newSymbolicRef, , ownership)
                             skipMethodInvocationWithValue(stmt, newSymbolicRef)
-//                            mockedMethodsMap[mockedMethodValue] = memoryRegion
                             mockedMethods.add(mockedMethodValue)
                         }
-//                        val mocksMethodInfo = value + "::" + methodName
-//                        mocksMethodsMap[newSymbolicRef] = mocksMethodInfo
                         return
                     }
                 }

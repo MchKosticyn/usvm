@@ -52,19 +52,6 @@ open class JcMocksMachine(
             interpreterObserver
         )
     }
-//    fun createTargetedPS(
-//        initialStates: Map<JcMethod, JcState>,
-//        timeStatistics: TimeStatistics<JcMethod, JcState>,
-//        coverageStatistics: CoverageStatistics<JcMethod, JcInst, JcState>,
-//        cfgStatistics: CfgStatistics<JcMethod, JcInst>,
-//        callGraphStatistics: CallGraphStatistics<JcMethod>,
-//        loopStatisticFactory: () -> StateLoopTracker<*, JcInst, JcState>?,
-//    ) {
-////        val ps = super.createPS(
-////            initialStates, JcMocksMachineOptions, timeStatistics, { coverageStatistics }, {cfgStatistics}, { callGraphStatistics }, loopStatisticFactory
-////
-////        )
-//    }
     override fun run(
         interpreter: UInterpreter<JcState>,
         pathSelector: UPathSelector<JcState>,
