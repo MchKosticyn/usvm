@@ -26,6 +26,14 @@ val mocksMap : MutableMap<UConcreteHeapRef, String> = HashMap()
 val mockedMethods : MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
 val mockedMethodsValues : MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
 
+fun printMockedMethodsValues() {
+    for (key in mockedMethodsValues.keys)     {
+        key.print()
+        print(" = ")
+        print(mockedMethodsValues[key])
+        println()
+    }
+}
 
 open class JcMocksInterpreter(
     ctx: JcContext,
@@ -76,7 +84,7 @@ open class JcMocksInterpreter(
                         val ref = memory.allocConcrete(classType)
                         skipMethodInvocationWithValue(stmt, ref)
                         val lineNumber = stmt.returnSite.lineNumber
-                        mocksMap[ref] = "mock:" + classType.typeName + "(line:" + lineNumber + ")"
+                        mocksMap[ref] = "mock:" + classType.typeName + "(line:" + lineNumber + ")::"
                     }
                     return
                 }

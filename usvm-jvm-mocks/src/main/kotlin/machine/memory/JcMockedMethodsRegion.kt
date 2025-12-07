@@ -20,7 +20,7 @@ class JcMockedMethod(
 ) {
     fun print() {
         val str = enclosingClass + method
-        println(str)
+        print(str)
     }
 }
 

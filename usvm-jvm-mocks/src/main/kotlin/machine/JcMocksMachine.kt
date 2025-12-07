@@ -105,7 +105,7 @@ open class JcMocksMachine(
                 }
             }
         } finally {
-            val m = mockedMethodsValues
+            printMockedMethodsValues()
             observer.onMachineStopped()
         }
 
