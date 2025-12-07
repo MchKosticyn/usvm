@@ -2,16 +2,14 @@ package org.usvm.samples
 
 import machine.JcMocksMachine
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.junit.jupiter.api.Test
 import org.usvm.UMachineOptions
-import org.usvm.api.targets.JcTarget
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
 
 
-class CalculatorTest : MocksTestRunner() {
+class AdderTest : MocksTestRunner() {
     override fun createMachine(
         cp: JcClasspath,
         options: UMachineOptions,
@@ -23,12 +21,9 @@ class CalculatorTest : MocksTestRunner() {
     @Test
     fun testCompute() {
         checkDiscoveredPropertiesWithExceptions(
-            Calculator::compute,
+            TestAdder::compute,
             ignoreNumberOfAnalysisResults,
-            { _, _, _, r -> r.getOrNull() == 0 },
-//            { _, _, _, r -> r.isException<AssertionError>() }
-
-
+            { _, _, _, r -> r.getOrNull() == null },
         )
     }
 }
