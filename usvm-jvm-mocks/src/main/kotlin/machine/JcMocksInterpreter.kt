@@ -22,12 +22,21 @@ import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import org.usvm.collection.field.UFieldLValue
 
-val mocksMap : MutableMap<UConcreteHeapRef, String> = HashMap()
+val mocksMap : MutableMap<UConcreteHeapRef, Pair<String, Int>> = HashMap()
 val mockedMethods : MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
 val mockedMethodsValues : MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
 
 fun printMockedMethodsValues() {
-    for (key in mockedMethodsValues.keys)     {
+    val keys = mockedMethodsValues.keys
+    val mockedMethodComparator =
+        compareBy<JcMockedMethod> { it.classLineNumber }
+            .thenBy { it.lineNumber }
+    val mockedMethodsValueComparator =
+        Comparator<JcMockedMethodsValue<*>> { a, b ->
+            mockedMethodComparator.compare(a.mockedMethod, b.mockedMethod)
+        }
+    val sorted = keys.sortedWith(mockedMethodsValueComparator)
+    for (key in sorted)     {
         key.print()
         print(" = ")
         print(mockedMethodsValues[key])
@@ -56,10 +65,11 @@ open class JcMocksInterpreter(
 
                 if (stmt.arguments.isNotEmpty()) {
                     val refToMock = stmt.arguments[0]
-                    mocksMap[refToMock]?.let {value ->
+                    mocksMap[refToMock]?.let { (enclosingClass, classLineNumber) ->
                         val retType = retStmt.lhv.type
                         val newSymbolicRef : UExpr<out USort>
-                        val mockedMethod = JcMockedMethod(methodName, value)
+                        val lineNumber = retStmt.lineNumber
+                        val mockedMethod = JcMockedMethod(methodName, lineNumber, enclosingClass, classLineNumber)
 
                         scope.doWithState {
                             val retSort = ctx.typeToSort(retType)
@@ -84,7 +94,7 @@ open class JcMocksInterpreter(
                         val ref = memory.allocConcrete(classType)
                         skipMethodInvocationWithValue(stmt, ref)
                         val lineNumber = stmt.returnSite.lineNumber
-                        mocksMap[ref] = "mock:" + classType.typeName + "(line:" + lineNumber + ")::"
+                        mocksMap[ref] = Pair(classType.typeName, lineNumber)
                     }
                     return
                 }

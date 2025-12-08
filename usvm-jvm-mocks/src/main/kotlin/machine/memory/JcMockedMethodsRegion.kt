@@ -16,10 +16,12 @@ import org.usvm.sampleUValue
 
 class JcMockedMethod(
     val method: String,
-    val enclosingClass : String
+    val lineNumber: Int,
+    val enclosingClass : String,
+    val classLineNumber : Int
 ) {
     fun print() {
-        val str = enclosingClass + method
+        val str = "mock:$enclosingClass(line:$classLineNumber)::$method(line:$lineNumber)"
         print(str)
     }
 }
