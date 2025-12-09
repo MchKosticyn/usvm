@@ -28,6 +28,14 @@ class UTestMockObject(
     override val methods: Map<JcMethod, List<UTestExpression>>
 ) : UTestMock(type, fields, methods)
 
+/*
+ * TODO: remove when there will be proper doAnswer-like support
+ *  in UTestMockObject
+ */
+class UTestInstList(val instList: List<UTestInst>): UTestExpression {
+    override val type: JcType? = null
+}
+
 /**
  * Mock for all objects of type
  */
@@ -81,6 +89,32 @@ class UTestAllocateMemoryCall(
     override val method: JcMethod? = null
     override val args: List<UTestExpression> = listOf()
     override val type: JcType = clazz.toType()
+}
+
+class UTestAssertThrowsCall(
+    val exceptionClass: JcClassOrInterface,
+    val instList: List<UTestInst>
+) : UTestCall {
+    override val instance: UTestExpression? = null
+    override val method: JcMethod? = null
+    override val args: List<UTestExpression> = emptyList()
+    override val type: JcType = exceptionClass.toType()
+}
+
+class UTestAssertEqualsCall(
+    val expected: UTestExpression,
+    val actual: UTestExpression
+) : UTestCall {
+    init {
+        check(expected.type != null && actual.type != null) {
+            "operand types expected"
+        }
+    }
+
+    override val instance: UTestExpression? = null
+    override val method: JcMethod? = null
+    override val args: List<UTestExpression> = emptyList()
+    override val type: JcType = expected.type!!.classpath.boolean
 }
 
 sealed interface UTestStatement : UTestInst
