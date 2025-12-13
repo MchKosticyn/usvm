@@ -1,5 +1,6 @@
 package machine.memory
 
+import org.jacodb.api.jvm.JcType
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.USort
@@ -16,12 +17,10 @@ import org.usvm.sampleUValue
 
 class JcMockedMethod(
     val method: String,
-    val lineNumber: Int,
-    val enclosingClass : String,
-    val classLineNumber : Int
+    val enclosingClass : String
 ) {
     fun print() {
-        val str = "mock:$enclosingClass(line:$classLineNumber)::$method(line:$lineNumber)"
+        val str = enclosingClass + method
         print(str)
     }
 }
@@ -29,11 +28,12 @@ class JcMockedMethod(
 data class JcMockedMethodsValue<Sort : USort>(
     val mockedMethod: JcMockedMethod,
     override val sort: Sort,
+    val type: JcType,
 ): ULValue<JcMockedMethodsValue<Sort>, Sort> {
     fun print() {
         mockedMethod.print()
     }
-    override val memoryRegionId: UMemoryRegionId<JcMockedMethodsValue<Sort>, Sort> = JcMockedMethodsRegionId(sort)
+    override val memoryRegionId: UMemoryRegionId<JcMockedMethodsValue<Sort>, Sort> = JcMockedMethodsRegionId(sort, type)
 
     override val key: JcMockedMethodsValue<Sort>
         get() = this
@@ -41,12 +41,14 @@ data class JcMockedMethodsValue<Sort : USort>(
 
 data class JcMockedMethodsRegionId<Sort : USort>(
     override val sort: Sort,
+    val type: JcType,
 ) : UMemoryRegionId<JcMockedMethodsValue<Sort>, Sort> {
-    override fun emptyRegion(): UMemoryRegion<JcMockedMethodsValue<Sort>, Sort> = JcMockedMethodsRegion(sort)
+    override fun emptyRegion(): UMemoryRegion<JcMockedMethodsValue<Sort>, Sort> = JcMockedMethodsRegion(sort, type)
 }
 
 open class JcMockedMethodsRegion<Sort : USort>(
     private val sort: Sort,
+    private val type: JcType,
     private val mockedMethods: UPersistentHashMap<String, UPersistentHashMap<String, UExpr<Sort>>> = persistentHashMapOf(),
 ) : UMemoryRegion<JcMockedMethodsValue<Sort>, Sort>
 {
@@ -54,7 +56,7 @@ open class JcMockedMethodsRegion<Sort : USort>(
         val mockedMethod = key.mockedMethod
         val field = mockedMethod.method
         val ret = mockedMethods[mockedMethod.enclosingClass]?.get(field)
-        return ret ?: JcMockedMethodsReading(sort.jctx, key.memoryRegionId as JcMockedMethodsRegionId, mockedMethod, sort)
+        return ret ?: JcMockedMethodsReading(sort.jctx, key.memoryRegionId as JcMockedMethodsRegionId, mockedMethod, type, sort)
     }
 
     override fun write(
@@ -69,6 +71,6 @@ open class JcMockedMethodsRegion<Sort : USort>(
 
         val newFieldValues = classFields.guardedWrite(key.mockedMethod.method, value, guard, ownership) { key.sort.sampleUValue() }
         val newFieldsByClass = mockedMethods.put(enclosingClass, newFieldValues, ownership)
-        return JcMockedMethodsRegion(sort, newFieldsByClass)
+        return JcMockedMethodsRegion(sort, type, newFieldsByClass)
     }
 }
