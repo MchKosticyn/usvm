@@ -56,9 +56,7 @@ private class MemoryScope(
         }
         UTestMockConfigInfo(list)}
     }
-    override fun resolveReference(heapRef: UHeapRef, type: JcRefType): UTestExpression {
-        return super.resolveReference(heapRef, type)
-    }
+
 //        val ref = evaluateInModel(heapRef) as UConcreteHeapRef
 //        if (ref.address == NULL_ADDRESS) {
 //            return decoderApi.createNullConst(type)
