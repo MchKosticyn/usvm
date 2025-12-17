@@ -8,15 +8,7 @@ import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
 
-
 class AdderTest : MocksTestRunner() {
-    override fun createMachine(
-        cp: JcClasspath,
-        options: UMachineOptions,
-        interpreterObserver: JcInterpreterObserver?
-    ): JcMachine {
-        return JcMocksMachine(cp, options, interpreterObserver = interpreterObserver)
-    }
 
     @Test
     fun testCompute() {
@@ -26,4 +18,12 @@ class AdderTest : MocksTestRunner() {
             { _, _, _, r -> r.getOrNull() == null },
         )
     }
+//    @Test
+//    fun testCompute2() {
+//        checkDiscoveredPropertiesWithExceptions(
+//            TestAdder2::compute,
+//            ignoreNumberOfAnalysisResults,
+//            { _, r -> r.getOrNull() == null },
+//        )
+//    }
 }
