@@ -1,5 +1,6 @@
 package machine.instructions
 
+import machine.memory.JcMockedMethodsValue
 import machine.mockedMethodsValues
 import org.jacodb.api.jvm.JcArrayType
 import org.jacodb.api.jvm.JcClassType
@@ -45,13 +46,14 @@ private class MemoryScope(
     override fun allocateClassInstance(type: JcClassType): UTestExpression =
         UTestAllocateMemoryCall(type.jcClass) // ?
     fun createUTestInstructions(): UTestMockConfigInfo {
+        val newMap : Map<JcMockedMethodsValue<USort>, UExpr<USort>> = mockedMethodsValues.toMap()
         return withMode(ResolveMode.CURRENT) {
         val list = mutableListOf<Pair<UTestInst, String>>()
         val parameters = resolveParameters()
-        for (key in mockedMethodsValues.keys) {
-            val m = mockedMethodsValues[key] as UExpr<out USort>
-            val resolved = resolveExpr(m, key.type)
-            list.add(Pair(UTestMethodCall(resolved, method.method, parameters), key.mockedMethod.method))
+        for (key in newMap.keys) {
+            val m = newMap[key]
+            val resolved = resolveExpr(m as UExpr<out USort>, key.type)
+            list.add(Pair(UTestMethodCall(resolved, key.method, parameters), key.mockedMethod.method))
         }
         val initStmts = this@MemoryScope.decoderApi.initializerInstructions()
         for (initStmt in initStmts) {
