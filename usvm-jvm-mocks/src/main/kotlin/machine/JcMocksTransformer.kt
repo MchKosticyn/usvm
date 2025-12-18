@@ -38,7 +38,7 @@ class JcMocksComposer(
     ownership: MutabilityOwnership,
 ) : UComposer<JcType, USizeSort>(ctx, memory, ownership), JcMocksTransformer {
     override fun <Sort : USort> transform(expr: JcMockedMethodsReading<Sort>): UExpr<Sort> {
-        val ret = memory.read(JcMockedMethodsValue(expr.mockedMethod, expr.sort, expr.type))
+        val ret = memory.read(JcMockedMethodsValue(expr.mockedMethod, expr.sort, expr.type, expr.method))
         for (key in mockedMethods) {
             val newValue = memory.read(key.key)
             mockedMethodsValues[key] = newValue
@@ -91,7 +91,7 @@ class JcMockedMethodsModel<Sort : USort>(
         val t = translatedMockedMethods[key.mockedMethod]
         val translated = t
             ?: translator.translate(
-                JcMockedMethodsReading(key.sort.jctx, key.memoryRegionId as JcMockedMethodsRegionId, key.mockedMethod, key.type, key.sort)
+                JcMockedMethodsReading(key.sort.jctx, key.memoryRegionId as JcMockedMethodsRegionId, key.mockedMethod, key.type, key.method, key.sort)
             )
         return model.evalAndComplete(translated)
     }

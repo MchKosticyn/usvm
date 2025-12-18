@@ -9,6 +9,7 @@ import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.USymbol
 import machine.JcMocksTransformer
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 
 class JcMockedMethodsReading<Sort : USort> internal constructor(
@@ -16,6 +17,7 @@ class JcMockedMethodsReading<Sort : USort> internal constructor(
     val regionId: JcMockedMethodsRegionId<Sort>,
     val mockedMethod: JcMockedMethod,
     val type: JcType,
+    val method: JcMethod,
     override val sort: Sort,
 ): USymbol<Sort>(ctx) {
     override fun accept(transformer: KTransformerBase): UExpr<Sort> {

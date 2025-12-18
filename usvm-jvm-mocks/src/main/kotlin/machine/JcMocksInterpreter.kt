@@ -65,7 +65,7 @@ open class JcMocksInterpreter2(
                 scope.doWithState {
                     val retSort = ctx.typeToSort(retType)
                     val memoryRegion = memory.getRegion(JcMockedMethodsRegionId(retSort, retType)) as JcMockedMethodsRegion<USort>
-                    val mockedMethodValue = JcMockedMethodsValue(mockedMethod, retSort, retType)
+                    val mockedMethodValue = JcMockedMethodsValue(mockedMethod, retSort, retType, method)
                     newSymbolicRef = memoryRegion.read(mockedMethodValue.key)
                     skipMethodInvocationWithValue(stmt, newSymbolicRef)
                     mockedMethods.add(mockedMethodValue)
@@ -142,7 +142,7 @@ open class JcMocksInterpreter(
                         scope.doWithState {
                             val retSort = ctx.typeToSort(retType)
                             val memoryRegion = memory.getRegion(JcMockedMethodsRegionId(retSort, retType)) as JcMockedMethodsRegion<USort>
-                            val mockedMethodValue = JcMockedMethodsValue(mockedMethod, retSort, retType)
+                            val mockedMethodValue = JcMockedMethodsValue(mockedMethod, retSort, retType, method)
                             newSymbolicRef = memoryRegion.read(mockedMethodValue.key)
                             skipMethodInvocationWithValue(stmt, newSymbolicRef)
                             mockedMethods.add(mockedMethodValue)

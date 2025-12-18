@@ -1,5 +1,6 @@
 package machine.memory
 
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcType
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
@@ -29,6 +30,7 @@ data class JcMockedMethodsValue<Sort : USort>(
     val mockedMethod: JcMockedMethod,
     override val sort: Sort,
     val type: JcType,
+    val method: JcMethod,
 ): ULValue<JcMockedMethodsValue<Sort>, Sort> {
     fun print() {
         mockedMethod.print()
@@ -56,7 +58,7 @@ open class JcMockedMethodsRegion<Sort : USort>(
         val mockedMethod = key.mockedMethod
         val field = mockedMethod.method
         val ret = mockedMethods[mockedMethod.enclosingClass]?.get(field)
-        return ret ?: JcMockedMethodsReading(sort.jctx, key.memoryRegionId as JcMockedMethodsRegionId, mockedMethod, type, sort)
+        return ret ?: JcMockedMethodsReading(sort.jctx, key.memoryRegionId as JcMockedMethodsRegionId, mockedMethod, type, key.method, sort)
     }
 
     override fun write(
