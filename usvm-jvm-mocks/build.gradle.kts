@@ -5,6 +5,8 @@ plugins {
 dependencies {
     implementation(project(":usvm-jvm"))
     implementation(project(":usvm-core"))
+    implementation(project(":usvm-jvm-rendering"))
+
 
     implementation(project(":usvm-jvm:usvm-jvm-test-api"))
     implementation(project(":usvm-jvm:usvm-jvm-util"))
@@ -31,7 +33,7 @@ repositories {
 
 val approximations by configurations.creating
 val approximationsRepo = "com.github.UnitTestBot.java-stdlib-approximations"
-val approximationsVersion = "88c6be3469"
+val approximationsVersion = "607384f1a7"
 
 dependencies {
     testImplementation(Libs.mockk)
