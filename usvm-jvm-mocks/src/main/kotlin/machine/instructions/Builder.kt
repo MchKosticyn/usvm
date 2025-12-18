@@ -47,59 +47,16 @@ private class MemoryScope(
     fun createUTestInstructions(): UTestMockConfigInfo {
         return withMode(ResolveMode.CURRENT) {
         val list = mutableListOf<Pair<UTestInst, String>>()
-        val argsList = mutableListOf<UTestExpression>()
         val parameters = resolveParameters()
         for (key in mockedMethodsValues.keys) {
             val m = mockedMethodsValues[key] as UExpr<out USort>
             val resolved = resolveExpr(m, key.type)
             list.add(Pair(UTestMethodCall(resolved, method.method, parameters), key.mockedMethod.method))
         }
+        val initStmts = this@MemoryScope.decoderApi.initializerInstructions()
+        for (initStmt in initStmts) {
+            list.add(Pair(initStmt, ""))
+        }
         UTestMockConfigInfo(list)}
     }
-
-//        val ref = evaluateInModel(heapRef) as UConcreteHeapRef
-//        if (ref.address == NULL_ADDRESS) {
-//            return decoderApi.createNullConst(type)
-//        }
-//
-//        val obj = if (resolveMode == ResolveMode.CURRENT) {
-//            tryCreateObjectInstance(heapRef)
-//        } else null
-//
-//        if (obj != null) {
-//            saveResolvedRef(ref.address, obj)
-//            return obj
-//        }
-//
-//        // to find a type, we need to understand the source of the object
-////        val typeStream = if (ref.address <= INITIAL_INPUT_ADDRESS) {
-////            // input object
-////            model.typeStreamOf(ref)
-////        } else {
-////            // allocated object
-////            memory.typeStreamOf(ref)
-////        }
-////            .filterBySupertype(type)
-//
-//        // We filter allocated object type stream, because it could be stored in the input array,
-//        // which resolved to a wrong type, since we do not build connections between element types
-//        // and array types right now.
-//        // In such cases, we need to resolve this element to null.
-//
-//        val evaluatedType = type.jcClass
-//            ?: return decoderApi.createNullConst(type)
-//
-//        // We check for the type stream emptiness first and only then for the resolved cache,
-//        // because even if the object is already resolved, it could be incompatible with the [type], if it
-//        // is an element of an array of the wrong type.
-//
-//        return resolveRef(ref.address) {
-//            when (type) {
-//                is JcArrayType -> resolveArray(ref, heapRef, type)
-//                is JcClassType -> resolveObject(ref, heapRef, type)
-//                else -> error("Unexpected type: $type")
-//            }
-//        }
-//    }
-
 }
