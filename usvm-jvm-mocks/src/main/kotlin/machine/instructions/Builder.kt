@@ -15,6 +15,7 @@ import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.api.typeStreamOf
 import org.usvm.api.util.JcTestStateResolver
+import org.usvm.jvm.util.toTypedMethod
 import org.usvm.machine.JcContext
 import org.usvm.machine.state.JcState
 import org.usvm.memory.UReadOnlyMemory
@@ -25,15 +26,21 @@ import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
 
+fun createUTestMockConfigInfo(list: List<List<Pair<UTestInst, String>>>): UTestMockConfigInfo {
+    val instructions = list.flatten()
+    return UTestMockConfigInfo(instructions)
+}
+
 fun createUTestInstructions(
-    method: JcTypedMethod,
+    key: JcMockedMethodsValue<USort>,
+//    method: JcTypedMethod,
     state: JcState
-): UTestMockConfigInfo {
+): List<Pair<UTestInst, String>> {
     val model = state.models.first()
     val ctx = state.ctx
-    val memoryScope = MemoryScope(ctx, model, state.memory, method)
+    val memoryScope = MemoryScope(ctx, model, state.memory, key.method.toTypedMethod)
 
-    return memoryScope.createUTestInstructions()
+    return memoryScope.createUTestInstructions(key)
 }
 
 private class MemoryScope(
@@ -45,20 +52,23 @@ private class MemoryScope(
     override val decoderApi = JcTestExecutorDecoderApi(ctx.cp)
     override fun allocateClassInstance(type: JcClassType): UTestExpression =
         UTestAllocateMemoryCall(type.jcClass) // ?
-    fun createUTestInstructions(): UTestMockConfigInfo {
+    fun createUTestInstructions(key: JcMockedMethodsValue<USort>): List<Pair<UTestInst, String>> {
         val newMap : Map<JcMockedMethodsValue<USort>, UExpr<USort>> = mockedMethodsValues.toMap()
         return withMode(ResolveMode.CURRENT) {
         val list = mutableListOf<Pair<UTestInst, String>>()
         val parameters = resolveParameters()
-        for (key in newMap.keys) {
-            val m = newMap[key]
-            val resolved = resolveExpr(m as UExpr<out USort>, key.type)
-            list.add(Pair(UTestMethodCall(resolved, key.method, parameters), key.mockedMethod.method))
-        }
+//        for (key in newMap.keys) {
+//            val m = newMap[key]
+//            val resolved = resolveExpr(m as UExpr<out USort>, key.type)
+//            list.add(Pair(UTestMethodCall(resolved, key.method, parameters), key.mockedMethod.method))
+//        }
+        val m = newMap[key]
+        val resolved = resolveExpr(m as UExpr<out USort>, key.type)
+        list.add(Pair(UTestMethodCall(resolved, method.method, parameters), key.mockedMethod.method))
         val initStmts = this@MemoryScope.decoderApi.initializerInstructions()
         for (initStmt in initStmts) {
             list.add(Pair(initStmt, ""))
         }
-        UTestMockConfigInfo(list)}
+        list}
     }
 }

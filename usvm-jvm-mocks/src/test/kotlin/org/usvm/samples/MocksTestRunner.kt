@@ -2,11 +2,14 @@ package org.usvm.samples
 
 import machine.JcMocksMachine
 import machine.instructions.createUTestInstructions
+import machine.instructions.createUTestMockConfigInfo
+import machine.memory.JcMockedMethodsValue
 import machine.mockedMethods
 import machine.mockedMethodsValues
-import machine.renderUTest
+//import machine.renderUTest
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.junit.jupiter.api.TestInstance
@@ -22,12 +25,14 @@ import org.usvm.api.createUTest
 import org.usvm.api.targets.JcTarget
 import org.usvm.api.util.JcTestInterpreter
 import org.usvm.api.util.JcTestResolver
-import org.usvm.jvm.rendering.JcTestsRenderer
-import org.usvm.jvm.rendering.testRenderer.JcTestInfo
-import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestInfo
+import org.usvm.jvm.util.toTypedMethod
+//import org.usvm.jvm.rendering.JcTestsRenderer
+//import org.usvm.jvm.rendering.testRenderer.JcTestInfo
+//import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestInfo
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
 import org.usvm.test.api.UTest
+import org.usvm.test.api.UTestInst
 import org.usvm.test.util.TestRunner
 import org.usvm.test.util.checkers.AnalysisResultsNumberMatcher
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
@@ -56,11 +61,11 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
     private var targets: List<JcTarget> = emptyList()
     private var interpreterObserver: JcInterpreterObserver? = null
 
-    fun createTest(method: KFunction<*>): UTest {
-        val jcMethod = cp.getJcMethodByName(method)
-        val machine = JcMocksMachine(cp, options, interpreterObserver = interpreterObserver)
-        return machine.createMocksTest(jcMethod)
-    }
+//    fun createTest(method: KFunction<*>): UTest {
+//        val jcMethod = cp.getJcMethodByName(method)
+//        val machine = JcMocksMachine(cp, options, interpreterObserver = interpreterObserver)
+//        return machine.createMocksTest(jcMethod)
+//    }
 
     /**
      * Sets JcTargets to run JcMachine with in the scope of [action].
@@ -855,14 +860,18 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         createMachine(cp, options, interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
 //            val tests = states.map { jE.resolve(jcMethod, it) }
-            val otherTests = states.map { createUTest(jcMethod, it) }
+//            val otherTests = states.map { createUTest(jcMethod, it) }
             val state = states.last()
+            val methods: MutableSet<JcTypedMethod> = mutableSetOf()
+            val list = mutableListOf<List<Pair<UTestInst, String>>>()
             val memory = state.memory
                 for (key in mockedMethods) {
                     val newValue = memory.read(key.key)
                     mockedMethodsValues[key] = newValue
+                    methods.add(key.method.toTypedMethod)
+                    list.add(createUTestInstructions(key, state))
                 }
-            val new = createUTestInstructions(jcMethod, state)
+            val new = createUTestMockConfigInfo(list)
 //            val testsInfo = otherTests.map { JcUnsafeTestInfo(method = jcMethod.method, testFilePath = null,
 //                testClassName= null, testName=null, testPackageName=null, isExceptional=false ) }
 //            val input = otherTests.zip(testsInfo)
