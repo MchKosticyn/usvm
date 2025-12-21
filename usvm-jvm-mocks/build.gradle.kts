@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":usvm-core"))
     implementation(project(":usvm-jvm-rendering"))
 
+    implementation("com.github.javaparser:javaparser-symbol-solver-core:3.26.3")
 
     implementation(project(":usvm-jvm:usvm-jvm-test-api"))
     implementation(project(":usvm-jvm:usvm-jvm-util"))
