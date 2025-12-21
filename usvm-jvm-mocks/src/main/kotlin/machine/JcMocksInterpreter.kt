@@ -36,80 +36,6 @@ fun printMockedMethodsValues() {
     }
 }
 
-open class JcMocksInterpreter2(
-    ctx: JcContext,
-    applicationGraph: JcApplicationGraph,
-    options: JcMachineOptions,
-    observer: JcInterpreterObserver? = null,
-): JcInterpreter(ctx, applicationGraph, options, observer) {
-    private fun handleConcreteMethodCall(
-        scope: JcStepScope,
-        stmt: JcConcreteMethodCallInst,
-        exprResolver: JcExprResolver,
-        retStmt: JcAssignInst
-    ){
-        val method = stmt.method
-        val methodName = method.name
-//        val isJavaMethod = method.enclosingClass.name.startsWith("java.")
-        val isAppCode = method.declaration.relativePath.startsWith("org.usvm.samples.")
-        if (stmt.arguments.isNotEmpty() && isAppCode) {
-            val refToMock = stmt.arguments[0]
-            val value = mocksMap[refToMock]
-            if (value != null || refToMock is JcMockedMethodsReading) {
-                val retType = retStmt.lhv.type
-                val newSymbolicRef : UExpr<out USort>
-                val lineNumber = retStmt.lineNumber
-                val enclosingClass = if (refToMock is JcMockedMethodsReading) {refToMock.mockedMethod.enclosingClass} else {value!!} // maybe rewrite
-                val mockedMethod = JcMockedMethod("$methodName(line:$lineNumber)", enclosingClass)
-
-                scope.doWithState {
-                    val retSort = ctx.typeToSort(retType)
-                    val memoryRegion = memory.getRegion(JcMockedMethodsRegionId(retSort, retType)) as JcMockedMethodsRegion<USort>
-                    val mockedMethodValue = JcMockedMethodsValue(mockedMethod, retSort, retType, method)
-                    newSymbolicRef = memoryRegion.read(mockedMethodValue.key)
-                    skipMethodInvocationWithValue(stmt, newSymbolicRef)
-                    mockedMethods.add(mockedMethodValue)
-                }
-                return
-            }
-        }
-        val mockCall = retStmt.rhv
-        if (methodName == "mock" && mockCall is JcStaticCallExpr && mockCall.args.size == 1) {
-            scope.doWithState {
-                val classRef = stmt.arguments[0].asExpr(ctx.addressSort)
-                val classRefTypeRepresentative =
-                    memory.read(UFieldLValue(ctx.addressSort, classRef, ctx.classTypeSyntheticField))
-                classRefTypeRepresentative as UConcreteHeapRef
-                val classType = memory.types.typeOf(classRefTypeRepresentative.address)
-                val ref = memory.allocConcrete(classType)
-                skipMethodInvocationWithValue(stmt, ref)
-                val lineNumber = stmt.returnSite.lineNumber
-                mocksMap[ref] = "mock:" + classType.typeName + "(line:" + lineNumber + ")::"
-            }
-            return
-        }
-        super.callMethod(scope, stmt, exprResolver)
-    }
-
-    override fun callMethod(
-        scope: JcStepScope,
-        stmt: JcMethodCallBaseInst,
-        exprResolver: JcExprResolver
-    ) {
-        when (stmt) {
-            is JcConcreteMethodCallInst -> {
-                val retStmt = stmt.returnSite
-                if (retStmt !is JcAssignInst) {
-                    super.callMethod(scope, stmt, exprResolver)
-                } else {
-                    handleConcreteMethodCall(scope, stmt, exprResolver, retStmt)
-                }
-            }
-            else -> super.callMethod(scope, stmt, exprResolver)
-        }
-    }
-}
-
 open class JcMocksInterpreter(
     ctx: JcContext,
     applicationGraph: JcApplicationGraph,
@@ -127,7 +53,7 @@ open class JcMocksInterpreter(
                 val method = stmt.method
                 val methodName = method.name
                 val retStmt = stmt.returnSite
-                if (retStmt !is JcAssignInst) { throw IllegalArgumentException("state unreachable") }
+                if (retStmt !is JcAssignInst) { return }
                 val isAppCode = method.declaration.relativePath.startsWith("org.usvm.samples.")
                 if (stmt.arguments.isNotEmpty() && isAppCode) {
                     val refToMock = stmt.arguments[0]
