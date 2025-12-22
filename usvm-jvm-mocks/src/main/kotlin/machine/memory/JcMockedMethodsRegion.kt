@@ -18,7 +18,7 @@ import org.usvm.sampleUValue
 
 class JcMockedMethod(
     val method: String,
-    val enclosingClass : String
+    val enclosingClass: String
 ) {
     val str = enclosingClass + method
     fun print() {
@@ -31,8 +31,8 @@ data class JcMockedMethodsValue<Sort : USort>(
     val mockedMethod: JcMockedMethod,
     override val sort: Sort,
     val type: JcType,
-    val method: JcMethod,
-): ULValue<JcMockedMethodsValue<Sort>, Sort> {
+    val method: JcMethod
+) : ULValue<JcMockedMethodsValue<Sort>, Sort> {
     fun print() {
         mockedMethod.print()
     }
@@ -44,7 +44,7 @@ data class JcMockedMethodsValue<Sort : USort>(
 
 data class JcMockedMethodsRegionId<Sort : USort>(
     override val sort: Sort,
-    val type: JcType,
+    val type: JcType
 ) : UMemoryRegionId<JcMockedMethodsValue<Sort>, Sort> {
     override fun emptyRegion(): UMemoryRegion<JcMockedMethodsValue<Sort>, Sort> = JcMockedMethodsRegion(sort, type)
 }
@@ -52,9 +52,8 @@ data class JcMockedMethodsRegionId<Sort : USort>(
 open class JcMockedMethodsRegion<Sort : USort>(
     private val sort: Sort,
     private val type: JcType,
-    private val mockedMethods: UPersistentHashMap<String, UPersistentHashMap<String, UExpr<Sort>>> = persistentHashMapOf(),
-) : UMemoryRegion<JcMockedMethodsValue<Sort>, Sort>
-{
+    private val mockedMethods: UPersistentHashMap<String, UPersistentHashMap<String, UExpr<Sort>>> = persistentHashMapOf()
+) : UMemoryRegion<JcMockedMethodsValue<Sort>, Sort> {
     override fun read(key: JcMockedMethodsValue<Sort>): UExpr<Sort> {
         val mockedMethod = key.mockedMethod
         val field = mockedMethod.method

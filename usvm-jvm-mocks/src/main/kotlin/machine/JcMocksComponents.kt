@@ -15,21 +15,21 @@ import org.usvm.solver.USoftConstraintsProvider
 
 class JcMocksComponents(
     typeSystem: JcTypeSystem,
-    options: UMachineOptions,
-): JcComponents(typeSystem, options) {
+    options: UMachineOptions
+) : JcComponents(typeSystem, options) {
     override fun <Context : UContext<USizeSort>> mkComposer(
         ctx: Context
     ): (UReadOnlyMemory<JcType>, MutabilityOwnership) -> UComposer<JcType, USizeSort> =
         { memory: UReadOnlyMemory<JcType>, ownership: MutabilityOwnership -> JcMocksComposer(ctx, memory, ownership) }
 
     override fun <Context : UContext<USizeSort>> buildTranslatorAndLazyDecoder(
-        ctx: Context,
+        ctx: Context
     ): Pair<UExprTranslator<JcType, USizeSort>, ULazyModelDecoder<JcType>> {
         val translator = JcMocksExprTranslator(ctx)
         val decoder: ULazyModelDecoder<JcType> = ULazyModelDecoder(translator)
         return translator to decoder
     }
     override fun <Context : UContext<USizeSort>> mkSoftConstraintsProvider(
-        ctx: Context,
+        ctx: Context
     ): USoftConstraintsProvider<JcType, USizeSort> = JcMocksSoftConstraintsProvider(ctx)
 }

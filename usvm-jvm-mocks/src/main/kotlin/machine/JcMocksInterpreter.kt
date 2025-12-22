@@ -11,6 +11,7 @@ import org.jacodb.api.jvm.cfg.JcStaticCallExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.USort
+import org.usvm.collection.field.UFieldLValue
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
@@ -21,14 +22,13 @@ import org.usvm.machine.interpreter.JcExprResolver
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.skipMethodInvocationWithValue
-import org.usvm.collection.field.UFieldLValue
 
-val mocksMap : MutableMap<UConcreteHeapRef, String> = HashMap()
-val mockedMethods : MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
-val mockedMethodsValues : MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
+val mocksMap: MutableMap<UConcreteHeapRef, String> = HashMap()
+val mockedMethods: MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
+val mockedMethodsValues: MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
 
 fun printMockedMethodsValues() {
-    for (key in mockedMethodsValues.keys)     {
+    for (key in mockedMethodsValues.keys) {
         key.print()
         print(" = ")
         print(mockedMethodsValues[key])
@@ -40,8 +40,8 @@ open class JcMocksInterpreter(
     ctx: JcContext,
     applicationGraph: JcApplicationGraph,
     options: JcMachineOptions,
-    observer: JcInterpreterObserver? = null,
-): JcInterpreter(ctx, applicationGraph, options, observer) {
+    observer: JcInterpreterObserver? = null
+) : JcInterpreter(ctx, applicationGraph, options, observer) {
 
     override fun callMethod(
         scope: JcStepScope,
@@ -58,12 +58,12 @@ open class JcMocksInterpreter(
                 if (stmt.arguments.isNotEmpty() && isAppCode) {
                     val refToMock = stmt.arguments[0]
                     val value = mocksMap[refToMock]
-                     if (value != null || refToMock is JcMockedMethodsReading) {
+                    if (value != null || refToMock is JcMockedMethodsReading) {
                         val retType = retStmt.lhv.type
-                        val newSymbolicRef : UExpr<out USort>
+                        val newSymbolicRef: UExpr<out USort>
                         val lineNumber = retStmt.lineNumber
-                        val enclosingClass = if (refToMock is JcMockedMethodsReading) {refToMock.mockedMethod.enclosingClass} else {value!!}
-                         val mockedMethod = JcMockedMethod("$methodName(line:$lineNumber)", enclosingClass)
+                        val enclosingClass = if (refToMock is JcMockedMethodsReading) { refToMock.mockedMethod.enclosingClass } else { value!! }
+                        val mockedMethod = JcMockedMethod("$methodName(line:$lineNumber)", enclosingClass)
 
                         scope.doWithState {
                             val retSort = ctx.typeToSort(retType)

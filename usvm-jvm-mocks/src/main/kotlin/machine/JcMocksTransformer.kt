@@ -12,7 +12,6 @@ import org.usvm.UComposer
 import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.USort
-import org.usvm.UTransformer
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.JcComposer
 import org.usvm.machine.JcExprTranslator
@@ -35,7 +34,7 @@ interface JcMocksTransformer : JcTransformer {
 class JcMocksComposer(
     ctx: UContext<USizeSort>,
     memory: UReadOnlyMemory<JcType>,
-    ownership: MutabilityOwnership,
+    ownership: MutabilityOwnership
 ) : UComposer<JcType, USizeSort>(ctx, memory, ownership), JcMocksTransformer {
     override fun <Sort : USort> transform(expr: JcMockedMethodsReading<Sort>): UExpr<Sort> {
         val ret = memory.read(JcMockedMethodsValue(expr.mockedMethod, expr.sort, expr.type, expr.method))
@@ -48,7 +47,7 @@ class JcMocksComposer(
 
     private val jcComposer = JcComposer(ctx, memory, ownership)
     override fun <Sort : USort> transform(expr: JcStaticFieldReading<Sort>): UExpr<Sort> {
-        return  jcComposer.transform(expr)
+        return jcComposer.transform(expr)
     }
 }
 
@@ -66,7 +65,7 @@ class JcMocksExprTranslator(ctx: UContext<USizeSort>) : UExprTranslator<JcType, 
 
 class JcMockedMethodsDecoder<Sort : USort>(
     private val regionId: JcMockedMethodsRegionId<Sort>,
-    private val translator: UExprTranslator<*, *>,
+    private val translator: UExprTranslator<*, *>
 ) : URegionDecoder<JcMockedMethodsValue<Sort>, Sort> {
     private val translated = mutableMapOf<JcMockedMethod, UExpr<Sort>>()
 
@@ -77,7 +76,7 @@ class JcMockedMethodsDecoder<Sort : USort>(
 
     override fun decodeLazyRegion(
         model: UModelEvaluator<*>,
-        assertions: List<KExpr<KBoolSort>>,
+        assertions: List<KExpr<KBoolSort>>
     ): UReadOnlyMemoryRegion<JcMockedMethodsValue<Sort>, Sort> =
         JcMockedMethodsModel(model, translated, translator)
 }
@@ -98,10 +97,10 @@ class JcMockedMethodsModel<Sort : USort>(
 }
 
 class JcMocksSoftConstraintsProvider(
-    ctx: UContext<USizeSort>,
+    ctx: UContext<USizeSort>
 ) : USoftConstraintsProvider<JcType, USizeSort>(ctx), JcMocksTransformer {
     override fun <Sort : USort> transform(
-        expr: JcMockedMethodsReading<Sort>,
+        expr: JcMockedMethodsReading<Sort>
     ): UExpr<Sort> = transformExpr(expr)
 
     private val jcSoftConstraintsProvider = JcSoftConstraintsProvider(ctx)

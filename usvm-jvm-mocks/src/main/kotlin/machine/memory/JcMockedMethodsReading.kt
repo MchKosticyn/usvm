@@ -4,13 +4,13 @@ import io.ksmt.cache.hash
 import io.ksmt.cache.structurallyEqual
 import io.ksmt.expr.printer.ExpressionPrinter
 import io.ksmt.expr.transformer.KTransformerBase
+import machine.JcMocksTransformer
+import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.JcType
 import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.USymbol
-import machine.JcMocksTransformer
-import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcType
 
 class JcMockedMethodsReading<Sort : USort> internal constructor(
     ctx: UContext<*>,
@@ -18,8 +18,8 @@ class JcMockedMethodsReading<Sort : USort> internal constructor(
     val mockedMethod: JcMockedMethod,
     val type: JcType,
     val method: JcMethod,
-    override val sort: Sort,
-): USymbol<Sort>(ctx) {
+    override val sort: Sort
+) : USymbol<Sort>(ctx) {
     override fun accept(transformer: KTransformerBase): UExpr<Sort> {
         require(transformer is JcMocksTransformer) { "Expected a JcMocksTransformer, but got: $transformer" }
         return transformer.transform(this)

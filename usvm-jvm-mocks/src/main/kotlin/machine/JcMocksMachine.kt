@@ -19,7 +19,7 @@ import org.usvm.stopstrategies.StopStrategy
 import org.usvm.util.bracket
 import org.usvm.util.debug
 
-private fun JcState.isSat() : Boolean {
+private fun JcState.isSat(): Boolean {
     if (models.isNotEmpty()) {
         return true
     }
@@ -41,7 +41,7 @@ open class JcMocksMachine(
     cp: JcClasspath,
     options: UMachineOptions,
     jcMachineOptions: JcMachineOptions = JcMachineOptions(),
-    interpreterObserver: JcInterpreterObserver? = null,
+    interpreterObserver: JcInterpreterObserver? = null
 ) : JcMachine(cp, options, jcMachineOptions, interpreterObserver) {
     override val components = JcMocksComponents(typeSystem, options)
     override fun createInterpreter(): JcInterpreter {
@@ -58,61 +58,61 @@ open class JcMocksMachine(
         observer: UMachineObserver<JcState>,
         isStateTerminated: (JcState) -> Boolean,
         stopStrategy: StopStrategy
-) {
+    ) {
         logger.debug().bracket("$this.run($interpreter, ${pathSelector::class.simpleName})") {
             observer.onMachineStarted()
             try {
                 while (!pathSelector.isEmpty() && !stopStrategy.shouldStop()) {
-                val state = pathSelector.peek()
-                observer.onStatePeeked(state)
+                    val state = pathSelector.peek()
+                    observer.onStatePeeked(state)
 
-                val (forkedStates, stateAlive) = try {
-                    interpreter.step(state)
-                } catch (e: Throwable) {
-                    logger.error(e) { "Step failed" }
-                    observer.onState(state, forks = emptySequence())
-                    pathSelector.remove(state)
-                    observer.onStateTerminated(state, stateReachable = false)
-                    continue
-                }
+                    val (forkedStates, stateAlive) = try {
+                        interpreter.step(state)
+                    } catch (e: Throwable) {
+                        logger.error(e) { "Step failed" }
+                        observer.onState(state, forks = emptySequence())
+                        pathSelector.remove(state)
+                        observer.onStateTerminated(state, stateReachable = false)
+                        continue
+                    }
 
-                observer.onState(state, forkedStates)
+                    observer.onState(state, forkedStates)
 
-                val originalStateAlive = stateAlive && !isStateTerminated(state)
-                val aliveForkedStates = mutableListOf<JcState>()
-                for (forkedState in forkedStates) {
-                    if (!isStateTerminated(forkedState)) {
-                        aliveForkedStates.add(forkedState)
-                    } else {
-                        // TODO: distinguish between states terminated by exception (runtime or user) and
-                        //  those which just exited
-                        if (forkedState.isSat()) {
-                            observer.onStateTerminated(forkedState, stateReachable = true)
+                    val originalStateAlive = stateAlive && !isStateTerminated(state)
+                    val aliveForkedStates = mutableListOf<JcState>()
+                    for (forkedState in forkedStates) {
+                        if (!isStateTerminated(forkedState)) {
+                            aliveForkedStates.add(forkedState)
+                        } else {
+                            // TODO: distinguish between states terminated by exception (runtime or user) and
+                            //  those which just exited
+                            if (forkedState.isSat()) {
+                                observer.onStateTerminated(forkedState, stateReachable = true)
+                            }
                         }
                     }
-                }
-                if (originalStateAlive) {
-                    pathSelector.update(state)
-                } else {
-                    pathSelector.remove(state)
-                    if (state.isSat()) {
-                        observer.onStateTerminated(state, stateReachable = stateAlive)
+                    if (originalStateAlive) {
+                        pathSelector.update(state)
+                    } else {
+                        pathSelector.remove(state)
+                        if (state.isSat()) {
+                            observer.onStateTerminated(state, stateReachable = stateAlive)
+                        }
+                    }
+
+                    if (aliveForkedStates.isNotEmpty()) {
+                        pathSelector.add(aliveForkedStates)
                     }
                 }
-
-                if (aliveForkedStates.isNotEmpty()) {
-                    pathSelector.add(aliveForkedStates)
-                }
-            }
-        } finally {
+            } finally {
 //            printMockedMethodsValues()
-            observer.onMachineStopped()
-        }
+                observer.onMachineStopped()
+            }
 
-        if (!pathSelector.isEmpty()) {
-            val stopReason = stopStrategy.stopReason()
-            logger.debug { stopReason }
+            if (!pathSelector.isEmpty()) {
+                val stopReason = stopStrategy.stopReason()
+                logger.debug { stopReason }
+            }
         }
     }
-
-}}
+}

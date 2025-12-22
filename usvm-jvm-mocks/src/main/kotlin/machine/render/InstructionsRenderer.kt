@@ -1,23 +1,20 @@
 package machine.render
 
-import org.jacodb.api.jvm.JcClasspath
-import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
-import org.usvm.jvm.rendering.baseRenderer.JcImportManager
-import org.usvm.test.api.UTest
 import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.expr.AnnotationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.printer.DefaultPrettyPrinter
 import machine.instructions.UTestMockConfigInfo
-import machine.instructions.UTestMockConfigInfo2
+import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
+import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
+import org.usvm.jvm.rendering.baseRenderer.JcImportManager
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeUtilsRenderer
-import org.usvm.test.api.UTestInst
-import org.usvm.test.api.UTestMockObject
+import org.usvm.test.api.UTest
 
-fun renderConfigInfo (cp : JcClasspath, test : UTest, mockConfigInfo: UTestMockConfigInfo): String? {
+fun renderConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMockConfigInfo): String? {
     val importManager = JcImportManager()
     val identifiersManager = JcIdentifiersManager()
     val strategy = ReflectionUtilsInlineStrategy.NoInline()
@@ -41,10 +38,9 @@ fun modifyText(text: String, comments: List<String>): String {
     val lines = text.split("\n")
     var finalText = ""
     for (i in 1 until lines.size - 2) {
-        if (comments[i-1] != "\n") {
-            finalText = finalText + "//" + comments[i-1] + lines[i] + "\n"
-        }
-        else {
+        if (comments[i - 1] != "\n") {
+            finalText = finalText + "//" + comments[i - 1] + lines[i] + "\n"
+        } else {
             finalText = finalText + lines[i] + "\n"
         }
     }

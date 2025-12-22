@@ -1,23 +1,16 @@
 package org.usvm.samples
 
 import machine.JcMocksMachine
-import machine.instructions.cc
 import machine.instructions.createUTestInstructions
 import machine.instructions.createUTestMockConfigInfo
-import machine.instructions.createUTestMockConfigInfo2
-import machine.memory.JcMockedMethodsValue
 import machine.mockedMethods
 import machine.mockedMethodsValues
 import machine.render.renderConfigInfo
-//import machine.renderUTest
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.cfg.JcReturnInst
-import org.jacodb.api.jvm.ext.toType
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 import org.usvm.CoverageZone
@@ -31,17 +24,9 @@ import org.usvm.api.createUTest
 import org.usvm.api.targets.JcTarget
 import org.usvm.api.util.JcTestInterpreter
 import org.usvm.api.util.JcTestResolver
-import org.usvm.jvm.util.toTypedMethod
-//import org.usvm.jvm.rendering.JcTestsRenderer
-//import org.usvm.jvm.rendering.testRenderer.JcTestInfo
-//import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestInfo
 import org.usvm.machine.JcInterpreterObserver
-import org.usvm.machine.JcMachine
-import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
-import org.usvm.test.api.UTestMock
-import org.usvm.test.api.UTestMockObject
 import org.usvm.test.util.TestRunner
 import org.usvm.test.util.checkers.AnalysisResultsNumberMatcher
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
@@ -82,7 +67,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
     protected fun <T> withTargets(
         targets: List<JcTarget>,
         interpreterObserver: JcInterpreterObserver,
-        action: () -> T,
+        action: () -> T
     ): T {
         val prevTargets = this.targets
         val prevInterpreterObserver = this.interpreterObserver
@@ -102,7 +87,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         method: KFunction1<T, R>,
         vararg analysisResultsMatchers: (T, R?) -> Boolean,
         invariants: Array<(T, R?) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatches(
             method,
@@ -119,7 +104,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         analysisResultsNumberMatcher: AnalysisResultsNumberMatcher,
         vararg analysisResultsMatchers: (T, R?) -> Boolean,
         invariants: Array<(T, R?) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatches(
             method,
@@ -137,7 +122,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, R?, StaticsType, StaticsType) -> Boolean,
         invariants: Array<(T, R?) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -157,7 +142,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, R?) -> Boolean,
         invariants: Array<(T, R?) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -177,7 +162,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg paramsMutationsMatchers: (T, T, R?) -> Boolean,
         invariants: Array<(T, T, R?) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -195,7 +180,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         method: KFunction2<T, A0, R>,
         vararg analysisResultsMatchers: (T, A0, R?) -> Boolean,
         invariants: Array<(T, A0, R?) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatches(
             method,
@@ -212,7 +197,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         analysisResultsNumberMatcher: AnalysisResultsNumberMatcher,
         vararg analysisResultsMatchers: (T, A0, R?) -> Boolean,
         invariants: Array<(T, A0, R?) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatches(
             method,
@@ -230,7 +215,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, A0, R?) -> Boolean,
         invariants: Array<(T, A0, R?) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -250,7 +235,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg paramsMutationsMatchers: (T, A0, T, A0, R?) -> Boolean,
         invariants: Array<(T, A0, T, A0, R?) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -268,7 +253,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         method: KFunction3<T, A0, A1, R>,
         vararg analysisResultsMatchers: (T, A0, A1, R?) -> Boolean,
         invariants: Array<(T, A0, A1, R?) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatches(
             method,
@@ -285,7 +270,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         analysisResultsNumberMatcher: AnalysisResultsNumberMatcher,
         vararg analysisResultsMatchers: (T, A0, A1, R?) -> Boolean,
         invariants: Array<(T, A0, A1, R?) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatches(
             method,
@@ -303,7 +288,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, A0, A1, R?) -> Boolean,
         invariants: Array<(T, A0, A1, R?) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -323,7 +308,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg paramsMutationsMatchers: (T, A0, A1, T, A0, A1, R?) -> Boolean,
         invariants: Array<(T, A0, A1, T, A0, A1, R?) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -341,7 +326,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         method: KFunction4<T, A0, A1, A2, R>,
         vararg analysisResultsMatchers: (T, A0, A1, A2, R?) -> Boolean,
         invariants: Array<(T, A0, A1, A2, R?) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatches(
             method,
@@ -358,7 +343,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         analysisResultsNumberMatcher: AnalysisResultsNumberMatcher,
         vararg analysisResultsMatchers: (T, A0, A1, A2, R?) -> Boolean,
         invariants: Array<(T, A0, A1, A2, R?) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatches(
             method,
@@ -376,7 +361,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, A0, A1, A2, R?) -> Boolean,
         invariants: Array<out Function<Boolean>> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -396,7 +381,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg paramsMutationsMatchers: (T, A0, A1, A2, T, A0, A1, A2, R?) -> Boolean,
         invariants: Array<(T, A0, A1, A2, T, A0, A1, A2, R?) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -428,7 +413,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         method: KFunction1<T, R>,
         vararg analysisResultsMatchers: (T, Result<R>) -> Boolean,
         invariants: Array<(T, Result<R>) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatchesWithExceptions(
             method,
@@ -445,7 +430,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         analysisResultsNumberMatcher: AnalysisResultsNumberMatcher,
         vararg analysisResultsMatchers: (T, Result<R>) -> Boolean,
         invariants: Array<(T, Result<R>) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatchesWithExceptions(
             method,
@@ -463,7 +448,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, Result<R>) -> Boolean,
         invariants: Array<(T, Result<R>) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -487,7 +472,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg paramsMutationsMatchers: (T, T, Result<R>) -> Boolean,
         invariants: Array<(T, T, Result<R>) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -506,7 +491,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         method: KFunction2<T, A0, R>,
         vararg analysisResultsMatchers: (T, A0, Result<R>) -> Boolean,
         invariants: Array<(T, A0, Result<R>) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatchesWithExceptions(
             method,
@@ -523,7 +508,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         analysisResultsNumberMatcher: AnalysisResultsNumberMatcher,
         vararg analysisResultsMatchers: (T, A0, Result<R>) -> Boolean,
         invariants: Array<(T, A0, Result<R>) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatchesWithExceptions(
             method,
@@ -541,7 +526,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, A0, Result<R>) -> Boolean,
         invariants: Array<(T, A0, Result<R>) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -565,7 +550,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg paramsMutationsMatchers: (T, A0, T, A0, Result<R>) -> Boolean,
         invariants: Array<(T, A0, T, A0, Result<R>) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -584,7 +569,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         method: KFunction3<T, A0, A1, R>,
         vararg analysisResultsMatchers: (T, A0, A1, Result<R>) -> Boolean,
         invariants: Array<(T, A0, A1, Result<R>) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatchesWithExceptions(
             method,
@@ -601,7 +586,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         analysisResultsNumberMatcher: AnalysisResultsNumberMatcher,
         vararg analysisResultsMatchers: (T, A0, A1, Result<R>) -> Boolean,
         invariants: Array<(T, A0, A1, Result<R>) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatchesWithExceptions(
             method,
@@ -619,7 +604,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, A0, A1, Result<R>) -> Boolean,
         invariants: Array<(T, A0, A1, Result<R>) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -644,7 +629,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg paramsMutationsMatchers: (T, A0, A1, T, A0, A1, Result<R>) -> Boolean,
         invariants: Array<(T, A0, A1, T, A0, A1, Result<R>) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -663,7 +648,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         method: KFunction4<T, A0, A1, A2, R>,
         vararg analysisResultsMatchers: (T, A0, A1, A2, Result<R>) -> Boolean,
         invariants: Array<(T, A0, A1, A2, Result<R>) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatchesWithExceptions(
             method,
@@ -680,7 +665,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         analysisResultsNumberMatcher: AnalysisResultsNumberMatcher,
         vararg analysisResultsMatchers: (T, A0, A1, A2, Result<R>) -> Boolean,
         invariants: Array<(T, A0, A1, A2, Result<R>) -> Boolean> = emptyArray(),
-        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
+        noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true } // TODO remove it
     ) {
         checkMatchesWithExceptions(
             method,
@@ -698,7 +683,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg analysisResultsMatchers: (T, A0, A1, A2, Result<R>) -> Boolean,
         invariants: Array<(T, A0, A1, A2, Result<R>) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -723,7 +708,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         vararg paramsMutationsMatchers: (T, A0, A1, A2, T, A0, A1, A2, Result<R>) -> Boolean,
         invariants: Array<(T, A0, A1, A2, T, A0, A1, A2, Result<R>) -> Boolean> = emptyArray(),
         noinline coverageChecker: (JcClassCoverage) -> Boolean = { _ -> true }, // TODO remove it
-        checkMode: CheckMode,
+        checkMode: CheckMode
     ) {
         internalCheck(
             target = method,
@@ -780,7 +765,6 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         val values = takeAllParametersBeforeAndAfter(method)
         values += result.getOrNull()
 
-
         return values
     }
 
@@ -798,7 +782,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
     }
 
     private fun JcParametersState.takeAllParameters(
-        method: KFunction<*>,
+        method: KFunction<*>
     ): MutableList<Any?> {
         val values = mutableListOf<Any?>()
         if (method.instanceParameter != null && method.javaConstructor == null) {
@@ -842,7 +826,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
 //        timeout = 60_000.milliseconds,
         stepsFromLastCovered = 3500L,
         solverTimeout = Duration.INFINITE, // we do not need the timeout for a solver in tests
-        typeOperationsTimeout = Duration.INFINITE, // we do not need the timeout for type operations in testsretu
+        typeOperationsTimeout = Duration.INFINITE // we do not need the timeout for type operations in testsretu
     )
 
     open fun createMachine(
@@ -857,7 +841,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         val jcMethod = cp.getJcMethodByName(method)
         val instList = jcMethod.method.instList
         val localTargets = mutableListOf<MocksTarget>()
-        for (inst in instList){
+        for (inst in instList) {
             if (inst is JcReturnInst) {
                 val newTarget = MocksTarget(inst)
                 localTargets.add(newTarget)
@@ -865,7 +849,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         }
         targets = localTargets
 
-        val jE = JcTestExecutor(classpath=cp)
+        val jE = JcTestExecutor(classpath = cp)
         createMachine(cp, options, interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
 //            val tests = states.map { jE.resolve(jcMethod, it) }
@@ -874,12 +858,12 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
             val list = mutableListOf<List<Pair<UTestInst, String>>>()
             val list2 = mutableListOf<List<Pair<UTestExpression, Pair<String, JcMethod>>>>()
             val memory = state.memory
-                for (key in mockedMethods) {
-                    val newValue = memory.read(key.key)
-                    mockedMethodsValues[key] = newValue
-                    list.add(createUTestInstructions(key, state))
+            for (key in mockedMethods) {
+                val newValue = memory.read(key.key)
+                mockedMethodsValues[key] = newValue
+                list.add(createUTestInstructions(key, state))
 //                    list2.add(cc(key, state))
-                }
+            }
             val new = createUTestMockConfigInfo(list)
 //            val new = createUTestMockConfigInfo2(list2)
             val res = renderConfigInfo(cp, dummyTest, new)
@@ -897,7 +881,7 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
 //                }
 //            val final = mutableListOf<UTestMockObject>()
 //            for ((type, classMethods) in result2) {
-////                val mockObj = UTestMockObject(type.toType())
+// //                val mockObj = UTestMockObject(type.toType())
 //                val fields = HashMap<JcField, UTestExpression>()
 //                val methods = HashMap<JcMethod, List<UTestExpression>>()
 //                for ((mockedMethod, expr) in classMethods) {
@@ -922,7 +906,8 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
 //            val jtr = JcTestsRenderer()
 //            val res = jtr.renderTests(cp, input)
 //            val w = otherTests.map { renderUTest(cp, it,) }
-            states.map { testResolver.resolve(jcMethod, it)
+            states.map {
+                testResolver.resolve(jcMethod, it)
             }
         }
     }

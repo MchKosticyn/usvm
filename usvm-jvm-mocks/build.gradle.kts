@@ -1,6 +1,13 @@
 plugins {
     id("usvm.kotlin-conventions")
+    id("org.jlleitschuh.gradle.ktlint") version "11.6.0"
+//    id("io.gitlab.arturbosch.detekt") version "1.23.1"
 }
+
+// detekt {
+//    buildUponDefaultConfig = true
+//    allRules = false
+// }
 
 dependencies {
     implementation(project(":usvm-jvm"))
@@ -52,7 +59,6 @@ dependencies {
     testImplementation(approximationsRepo, "tests", approximationsVersion)
 }
 
-
 val samplesImplementation: Configuration by configurations.getting
 
 dependencies {
@@ -77,7 +83,6 @@ dependencies {
     testSamples(samples.output)
     testSamples(project(":usvm-jvm:usvm-jvm-api"))
     testSamples("org.mockito:mockito-core:5.4.0")
-
 
     testSamplesWithApproximations(samples.output)
     testSamplesWithApproximations(project(":usvm-jvm:usvm-jvm-api"))
@@ -125,4 +130,3 @@ publishing {
         }
     }
 }
-
