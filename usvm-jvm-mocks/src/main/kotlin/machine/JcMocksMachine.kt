@@ -105,7 +105,7 @@ open class JcMocksMachine(
                 }
             }
         } finally {
-            printMockedMethodsValues()
+//            printMockedMethodsValues()
             observer.onMachineStopped()
         }
 

@@ -1,8 +1,10 @@
 package org.usvm.samples
 
 import machine.JcMocksMachine
+import machine.instructions.cc
 import machine.instructions.createUTestInstructions
 import machine.instructions.createUTestMockConfigInfo
+import machine.instructions.createUTestMockConfigInfo2
 import machine.memory.JcMockedMethodsValue
 import machine.mockedMethods
 import machine.mockedMethodsValues
@@ -10,9 +12,12 @@ import machine.render.renderConfigInfo
 //import machine.renderUTest
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcField
+import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.JcTypedMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.cfg.JcReturnInst
+import org.jacodb.api.jvm.ext.toType
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 import org.usvm.CoverageZone
@@ -33,7 +38,10 @@ import org.usvm.jvm.util.toTypedMethod
 import org.usvm.machine.JcInterpreterObserver
 import org.usvm.machine.JcMachine
 import org.usvm.test.api.UTest
+import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
+import org.usvm.test.api.UTestMock
+import org.usvm.test.api.UTestMockObject
 import org.usvm.test.util.TestRunner
 import org.usvm.test.util.checkers.AnalysisResultsNumberMatcher
 import org.usvm.test.util.checkers.ignoreNumberOfAnalysisResults
@@ -864,14 +872,48 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
             val dummyTest = (states.map { createUTest(jcMethod, it) }).last()
             val state = states.last()
             val list = mutableListOf<List<Pair<UTestInst, String>>>()
+            val list2 = mutableListOf<List<Pair<UTestExpression, Pair<String, JcMethod>>>>()
             val memory = state.memory
                 for (key in mockedMethods) {
                     val newValue = memory.read(key.key)
                     mockedMethodsValues[key] = newValue
                     list.add(createUTestInstructions(key, state))
+//                    list2.add(cc(key, state))
                 }
             val new = createUTestMockConfigInfo(list)
+//            val new = createUTestMockConfigInfo2(list2)
             val res = renderConfigInfo(cp, dummyTest, new)
+            println(res)
+//            val result =
+//                list2
+//                    .flatten()
+//                    .groupBy { (_, method) -> method.enclosingClass }
+//            val result2 =
+//                result.mapValues { (_, pairs) ->
+//                    pairs.groupBy(
+//                        keySelector = { (_, method) -> method },
+//                        valueTransform = { (expr, _) -> expr }
+//                    )
+//                }
+//            val final = mutableListOf<UTestMockObject>()
+//            for ((type, classMethods) in result2) {
+////                val mockObj = UTestMockObject(type.toType())
+//                val fields = HashMap<JcField, UTestExpression>()
+//                val methods = HashMap<JcMethod, List<UTestExpression>>()
+//                for ((mockedMethod, expr) in classMethods) {
+//                    methods[mockedMethod] = expr
+//                }
+//                val mockObj = UTestMockObject(type.toType(), fields, methods)
+//                final.add(mockObj)
+//            }
+
+//            for (key in result.keys) {
+//                UTestMockObject(
+//                    key.toType()
+//
+//                )
+//            }
+//            val lala = cc(jcMethod, state)
 //            val testsInfo = otherTests.map { JcUnsafeTestInfo(method = jcMethod.method, testFilePath = null,
 //                testClassName= null, testName=null, testPackageName=null, isExceptional=false ) }
 //            val input = otherTests.zip(testsInfo)
