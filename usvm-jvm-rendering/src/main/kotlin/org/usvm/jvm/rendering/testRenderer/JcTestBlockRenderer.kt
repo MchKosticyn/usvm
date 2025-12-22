@@ -107,12 +107,27 @@ open class JcTestBlockRenderer protected constructor(
     }
 
     fun renderInst(inst: UTestInst) = when (inst) {
-        is UTestStatement -> renderStatement(inst)
+        is UTestStatement -> {
+            val e = renderStatement(inst)
+            if (e != null ) { addExpression(e) }
+            else {
+
+            }
+        }
         is UTestExpression -> addExpression(renderExpression(inst))
     }
 
-    protected fun renderStatement(stmt: UTestStatement) {
-        when (stmt) {
+//    fun renderInstList(instList: UTestInstList) {
+//        for (expr in instList.instList) {
+//            if (expr is UTestStatement) { renderStatement(expr) }
+//            else if (expr is UTestExpression) { addExpression(renderExpression(expr))
+//            }
+//        }
+//
+//    }
+
+    protected fun renderStatement(stmt: UTestStatement): Expression? {
+        return when (stmt) {
             is UTestArraySetStatement -> renderArraySetStatement(stmt)
             is UTestBinaryConditionStatement -> renderBinaryConditionStatement(stmt)
             is UTestSetFieldStatement -> renderSetFieldStatement(stmt)
@@ -154,7 +169,46 @@ open class JcTestBlockRenderer protected constructor(
             is UTestGlobalMock -> renderGlobalMock(expr)
             is UTestMockObject -> renderMockObject(expr)
             is UTestConstExpression<*> -> renderConstExpression(expr)
-            is UTestInstList -> error("UTestInstList should not be rendered")
+            is UTestInstList -> {
+//                for (e in expr.instList) {
+//                    if (e is UTestStatement) {
+//                        val v = renderStatement(e)
+//                        if (v != null ) { return v }
+//                    }
+//                    else if (e is UTestExpression) { return renderExpression(e) }
+//                }
+//                return NullLiteralExpr()
+                fun processInst(e: UTestInst): Expression? {
+                    if (e is UTestStatement) {
+                        val v = renderStatement(e)
+                        if (v != null ) { return v }
+                    }
+                    else if (e is UTestExpression) { return renderExpression(e) }
+                    return null
+                }
+                var value: Expression = NullLiteralExpr()
+                var nonNullChange = 0
+                for (e in expr.instList.reversed()) {
+                    val processedVal = processInst(e)
+                    if (processedVal != null) {
+                        nonNullChange += 1
+                        if (nonNullChange == 1) {
+                            value = processedVal
+                            continue
+                        }
+                    }
+                }
+                for (e in expr.instList) {
+                    val processedVal = processInst(e)
+                    if (processedVal != null && processedVal != value) {
+                        addExpression(processedVal)
+
+                    }
+                }
+                return value
+
+
+            }
         }
     }
 
@@ -171,15 +225,16 @@ open class JcTestBlockRenderer protected constructor(
         is UTestStringExpression -> renderStringExpression(expr)
     }
 
-    open fun renderArraySetStatement(stmt: UTestArraySetStatement) {
-        renderArraySetStatement(
-            renderExpression(stmt.arrayInstance),
-            renderExpression(stmt.index),
-            renderExpression(stmt.setValueExpression)
-        )
+    open fun renderArraySetStatement(stmt: UTestArraySetStatement): Expression {
+        val array = renderExpression(stmt.arrayInstance)
+        val index = renderExpression(stmt.index)
+        val value = renderExpression(stmt.setValueExpression)
+        val e = renderArraySet(array, index, value)
+//        renderArraySetStatement(array, index, value)
+        return e
     }
 
-    open fun renderBinaryConditionStatement(stmt: UTestBinaryConditionStatement) {
+    open fun renderBinaryConditionStatement(stmt: UTestBinaryConditionStatement): Expression? {
         val condition = renderBinaryCondition(stmt.conditionType, stmt.lhv, stmt.rhv)
         renderIfStatement(
             condition = condition,
@@ -196,21 +251,22 @@ open class JcTestBlockRenderer protected constructor(
                 }
             }
         )
+        return null
     }
 
-    open fun renderSetFieldStatement(stmt: UTestSetFieldStatement) {
-        renderSetFieldStatement(
-            renderExpression(stmt.instance),
-            stmt.field,
-            renderExpression(stmt.value)
-        )
+    open fun renderSetFieldStatement(stmt: UTestSetFieldStatement): Expression {
+        val instance = renderExpression(stmt.instance)
+        val field = stmt.field
+        val value = renderExpression(stmt.value)
+//        renderSetFieldStatement(instance, field, value)
+        return renderSetField(instance, field, value)
     }
 
-    open fun renderSetStaticFieldStatement(stmt: UTestSetStaticFieldStatement) {
-        renderSetStaticFieldStatement(
-            stmt.field,
-            renderExpression(stmt.value)
-        )
+    open fun renderSetStaticFieldStatement(stmt: UTestSetStaticFieldStatement): Expression {
+        val field = stmt.field
+        val value = renderExpression(stmt.value)
+//        renderSetStaticFieldStatement(field, value)
+        return renderSetStaticField(field, value)
     }
 
     open fun renderArithmeticExpression(expr: UTestArithmeticExpression): Expression {
