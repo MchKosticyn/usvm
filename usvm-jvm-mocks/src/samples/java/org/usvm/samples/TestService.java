@@ -2,23 +2,27 @@ package org.usvm.samples;
 
 import org.mockito.Mockito;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 interface Service {
     String getName(int id);
     Profile getProfile(int id);
-    List<String> getTags();
+    String [] getTags();
     int getAge(int id);
 }
 
 class Profile {
     public final String name;
-    public final int age;
+    public final int ssn;
+    int  getSsn() {
+        return ssn;
+    }
 
-    public Profile(String name, int age) {
+    public Profile(String name, int ssn) {
         this.name = name;
-        this.age = age;
+        this.ssn = ssn;
     }
 }
 
@@ -26,16 +30,18 @@ public class TestService {
     public void compute(int id) {
         Service s = Mockito.mock(Service.class);
 
-        String name = s.getName(id);
+        String [] tags = s.getTags();
         Profile profile = s.getProfile(id);
-        List<String> tags = s.getTags();
+        String name = s.getName(id);
+        String name2 = s.getName(2);
         int age = s.getAge(id);
+        int ssn = profile.getSsn();
 
-        assert age > 18;
-        assert age < 45;
+        assert name2.equals("Alice");
+        String [] tags2 = {"a", "b", "c"};
+        assert Arrays.equals(tags, tags2);
+        assert age > 18 && age < 45;
+        assert ssn > 9999 && ssn < 1000000;
         assert Objects.equals(name, "Bob");
-//        assert name.length() == 3;
-        assert profile.age > 18;
-        assert tags.size() == 2;
     }
 }
