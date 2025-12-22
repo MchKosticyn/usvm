@@ -20,8 +20,9 @@ class JcMockedMethod(
     val method: String,
     val enclosingClass : String
 ) {
+    val str = enclosingClass + method
     fun print() {
-        val str = enclosingClass + method
+//        val str = enclosingClass + method
         print(str)
     }
 }
