@@ -13,7 +13,6 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.collection.field.UFieldLValue
-import org.usvm.jvm.util.typename
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
@@ -31,7 +30,7 @@ val mockedMethods: MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
 val mockedMethodsValues: MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
 val varnamesMap: MutableMap<Int, String> = HashMap()
 
-fun getLineNumber (line: String): Int {
+fun getLineNumber(line: String): Int {
     val num = line.substringAfter("(line:").substringBefore(")")
     return num.toInt()
 }
@@ -70,8 +69,7 @@ open class JcMocksInterpreter(
                         val lines = File(file).readLines()
                         val enclosingClass = if (refToMock is JcMockedMethodsReading) {
                             "mock:" + method.enclosingClass.toType().typeName + "(" + refToMock.mockedMethod.method.substringAfter("(") + "::"
-                        }
-                        else { value!! }
+                        } else { value!! }
                         val num = getLineNumber(enclosingClass)
                         updateVarName(num, lines)
                         val mockedMethod = JcMockedMethod("$methodName(line:$lineNumber)", enclosingClass)
