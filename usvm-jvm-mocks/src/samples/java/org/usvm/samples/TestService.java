@@ -16,8 +16,11 @@ interface Service {
 class Profile {
     public final String name;
     public final int ssn;
-    int  getSsn() {
+    public int  getSsn() {
         return ssn;
+    }
+    public String getName() {
+        return name;
     }
 
     public Profile(String name, int ssn) {
@@ -38,8 +41,8 @@ public class TestService {
         int ssn = profile.getSsn();
 
         assert name2.equals("Alice");
-        String [] tags2 = {"a", "b", "c"};
-        assert Arrays.equals(tags, tags2);
+        String [] tags1 = {"a", "b", "c"};
+        assert Arrays.equals(tags, tags1);
         assert age > 18 && age < 45;
         assert ssn > 9999 && ssn < 1000000;
         assert Objects.equals(name, "Bob");

@@ -22,7 +22,6 @@ class JcMockedMethod(
 ) {
     val str = enclosingClass + method
     fun print() {
-//        val str = enclosingClass + method
         print(str)
     }
 }

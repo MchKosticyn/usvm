@@ -13,12 +13,4 @@ class AdderTest : MocksTestRunner() {
             { _, _, _, r -> r.getOrNull() == null }
         )
     }
-//    @Test
-//    fun testCompute2() {
-//        checkDiscoveredPropertiesWithExceptions(
-//            TestAdder2::compute,
-//            ignoreNumberOfAnalysisResults,
-//            { _, r -> r.getOrNull() == null },
-//        )
-//    }
 }

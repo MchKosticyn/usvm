@@ -5,10 +5,9 @@ import machine.instructions.createUTestInstructions
 import machine.instructions.createUTestMockConfigInfo
 import machine.mockedMethods
 import machine.mockedMethodsValues
-import machine.render.renderConfigInfo
+import machine.render.renderMockConfigInfo
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
-import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.cfg.JcReturnInst
 import org.junit.jupiter.api.TestInstance
@@ -25,7 +24,6 @@ import org.usvm.api.targets.JcTarget
 import org.usvm.api.util.JcTestInterpreter
 import org.usvm.api.util.JcTestResolver
 import org.usvm.machine.JcInterpreterObserver
-import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.util.TestRunner
 import org.usvm.test.util.checkers.AnalysisResultsNumberMatcher
@@ -849,63 +847,20 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         }
         targets = localTargets
 
-        val jE = JcTestExecutor(classpath = cp)
         createMachine(cp, options, interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
-//            val tests = states.map { jE.resolve(jcMethod, it) }
-            val dummyTest = (states.map { createUTest(jcMethod, it) }).last()
             val state = states.last()
+            val dummyTest = createUTest(jcMethod, state)
             val list = mutableListOf<List<Pair<UTestInst, String>>>()
-            val list2 = mutableListOf<List<Pair<UTestExpression, Pair<String, JcMethod>>>>()
             val memory = state.memory
             for (key in mockedMethods) {
                 val newValue = memory.read(key.key)
                 mockedMethodsValues[key] = newValue
                 list.add(createUTestInstructions(key, state))
-//                    list2.add(cc(key, state))
             }
             val new = createUTestMockConfigInfo(list)
-//            val new = createUTestMockConfigInfo2(list2)
-            val res = renderConfigInfo(cp, dummyTest, new)
+            val res = renderMockConfigInfo(cp, dummyTest, new)
             println(res)
-//            val result =
-//                list2
-//                    .flatten()
-//                    .groupBy { (_, method) -> method.enclosingClass }
-//            val result2 =
-//                result.mapValues { (_, pairs) ->
-//                    pairs.groupBy(
-//                        keySelector = { (_, method) -> method },
-//                        valueTransform = { (expr, _) -> expr }
-//                    )
-//                }
-//            val final = mutableListOf<UTestMockObject>()
-//            for ((type, classMethods) in result2) {
-// //                val mockObj = UTestMockObject(type.toType())
-//                val fields = HashMap<JcField, UTestExpression>()
-//                val methods = HashMap<JcMethod, List<UTestExpression>>()
-//                for ((mockedMethod, expr) in classMethods) {
-//                    methods[mockedMethod] = expr
-//                }
-//                val mockObj = UTestMockObject(type.toType(), fields, methods)
-//                final.add(mockObj)
-//            }
-
-//            for (key in result.keys) {
-//                UTestMockObject(
-//                    key.toType()
-//
-//                )
-//            }
-//            val lala = cc(jcMethod, state)
-//            val testsInfo = otherTests.map { JcUnsafeTestInfo(method = jcMethod.method, testFilePath = null,
-//                testClassName= null, testName=null, testPackageName=null, isExceptional=false ) }
-//            val input = otherTests.zip(testsInfo)
-//            val jte = JcTestExecutor(classpath = cp)
-//            val i = states.map { jte.resolve(jcMethod, it) }
-//            val jtr = JcTestsRenderer()
-//            val res = jtr.renderTests(cp, input)
-//            val w = otherTests.map { renderUTest(cp, it,) }
             states.map {
                 testResolver.resolve(jcMethod, it)
             }

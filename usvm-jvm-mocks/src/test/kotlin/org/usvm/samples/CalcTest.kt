@@ -11,12 +11,6 @@ class CalcTest : MocksTestRunner() {
             TestCalc::compute,
             ignoreNumberOfAnalysisResults,
             { _, _, _, r -> r.getOrNull() == null }
-//            { _, a, _, r -> a <= 0 && r.getOrNull() == null },
         )
     }
-//    @Test
-//    fun testCalc2() {
-//        val test = createTest(TestCalc::compute)
-//        println(test)
-//    }
 }
