@@ -14,6 +14,14 @@ sealed interface UTestExpression: UTestInst {
     val type: JcType?
 }
 
+class UTestMockInst(
+    val instance: UTestExpression,
+    val method: JcMethod,
+    val args: List<UTestExpression>,
+): UTestExpression {
+    override val type: JcType? = method.enclosingClass.classpath.findTypeOrNull(method.returnType)
+}
+
 sealed class UTestMock(
     override val type: JcType,
     open val fields: Map<JcField, UTestExpression>,

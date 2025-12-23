@@ -2,45 +2,8 @@ package org.usvm.jvm.rendering.testTransformers
 
 import org.jacodb.api.jvm.JcField
 import org.jacodb.api.jvm.JcMethod
-import org.usvm.test.api.UTest
-import org.usvm.test.api.UTestAllocateMemoryCall
-import org.usvm.test.api.UTestArithmeticExpression
-import org.usvm.test.api.UTestArrayGetExpression
-import org.usvm.test.api.UTestArrayLengthExpression
-import org.usvm.test.api.UTestArraySetStatement
-import org.usvm.test.api.UTestBinaryConditionExpression
-import org.usvm.test.api.UTestBinaryConditionStatement
-import org.usvm.test.api.UTestBooleanExpression
-import org.usvm.test.api.UTestByteExpression
-import org.usvm.test.api.UTestCall
-import org.usvm.test.api.UTestCastExpression
-import org.usvm.test.api.UTestCharExpression
-import org.usvm.test.api.UTestClassExpression
-import org.usvm.test.api.UTestConstructorCall
-import org.usvm.test.api.UTestCreateArrayExpression
-import org.usvm.test.api.UTestDoubleExpression
-import org.usvm.test.api.UTestExpression
-import org.usvm.test.api.UTestFloatExpression
-import org.usvm.test.api.UTestGetFieldExpression
-import org.usvm.test.api.UTestGetStaticFieldExpression
-import org.usvm.test.api.UTestGlobalMock
-import org.usvm.test.api.UTestInst
-import org.usvm.test.api.UTestIntExpression
-import org.usvm.test.api.UTestLongExpression
-import org.usvm.test.api.UTestMethodCall
-import org.usvm.test.api.UTestMock
-import org.usvm.test.api.UTestMockObject
-import org.usvm.test.api.UTestNullExpression
-import org.usvm.test.api.UTestSetFieldStatement
-import org.usvm.test.api.UTestSetStaticFieldStatement
-import org.usvm.test.api.UTestShortExpression
-import org.usvm.test.api.UTestStatement
-import org.usvm.test.api.UTestStaticMethodCall
-import org.usvm.test.api.UTestStringExpression
+import org.usvm.test.api.*
 import java.util.IdentityHashMap
-import org.usvm.test.api.UTestAssertEqualsCall
-import org.usvm.test.api.UTestAssertThrowsCall
-import org.usvm.test.api.UTestInstList
 
 // TODO: add CompositeTransformer
 abstract class JcTestTransformer {
@@ -103,6 +66,7 @@ abstract class JcTestTransformer {
             is UTestGlobalMock -> transform(expr)
             is UTestMockObject -> transform(expr)
             is UTestInstList -> transform(expr)
+            is UTestMockInst -> transform(expr)
         }
     }
 

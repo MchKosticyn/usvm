@@ -70,6 +70,7 @@ class UTestInstSerializer(private val ctx: SerializationContext) {
             is UTestAssertEqualsCall -> TODO()
             is UTestAssertThrowsCall -> TODO()
             is UTestInstList -> TODO()
+            is UTestMockInst -> TODO()
         }
 
     }

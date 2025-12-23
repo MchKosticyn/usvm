@@ -17,6 +17,7 @@ import org.usvm.test.api.UTest
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMethodCall
+import org.usvm.test.api.UTestMockInst
 
 fun renderConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMockConfigInfo): String {
     val importManager = JcImportManager()
@@ -35,8 +36,26 @@ fun renderConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMockConf
     val printer = DefaultPrettyPrinter()
     val text = printer.print(res)
     val comments = testRenderer.renderConfigInfo()
-    return modifyText(text, comments)
+    return modifyText(text, reorder(comments))
 }
+
+fun reorder(lines: List<String>): List<String> {
+    val result = mutableListOf<String>()
+    val newlines = mutableListOf<String>()
+
+    for (line in lines) {
+        if (line == "\n") {
+            newlines.add(line)
+        } else {
+            result.add(line)
+            result.addAll(newlines)
+            newlines.clear()
+        }
+    }
+    result.addAll(newlines)
+    return result
+}
+
 
 fun modifyText(text: String, comments: List<String>): String {
     val lines = text.split("\n") as MutableList<String>
@@ -113,10 +132,10 @@ class ConfigInfoRenderer(
         val vars = getVarsNum()
         val lines = mutableListOf<String>()
         for (inst in instructions) {
-            lines.add(inst.second + "\n")
-            if (inst.first is UTestMethodCall && (inst.first as UTestMethodCall).instance in vars) {
+            if (inst.first is UTestMockInst && (inst.first as UTestMockInst).instance in vars) {
                 lines.add("\n")
             }
+            lines.add(inst.second + "\n")
         }
         return lines
     }

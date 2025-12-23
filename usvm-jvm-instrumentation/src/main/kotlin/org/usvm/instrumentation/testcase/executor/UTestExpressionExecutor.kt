@@ -93,6 +93,7 @@ class UTestExpressionExecutor(
             is UTestAssertEqualsCall -> TODO()
             is UTestAssertThrowsCall -> TODO()
             is UTestInstList -> TODO()
+            is UTestMockInst -> TODO()
         }
     }.also {
         it?.let {
