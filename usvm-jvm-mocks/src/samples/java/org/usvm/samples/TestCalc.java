@@ -17,13 +17,13 @@ class TestCalc {
 
         int sum = r1 + r2;
 
-//        if (a > 0) {
-//            int r3 = s1.g(sum);
-//            assert(r3 == sum + 10);
-//        } else {
+        if (a > 0) {
+            int r3 = s1.g(sum);
+            assert(r3 == sum + 10);
+        } else {
             int r4 = s2.g(sum);
             assert(r4 == sum - 5);
-//        }
+        }
 
         assert(sum == 12);
         assert(r1 == 5);

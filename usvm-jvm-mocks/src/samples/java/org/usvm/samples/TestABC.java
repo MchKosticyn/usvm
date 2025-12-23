@@ -18,11 +18,11 @@ public class TestABC {
         B mB = Mockito.mock(B.class);
         C mC = Mockito.mock(C.class);
 
-        int r1 = mA.foo(a);              // mock #1
-        int r2 = mA.foo(r1 + b);         // mock #2 (same mock, different args)
+        int r1 = mA.foo(a);
+        int r2 = mA.foo(r1 + b);
 
-        int r3 = mB.bar(r1, r2);         // mock #3
-        int r4 = mC.baz(r3 + c);         // mock #4
+        int r3 = mB.bar(r1, r2);
+        int r4 = mC.baz(r3 + c);
 
 
         assert(r1 == 3);
