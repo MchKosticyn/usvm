@@ -32,6 +32,27 @@ fun renderMockConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMock
     return modifyText(text, reorder(comments))
 }
 
+fun modifyText(text: String, comments: List<String>): String {
+    val lines = text.split("\n") as MutableList<String>
+    lines.removeAt(lines.lastIndex)
+    lines.removeAt(lines.lastIndex)
+    lines.removeAt(0)
+    var finalText = ""
+    var varname = ""
+    for (i in 0 until lines.size) {
+        if (comments[i] != "\n") {
+            val lineNumber = getLineNumber(comments[i])
+            varname = varnamesMap[lineNumber].toString()
+            val alteredLine = alter(lines[i], varname)
+            finalText = finalText + "// " + comments[i] + alteredLine + "\n"
+        } else {
+            val alteredLine = alter(lines[i], varname)
+            finalText = finalText + alteredLine + "\n"
+        }
+    }
+    return finalText
+}
+
 fun reorder(lines: List<String>): List<String> {
     val result = mutableListOf<String>()
     val newlines = mutableListOf<String>()
@@ -58,25 +79,4 @@ fun alter(line: String, varname: String): String {
         return res
     }
     return line.trim()
-}
-
-fun modifyText(text: String, comments: List<String>): String {
-    val lines = text.split("\n") as MutableList<String>
-    lines.removeAt(lines.lastIndex)
-    lines.removeAt(lines.lastIndex)
-    lines.removeAt(0)
-    var finalText = ""
-    var varname = ""
-    for (i in 0 until lines.size) {
-        if (comments[i] != "\n") {
-            val lineNumber = getLineNumber(comments[i])
-            varname = varnamesMap[lineNumber].toString()
-            val alteredLine = alter(lines[i], varname)
-            finalText = finalText + "//" + comments[i] + alteredLine + "\n"
-        } else {
-            val alteredLine = alter(lines[i], varname)
-            finalText = finalText + alteredLine + "\n"
-        }
-    }
-    return finalText
 }
