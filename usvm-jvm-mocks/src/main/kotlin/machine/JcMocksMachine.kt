@@ -38,6 +38,7 @@ private fun JcState.verify(): USolverResult<UModelBase<JcType>> {
     return solverResult
 }
 open class JcMocksMachine(
+    private val file: String,
     cp: JcClasspath,
     options: UMachineOptions,
     jcMachineOptions: JcMachineOptions = JcMachineOptions(),
@@ -46,6 +47,7 @@ open class JcMocksMachine(
     override val components = JcMocksComponents(typeSystem, options)
     override fun createInterpreter(): JcInterpreter {
         return JcMocksInterpreter(
+            file,
             ctx,
             applicationGraph,
             jcMachineOptions,
@@ -105,7 +107,6 @@ open class JcMocksMachine(
                     }
                 }
             } finally {
-//            printMockedMethodsValues()
                 observer.onMachineStopped()
             }
 

@@ -1,7 +1,9 @@
 package machine.render
 
 import com.github.javaparser.printer.DefaultPrettyPrinter
+import machine.getLineNumber
 import machine.instructions.UTestMockConfigInfo
+import machine.varnamesMap
 import org.jacodb.api.jvm.JcClasspath
 import org.usvm.jvm.rendering.ReflectionUtilsInlineStrategy
 import org.usvm.jvm.rendering.baseRenderer.JcIdentifiersManager
@@ -47,17 +49,33 @@ fun reorder(lines: List<String>): List<String> {
     return result
 }
 
+fun alter(line: String, varname: String): String {
+    if (line.contains("Mockito.when")) {
+        val retValue = line.substringAfter(".thenReturn")
+        val str = line.substringBefore(").thenReturn").substringAfter("Mockito.when(")
+        val method = str.substringAfter(".class")
+        val res = "Mockito.when($varname$method).thenReturn$retValue"
+        return res
+    }
+    return line.trim()
+}
+
 fun modifyText(text: String, comments: List<String>): String {
     val lines = text.split("\n") as MutableList<String>
     lines.removeAt(lines.lastIndex)
     lines.removeAt(lines.lastIndex)
     lines.removeAt(0)
     var finalText = ""
+    var varname = ""
     for (i in 0 until lines.size) {
         if (comments[i] != "\n") {
-            finalText = finalText + "//" + comments[i] + lines[i] + "\n"
+            val lineNumber = getLineNumber(comments[i])
+            varname = varnamesMap[lineNumber].toString()
+            val alteredLine = alter(lines[i], varname)
+            finalText = finalText + "//" + comments[i] + alteredLine + "\n"
         } else {
-            finalText = finalText + lines[i] + "\n"
+            val alteredLine = alter(lines[i], varname)
+            finalText = finalText + alteredLine + "\n"
         }
     }
     return finalText

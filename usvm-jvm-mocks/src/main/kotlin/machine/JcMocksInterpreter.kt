@@ -8,10 +8,12 @@ import machine.memory.JcMockedMethodsRegionId
 import machine.memory.JcMockedMethodsValue
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcStaticCallExpr
+import org.jacodb.api.jvm.ext.toType
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.collection.field.UFieldLValue
+import org.usvm.jvm.util.typename
 import org.usvm.machine.JcApplicationGraph
 import org.usvm.machine.JcConcreteMethodCallInst
 import org.usvm.machine.JcContext
@@ -22,26 +24,29 @@ import org.usvm.machine.interpreter.JcExprResolver
 import org.usvm.machine.interpreter.JcInterpreter
 import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.skipMethodInvocationWithValue
+import java.io.File
 
 val mocksMap: MutableMap<UConcreteHeapRef, String> = HashMap()
 val mockedMethods: MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
 val mockedMethodsValues: MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
+val varnamesMap: MutableMap<Int, String> = HashMap()
 
-fun printMockedMethodsValues() {
-    for (key in mockedMethodsValues.keys) {
-        key.print()
-        print(" = ")
-        print(mockedMethodsValues[key])
-        println()
-    }
+fun getLineNumber (line: String): Int {
+    val num = line.substringAfter("(line:").substringBefore(")")
+    return num.toInt()
 }
-
 open class JcMocksInterpreter(
+    val file: String,
     ctx: JcContext,
     applicationGraph: JcApplicationGraph,
     options: JcMachineOptions,
     observer: JcInterpreterObserver? = null
 ) : JcInterpreter(ctx, applicationGraph, options, observer) {
+    fun updateVarName(lineNumber: Int, lines: List<String>) {
+        val str = lines.getOrNull(lineNumber - 1) ?: throw IllegalArgumentException("no such line in file")
+        val res = str.trim().substringBefore("=").substringAfter(" ").substringBefore(" ")
+        varnamesMap[lineNumber] = res
+    }
 
     override fun callMethod(
         scope: JcStepScope,
@@ -62,7 +67,13 @@ open class JcMocksInterpreter(
                         val retType = retStmt.lhv.type
                         val newSymbolicRef: UExpr<out USort>
                         val lineNumber = retStmt.lineNumber
-                        val enclosingClass = if (refToMock is JcMockedMethodsReading) { refToMock.mockedMethod.enclosingClass } else { value!! }
+                        val lines = File(file).readLines()
+                        val enclosingClass = if (refToMock is JcMockedMethodsReading) {
+                            "mock:" + method.enclosingClass.toType().typeName + "(" + refToMock.mockedMethod.method.substringAfter("(") + "::"
+                        }
+                        else { value!! }
+                        val num = getLineNumber(enclosingClass)
+                        updateVarName(num, lines)
                         val mockedMethod = JcMockedMethod("$methodName(line:$lineNumber)", enclosingClass)
 
                         scope.doWithState {

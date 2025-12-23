@@ -828,11 +828,12 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
     )
 
     open fun createMachine(
+        file: String,
         cp: JcClasspath,
         options: UMachineOptions,
         interpreterObserver: JcInterpreterObserver?
     ): JcMocksMachine {
-        return JcMocksMachine(cp, options, interpreterObserver = interpreterObserver)
+        return JcMocksMachine(file, cp, options, interpreterObserver = interpreterObserver)
     }
 
     override val runner: (KFunction<*>, UMachineOptions) -> List<JcTest> = { method, options ->
@@ -847,7 +848,14 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
         }
         targets = localTargets
 
-        createMachine(cp, options, interpreterObserver).use { machine ->
+        val fileReference = jcMethod.method.declaration.relativePath.substringBefore("#")
+        val pathToFile = fileReference.replaceFirst(".", "/")
+            .replaceFirst(".", "/")
+            .replaceFirst(".", "/")
+        val pathToDir = System.getProperty("user.dir")
+        val file = "$pathToDir/src/samples/java/$pathToFile.java"
+
+        createMachine(file, cp, options, interpreterObserver).use { machine ->
             val states = machine.analyze(jcMethod.method, targets)
             val state = states.last()
             val dummyTest = createUTest(jcMethod, state)
