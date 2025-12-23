@@ -53,12 +53,6 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
     private var targets: List<JcTarget> = emptyList()
     private var interpreterObserver: JcInterpreterObserver? = null
 
-//    fun createTest(method: KFunction<*>): UTest {
-//        val jcMethod = cp.getJcMethodByName(method)
-//        val machine = JcMocksMachine(cp, options, interpreterObserver = interpreterObserver)
-//        return machine.createMocksTest(jcMethod)
-//    }
-
     /**
      * Sets JcTargets to run JcMachine with in the scope of [action].
      */

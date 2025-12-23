@@ -44,7 +44,7 @@ fun modifyText(text: String, comments: List<String>): String {
             val lineNumber = getLineNumber(comments[i])
             varname = varnamesMap[lineNumber].toString()
             val alteredLine = alter(lines[i], varname)
-            finalText = finalText + "// " + comments[i] + alteredLine + "\n"
+            finalText = finalText + "//" + comments[i] + alteredLine + "\n"
         } else {
             val alteredLine = alter(lines[i], varname)
             finalText = finalText + alteredLine + "\n"
