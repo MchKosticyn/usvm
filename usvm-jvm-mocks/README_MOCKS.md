@@ -23,7 +23,7 @@ Switch to dev's branch:
 ```bash
 git switch mocks2
 ```
-Cause *second time's the charm*✨ You're all set!
+Cause *second time's a charm*✨ You're all set!
 
 ## Usage
 1. Place sample `.java` files --- your tests ---  [here](./src/samples/java/org/usvm/samples/)
