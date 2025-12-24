@@ -3,8 +3,8 @@ package org.usvm.samples;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
+
 
 interface Service {
     String getName(int id);

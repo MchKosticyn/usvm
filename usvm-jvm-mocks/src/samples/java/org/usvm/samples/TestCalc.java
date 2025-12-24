@@ -3,8 +3,8 @@ package org.usvm.samples;
 import org.mockito.Mockito;
 
 interface Count {
-    int f(int x);
-    int g(int x);
+    public int f(int x);
+    public int g(int x);
 }
 
 class TestCalc {

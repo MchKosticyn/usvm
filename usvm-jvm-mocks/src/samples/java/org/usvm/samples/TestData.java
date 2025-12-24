@@ -10,10 +10,10 @@ interface Cache {
 class Data {
     public final int value;
     public final String meta;
-    int  getValue() {
+    public int  getValue() {
         return value;
     }
-    String  getMeta() {
+    public String  getMeta() {
         return meta;
     }
     public Data(int value, String meta) {
