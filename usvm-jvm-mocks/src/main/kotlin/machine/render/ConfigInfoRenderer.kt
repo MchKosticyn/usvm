@@ -12,6 +12,7 @@ import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeUtilsRenderer
 import org.usvm.test.api.UTest
+import org.usvm.test.api.UTestAllocateMemoryCall
 import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMockInst
@@ -69,6 +70,15 @@ class ConfigInfoRenderer(
             body.renderInst(inst.first)
         }
         return super.renderInternal()
+    }
+
+    fun ifThrowsInstantiationException(): Boolean {
+        for (inst in mockConfigInfo.instructions) {
+            if (inst.first is UTestMockInst && (inst.first as UTestMockInst).instance is UTestAllocateMemoryCall) {
+                return true
+            }
+        }
+        return false
     }
 
     fun renderConfigInfo(): List<String> {
