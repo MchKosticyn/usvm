@@ -12,7 +12,7 @@ import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeUtilsRenderer
 import org.usvm.test.api.UTest
 
-fun renderMockConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMockConfigInfo): String {
+fun renderMockConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMockConfigInfo): Pair<String, Boolean> {
     val importManager = JcImportManager()
     val identifiersManager = JcIdentifiersManager()
     val strategy = ReflectionUtilsInlineStrategy.NoInline()
@@ -29,7 +29,8 @@ fun renderMockConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMock
     val printer = DefaultPrettyPrinter()
     val text = printer.print(res)
     val comments = testRenderer.renderConfigInfo()
-    return modifyText(text, reorder(comments))
+    val isExceptional = testRenderer.ifThrowsInstantiationException()
+    return Pair(modifyText(text, reorder(comments)), isExceptional)
 }
 
 fun modifyText(text: String, comments: List<String>): String {

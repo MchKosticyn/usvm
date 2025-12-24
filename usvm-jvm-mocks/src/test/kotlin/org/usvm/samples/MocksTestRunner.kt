@@ -6,6 +6,7 @@ import machine.instructions.createUTestMockConfigInfo
 import machine.mockedMethods
 import machine.mockedMethodsValues
 import machine.render.renderMockConfigInfo
+import machine.render.renderTestFile
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.cfg.JcInst
@@ -853,16 +854,18 @@ open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClas
             val states = machine.analyze(jcMethod.method, targets)
             val state = states.last()
             val dummyTest = createUTest(jcMethod, state)
-            val list = mutableListOf<List<Pair<UTestInst, String>>>()
+            val testInstructions = mutableListOf<List<Pair<UTestInst, String>>>()
             val memory = state.memory
             for (key in mockedMethods) {
                 val newValue = memory.read(key.key)
                 mockedMethodsValues[key] = newValue
-                list.add(createUTestInstructions(key, state))
+                testInstructions.add(createUTestInstructions(key, state))
             }
-            val new = createUTestMockConfigInfo(list)
-            val res = renderMockConfigInfo(cp, dummyTest, new)
-            println(res)
+            val testMockConfigInfo = createUTestMockConfigInfo(testInstructions)
+            val (mockConfigInfo, ifThrows) = renderMockConfigInfo(cp, dummyTest, testMockConfigInfo)
+            val methodUnderTestName = jcMethod.name
+            val methodUnderTestRetType = jcMethod.returnType.typeName
+            renderTestFile(ifThrows, methodUnderTestName, methodUnderTestRetType, file, mockConfigInfo)
             states.map {
                 testResolver.resolve(jcMethod, it)
             }
