@@ -26,8 +26,8 @@ git switch mocks2
 Cause *second time's the charm*✨ You're all set!
 
 ## Usage
-1. Place sample `.java` files --- your tests ---  [here](./usvm-jvm-mocks/src/samples/java/org/usvm/samples/)
-2. Create corresponding test file (yes, test file for your test file) [here](./usvm-jvm-mocks/src/test/kotlin/org/usvm/samples/):
+1. Place sample `.java` files --- your tests ---  [here](./src/samples/java/org/usvm/samples/)
+2. Create corresponding test file (yes, test file for your test file) [here](./src/test/kotlin/org/usvm/samples/):
 ### Example
 ```kotlin
 package org.usvm.samples
@@ -58,7 +58,7 @@ class ExampleTest : MocksTestRunner() {
 ```bash
 ./gradlew :usvm-jvm-mocks:test
 ```
-or just a specific test if you so prefer. That's it! The result is waiting for you in the [testOutput](./usvm-jvm-mocks/src/samples/java/org/usvm/samples/testOutput) directory. Enjoy! There will be improvements so stay in touch✨
+or just a specific test if you so prefer. That's it! The result is waiting for you in the [testOutput](./src/samples/java/org/usvm/samples/testOutput) directory. Enjoy! There will be improvements so stay in touch✨
 
 ## Contacts
 [sofyak0zyreva](https://github.com/sofyak0zyreva) (tg @soffque) in case you have questions
