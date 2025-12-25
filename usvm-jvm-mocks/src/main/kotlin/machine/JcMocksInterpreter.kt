@@ -25,9 +25,21 @@ import org.usvm.machine.interpreter.JcStepScope
 import org.usvm.machine.state.skipMethodInvocationWithValue
 import java.io.File
 
+/**
+ * mocksMap tracks addresses assigned to mock objects during initialization and its metadata.
+ */
 val mocksMap: MutableMap<UConcreteHeapRef, String> = HashMap()
+/**
+ * mockedMethods simply tracks which methods were called by mock objects.
+ */
 val mockedMethods: MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
+/**
+ * mockedMethodsValues is a map that contains methods from memory and their current return values.
+ */
 val mockedMethodsValues: MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
+/**
+ * varnamesMap saves variable names and lines where they were defined.
+ */
 val varnamesMap: MutableMap<Int, String> = HashMap()
 
 /**
