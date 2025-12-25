@@ -19,11 +19,19 @@ import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMockInst
 
+/**
+ * createUTestMockConfigInfo() simply combines lists of test instructions into a single one by flattening it
+ * and creates UTestMockConfigInfo for render.
+ */
 fun createUTestMockConfigInfo(list: List<List<Pair<UTestInst, String>>>): UTestMockConfigInfo {
     val instructions = list.flatten()
     return UTestMockConfigInfo(instructions)
 }
 
+/**
+ * createUTestInstructions() takes key and state, passes information on to MemoryScope,
+ * which handles resolving values and returns UTestMockInst with additional meta info.
+ */
 fun createUTestInstructions(
     key: JcMockedMethodsValue<USort>,
     state: JcState

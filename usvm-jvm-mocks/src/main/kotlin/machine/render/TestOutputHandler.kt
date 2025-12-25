@@ -2,6 +2,9 @@ package machine.render
 
 import java.io.File
 
+/**
+ * Saves Java code as a .java file to testOutput directory.
+ */
 fun renderTestFile(ifThrows: Boolean, name: String, type: String, pathToFile: String, mockConfigInfo: String) {
     val fileLines = File(pathToFile).readLines().toMutableList()
     fileLines[0] = "package org.usvm.samples.testOutput;"
@@ -18,6 +21,9 @@ fun renderTestFile(ifThrows: Boolean, name: String, type: String, pathToFile: St
     File(newPath).writeText(fileText)
 }
 
+/**
+ * Combines configurations and initial test file, returning ready-to-use Java code for the test.
+ */
 fun renderFinalFileText(methodLineNum: Int, fileLines: List<String>, mockConfigInfo: String): String {
     var fileText = ""
     var firstLine = 0
@@ -53,6 +59,9 @@ fun renderFinalFileText(methodLineNum: Int, fileLines: List<String>, mockConfigI
     return fileText
 }
 
+/**
+ * Given a line with metadata, it parses it and finds the line, on which mock object called a certain method.
+ */
 fun getMethodLineNumber(str: String): Int {
     val commentLine = str.substringBefore("\n")
     return commentLine.substringAfterLast("(line:").substringBeforeLast(")").toInt()

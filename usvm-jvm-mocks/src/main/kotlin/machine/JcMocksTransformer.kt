@@ -27,6 +27,9 @@ import org.usvm.solver.UExprTranslator
 import org.usvm.solver.URegionDecoder
 import org.usvm.solver.USoftConstraintsProvider
 
+/**
+ * JcMocksTransformer and the following classes are helpers so that JcMockedMemory works like a proper memory region.
+ */
 interface JcMocksTransformer : JcTransformer {
     fun <Sort : USort> transform(expr: JcMockedMethodsReading<Sort>): UExpr<Sort>
 }

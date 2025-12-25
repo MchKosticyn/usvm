@@ -17,6 +17,10 @@ import org.usvm.test.api.UTestExpression
 import org.usvm.test.api.UTestInst
 import org.usvm.test.api.UTestMockInst
 
+/**
+ * ConfigInfoRenderer inherits JcUnsafeTestRenderer and handles rendering Mockito.when(..).thenReturn(..) Java code.
+ * It uses JcExprUsageVisitor for the purpose of creating a variable if some value is repeatedly used in the configuration.
+ */
 class ConfigInfoRenderer(
     private val mockConfigInfo: UTestMockConfigInfo,
     test: UTest,
@@ -64,6 +68,9 @@ class ConfigInfoRenderer(
         return shouldDeclareVar
     }
 
+    /**
+     * Renders every instruction (every mock configuration) from UTestMockInst.
+     */
     override fun renderInternal(): MethodDeclaration {
         val instructions = mockConfigInfo.instructions
         for (inst in instructions) {
@@ -72,6 +79,9 @@ class ConfigInfoRenderer(
         return super.renderInternal()
     }
 
+    /**
+     * Detects if method under test throws Exception.
+     */
     fun ifThrowsInstantiationException(): Boolean {
         for (inst in mockConfigInfo.instructions) {
             if (inst.first is UTestMockInst && (inst.first as UTestMockInst).instance is UTestAllocateMemoryCall) {
@@ -81,6 +91,9 @@ class ConfigInfoRenderer(
         return false
     }
 
+    /**
+     * Renders comments for configuration with metadata.
+     */
     fun renderConfigInfo(): List<String> {
         val instructions = mockConfigInfo.instructions
         val vars = getVarsNum()

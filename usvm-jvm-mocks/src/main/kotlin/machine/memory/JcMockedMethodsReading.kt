@@ -12,6 +12,10 @@ import org.usvm.UExpr
 import org.usvm.USort
 import org.usvm.USymbol
 
+/**
+ * JcMockedMethodsReading represents an expression that is returned by the read()
+ * if there's no required JcMockedMethodsValue.
+ */
 class JcMockedMethodsReading<Sort : USort> internal constructor(
     ctx: UContext<*>,
     val regionId: JcMockedMethodsRegionId<Sort>,

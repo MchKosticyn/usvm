@@ -47,6 +47,11 @@ import kotlin.time.Duration
 
 class MocksTarget(override val location: JcInst) : JcTarget(location)
 
+/**
+ * MocksTestRunner is responsible for symbolic execution of a method under test.
+ * It also handles reading mocked methods' values from memory, creating UTestInstructions and UTestMockConfigInfo,
+ * which is later rendered and result is saved as a .java file in testOutput directory.
+ */
 @ExtendWith(UTestRunnerController::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 open class MocksTestRunner : TestRunner<JcTest, KFunction<*>, KClass<*>?, JcClassCoverage>() {

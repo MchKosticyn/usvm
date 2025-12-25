@@ -16,31 +16,35 @@ import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.guardedWrite
 import org.usvm.sampleUValue
 
+/**
+ * JcMockedMethod represents a mocked method's metadata that is kept inside memory region.
+ */
 class JcMockedMethod(
     val method: String,
     val enclosingClass: String
 ) {
     val str = enclosingClass + method
-    fun print() {
-        print(str)
-    }
 }
 
+/**
+ * JcMockedMethodsValue contains all the information about the method that is stored in the memory region.
+ */
 data class JcMockedMethodsValue<Sort : USort>(
     val mockedMethod: JcMockedMethod,
     override val sort: Sort,
     val type: JcType,
     val method: JcMethod
 ) : ULValue<JcMockedMethodsValue<Sort>, Sort> {
-    fun print() {
-        mockedMethod.print()
-    }
+
     override val memoryRegionId: UMemoryRegionId<JcMockedMethodsValue<Sort>, Sort> = JcMockedMethodsRegionId(sort, type)
 
     override val key: JcMockedMethodsValue<Sort>
         get() = this
 }
 
+/**
+ * JcMockedMethodsRegionId allows to quickly differentiate between memory regions.
+ */
 data class JcMockedMethodsRegionId<Sort : USort>(
     override val sort: Sort,
     val type: JcType
@@ -48,11 +52,18 @@ data class JcMockedMethodsRegionId<Sort : USort>(
     override fun emptyRegion(): UMemoryRegion<JcMockedMethodsValue<Sort>, Sort> = JcMockedMethodsRegion(sort, type)
 }
 
+/**
+ * JcMockedMethodsRegion represents a slice of memory that tracks mocked methods' return values.
+ */
 open class JcMockedMethodsRegion<Sort : USort>(
     private val sort: Sort,
     private val type: JcType,
     private val mockedMethods: UPersistentHashMap<String, UPersistentHashMap<String, UExpr<Sort>>> = persistentHashMapOf()
 ) : UMemoryRegion<JcMockedMethodsValue<Sort>, Sort> {
+    /**
+     * read() allows to read JcMockedMethodsValue from memory.
+     * If there's no such JcMockedMethodsValue, it returns a new symbolic expression for it.
+     */
     override fun read(key: JcMockedMethodsValue<Sort>): UExpr<Sort> {
         val mockedMethod = key.mockedMethod
         val field = mockedMethod.method
@@ -60,6 +71,9 @@ open class JcMockedMethodsRegion<Sort : USort>(
         return ret ?: JcMockedMethodsReading(sort.jctx, key.memoryRegionId as JcMockedMethodsRegionId, mockedMethod, type, key.method, sort)
     }
 
+    /**
+     * write() allows to record a specific value. It is not used in the code but is required to be overridden.
+     */
     override fun write(
         key: JcMockedMethodsValue<Sort>,
         value: UExpr<Sort>,

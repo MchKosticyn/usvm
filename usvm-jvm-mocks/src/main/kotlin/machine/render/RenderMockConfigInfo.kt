@@ -12,6 +12,10 @@ import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeTestClassRenderer
 import org.usvm.jvm.rendering.unsafeRenderer.JcUnsafeUtilsRenderer
 import org.usvm.test.api.UTest
 
+/**
+ * renderMockConfigInfo() takes UTestMockConfigInfo, creates an instance of ConfigInfoRenderer and handles rendering,
+ * returning Java-code of configurations and an indicator whether method under test throws Instantiation Exception.
+ */
 fun renderMockConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMockConfigInfo): Pair<String, Boolean> {
     val importManager = JcImportManager()
     val identifiersManager = JcIdentifiersManager()
@@ -33,6 +37,9 @@ fun renderMockConfigInfo(cp: JcClasspath, test: UTest, mockConfigInfo: UTestMock
     return Pair(modifyText(text, reorder(comments)), isExceptional)
 }
 
+/**
+ * Here we combine mocks configuration code respectively with the comments contains metadata.
+ */
 fun modifyText(text: String, comments: List<String>): String {
     val lines = text.split("\n") as MutableList<String>
     lines.removeAt(lines.lastIndex)
@@ -54,6 +61,9 @@ fun modifyText(text: String, comments: List<String>): String {
     return finalText
 }
 
+/**
+ * This is a helper function for reordering comment lines to achieve a proper text order.
+ */
 fun reorder(lines: List<String>): List<String> {
     val result = mutableListOf<String>()
     val newlines = mutableListOf<String>()
@@ -71,6 +81,11 @@ fun reorder(lines: List<String>): List<String> {
     return result
 }
 
+/**
+ * In rendered code there's a slight problem:
+ * Mockito.when(classname.method(args) -- it should it fact be a variable name, not a classname.
+ * This function fixes the problem, given the line and the variable name.
+ */
 fun alter(line: String, varname: String): String {
     if (line.contains("Mockito.when")) {
         val retValue = line.substringAfter(".thenReturn")

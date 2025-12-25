@@ -37,6 +37,13 @@ private fun JcState.verify(): USolverResult<UModelBase<JcType>> {
 
     return solverResult
 }
+
+/**
+ * Symbolic machine responsible for handling mocked method execution.
+ *
+ * This machine extends the default USVM JVM execution model by
+ * intercepting mock initialization and method calls.
+ */
 open class JcMocksMachine(
     private val file: String,
     cp: JcClasspath,

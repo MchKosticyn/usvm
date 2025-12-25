@@ -13,6 +13,9 @@ import org.usvm.model.ULazyModelDecoder
 import org.usvm.solver.UExprTranslator
 import org.usvm.solver.USoftConstraintsProvider
 
+/**
+ * JcMocksComponents simply applies changes made for usvm-jvm-mocks memory to the execution.
+ */
 class JcMocksComponents(
     typeSystem: JcTypeSystem,
     options: UMachineOptions

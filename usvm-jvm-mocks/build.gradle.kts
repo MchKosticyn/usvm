@@ -1,6 +1,7 @@
 plugins {
     id("usvm.kotlin-conventions")
     id("org.jlleitschuh.gradle.ktlint") version "11.6.0"
+    id("org.jetbrains.dokka") version "1.9.10"
 }
 
 dependencies {

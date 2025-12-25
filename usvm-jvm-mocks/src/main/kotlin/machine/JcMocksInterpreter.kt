@@ -30,10 +30,20 @@ val mockedMethods: MutableSet<JcMockedMethodsValue<USort>> = mutableSetOf()
 val mockedMethodsValues: MutableMap<JcMockedMethodsValue<USort>, UExpr<USort>> = HashMap()
 val varnamesMap: MutableMap<Int, String> = HashMap()
 
+/**
+ * Given a line with metadata about mocked method, it returns the line where mock object that called it was initialized.
+ */
 fun getLineNumber(line: String): Int {
     val num = line.substringAfter("(line:").substringBefore(")")
     return num.toInt()
 }
+
+/**
+ * JcMocksInterpreter is responsible for handling two special cases:
+ * 1. a mock was initialized;
+ * 2. its method was called.
+ * It handles return values, reads from memory and saving results to global maps.
+ */
 open class JcMocksInterpreter(
     val file: String,
     ctx: JcContext,
