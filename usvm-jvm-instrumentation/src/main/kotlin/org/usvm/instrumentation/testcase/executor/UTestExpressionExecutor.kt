@@ -27,29 +27,7 @@ import org.usvm.jvm.util.toJavaClass
 import org.usvm.jvm.util.toJavaConstructor
 import org.usvm.jvm.util.toJavaField
 import org.usvm.jvm.util.toJavaMethod
-import org.usvm.test.api.ArithmeticOperationType
-import org.usvm.test.api.ConditionType
-import org.usvm.test.api.UTestAllocateMemoryCall
-import org.usvm.test.api.UTestArithmeticExpression
-import org.usvm.test.api.UTestArrayGetExpression
-import org.usvm.test.api.UTestArrayLengthExpression
-import org.usvm.test.api.UTestArraySetStatement
-import org.usvm.test.api.UTestBinaryConditionExpression
-import org.usvm.test.api.UTestBinaryConditionStatement
-import org.usvm.test.api.UTestCastExpression
-import org.usvm.test.api.UTestClassExpression
-import org.usvm.test.api.UTestConstExpression
-import org.usvm.test.api.UTestConstructorCall
-import org.usvm.test.api.UTestCreateArrayExpression
-import org.usvm.test.api.UTestGetFieldExpression
-import org.usvm.test.api.UTestGetStaticFieldExpression
-import org.usvm.test.api.UTestGlobalMock
-import org.usvm.test.api.UTestInst
-import org.usvm.test.api.UTestMethodCall
-import org.usvm.test.api.UTestMock
-import org.usvm.test.api.UTestSetFieldStatement
-import org.usvm.test.api.UTestSetStaticFieldStatement
-import org.usvm.test.api.UTestStaticMethodCall
+import org.usvm.test.api.*
 
 class UTestExpressionExecutor(
     private val workerClassLoader: WorkerClassLoader,
@@ -112,6 +90,10 @@ class UTestExpressionExecutor(
             is UTestSetStaticFieldStatement -> executeUTestSetStaticFieldStatement(uTestExpression)
             is UTestArithmeticExpression -> executeUTestArithmeticExpression(uTestExpression)
             is UTestClassExpression -> executeUTestClassExpression(uTestExpression)
+            is UTestAssertEqualsCall -> TODO()
+            is UTestAssertThrowsCall -> TODO()
+            is UTestInstList -> TODO()
+            is UTestMockInst -> TODO()
         }
     }.also {
         it?.let {

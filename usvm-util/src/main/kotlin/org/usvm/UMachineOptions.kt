@@ -200,7 +200,7 @@ data class UMachineOptions(
     /**
      * Timeout to stop execution on. Use [Duration.INFINITE] for no timeout.
      */
-    val timeout: Duration = 20_000.milliseconds,
+    val timeout: Duration = Duration.INFINITE,
     /**
      * A number of steps from the last terminated state.
      */

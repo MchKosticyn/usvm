@@ -1,0 +1,47 @@
+package machine.memory
+
+import io.ksmt.cache.hash
+import io.ksmt.cache.structurallyEqual
+import io.ksmt.expr.printer.ExpressionPrinter
+import io.ksmt.expr.transformer.KTransformerBase
+import machine.JcMocksTransformer
+import org.jacodb.api.jvm.JcMethod
+import org.jacodb.api.jvm.JcType
+import org.usvm.UContext
+import org.usvm.UExpr
+import org.usvm.USort
+import org.usvm.USymbol
+
+/**
+ * JcMockedMethodsReading represents an expression that is returned by the read()
+ * if there's no required JcMockedMethodsValue.
+ */
+class JcMockedMethodsReading<Sort : USort> internal constructor(
+    ctx: UContext<*>,
+    val regionId: JcMockedMethodsRegionId<Sort>,
+    val mockedMethod: JcMockedMethod,
+    val type: JcType,
+    val method: JcMethod,
+    override val sort: Sort
+) : USymbol<Sort>(ctx) {
+    override fun accept(transformer: KTransformerBase): UExpr<Sort> {
+        require(transformer is JcMocksTransformer) { "Expected a JcMocksTransformer, but got: $transformer" }
+        return transformer.transform(this)
+    }
+
+    override fun internEquals(other: Any): Boolean = structurallyEqual(
+        other,
+        { regionId },
+        { mockedMethod },
+        { sort }
+    )
+
+    override fun internHashCode(): Int = hash(regionId, mockedMethod, sort)
+
+    override fun print(printer: ExpressionPrinter) {
+        printer.append(regionId.toString())
+        printer.append("[")
+        printer.append(mockedMethod.toString())
+        printer.append("]")
+    }
+}

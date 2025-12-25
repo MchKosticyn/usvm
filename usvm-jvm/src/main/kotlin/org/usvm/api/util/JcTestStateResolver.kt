@@ -229,7 +229,7 @@ abstract class JcTestStateResolver<T>(
         val evaluatedType = typeSelector.firstOrNull(typeStream, type.jcClass)
             ?: return decoderApi.createNullConst(type)
 
-        // We check for the type stream emptiness firsly and only then for the resolved cache,
+        // We check for the type stream emptiness first and only then for the resolved cache,
         // because even if the object is already resolved, it could be incompatible with the [type], if it
         // is an element of an array of the wrong type.
 

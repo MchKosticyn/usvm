@@ -82,9 +82,9 @@ typealias JcStepScope = StepScope<JcState, JcType, JcInst, JcContext>
 /**
  * A JacoDB interpreter.
  */
-class JcInterpreter(
-    private val ctx: JcContext,
-    private val applicationGraph: JcApplicationGraph,
+open class JcInterpreter(
+    protected val ctx: JcContext,
+    protected val applicationGraph: JcApplicationGraph,
     private val options: JcMachineOptions,
     private val observer: JcInterpreterObserver? = null,
     var forkBlackList: UForkBlackList<JcState, JcInst> = UForkBlackList.createDefault(),
@@ -227,7 +227,7 @@ class JcInterpreter(
 
     private val typeSelector = JcFixedInheritorsNumberTypeSelector()
 
-    private fun callMethod(
+    protected open fun callMethod(
         scope: JcStepScope,
         stmt: JcMethodCallBaseInst,
         exprResolver: JcExprResolver
@@ -235,36 +235,6 @@ class JcInterpreter(
         val simpleValueResolver = exprResolver.simpleValueResolver
         val method = stmt.method
         when (stmt) {
-            is JcMethodEntrypointInst -> {
-                observer?.onEntryPoint(simpleValueResolver, stmt, scope)
-
-                // Run static initializer for all enum arguments of the entrypoint
-                for ((type, ref) in stmt.entrypointArguments) {
-                    exprResolver.ensureExprCorrectness(ref, type) ?: return
-                }
-
-                handleInnerClassMethodCall(
-                    scope,
-                    method.enclosingClass.toType(),
-                    method,
-                    outerClassInstanceConstructorArgument = {
-                        // Implicit first argument is `this`, an instance of the outer class would be second
-                        stmt.entrypointArguments[1].second
-                    },
-                    thisInstanceMethodArgument = {
-                        // For methods, we need to extract `this`
-                        stmt.entrypointArguments.first().second
-                    },
-                )
-
-                val entryPoint = applicationGraph.entryPoints(method).singleOrNull()
-                    ?: error("Entrypoint method $method has no entry points")
-
-                scope.doWithState {
-                    newStmt(entryPoint)
-                }
-            }
-
             is JcConcreteMethodCallInst -> {
                 observer?.onMethodCallWithResolvedArguments(simpleValueResolver, stmt, scope)
                 if (approximateMethod(scope, stmt)) {
@@ -294,6 +264,35 @@ class JcInterpreter(
 
                 scope.doWithState {
                     addNewMethodCall(stmt, entryPoint)
+                }
+            }
+            is JcMethodEntrypointInst -> {
+                observer?.onEntryPoint(simpleValueResolver, stmt, scope)
+
+                // Run static initializer for all enum arguments of the entrypoint
+                for ((type, ref) in stmt.entrypointArguments) {
+                    exprResolver.ensureExprCorrectness(ref, type) ?: return
+                }
+
+                handleInnerClassMethodCall(
+                    scope,
+                    method.enclosingClass.toType(),
+                    method,
+                    outerClassInstanceConstructorArgument = {
+                        // Implicit first argument is `this`, an instance of the outer class would be second
+                        stmt.entrypointArguments[1].second
+                    },
+                    thisInstanceMethodArgument = {
+                        // For methods, we need to extract `this`
+                        stmt.entrypointArguments.first().second
+                    },
+                )
+
+                val entryPoint = applicationGraph.entryPoints(method).singleOrNull()
+                    ?: error("Entrypoint method $method has no entry points")
+
+                scope.doWithState {
+                    newStmt(entryPoint)
                 }
             }
 

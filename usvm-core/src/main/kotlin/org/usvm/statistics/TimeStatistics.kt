@@ -3,6 +3,7 @@ package org.usvm.statistics
 import org.usvm.UState
 import org.usvm.util.RealTimeStopwatch
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Maintains information about time spent on machine processes.
@@ -16,7 +17,7 @@ class TimeStatistics<Method, State : UState<*, Method, *, *, *, State>> : UMachi
     /**
      * Total machine running time.
      */
-    val runningTime get() = stopwatch.elapsed
+    val runningTime get() = Duration.INFINITE
 
     /**
      * Returns time spent by machine on [method].

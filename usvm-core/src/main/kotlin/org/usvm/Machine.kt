@@ -27,7 +27,7 @@ abstract class UMachine<State : UState<*, *, *, *, *, State>> : AutoCloseable {
      * @param stopStrategy is called on every step, before peeking a next state from the path selector.
      * Returning `true` aborts analysis.
      */
-    protected fun run(
+    protected open fun run(
         interpreter: UInterpreter<State>,
         pathSelector: UPathSelector<State>,
         observer: UMachineObserver<State>,

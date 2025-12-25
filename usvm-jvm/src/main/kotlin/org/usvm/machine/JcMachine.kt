@@ -40,24 +40,32 @@ import org.usvm.util.originalInst
 
 val logger = object : KLogging() {}.logger
 
-class JcMachine(
+open class JcMachine(
     cp: JcClasspath,
     private val options: UMachineOptions,
-    private val jcMachineOptions: JcMachineOptions = JcMachineOptions(),
-    private val interpreterObserver: JcInterpreterObserver? = null,
+    protected val jcMachineOptions: JcMachineOptions = JcMachineOptions(),
+    protected val interpreterObserver: JcInterpreterObserver? = null,
 ) : UMachine<JcState>() {
-    private val applicationGraph = JcApplicationGraph(cp)
+    protected val applicationGraph = JcApplicationGraph(cp)
 
-    private val typeSystem = JcTypeSystem(cp, options.typeOperationsTimeout)
-    private val components = JcComponents(typeSystem, options)
-    private val ctx = JcContext(cp, components)
-
-    private val interpreter = JcInterpreter(ctx, applicationGraph, jcMachineOptions, interpreterObserver)
+    protected val typeSystem = JcTypeSystem(cp, options.typeOperationsTimeout)
+    protected open val components = JcComponents(typeSystem, options)
+    protected val ctx by lazy { createContext(cp, components) }
+    protected open fun createInterpreter(): JcInterpreter {
+        return JcInterpreter(ctx, applicationGraph, jcMachineOptions, interpreterObserver)
+    }
 
     private val cfgStatistics = CfgStatisticsImpl(applicationGraph)
+    protected open fun createContext(
+        cp: JcClasspath,
+        components: JcComponents,
+    ): JcContext {
+        return JcContext(cp, components)
+    }
 
     fun analyze(methods: List<JcMethod>, targets: List<JcTarget> = emptyList()): List<JcState> {
         logger.debug("{}.analyze({})", this, methods)
+        val interpreter = createInterpreter()
         val initialStates = mutableMapOf<JcMethod, JcState>()
         methods.forEach {
             initialStates[it] = interpreter.getInitialState(it, targets)
